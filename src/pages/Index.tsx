@@ -64,6 +64,14 @@ const Index = () => {
     }
   };
 
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      const prevIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(prevIndex);
+      setIsAnswered(selectedAnswers[prevIndex] !== null);
+    }
+  };
+
   const handleNextQuestion = () => {
     if (!quiz) return;
 
@@ -109,13 +117,25 @@ const Index = () => {
             onSelectAnswer={handleSelectAnswer}
           />
           {isAnswered && (
-            <Button
-              onClick={handleNextQuestion}
-              size="lg"
-              className="min-w-[200px] bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent text-accent-foreground font-semibold"
-            >
-              {currentQuestionIndex < quiz.questions.length - 1 ? "Next Question" : "See Results"}
-            </Button>
+            <div className="flex gap-4">
+              {currentQuestionIndex > 0 && (
+                <Button
+                  onClick={handlePreviousQuestion}
+                  size="lg"
+                  variant="outline"
+                  className="min-w-[200px]"
+                >
+                  Previous Question
+                </Button>
+              )}
+              <Button
+                onClick={handleNextQuestion}
+                size="lg"
+                className="min-w-[200px] bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent text-accent-foreground font-semibold"
+              >
+                {currentQuestionIndex < quiz.questions.length - 1 ? "Next Question" : "See Results"}
+              </Button>
+            </div>
           )}
         </div>
       )}
