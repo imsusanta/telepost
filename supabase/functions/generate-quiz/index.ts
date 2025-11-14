@@ -32,17 +32,18 @@ serve(async (req) => {
 You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON. 
 If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
 
-    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
+    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}" IN BENGALI LANGUAGE.
 
 REQUIREMENTS:
 1. Number of questions: ${questionCount}.
 2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
-3. Each question must have 3–5 options.
-4. Use zero-based indexing for the correct option: "correct_option_index".
-5. Keep each question under 120 characters.
-6. Keep each option under 80 characters.
-7. Provide a very short "explanation" for the correct answer (max 200 chars).
-8. Output MUST be ONLY the JSON object below. No other text.
+3. ALL questions, options, and explanations MUST be written in Bengali (বাংলা).
+4. Each question must have 3–5 options.
+5. Use zero-based indexing for the correct option: "correct_option_index".
+6. Keep each question under 120 characters.
+7. Keep each option under 80 characters.
+8. Provide a very short "explanation" for the correct answer in Bengali (max 200 chars).
+9. Output MUST be ONLY the JSON object below. No other text.
 
 OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
 
