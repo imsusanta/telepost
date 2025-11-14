@@ -16,6 +16,8 @@ interface TelegramQuizRequest {
       explanation?: string;
     }>;
   };
+  scheduled?: string | null;
+  instantPoll?: boolean;
 }
 
 serve(async (req) => {
@@ -24,12 +26,41 @@ serve(async (req) => {
   }
 
   try {
-    const { chatId, quiz }: TelegramQuizRequest = await req.json();
+    const { chatId, quiz, scheduled, instantPoll }: TelegramQuizRequest = await req.json();
     
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: chatId and quiz" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If scheduled, save to database and return
+    if (scheduled) {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.81.1');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { error: insertError } = await supabase
+        .from('scheduled_telegram_posts')
+        .insert({
+          chat_id: chatId,
+          quiz_data: quiz,
+          scheduled_time: scheduled,
+        });
+
+      if (insertError) {
+        throw new Error(`Failed to schedule post: ${insertError.message}`);
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Quiz scheduled successfully",
+          scheduledTime: scheduled,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -87,8 +118,8 @@ serve(async (req) => {
       
       results.push(pollData);
       
-      // Small delay between polls to avoid rate limiting
-      if (i < quiz.questions.length - 1) {
+      // Small delay between polls to avoid rate limiting (skip if instant mode)
+      if (!instantPoll && i < quiz.questions.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }

@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Send, HelpCircle } from "lucide-react";
+import { Send, HelpCircle, Calendar, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz } from "@/types/quiz";
+import { Switch } from "@/components/ui/switch";
+import { format } from "date-fns";
 
 interface TelegramShareProps {
   quiz: Quiz;
@@ -16,10 +18,18 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [chatId, setChatId] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [instantPoll, setInstantPoll] = useState(false);
 
   const handleSend = async () => {
     if (!chatId.trim()) {
       toast.error("Please enter a Chat ID");
+      return;
+    }
+
+    if (isScheduled && !scheduledTime) {
+      toast.error("Please select a scheduled time");
       return;
     }
 
@@ -32,6 +42,8 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
             topic: quiz.topic,
             questions: quiz.questions,
           },
+          scheduled: isScheduled ? scheduledTime : null,
+          instantPoll,
         },
       });
 
@@ -42,9 +54,17 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
         return;
       }
 
-      toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
+      if (isScheduled) {
+        toast.success(`Quiz scheduled for ${format(new Date(scheduledTime), "PPp")} 📅`);
+      } else {
+        toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
+      }
+      
       setIsOpen(false);
       setChatId("");
+      setScheduledTime("");
+      setIsScheduled(false);
+      setInstantPoll(false);
     } catch (error) {
       console.error("Error sending to Telegram:", error);
       toast.error("Failed to send quiz to Telegram. Please try again.");
@@ -83,6 +103,60 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
             />
           </div>
 
+          <div className="flex items-center justify-between space-x-2 rounded-lg border p-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" />
+              <div className="space-y-0.5">
+                <Label htmlFor="instant-mode" className="text-sm font-medium cursor-pointer">
+                  Instant Poll Mode
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Send all polls immediately without delays
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="instant-mode"
+              checked={instantPoll}
+              onCheckedChange={setInstantPoll}
+              disabled={isSending}
+            />
+          </div>
+
+          <div className="flex items-center justify-between space-x-2 rounded-lg border p-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              <div className="space-y-0.5">
+                <Label htmlFor="schedule-mode" className="text-sm font-medium cursor-pointer">
+                  Schedule Post
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Send quiz at a specific time
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="schedule-mode"
+              checked={isScheduled}
+              onCheckedChange={setIsScheduled}
+              disabled={isSending}
+            />
+          </div>
+
+          {isScheduled && (
+            <div className="space-y-2">
+              <Label htmlFor="scheduled-time">Scheduled Time</Label>
+              <Input
+                id="scheduled-time"
+                type="datetime-local"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                disabled={isSending}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
+          )}
+
           <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground space-y-2">
             <div className="flex items-start gap-2">
               <HelpCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -103,18 +177,27 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
 
           <Button
             onClick={handleSend}
-            disabled={!chatId.trim() || isSending}
+            disabled={!chatId.trim() || isSending || (isScheduled && !scheduledTime)}
             className="w-full"
           >
             {isSending ? (
               <>
                 <Send className="w-4 h-4 mr-2 animate-pulse" />
-                Sending Quiz...
+                {isScheduled ? "Scheduling..." : "Sending Quiz..."}
               </>
             ) : (
               <>
-                <Send className="w-4 h-4 mr-2" />
-                Send {quiz.questions.length} Polls to Telegram
+                {isScheduled ? (
+                  <>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Schedule {quiz.questions.length} Polls
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send {quiz.questions.length} Polls to Telegram
+                  </>
+                )}
               </>
             )}
           </Button>
