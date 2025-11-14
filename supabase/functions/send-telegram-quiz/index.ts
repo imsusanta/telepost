@@ -66,7 +66,7 @@ serve(async (req) => {
           type: "quiz",
           correct_option_id: question.correct_option_index,
           explanation: question.explanation || "Check the answer!",
-          is_anonymous: false,
+          is_anonymous: true,
         }),
       });
 
