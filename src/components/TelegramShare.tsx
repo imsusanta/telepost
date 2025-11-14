@@ -33,11 +33,20 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       return;
     }
 
+    // Auto-correct common chat ID format issues
+    let correctedChatId = chatId.trim();
+    
+    // If user enters a number starting with "100" (likely forgot the minus sign)
+    if (/^\d+$/.test(correctedChatId) && correctedChatId.startsWith("100")) {
+      correctedChatId = `-${correctedChatId}`;
+      toast.info(`Auto-corrected chat ID to: ${correctedChatId}`);
+    }
+
     setIsSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-telegram-quiz", {
         body: {
-          chatId: chatId.trim(),
+          chatId: correctedChatId,
           quiz: {
             topic: quiz.topic,
             questions: quiz.questions,
@@ -101,6 +110,9 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
               onChange={(e) => setChatId(e.target.value)}
               disabled={isSending}
             />
+            <p className="text-xs text-muted-foreground">
+              For channels: Use -100xxxxxxxxxx format (with minus sign)
+            </p>
           </div>
 
           <div className="flex items-center justify-between space-x-2 rounded-lg border p-3">
