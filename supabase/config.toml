@@ -1,7 +1,1 @@
-project_id = "trcqynshnbnivqmvpxza"
-
-[functions.generate-quiz]
-verify_jwt = false
-
-[functions.send-telegram-quiz]
-verify_jwt = false
+project_id = "cazrdevenbxdjussycfj"
