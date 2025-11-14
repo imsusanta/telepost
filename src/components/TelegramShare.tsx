@@ -21,6 +21,46 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
   const [instantPoll, setInstantPoll] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestConnection = async () => {
+    if (!chatId.trim()) {
+      toast.error("Please enter a Chat ID");
+      return;
+    }
+
+    let correctedChatId = chatId.trim();
+    if (/^\d+$/.test(correctedChatId) && correctedChatId.startsWith("100")) {
+      correctedChatId = `-${correctedChatId}`;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("test-telegram-connection", {
+        body: { chatId: correctedChatId },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setTestResult({ success: true, message: data.message });
+        toast.success("✓ Connection successful! Bot can access this chat.");
+      } else {
+        setTestResult({ success: false, message: data.error });
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error("Test connection error:", error);
+      const errorMsg = "Failed to test connection. Please check your bot token and chat ID.";
+      setTestResult({ success: false, message: errorMsg });
+      toast.error(errorMsg);
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!chatId.trim()) {
@@ -110,7 +150,24 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
               onChange={(e) => setChatId(e.target.value)}
               disabled={isSending}
             />
-            <p className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestConnection}
+                disabled={!chatId.trim() || isTesting || isSending}
+                className="text-xs"
+              >
+                {isTesting ? "Testing..." : "Test Connection"}
+              </Button>
+              {testResult && (
+                <span className={`text-xs ${testResult.success ? 'text-green-600' : 'text-destructive'}`}>
+                  {testResult.success ? "✓ Connected" : "✗ Failed"}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
               For channels: Use -100xxxxxxxxxx format (with minus sign)
             </p>
           </div>
