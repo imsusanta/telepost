@@ -105,7 +105,14 @@ const Index = () => {
 
       {state === "quiz" && quiz && (
         <div className="w-full flex flex-col items-center gap-6">
-          <div className="w-full max-w-3xl flex justify-end">
+          <div className="w-full max-w-3xl flex justify-between items-center">
+            <Button
+              onClick={handleNewQuiz}
+              variant="outline"
+              size="sm"
+            >
+              ← Back to Config
+            </Button>
             <TelegramShare quiz={quiz} />
           </div>
           <QuizQuestion
