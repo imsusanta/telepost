@@ -1,15 +1,18 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, RotateCcw, Home } from "lucide-react";
+import { TelegramShare } from "./TelegramShare";
+import type { Quiz } from "@/types/quiz";
 
 interface QuizResultsProps {
   score: number;
   totalQuestions: number;
+  quiz: Quiz;
   onRestart: () => void;
   onNewQuiz: () => void;
 }
 
-export const QuizResults = ({ score, totalQuestions, onRestart, onNewQuiz }: QuizResultsProps) => {
+export const QuizResults = ({ score, totalQuestions, quiz, onRestart, onNewQuiz }: QuizResultsProps) => {
   const percentage = Math.round((score / totalQuestions) * 100);
   
   const getPerformanceMessage = () => {
@@ -43,22 +46,26 @@ export const QuizResults = ({ score, totalQuestions, onRestart, onNewQuiz }: Qui
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          onClick={onRestart}
-          variant="outline"
-          className="flex-1 h-12 text-base font-semibold"
-        >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Try Again
-        </Button>
-        <Button
-          onClick={onNewQuiz}
-          className="flex-1 h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-        >
-          <Home className="w-5 h-5 mr-2" />
-          New Quiz
-        </Button>
+      <div className="space-y-3">
+        <TelegramShare quiz={quiz} />
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            onClick={onRestart}
+            variant="outline"
+            className="flex-1 h-12 text-base font-semibold"
+          >
+            <RotateCcw className="w-5 h-5 mr-2" />
+            Try Again
+          </Button>
+          <Button
+            onClick={onNewQuiz}
+            className="flex-1 h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+          >
+            <Home className="w-5 h-5 mr-2" />
+            New Quiz
+          </Button>
+        </div>
       </div>
     </Card>
   );
