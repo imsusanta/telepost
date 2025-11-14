@@ -74,6 +74,14 @@ serve(async (req) => {
       
       if (!pollResponse.ok) {
         console.error(`Failed to send poll ${i + 1}:`, pollData);
+        
+        // Provide specific error messages for common issues
+        if (pollData.error_code === 403) {
+          throw new Error(`Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and go to @${chatId.replace('@', '')}\n2. Add your bot as an Administrator\n3. Grant it 'Post Messages' permission\n4. Try again`);
+        } else if (pollData.error_code === 400 && pollData.description?.includes('chat not found')) {
+          throw new Error(`Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect. Make sure to use the correct format:\n- For channels: @channelname or -100xxxxxxxxxx\n- For groups: -xxxxxxxxx\n- For personal chats: positive number`);
+        }
+        
         throw new Error(`Failed to send poll: ${pollData.description || "Unknown error"}`);
       }
       
