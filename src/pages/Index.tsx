@@ -2,6 +2,7 @@ import { useState } from "react";
 import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
 import { QuizResults } from "@/components/QuizResults";
+import { TelegramShare } from "@/components/TelegramShare";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +97,9 @@ const Index = () => {
 
       {state === "quiz" && quiz && (
         <div className="w-full flex flex-col items-center gap-6">
+          <div className="w-full max-w-3xl flex justify-end">
+            <TelegramShare quiz={quiz} />
+          </div>
           <QuizQuestion
             question={quiz.questions[currentQuestionIndex]}
             questionNumber={currentQuestionIndex + 1}
@@ -120,6 +124,7 @@ const Index = () => {
         <QuizResults
           score={score}
           totalQuestions={quiz.questions.length}
+          quiz={quiz}
           onRestart={handleRestart}
           onNewQuiz={handleNewQuiz}
         />
