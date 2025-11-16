@@ -3,15 +3,20 @@ import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
 import { QuizResults } from "@/components/QuizResults";
 import { TelegramShare } from "@/components/TelegramShare";
+import { Navigation } from "@/components/Navigation";
+import { Hero } from "@/components/Hero";
+import { Features } from "@/components/Features";
+import { UseCases } from "@/components/UseCases";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz, QuizConfig } from "@/types/quiz";
 
-type AppState = "config" | "quiz" | "results";
+type AppState = "landing" | "config" | "quiz" | "results";
 
 const Index = () => {
-  const [state, setState] = useState<AppState>("config");
+  const [state, setState] = useState<AppState>("landing");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>([]);
@@ -94,24 +99,63 @@ const Index = () => {
 
   const handleNewQuiz = () => {
     setQuiz(null);
+    setState("landing");
+  };
+
+  const handleGetStarted = () => {
     setState("config");
   };
 
   return (
-    <div className="min-h-screen w-full bg-[var(--gradient-bg)] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white">
+      <Navigation onGetStarted={handleGetStarted} />
+      
+      {state === "landing" && (
+        <>
+          <Hero onGetStarted={handleGetStarted} />
+          
+          <section className="py-12 px-4 border-y border-white/5 bg-white/5 backdrop-blur-xl">
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                {[
+                  { value: '50K+', label: 'Quizzes Created' },
+                  { value: '10K+', label: 'Active Channels' },
+                  { value: '2M+', label: 'Participants' },
+                  { value: '4.9★', label: 'User Rating' }
+                ].map((stat, idx) => (
+                  <div key={idx} className="text-center">
+                    <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <Features />
+          <UseCases />
+          <Footer />
+        </>
+      )}
+
       {state === "config" && (
-        <QuizConfigForm onStartQuiz={handleStartQuiz} isGenerating={isGenerating} />
+        <div className="min-h-screen flex items-center justify-center p-4 pt-24">
+          <QuizConfigForm onStartQuiz={handleStartQuiz} isGenerating={isGenerating} />
+        </div>
       )}
 
       {state === "quiz" && quiz && (
-        <div className="w-full flex flex-col items-center gap-6">
+        <div className="min-h-screen flex flex-col items-center gap-6 p-4 pt-24">
           <div className="w-full max-w-3xl flex justify-between items-center">
             <Button
               onClick={handleNewQuiz}
               variant="outline"
               size="sm"
+              className="bg-white/5 border-white/10 hover:bg-white/10 text-white"
             >
-              ← Back to Config
+              ← Back to Home
             </Button>
             <TelegramShare quiz={quiz} />
           </div>
@@ -148,13 +192,15 @@ const Index = () => {
       )}
 
       {state === "results" && quiz && (
-        <QuizResults
-          score={score}
-          totalQuestions={quiz.questions.length}
-          quiz={quiz}
-          onRestart={handleRestart}
-          onNewQuiz={handleNewQuiz}
-        />
+        <div className="min-h-screen flex items-center justify-center p-4 pt-24">
+          <QuizResults
+            score={score}
+            totalQuestions={quiz.questions.length}
+            quiz={quiz}
+            onRestart={handleRestart}
+            onNewQuiz={handleNewQuiz}
+          />
+        </div>
       )}
     </div>
   );
