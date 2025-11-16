@@ -8,7 +8,9 @@ import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
 import { UseCases } from "@/components/UseCases";
 import { Footer } from "@/components/Footer";
+import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz, QuizConfig } from "@/types/quiz";
@@ -38,12 +40,7 @@ const Index = () => {
         return;
       }
 
-      setQuiz(data);
-      setSelectedAnswers(new Array(data.questions.length).fill(null));
-      setCurrentQuestionIndex(0);
-      setScore(0);
-      setIsAnswered(false);
-      setState("quiz");
+      handleQuizCreated(data);
       toast.success("Quiz generated successfully!");
     } catch (error) {
       console.error("Error generating quiz:", error);
@@ -51,6 +48,15 @@ const Index = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleQuizCreated = (createdQuiz: Quiz) => {
+    setQuiz(createdQuiz);
+    setSelectedAnswers(new Array(createdQuiz.questions.length).fill(null));
+    setCurrentQuestionIndex(0);
+    setScore(0);
+    setIsAnswered(false);
+    setState("quiz");
   };
 
   const handleSelectAnswer = (answerIndex: number) => {
@@ -141,8 +147,29 @@ const Index = () => {
       )}
 
       {state === "config" && (
-        <div className="min-h-screen flex items-center justify-center p-4 pt-24">
-          <QuizConfigForm onStartQuiz={handleStartQuiz} isGenerating={isGenerating} />
+        <div className="min-h-screen pt-24 pb-12 px-4">
+          <div className="max-w-4xl mx-auto">
+            <Tabs defaultValue="ai" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-8">
+                <TabsTrigger value="ai">AI Generated</TabsTrigger>
+                <TabsTrigger value="manual">Manual Input</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="ai">
+                <QuizConfigForm
+                  onStartQuiz={handleStartQuiz}
+                  isGenerating={isGenerating}
+                />
+              </TabsContent>
+              
+              <TabsContent value="manual">
+                <ManualQuizInput
+                  onQuizCreated={handleQuizCreated}
+                  isGenerating={isGenerating}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       )}
 
