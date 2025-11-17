@@ -22,4 +22,5 @@ export interface QuizConfig {
   topic: string;
   questionCount: number;
   difficulty: 'easy' | 'medium' | 'hard';
+  systemPrompt?: string;
 }

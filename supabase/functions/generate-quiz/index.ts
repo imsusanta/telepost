@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, questionCount, difficulty } = await req.json();
+    const { topic, questionCount, difficulty, systemPrompt } = await req.json();
     
     if (!topic || !questionCount || !difficulty) {
       return new Response(
@@ -28,9 +28,12 @@ serve(async (req) => {
     const requestId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const systemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested. 
+    const baseSystemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested. 
 You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON. 
 If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
+
+    const customInstructions = systemPrompt ? `\n\nADDITIONAL CUSTOM INSTRUCTIONS:\n${systemPrompt}` : "";
+    const finalSystemPrompt = baseSystemPrompt + customInstructions;
 
     const userPrompt = `Create a multiple-choice quiz for the topic "${topic}" IN BENGALI LANGUAGE.
 
@@ -81,7 +84,7 @@ ADDITIONAL RULES:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: finalSystemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,

@@ -16,6 +16,7 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [systemPrompt, setSystemPrompt] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +25,7 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
         topic: topic.trim(),
         questionCount: parseInt(questionCount),
         difficulty,
+        systemPrompt: systemPrompt.trim() || undefined,
       });
     }
   };
@@ -50,6 +52,19 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
             onChange={(e) => setTopic(e.target.value)}
             required
             className="h-12"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="systemPrompt" className="text-sm font-medium">
+            Custom Instructions (Optional)
+          </Label>
+          <textarea
+            id="systemPrompt"
+            placeholder="Add custom instructions for quiz generation... e.g., Focus on practical examples, Include real-world scenarios, Make it beginner-friendly, etc."
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            className="w-full h-24 px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
