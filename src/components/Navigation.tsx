@@ -25,12 +25,12 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
             <a href="#use-cases" className="text-gray-300 hover:text-white transition-colors">Use Cases</a>
-            <Button
-              onClick={onGetStarted}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-lg font-medium hover:shadow-lg hover:shadow-blue-500/50 transition-all"
-            >
-              Get Started
-            </Button>
+            <a href="/auth" className="px-4 py-2 text-gray-300 hover:text-white transition-colors">
+              Sign In
+            </a>
+            <a href="/auth" className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-lg font-medium hover:shadow-lg hover:shadow-blue-500/50 transition-all">
+              Try Free
+            </a>
           </div>
 
           <button 
@@ -47,12 +47,12 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
           <div className="px-4 py-4 space-y-3">
             <a href="#features" className="block text-gray-300 hover:text-white transition-colors">Features</a>
             <a href="#use-cases" className="block text-gray-300 hover:text-white transition-colors">Use Cases</a>
-            <Button
-              onClick={onGetStarted}
-              className="w-full px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-medium"
-            >
-              Get Started
-            </Button>
+            <a href="/auth" className="w-full px-4 py-2 text-left text-gray-300 hover:text-white transition-colors block">
+              Sign In
+            </a>
+            <a href="/auth" className="w-full px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-medium block text-center">
+              Try Free
+            </a>
           </div>
         </div>
       )}
