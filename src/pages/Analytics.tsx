@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { AnalyticsService, AnalyticsDashboardData } from "@/services/analyticsService";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Users, FileText, Award, RefreshCw, Download, BarChart3 } from "lucide-react";
+import { TrendingUp, FileText, Award, RefreshCw, Download, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -17,34 +17,34 @@ export default function Analytics() {
   const [dateRange, setDateRange] = useState<string>("30");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [dateRange]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Calculate date range
       const end = new Date();
       const start = new Date();
       start.setDate(start.getDate() - parseInt(dateRange));
 
       const analyticsData = await AnalyticsService.getDashboardData(user.id, { start, end });
       setData(analyticsData);
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load analytics";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange, toast]);
 
-  const handleRefresh = async () => {
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await loadAnalytics();
     setIsRefreshing(false);
@@ -52,16 +52,14 @@ export default function Analytics() {
       title: "Refreshed",
       description: "Analytics data updated",
     });
-  };
+  }, [loadAnalytics, toast]);
 
-  const handleExport = async (format: "csv" | "json") => {
+  const handleExport = useCallback(async (format: "csv" | "json") => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const exportData = await AnalyticsService.exportData(user.id, format);
-
-      // Create download
       const blob = new Blob([exportData], { type: format === "json" ? "application/json" : "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -76,14 +74,15 @@ export default function Analytics() {
         title: "Export Complete",
         description: `Analytics exported as ${format.toUpperCase()}`,
       });
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Export failed";
       toast({
         title: "Export Failed",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
@@ -302,7 +301,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data.topTopics.map((topic: any, index) => (
+                {data.topTopics.map((topic, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <span className="font-medium">{topic.topic}</span>
                     <div className="flex items-center gap-2">
@@ -310,7 +309,7 @@ export default function Analytics() {
                         <div
                           className="bg-primary h-2 rounded-full"
                           style={{
-                            width: `${(topic.count / data.topTopics[0].count) * 100}%`,
+                            width: `${data.topTopics[0]?.count ? (topic.count / data.topTopics[0].count) * 100 : 0}%`,
                           }}
                         />
                       </div>

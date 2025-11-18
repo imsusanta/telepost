@@ -110,7 +110,7 @@ export function useQuizGeneration() {
       const generatedQuiz = await QuizService.generateQuiz({
         ...config,
         userId: user.id,
-      } as any);
+      });
 
       setQuiz(generatedQuiz);
       setGenerationCount((prev) => prev + 1);
@@ -124,14 +124,15 @@ export function useQuizGeneration() {
         description: `Successfully generated ${generatedQuiz.questions.length} questions${knowledgeBaseNote}`,
       });
       return generatedQuiz;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate quiz";
       // Only show toast if not already shown
-      if (!error.message?.includes("Rate limited") &&
-          !error.message?.includes("Already generating") &&
-          !error.message?.includes("Limit Reached")) {
+      if (!message.includes("Rate limited") &&
+          !message.includes("Already generating") &&
+          !message.includes("limit")) {
         toast({
           title: "Generation Failed",
-          description: error.message || "Failed to generate quiz",
+          description: message,
           variant: "destructive",
         });
       }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { QuizConfigForm } from "@/components/QuizConfig";
@@ -49,14 +49,91 @@ export default function CreateQuizPage() {
   });
   const [stats, setStats] = useState<any>(null);
 
-  // Load initial data
+  // Data loading functions
+  const loadChannels = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userChannels = await ChannelService.getUserChannels(user.id);
+      setChannels(userChannels);
+    } catch {
+      // Silently fail for channels list
+    }
+  }, []);
+
+  const loadDocuments = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
+      setDocuments(docs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load documents";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [selectedChannel, toast]);
+
+  const loadStorageInfo = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
+      if (canUpload.limit && canUpload.current !== undefined) {
+        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
+      }
+    } catch {
+      // Silently fail for storage info
+    }
+  }, []);
+
+  const loadQuestions = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const data = await QuestionBankService.getQuestions(user.id, filters, 100);
+      setQuestions(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load questions";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, [filters, toast]);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const statistics = await QuestionBankService.getStatistics(user.id);
+      setStats(statistics);
+    } catch {
+      // Silently fail for stats
+    }
+  }, []);
+
+  // Effects for loading data
   useEffect(() => {
     loadChannels();
     loadDocuments();
     loadStorageInfo();
     loadQuestions();
     loadStats();
-  }, []);
+  }, [loadChannels, loadDocuments, loadStorageInfo, loadQuestions, loadStats]);
 
   useEffect(() => {
     const channelFromUrl = searchParams.get("channel");
@@ -67,57 +144,12 @@ export default function CreateQuizPage() {
 
   useEffect(() => {
     loadDocuments();
-  }, [selectedChannel]);
+  }, [loadDocuments]);
 
   useEffect(() => {
     loadQuestions();
     loadStats();
-  }, [filters]);
-
-  // Documents functions
-  const loadChannels = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const userChannels = await ChannelService.getUserChannels(user.id);
-      setChannels(userChannels);
-    } catch (error: any) {
-      console.error("Failed to load channels:", error);
-    }
-  };
-
-  const loadDocuments = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
-      setDocuments(docs);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
-
-  const loadStorageInfo = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
-      if (canUpload.limit && canUpload.current !== undefined) {
-        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
-      }
-    } catch (error) {
-      console.error("Failed to load storage info:", error);
-    }
-  };
+  }, [loadQuestions, loadStats]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -211,40 +243,9 @@ export default function CreateQuizPage() {
     });
   };
 
-  // Question Bank functions
-  const loadQuestions = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const data = await QuestionBankService.getQuestions(user.id, filters, 100);
-      setQuestions(data);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setQuestionsLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const statistics = await QuestionBankService.getStatistics(user.id);
-      setStats(statistics);
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-    }
-  };
-
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters({ ...filters, [key]: value || undefined });
-  };
+  const handleFilterChange = useCallback((key: string, value: string | null) => {
+    setFilters(prev => ({ ...prev, [key]: value || undefined }));
+  }, []);
 
   const handleQuestionsRefresh = async () => {
     setIsQuestionsRefreshing(true);
@@ -283,27 +284,27 @@ export default function CreateQuizPage() {
   };
 
   // Quiz functions
-  const handleStartQuiz = async (config: QuizConfigType) => {
+  const handleStartQuiz = useCallback(async (config: QuizConfigType) => {
     await generateQuiz(config);
-  };
+  }, [generateQuiz]);
 
-  const handleQuizCreated = (createdQuiz: any) => {
+  const handleQuizCreated = useCallback((createdQuiz: Parameters<typeof setQuiz>[0]) => {
     setQuiz(createdQuiz);
-  };
+  }, [setQuiz]);
 
-  // Filtered data
-  const filteredDocuments = documents.filter(doc =>
+  // Memoized filtered data
+  const filteredDocuments = useMemo(() => documents.filter(doc =>
     documentSearchQuery === "" ||
     (doc.title || doc.file_name).toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
     doc.ai_summary?.toLowerCase().includes(documentSearchQuery.toLowerCase())
-  );
+  ), [documents, documentSearchQuery]);
 
-  const filteredQuestions = questions.filter(q =>
+  const filteredQuestions = useMemo(() => questions.filter(q =>
     questionSearchQuery === "" ||
     q.question.toLowerCase().includes(questionSearchQuery.toLowerCase()) ||
     q.topic.toLowerCase().includes(questionSearchQuery.toLowerCase()) ||
     q.options.some(opt => opt.toLowerCase().includes(questionSearchQuery.toLowerCase()))
-  );
+  ), [questions, questionSearchQuery]);
 
   if (isGenerating) {
     return (
