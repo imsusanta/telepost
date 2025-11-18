@@ -1,24 +1,20 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { QuizConfigForm } from "@/components/QuizConfig";
-import { QuizQuestion } from "@/components/QuizQuestion";
-import { QuizResults } from "@/components/QuizResults";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { TelegramShare } from "@/components/TelegramShare";
+import { QuizOverview } from "@/components/QuizOverview";
 import { Quiz, QuizConfig as QuizConfigType } from "@/types/quiz";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreateQuizPage() {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [state, setState] = useState<"config" | "quiz" | "results">("config");
+  const [state, setState] = useState<"config" | "overview">("config");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ [key: number]: number }>({});
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleStartQuiz = async (config: QuizConfigType) => {
@@ -32,9 +28,7 @@ export default function CreateQuizPage() {
 
       const generatedQuiz: Quiz = data;
       setQuiz(generatedQuiz);
-      setState("quiz");
-      setCurrentQuestionIndex(0);
-      setAnswers({});
+      setState("overview");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -48,47 +42,12 @@ export default function CreateQuizPage() {
 
   const handleQuizCreated = (createdQuiz: Quiz) => {
     setQuiz(createdQuiz);
-    setState("quiz");
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-  };
-
-  const handleSelectAnswer = (answerIndex: number) => {
-    setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: answerIndex }));
-
-    if (quiz && currentQuestionIndex < quiz.questions.length - 1) {
-      setTimeout(() => {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-      }, 500);
-    } else {
-      setTimeout(() => {
-        setState("results");
-      }, 500);
-    }
-  };
-
-  const handleRestart = () => {
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setState("quiz");
+    setState("overview");
   };
 
   const handleNewQuiz = () => {
     setState("config");
     setQuiz(null);
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-  };
-
-  const calculateScore = () => {
-    if (!quiz) return 0;
-    let score = 0;
-    quiz.questions.forEach((q, i) => {
-      if (answers[i] === q.correct_option_index) {
-        score++;
-      }
-    });
-    return score;
   };
 
   return (
@@ -118,37 +77,21 @@ export default function CreateQuizPage() {
           </div>
         )}
 
-        {state === "quiz" && quiz && (
+        {state === "overview" && quiz && (
           <div className="space-y-6">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                onClick={handleNewQuiz}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Create New Quiz
+              </Button>
               <TelegramShare quiz={quiz} />
             </div>
-            <QuizQuestion
-              question={quiz.questions[currentQuestionIndex]}
-              questionNumber={currentQuestionIndex + 1}
-              totalQuestions={quiz.questions.length}
-              selectedAnswer={answers[currentQuestionIndex] ?? null}
-              isAnswered={answers[currentQuestionIndex] !== undefined}
-              onSelectAnswer={handleSelectAnswer}
-            />
-            {answers[currentQuestionIndex] !== undefined && currentQuestionIndex < quiz.questions.length - 1 && (
-              <div className="text-center">
-                <Button onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}>
-                  Next Question
-                </Button>
-              </div>
-            )}
+            <QuizOverview quiz={quiz} />
           </div>
-        )}
-
-        {state === "results" && quiz && (
-          <QuizResults
-            score={calculateScore()}
-            totalQuestions={quiz.questions.length}
-            quiz={quiz}
-            onRestart={handleRestart}
-            onNewQuiz={handleNewQuiz}
-          />
         )}
       </div>
     </DashboardLayout>

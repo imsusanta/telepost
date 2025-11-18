@@ -16,7 +16,7 @@ interface TelegramQuizRequest {
       explanation?: string;
     }>;
   };
-  scheduled?: string | null;
+  scheduleInterval?: number | null;
   instantPoll?: boolean;
 }
 
@@ -26,7 +26,7 @@ serve(async (req) => {
   }
 
   try {
-    const { chatId, quiz, scheduled, instantPoll }: TelegramQuizRequest = await req.json();
+    const { chatId, quiz, scheduleInterval, instantPoll }: TelegramQuizRequest = await req.json();
     
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
@@ -35,30 +35,42 @@ serve(async (req) => {
       );
     }
 
-    // If scheduled, save to database and return
-    if (scheduled) {
+    // If scheduleInterval is provided, create recurring scheduled posts
+    if (scheduleInterval) {
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.81.1');
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
+      const now = new Date();
+      const scheduledPosts = [];
+
+      // Create a scheduled post for each question at the specified interval
+      for (let i = 0; i < quiz.questions.length; i++) {
+        const scheduledTime = new Date(now.getTime() + (i * scheduleInterval * 60 * 1000));
+        scheduledPosts.push({
+          chat_id: chatId,
+          quiz_data: {
+            topic: quiz.topic,
+            questions: [quiz.questions[i]], // Each post contains one question
+          },
+          scheduled_time: scheduledTime.toISOString(),
+        });
+      }
+
       const { error: insertError } = await supabase
         .from('scheduled_telegram_posts')
-        .insert({
-          chat_id: chatId,
-          quiz_data: quiz,
-          scheduled_time: scheduled,
-        });
+        .insert(scheduledPosts);
 
       if (insertError) {
-        throw new Error(`Failed to schedule post: ${insertError.message}`);
+        throw new Error(`Failed to schedule posts: ${insertError.message}`);
       }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Quiz scheduled successfully",
-          scheduledTime: scheduled,
+          message: `Scheduled ${quiz.questions.length} quiz questions to post every ${scheduleInterval} minute(s)`,
+          scheduledCount: quiz.questions.length,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

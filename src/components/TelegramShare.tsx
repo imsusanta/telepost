@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz } from "@/types/quiz";
 import { Switch } from "@/components/ui/switch";
-import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TelegramShareProps {
   quiz: Quiz;
@@ -19,7 +19,7 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
-  const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduleInterval, setScheduleInterval] = useState<string>("5");
   const [instantPoll, setInstantPoll] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -68,8 +68,8 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       return;
     }
 
-    if (isScheduled && !scheduledTime) {
-      toast.error("Please select a scheduled time");
+    if (isScheduled && !scheduleInterval) {
+      toast.error("Please select a schedule interval");
       return;
     }
 
@@ -91,7 +91,7 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
             topic: quiz.topic,
             questions: quiz.questions,
           },
-          scheduled: isScheduled ? scheduledTime : null,
+          scheduleInterval: isScheduled ? parseInt(scheduleInterval) : null,
           instantPoll,
         },
       });
@@ -104,14 +104,14 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       }
 
       if (isScheduled) {
-        toast.success(`Quiz scheduled for ${format(new Date(scheduledTime), "PPp")} 📅`);
+        toast.success(`Quiz scheduled to post every ${scheduleInterval} minute(s) 📅`);
       } else {
         toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
       }
       
       setIsOpen(false);
       setChatId("");
-      setScheduledTime("");
+      setScheduleInterval("5");
       setIsScheduled(false);
       setInstantPoll(false);
     } catch (error) {
@@ -197,10 +197,10 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
               <Calendar className="w-4 h-4 text-primary" />
               <div className="space-y-0.5">
                 <Label htmlFor="schedule-mode" className="text-sm font-medium cursor-pointer">
-                  Schedule Post
+                  Schedule Recurring Posts
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Send quiz at a specific time
+                  Post quiz questions at regular intervals
                 </p>
               </div>
             </div>
@@ -214,15 +214,24 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
 
           {isScheduled && (
             <div className="space-y-2">
-              <Label htmlFor="scheduled-time">Scheduled Time</Label>
-              <Input
-                id="scheduled-time"
-                type="datetime-local"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                disabled={isSending}
-                min={new Date().toISOString().slice(0, 16)}
-              />
+              <Label htmlFor="schedule-interval">Post Interval (minutes)</Label>
+              <Select value={scheduleInterval} onValueChange={setScheduleInterval}>
+                <SelectTrigger id="schedule-interval" disabled={isSending}>
+                  <SelectValue placeholder="Select interval" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Every 1 minute</SelectItem>
+                  <SelectItem value="2">Every 2 minutes</SelectItem>
+                  <SelectItem value="5">Every 5 minutes</SelectItem>
+                  <SelectItem value="10">Every 10 minutes</SelectItem>
+                  <SelectItem value="15">Every 15 minutes</SelectItem>
+                  <SelectItem value="20">Every 20 minutes</SelectItem>
+                  <SelectItem value="30">Every 30 minutes</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Quiz questions will be posted at this interval
+              </p>
             </div>
           )}
 
@@ -246,7 +255,7 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
 
           <Button
             onClick={handleSend}
-            disabled={!chatId.trim() || isSending || (isScheduled && !scheduledTime)}
+            disabled={!chatId.trim() || isSending || (isScheduled && !scheduleInterval)}
             className="w-full"
           >
             {isSending ? (
