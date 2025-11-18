@@ -7,7 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, CheckCircle2, XCircle } from "lucide-react";
+import { Sparkles, CheckCircle2, XCircle, Shield } from "lucide-react";
+import {
+  validatePassword as validatePasswordSecurity,
+  isValidEmail,
+  sanitizeInput,
+  checkRateLimit
+} from "@/utils/security";
+import { AdminService } from "@/services/adminService";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -20,12 +27,11 @@ export default function Auth() {
   const [passwordError, setPasswordError] = useState("");
 
   const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
       setEmailError("Email is required");
       return false;
     }
-    if (!emailRegex.test(email)) {
+    if (!isValidEmail(email)) {
       setEmailError("Please enter a valid email address");
       return false;
     }
@@ -33,27 +39,26 @@ export default function Auth() {
     return true;
   };
 
-  const validatePassword = (password: string): boolean => {
+  const validatePassword = (password: string, isSignup: boolean = false): boolean => {
     if (!password) {
       setPasswordError("Password is required");
       return false;
     }
-    if (password.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
-      return false;
+
+    if (isSignup) {
+      const validation = validatePasswordSecurity(password);
+      if (!validation.isValid) {
+        setPasswordError(validation.errors[0]);
+        return false;
+      }
+    } else {
+      // For signin, just check it's not empty
+      if (password.length < 1) {
+        setPasswordError("Password is required");
+        return false;
+      }
     }
-    if (!/(?=.*[a-z])/.test(password)) {
-      setPasswordError("Password must contain at least one lowercase letter");
-      return false;
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
-      setPasswordError("Password must contain at least one uppercase letter");
-      return false;
-    }
-    if (!/(?=.*\d)/.test(password)) {
-      setPasswordError("Password must contain at least one number");
-      return false;
-    }
+
     setPasswordError("");
     return true;
   };
@@ -97,14 +102,27 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Rate limiting for signup
+    const rateLimit = checkRateLimit('signup', 3, 60 * 60 * 1000); // 3 attempts per hour
+    if (!rateLimit.allowed) {
+      const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
+      toast({
+        title: "Too Many Attempts",
+        description: `Please wait ${resetMinutes} minutes before trying again.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const isEmailValid = validateEmail(email);
-    const isPasswordValid = validatePassword(password);
+    const isPasswordValid = validatePassword(password, true);
 
     if (!isEmailValid || !isPasswordValid) {
       return;
     }
 
-    if (!fullName.trim()) {
+    const sanitizedFullName = sanitizeInput(fullName.trim());
+    if (!sanitizedFullName) {
       toast({
         title: "Error",
         description: "Please enter your full name",
@@ -117,12 +135,12 @@ export default function Auth() {
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
+        email: email.toLowerCase().trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            full_name: fullName,
+            full_name: sanitizedFullName,
           },
         },
       });
@@ -133,6 +151,11 @@ export default function Auth() {
         title: "Success!",
         description: "Account created successfully. You can now sign in.",
       });
+
+      // Clear form
+      setEmail("");
+      setPassword("");
+      setFullName("");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to create account";
       toast({
@@ -148,6 +171,26 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Rate limiting for login attempts (5 attempts per 15 minutes)
+    const rateLimit = checkRateLimit('login', 5, 15 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
+      toast({
+        title: "Too Many Login Attempts",
+        description: `Account temporarily locked. Please wait ${resetMinutes} minutes before trying again.`,
+        variant: "destructive",
+      });
+
+      // Log suspicious activity
+      AdminService.createSecurityAlert(
+        'excessive_login_attempts',
+        'medium',
+        { email: email.substring(0, 3) + '***', remainingTime: resetMinutes }
+      );
+
+      return;
+    }
+
     const isEmailValid = validateEmail(email);
     if (!isEmailValid || !password) {
       if (!password) {
@@ -160,11 +203,28 @@ export default function Auth() {
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.toLowerCase().trim(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log failed login attempt
+        AdminService.logActivity('failed_login', undefined, {
+          email: email.substring(0, 3) + '***',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        throw error;
+      }
+
+      // Clear rate limit on successful login
+      localStorage.removeItem('ratelimit_login');
+
+      // Log successful login
+      AdminService.logActivity('successful_login', undefined, {
+        email: email.substring(0, 3) + '***',
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
       toast({
@@ -312,7 +372,7 @@ export default function Auth() {
                         setPassword(e.target.value);
                         setPasswordError("");
                       }}
-                      onBlur={() => validatePassword(password)}
+                      onBlur={() => validatePassword(password, true)}
                       required
                       minLength={8}
                       aria-invalid={!!passwordError}
@@ -331,9 +391,10 @@ export default function Auth() {
                         Password strength: {passwordStrength.strength}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      Must be 8+ characters with uppercase, lowercase, and numbers
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Shield className="w-3 h-3" />
+                      <span>Must be 8+ characters with uppercase, lowercase, numbers, and special characters</span>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
                     {loading ? "Creating account..." : "Sign Up"}

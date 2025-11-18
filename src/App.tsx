@@ -20,7 +20,7 @@ import Leaderboards from "./pages/Leaderboards";
 import Support from "./pages/Support";
 import Channels from "./pages/Channels";
 import UserManagement from "./pages/UserManagement";
-import SuperAdmin from "./pages/SuperAdmin";
+import SuperAdmin from "./pages/admin/SuperAdmin";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient({
