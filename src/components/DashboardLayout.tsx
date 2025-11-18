@@ -1,17 +1,20 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Sparkles, 
-  Send, 
-  Calendar, 
-  CreditCard, 
-  Settings, 
+import {
+  Sparkles,
+  Send,
+  Calendar,
+  CreditCard,
+  Settings,
   LogOut,
-  LayoutDashboard 
+  LayoutDashboard,
+  Menu,
+  X
 } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -21,6 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -30,10 +34,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to sign out";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -48,54 +53,96 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
+  const SidebarContent = () => (
+    <>
+      <div className="flex items-center space-x-3 mb-10">
+        <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay">
+          <Sparkles className="w-7 h-7 text-primary-foreground" />
+        </div>
+        <span className="text-2xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
+          QuizGenie
+        </span>
+      </div>
+
+      <nav className="space-y-2 flex-1">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${
+                isActive
+                  ? "clay-button bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-clay-hover scale-105"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent clay-card font-medium"
+              }`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto pt-6">
+        <Button
+          onClick={handleSignOut}
+          variant="ghost"
+          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground clay-card-hover rounded-2xl py-6"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          Sign Out
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen relative">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-72 bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border p-6 shadow-clay-lg z-50">
-        <div className="flex items-center space-x-3 mb-10">
-          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay">
-            <Sparkles className="w-7 h-7 text-primary-foreground" />
+      {/* Mobile Header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-sidebar/95 backdrop-blur-xl border-b border-sidebar-border px-4 flex items-center justify-between z-50">
+        <div className="flex items-center space-x-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-clay">
+            <Sparkles className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
+          <span className="text-xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
             QuizGenie
           </span>
         </div>
 
-        <nav className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${
-                  isActive
-                    ? "clay-button bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-clay-hover scale-105"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent clay-card font-medium"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-6 bg-sidebar/95 backdrop-blur-xl border-sidebar-border">
+            <div className="flex flex-col h-full">
+              <SidebarContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </header>
 
-        <div className="absolute bottom-6 left-6 right-6">
-          <Button
-            onClick={handleSignOut}
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground clay-card-hover rounded-2xl py-6"
-          >
-            <LogOut className="w-5 h-5 mr-3" />
-            Sign Out
-          </Button>
-        </div>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-72 bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border p-6 shadow-clay-lg z-40 flex-col">
+        <SidebarContent />
       </aside>
 
       {/* Main Content */}
-      <main className="ml-72 p-8 min-h-screen">
+      <main className="md:ml-72 pt-16 md:pt-0 p-4 md:p-8 min-h-screen">
         {children}
       </main>
     </div>

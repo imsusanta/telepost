@@ -40,6 +40,9 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
           <button
             className="md:hidden text-foreground clay-card p-2 rounded-xl"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -47,8 +50,8 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden bg-card/95 backdrop-blur-xl border-t border-border shadow-clay-lg animate-slide-up">
-          <div className="px-4 py-4 space-y-3">
+        <div id="mobile-menu" className="md:hidden bg-card/95 backdrop-blur-xl border-t border-border shadow-clay-lg animate-slide-up">
+          <div className="px-4 py-4 space-y-3" role="menu">
             <a href="#features" className="block text-foreground/70 hover:text-foreground transition-colors font-medium py-2">
               Features
             </a>

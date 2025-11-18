@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles } from "lucide-react";
+import { Sparkles, CheckCircle2, XCircle } from "lucide-react";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -16,6 +16,65 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      setEmailError("Email is required");
+      return false;
+    }
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  };
+
+  const validatePassword = (password: string): boolean => {
+    if (!password) {
+      setPasswordError("Password is required");
+      return false;
+    }
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      return false;
+    }
+    if (!/(?=.*[a-z])/.test(password)) {
+      setPasswordError("Password must contain at least one lowercase letter");
+      return false;
+    }
+    if (!/(?=.*[A-Z])/.test(password)) {
+      setPasswordError("Password must contain at least one uppercase letter");
+      return false;
+    }
+    if (!/(?=.*\d)/.test(password)) {
+      setPasswordError("Password must contain at least one number");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
+
+  const getPasswordStrength = (password: string): { strength: string; color: string } => {
+    if (password.length === 0) return { strength: "", color: "" };
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/(?=.*[a-z])/.test(password)) score++;
+    if (/(?=.*[A-Z])/.test(password)) score++;
+    if (/(?=.*\d)/.test(password)) score++;
+    if (/(?=.*[@$!%*?&#])/.test(password)) score++;
+
+    if (score <= 2) return { strength: "Weak", color: "text-destructive" };
+    if (score <= 4) return { strength: "Medium", color: "text-yellow-600" };
+    return { strength: "Strong", color: "text-green-600" };
+  };
+
+  const passwordStrength = getPasswordStrength(password);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -37,6 +96,23 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+
+    if (!isEmailValid || !isPasswordValid) {
+      return;
+    }
+
+    if (!fullName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter your full name",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -57,10 +133,11 @@ export default function Auth() {
         title: "Success!",
         description: "Account created successfully. You can now sign in.",
       });
-    } catch (error: any) {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to create account";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -70,6 +147,15 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const isEmailValid = validateEmail(email);
+    if (!isEmailValid || !password) {
+      if (!password) {
+        setPasswordError("Password is required");
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -79,10 +165,11 @@ export default function Auth() {
       });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -130,10 +217,22 @@ export default function Auth() {
                       type="email"
                       placeholder="you@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError("");
+                      }}
+                      onBlur={() => validateEmail(email)}
                       required
-                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
+                      aria-invalid={!!emailError}
+                      aria-describedby={emailError ? "signin-email-error" : undefined}
+                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${emailError ? "border-destructive" : ""}`}
                     />
+                    {emailError && (
+                      <p id="signin-email-error" className="text-sm text-destructive flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2.5">
                     <Label htmlFor="signin-password" className="text-foreground font-semibold">Password</Label>
@@ -142,10 +241,21 @@ export default function Auth() {
                       type="password"
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setPasswordError("");
+                      }}
                       required
-                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
+                      aria-invalid={!!passwordError}
+                      aria-describedby={passwordError ? "signin-password-error" : undefined}
+                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${passwordError ? "border-destructive" : ""}`}
                     />
+                    {passwordError && (
+                      <p id="signin-password-error" className="text-sm text-destructive flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        {passwordError}
+                      </p>
+                    )}
                   </div>
                   <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
                     {loading ? "Signing in..." : "Sign In"}
@@ -174,10 +284,22 @@ export default function Auth() {
                       type="email"
                       placeholder="you@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError("");
+                      }}
+                      onBlur={() => validateEmail(email)}
                       required
-                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
+                      aria-invalid={!!emailError}
+                      aria-describedby={emailError ? "signup-email-error" : undefined}
+                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${emailError ? "border-destructive" : ""}`}
                     />
+                    {emailError && (
+                      <p id="signup-email-error" className="text-sm text-destructive flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2.5">
                     <Label htmlFor="signup-password" className="text-foreground font-semibold">Password</Label>
@@ -186,11 +308,32 @@ export default function Auth() {
                       type="password"
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setPasswordError("");
+                      }}
+                      onBlur={() => validatePassword(password)}
                       required
-                      minLength={6}
-                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
+                      minLength={8}
+                      aria-invalid={!!passwordError}
+                      aria-describedby={passwordError ? "signup-password-error" : "signup-password-strength"}
+                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${passwordError ? "border-destructive" : ""}`}
                     />
+                    {passwordError && (
+                      <p id="signup-password-error" className="text-sm text-destructive flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        {passwordError}
+                      </p>
+                    )}
+                    {!passwordError && password && (
+                      <p id="signup-password-strength" className={`text-sm flex items-center gap-1 ${passwordStrength.color}`}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Password strength: {passwordStrength.strength}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Must be 8+ characters with uppercase, lowercase, and numbers
+                    </p>
                   </div>
                   <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
                     {loading ? "Creating account..." : "Sign Up"}
