@@ -1,27 +1,37 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { AnalyticsService, AnalyticsDashboardData } from "@/services/analyticsService";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Users, FileText, Award } from "lucide-react";
+import { TrendingUp, Users, FileText, Award, RefreshCw, Download, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Analytics() {
   const [data, setData] = useState<AnalyticsDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dateRange, setDateRange] = useState<string>("30");
   const { toast } = useToast();
 
   useEffect(() => {
     loadAnalytics();
-  }, []);
+  }, [dateRange]);
 
   const loadAnalytics = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const analyticsData = await AnalyticsService.getDashboardData(user.id);
+      // Calculate date range
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - parseInt(dateRange));
+
+      const analyticsData = await AnalyticsService.getDashboardData(user.id, { start, end });
       setData(analyticsData);
     } catch (error: any) {
       toast({
@@ -34,12 +44,88 @@ export default function Analytics() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadAnalytics();
+    setIsRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Analytics data updated",
+    });
+  };
+
+  const handleExport = async (format: "csv" | "json") => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const exportData = await AnalyticsService.exportData(user.id, format);
+
+      // Create download
+      const blob = new Blob([exportData], { type: format === "json" ? "application/json" : "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics-export-${new Date().toISOString().split('T')[0]}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Complete",
+        description: `Analytics exported as ${format.toUpperCase()}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">Loading analytics...</div>
+        <div className="space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold flex items-center gap-2">
+                <BarChart3 className="w-10 h-10" />
+                Analytics Dashboard
+              </h1>
+              <p className="text-muted-foreground">Track your quiz engagement and performance</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-32" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -47,7 +133,11 @@ export default function Analytics() {
   if (!data) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">No analytics data available</div>
+        <div className="text-center py-12">
+          <BarChart3 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Analytics Data</h3>
+          <p className="text-muted-foreground">Create some quizzes to see your analytics here</p>
+        </div>
       </DashboardLayout>
     );
   }
@@ -55,9 +145,39 @@ export default function Analytics() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-4xl font-bold">Analytics Dashboard</h1>
-          <p className="text-muted-foreground">Track your quiz engagement and performance</p>
+        <div className="flex justify-between items-start flex-wrap gap-4">
+          <div>
+            <h1 className="text-4xl font-bold flex items-center gap-2">
+              <BarChart3 className="w-10 h-10" />
+              Analytics Dashboard
+            </h1>
+            <p className="text-muted-foreground">Track your quiz engagement and performance</p>
+          </div>
+          <div className="flex gap-2 items-center">
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">
+              <Download className="w-4 h-4" />
+              CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("json")} className="gap-2">
+              <Download className="w-4 h-4" />
+              JSON
+            </Button>
+          </div>
         </div>
 
         {/* Stats Overview */}
