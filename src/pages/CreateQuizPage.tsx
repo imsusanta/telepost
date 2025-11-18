@@ -1,88 +1,75 @@
-import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { QuizConfigForm } from "@/components/QuizConfig";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { TelegramShare } from "@/components/TelegramShare";
 import { QuizOverview } from "@/components/QuizOverview";
-import { Quiz, QuizConfig as QuizConfigType } from "@/types/quiz";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { QuizConfig as QuizConfigType } from "@/types/quiz";
+import { useQuizGeneration } from "@/hooks/useQuizGeneration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { LoadingState } from "@/components/LoadingState";
 
 export default function CreateQuizPage() {
-  const { toast } = useToast();
-  const [state, setState] = useState<"config" | "overview">("config");
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { quiz, isGenerating, generateQuiz, resetQuiz, setQuiz } = useQuizGeneration();
 
   const handleStartQuiz = async (config: QuizConfigType) => {
-    setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: config,
-      });
-
-      if (error) throw error;
-
-      const generatedQuiz: Quiz = data;
-      setQuiz(generatedQuiz);
-      setState("overview");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate quiz",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+    await generateQuiz(config);
   };
 
-  const handleQuizCreated = (createdQuiz: Quiz) => {
+  const handleQuizCreated = (createdQuiz: any) => {
     setQuiz(createdQuiz);
-    setState("overview");
   };
 
-  const handleNewQuiz = () => {
-    setState("config");
-    setQuiz(null);
-  };
+  if (isGenerating) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <LoadingState message="Generating your quiz with AI..." size="lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
-        {state === "config" && (
-          <div className="space-y-8">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">Create Quiz</h1>
-              <p className="text-gray-400">Generate AI-powered quizzes or paste your own</p>
+        {!quiz ? (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold">Create Quiz</h1>
+                <p className="text-muted-foreground">Generate AI-powered quizzes or create your own</p>
+              </div>
             </div>
 
             <Tabs defaultValue="ai" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="ai">AI Generated</TabsTrigger>
+                <TabsTrigger value="ai" className="gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  AI Generated
+                </TabsTrigger>
                 <TabsTrigger value="manual">Manual Input</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="ai">
+              <TabsContent value="ai" className="animate-in fade-in duration-300">
                 <QuizConfigForm onStartQuiz={handleStartQuiz} isGenerating={isGenerating} />
               </TabsContent>
 
-              <TabsContent value="manual">
+              <TabsContent value="manual" className="animate-in fade-in duration-300">
                 <ManualQuizInput onQuizCreated={handleQuizCreated} isGenerating={false} />
               </TabsContent>
             </Tabs>
           </div>
-        )}
-
-        {state === "overview" && quiz && (
-          <div className="space-y-6">
+        ) : (
+          <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
               <Button
                 variant="outline"
-                onClick={handleNewQuiz}
+                onClick={resetQuiz}
                 className="gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
