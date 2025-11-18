@@ -17,9 +17,7 @@ import {
   Trophy,
   MessageSquare,
   Keyboard,
-  Shield,
-  FileText,
-  Users
+  Shield
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -71,7 +69,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const baseMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
-    { icon: FileText, label: "Posts", path: "/posts" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
@@ -83,8 +80,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const adminMenuItems = isSuperAdmin
     ? [
-        { icon: Shield, label: "User Management", path: "/admin/users", isAdmin: true },
-        { icon: Users, label: "Admin Management", path: "/admin/management", isAdmin: true }
+        { icon: Shield, label: "User Management", path: "/admin/users", isAdmin: true }
       ]
     : [];
 
