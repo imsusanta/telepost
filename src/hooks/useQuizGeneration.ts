@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { QuizService } from "@/services/quizService";
 import { Quiz, QuizConfig } from "@/types/quiz";
 import { useToast } from "@/hooks/use-toast";
@@ -11,11 +12,20 @@ export function useQuizGeneration() {
   const generateQuiz = async (config: QuizConfig) => {
     setIsGenerating(true);
     try {
-      const generatedQuiz = await QuizService.generateQuiz(config);
+      const { data: { user } } = await supabase.auth.getUser();
+      const generatedQuiz = await QuizService.generateQuiz({
+        ...config,
+        userId: user?.id,
+      } as any);
       setQuiz(generatedQuiz);
+
+      const knowledgeBaseNote = config.useChannelKnowledgeBase
+        ? " using channel knowledge base"
+        : "";
+
       toast({
         title: "Quiz Generated",
-        description: `Successfully generated ${generatedQuiz.questions.length} questions`,
+        description: `Successfully generated ${generatedQuiz.questions.length} questions${knowledgeBaseNote}`,
       });
       return generatedQuiz;
     } catch (error: any) {

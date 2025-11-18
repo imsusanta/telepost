@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Sparkles, Database } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { ChannelService } from "@/services/channelService";
+import { Channel } from "@/types/channel";
 import type { QuizConfig } from "@/types/quiz";
 
 interface QuizConfigProps {
@@ -16,7 +20,51 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [systemPrompt, setSystemPrompt] = useState("");
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<string>("");
+  const [useChannelKnowledgeBase, setUseChannelKnowledgeBase] = useState(false);
+
+  useEffect(() => {
+    loadChannels();
+  }, []);
+
+  useEffect(() => {
+    // Auto-fill settings from selected channel
+    if (selectedChannel) {
+      const channel = channels.find((c) => c.id === selectedChannel);
+      if (channel?.settings) {
+        if (channel.settings.default_subject) {
+          setTopic(channel.settings.default_subject);
+        }
+        if (channel.settings.default_difficulty) {
+          setDifficulty(channel.settings.default_difficulty);
+        }
+        if (channel.settings.default_language) {
+          setLanguage(channel.settings.default_language);
+        }
+        if (channel.settings.system_prompt) {
+          setSystemPrompt(channel.settings.system_prompt);
+        }
+        if (channel.settings.questions_per_quiz) {
+          setQuestionCount(channel.settings.questions_per_quiz.toString());
+        }
+      }
+    }
+  }, [selectedChannel, channels]);
+
+  const loadChannels = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userChannels = await ChannelService.getUserChannels(user.id);
+      setChannels(userChannels);
+    } catch (error) {
+      console.error("Failed to load channels:", error);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +73,10 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
         topic: topic.trim(),
         questionCount: parseInt(questionCount),
         difficulty,
+        language,
         systemPrompt: systemPrompt.trim() || undefined,
+        channelId: selectedChannel || undefined,
+        useChannelKnowledgeBase: useChannelKnowledgeBase && !!selectedChannel,
       });
     }
   };
@@ -42,6 +93,45 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
+          <Label htmlFor="channel" className="text-sm font-medium">
+            Channel (Optional)
+          </Label>
+          <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+            <SelectTrigger id="channel" className="h-12">
+              <SelectValue placeholder="Select a channel" />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  {channel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedChannel && (
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <Database className="h-5 w-5 text-primary" />
+              <div>
+                <Label htmlFor="use-knowledge-base" className="text-sm font-medium cursor-pointer">
+                  Use Channel Knowledge Base
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Generate questions from channel documents
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="use-knowledge-base"
+              checked={useChannelKnowledgeBase}
+              onCheckedChange={setUseChannelKnowledgeBase}
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
           <Label htmlFor="topic" className="text-sm font-medium">
             Quiz Topic
           </Label>
@@ -53,6 +143,22 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
             required
             className="h-12"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="language" className="text-sm font-medium">
+            Language
+          </Label>
+          <Select value={language} onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}>
+            <SelectTrigger id="language" className="h-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bn">Bengali (বাংলা)</SelectItem>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="hi">Hindi (हिन्दी)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
