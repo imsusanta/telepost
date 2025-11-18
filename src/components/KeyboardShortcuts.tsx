@@ -31,9 +31,9 @@ export function KeyboardShortcuts() {
       action: () => navigate("/dashboard/create-quiz"),
     },
     {
-      key: "g b",
-      description: "Go to Connect Bot",
-      action: () => navigate("/dashboard/connect-bot"),
+      key: "g h",
+      description: "Go to Channels",
+      action: () => navigate("/dashboard/channels"),
     },
     {
       key: "g s",
