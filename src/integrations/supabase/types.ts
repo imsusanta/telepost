@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_log: {
+        Row: {
+          id: string
+          admin_id: string
+          action: string
+          target_user_id: string | null
+          details: Json | null
+          ip_address: string | null
+          user_agent: string | null
+          session_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_id: string
+          action: string
+          target_user_id?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          session_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          admin_id?: string
+          action?: string
+          target_user_id?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          session_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_activity_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_activity_log_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       analytics_events: {
         Row: {
           id: string
@@ -77,6 +128,7 @@ export type Database = {
           settings: Json
           created_at: string
           updated_at: string
+          last_auto_generated_at: string | null
         }
         Insert: {
           id?: string
@@ -88,6 +140,7 @@ export type Database = {
           settings?: Json
           created_at?: string
           updated_at?: string
+          last_auto_generated_at?: string | null
         }
         Update: {
           id?: string
@@ -99,11 +152,53 @@ export type Database = {
           settings?: Json
           created_at?: string
           updated_at?: string
+          last_auto_generated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "channels_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      data_audit_log: {
+        Row: {
+          id: string
+          table_name: string
+          record_id: string | null
+          action: string
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          table_name: string
+          record_id?: string | null
+          action: string
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Update: {
+          id?: string
+          table_name?: string
+          record_id?: string | null
+          action?: string
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_audit_log_changed_by_fkey"
+            columns: ["changed_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -188,6 +283,36 @@ export type Database = {
           }
         ]
       }
+      login_attempts: {
+        Row: {
+          id: string
+          email: string
+          success: boolean
+          ip_address: string | null
+          user_agent: string | null
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          success?: boolean
+          ip_address?: string | null
+          user_agent?: string | null
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          success?: boolean
+          ip_address?: string | null
+          user_agent?: string | null
+          error_message?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       leaderboards: {
         Row: {
           id: string
@@ -268,6 +393,11 @@ export type Database = {
           telegram_bot_token: string | null
           telegram_channel_id: string | null
           updated_at: string
+          role: string
+          can_purchase_plans: boolean
+          status: string
+          last_login: string | null
+          login_count: number
         }
         Insert: {
           created_at?: string
@@ -277,6 +407,11 @@ export type Database = {
           telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
+          role?: string
+          can_purchase_plans?: boolean
+          status?: string
+          last_login?: string | null
+          login_count?: number
         }
         Update: {
           created_at?: string
@@ -286,6 +421,11 @@ export type Database = {
           telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
+          role?: string
+          can_purchase_plans?: boolean
+          status?: string
+          last_login?: string | null
+          login_count?: number
         }
         Relationships: []
       }
@@ -509,6 +649,104 @@ export type Database = {
           },
           {
             foreignKeyName: "quiz_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      security_alerts: {
+        Row: {
+          id: string
+          alert_type: string
+          severity: string
+          user_id: string | null
+          details: Json
+          resolved: boolean
+          resolved_by: string | null
+          resolved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          alert_type: string
+          severity: string
+          user_id?: string | null
+          details?: Json
+          resolved?: boolean
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          alert_type?: string
+          severity?: string
+          user_id?: string | null
+          details?: Json
+          resolved?: boolean
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_alerts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      session_tracking: {
+        Row: {
+          id: string
+          user_id: string
+          session_token: string
+          ip_address: string | null
+          user_agent: string | null
+          last_activity: string
+          created_at: string
+          expires_at: string | null
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          session_token: string
+          ip_address?: string | null
+          user_agent?: string | null
+          last_activity?: string
+          created_at?: string
+          expires_at?: string | null
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          session_token?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          last_activity?: string
+          created_at?: string
+          expires_at?: string | null
+          is_active?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_tracking_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
