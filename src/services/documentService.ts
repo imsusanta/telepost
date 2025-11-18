@@ -152,19 +152,30 @@ export class DocumentService {
    * Get user's documents (optionally filtered by channel)
    */
   static async getUserDocuments(userId: string, channelId?: string): Promise<Document[]> {
-    let query = supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", userId);
+    try {
+      let query = supabase
+        .from("documents")
+        .select("*")
+        .eq("user_id", userId);
 
-    if (channelId) {
-      query = query.eq("channel_id", channelId);
+      if (channelId && channelId !== "all") {
+        query = query.eq("channel_id", channelId);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading documents:", error);
+        throw new Error("Unable to load documents. Please try again.");
+      }
+      return data || [];
+    } catch (error: any) {
+      if (error.message?.includes("Unable to load")) {
+        throw error;
+      }
+      console.error("Error loading documents:", error);
+      throw new Error("Unable to load documents. Please check your connection.");
     }
-
-    const { data, error } = await query.order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return data || [];
   }
 
   /**

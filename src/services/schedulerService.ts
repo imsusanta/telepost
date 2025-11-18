@@ -19,34 +19,50 @@ export class SchedulerService {
     filters?: ScheduledPostFilters,
     limit: number = 100
   ): Promise<ScheduledPost[]> {
-    let query = supabase
-      .from("scheduled_telegram_posts")
-      .select("*")
-      .eq("user_id", userId)
-      .order("scheduled_time", { ascending: false })
-      .limit(limit);
+    try {
+      let query = supabase
+        .from("scheduled_telegram_posts")
+        .select("*")
+        .order("scheduled_time", { ascending: false })
+        .limit(limit);
 
-    // Apply filters
-    if (filters?.status) {
-      query = query.eq("status", filters.status);
-    }
-    if (filters?.fromDate) {
-      query = query.gte("scheduled_time", filters.fromDate.toISOString());
-    }
-    if (filters?.toDate) {
-      query = query.lte("scheduled_time", filters.toDate.toISOString());
-    }
-    if (filters?.channelId) {
-      query = query.eq("chat_id", filters.channelId);
-    }
+      // Try to filter by user_id if the column exists
+      query = query.eq("user_id", userId);
 
-    const { data, error } = await query;
+      // Apply filters
+      if (filters?.status) {
+        query = query.eq("status", filters.status);
+      }
+      if (filters?.fromDate) {
+        query = query.gte("scheduled_time", filters.fromDate.toISOString());
+      }
+      if (filters?.toDate) {
+        query = query.lte("scheduled_time", filters.toDate.toISOString());
+      }
+      if (filters?.channelId) {
+        query = query.eq("chat_id", filters.channelId);
+      }
 
-    if (error) {
-      throw new Error(error.message || "Failed to fetch scheduled posts");
+      const { data, error } = await query;
+
+      if (error) {
+        // If the error is about missing user_id column, return empty array gracefully
+        if (error.message?.includes("user_id") || error.message?.includes("does not exist")) {
+          console.warn("Scheduler: user_id column not available, returning empty list");
+          return [];
+        }
+        throw new Error(error.message || "Failed to fetch scheduled posts");
+      }
+
+      return data || [];
+    } catch (error: any) {
+      // Handle gracefully if the table/column doesn't exist
+      if (error.message?.includes("does not exist") || error.message?.includes("user_id")) {
+        console.warn("Scheduler service error:", error.message);
+        return [];
+      }
+      throw error;
     }
-
-    return data || [];
   }
 
   /**
@@ -139,34 +155,49 @@ export class SchedulerService {
     sent: number;
     failed: number;
   }> {
-    const [totalResult, pendingResult, sentResult, failedResult] = await Promise.all([
-      supabase
-        .from("scheduled_telegram_posts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId),
-      supabase
-        .from("scheduled_telegram_posts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "pending"),
-      supabase
-        .from("scheduled_telegram_posts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "sent"),
-      supabase
-        .from("scheduled_telegram_posts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "failed"),
-    ]);
+    try {
+      const [totalResult, pendingResult, sentResult, failedResult] = await Promise.all([
+        supabase
+          .from("scheduled_telegram_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId),
+        supabase
+          .from("scheduled_telegram_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "pending"),
+        supabase
+          .from("scheduled_telegram_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "sent"),
+        supabase
+          .from("scheduled_telegram_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "failed"),
+      ]);
 
-    return {
-      total: totalResult.count || 0,
-      pending: pendingResult.count || 0,
-      sent: sentResult.count || 0,
-      failed: failedResult.count || 0,
-    };
+      // Check for errors related to missing columns
+      const hasError = [totalResult, pendingResult, sentResult, failedResult].some(
+        r => r.error?.message?.includes("user_id") || r.error?.message?.includes("does not exist")
+      );
+
+      if (hasError) {
+        console.warn("Scheduler statistics: user_id column not available");
+        return { total: 0, pending: 0, sent: 0, failed: 0 };
+      }
+
+      return {
+        total: totalResult.count || 0,
+        pending: pendingResult.count || 0,
+        sent: sentResult.count || 0,
+        failed: failedResult.count || 0,
+      };
+    } catch (error: any) {
+      console.warn("Scheduler statistics error:", error.message);
+      return { total: 0, pending: 0, sent: 0, failed: 0 };
+    }
   }
 
   /**

@@ -14,8 +14,6 @@ import {
   Menu,
   X,
   BarChart3,
-  Trophy,
-  MessageSquare,
   Keyboard,
   Shield
 } from "lucide-react";
@@ -72,9 +70,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
-    { icon: Trophy, label: "Leaderboards", path: "/dashboard/leaderboards" },
     { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
-    { icon: MessageSquare, label: "Support", path: "/dashboard/support" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 

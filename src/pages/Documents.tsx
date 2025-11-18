@@ -53,11 +53,8 @@ export default function Documents() {
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load channels: " + error.message,
-        variant: "destructive",
-      });
+      console.error("Failed to load channels:", error);
+      // Silent fail for channel loading - user can still see documents
     }
   };
 
@@ -69,9 +66,11 @@ export default function Documents() {
       const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
       setDocuments(docs);
     } catch (error: any) {
+      console.error("Failed to load documents:", error);
+      // Only show toast for user-facing errors, not technical details
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Unable to Load Documents",
+        description: "Please refresh the page or try again later.",
         variant: "destructive",
       });
     } finally {

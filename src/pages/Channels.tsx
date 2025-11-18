@@ -48,10 +48,10 @@ export default function Channels() {
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load channels";
+      console.error("Failed to load channels:", error);
       toast({
-        title: "Error",
-        description: message,
+        title: "Unable to Load Channels",
+        description: "Please refresh the page or try again later.",
         variant: "destructive",
       });
     } finally {

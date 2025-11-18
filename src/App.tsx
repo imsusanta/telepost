@@ -16,8 +16,6 @@ import Settings from "./pages/Settings";
 import Documents from "./pages/Documents";
 import Analytics from "./pages/Analytics";
 import QuestionBank from "./pages/QuestionBank";
-import Leaderboards from "./pages/Leaderboards";
-import Support from "./pages/Support";
 import Channels from "./pages/Channels";
 import UserManagement from "./pages/UserManagement";
 import SuperAdmin from "./pages/admin/SuperAdmin";
@@ -56,9 +54,7 @@ const App = () => (
             <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
             <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/dashboard/leaderboards" element={<ProtectedRoute><Leaderboards /></ProtectedRoute>} />
             <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-            <Route path="/dashboard/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
             <Route path="/admin/super" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />

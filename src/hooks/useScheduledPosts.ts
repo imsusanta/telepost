@@ -71,11 +71,17 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
       const posts = await SchedulerService.fetchScheduledPosts(userId, filters);
       setScheduledPosts(posts);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch scheduled posts",
-        variant: "destructive",
-      });
+      // Don't show error toast for database schema issues
+      if (error.message?.includes("does not exist") || error.message?.includes("user_id")) {
+        console.warn("Scheduler fetch error:", error.message);
+        setScheduledPosts([]);
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to fetch scheduled posts",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
