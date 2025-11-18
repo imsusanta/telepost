@@ -68,8 +68,12 @@ export default function SuperAdmin() {
       }
 
       setIsSuperAdmin(true);
-    } catch (error) {
-      console.error("Failed to check admin access:", error);
+    } catch (error: any) {
+      toast({
+        title: "Access Error",
+        description: "Failed to verify admin access. Please try again.",
+        variant: "destructive",
+      });
       navigate("/");
     }
   };
