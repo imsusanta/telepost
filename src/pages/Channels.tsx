@@ -26,6 +26,9 @@ export default function Channels() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [channelStats, setChannelStats] = useState<Record<string, { documentCount: number; quizCount: number }>>({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -61,6 +64,16 @@ export default function Channels() {
   }, [loadChannels]);
 
   const handleCreateChannel = async () => {
+    if (!newChannel.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Channel name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -73,12 +86,7 @@ export default function Channels() {
       });
 
       setIsCreateDialogOpen(false);
-      setNewChannel({
-        name: "",
-        description: "",
-        telegram_channel_id: "",
-        telegram_bot_token: "",
-      });
+      resetCreateForm();
 
       loadChannels();
     } catch (error: any) {
@@ -87,6 +95,104 @@ export default function Channels() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setNewChannel({
+      name: "",
+      description: "",
+      telegram_channel_id: "",
+      telegram_bot_token: "",
+    });
+    setConnectionTestResult(null);
+  };
+
+  const handleTestConnection = async () => {
+    if (!newChannel.telegram_bot_token || !newChannel.telegram_channel_id) {
+      toast({
+        title: "Missing credentials",
+        description: "Please enter both bot token and channel ID to test connection",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      const result = await ChannelService.testTelegramConnection(
+        newChannel.telegram_bot_token,
+        newChannel.telegram_channel_id
+      );
+      setConnectionTestResult(result);
+
+      if (result.success) {
+        toast({
+          title: "Connection Successful",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      const errorResult = { success: false, message: error.message || "Test failed" };
+      setConnectionTestResult(errorResult);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const handleTestConnectionForEdit = async () => {
+    if (!selectedChannel?.telegram_bot_token || !selectedChannel?.telegram_channel_id) {
+      toast({
+        title: "Missing credentials",
+        description: "Please enter both bot token and channel ID to test connection",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingConnection(true);
+
+    try {
+      const result = await ChannelService.testTelegramConnection(
+        selectedChannel.telegram_bot_token,
+        selectedChannel.telegram_channel_id
+      );
+
+      if (result.success) {
+        toast({
+          title: "Connection Successful",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -116,13 +222,15 @@ export default function Channels() {
     }
   };
 
-  const handleUpdateSettings = async (channel: Channel, updates: any) => {
+  const handleUpdateSettings = async (channel: Channel) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       await ChannelService.updateChannel(channel.id, user.id, {
-        settings: { ...channel.settings, ...updates },
+        telegram_channel_id: channel.telegram_channel_id,
+        telegram_bot_token: channel.telegram_bot_token,
+        settings: channel.settings,
       });
 
       toast({
@@ -287,7 +395,10 @@ export default function Channels() {
             Manage your Telegram channels and their knowledge bases
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) resetCreateForm();
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -303,13 +414,16 @@ export default function Channels() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Channel Name</Label>
+                <Label htmlFor="name">Channel Name *</Label>
                 <Input
                   id="name"
                   value={newChannel.name}
                   onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })}
                   placeholder="My Channel"
                 />
+                {!newChannel.name.trim() && newChannel.name !== "" && (
+                  <p className="text-xs text-destructive mt-1">Channel name is required</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="description">Description (Optional)</Label>
@@ -339,13 +453,39 @@ export default function Channels() {
                   placeholder="123456:ABC-DEF..."
                 />
               </div>
+              {(newChannel.telegram_channel_id || newChannel.telegram_bot_token) && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestConnection}
+                    disabled={isTestingConnection || !newChannel.telegram_channel_id || !newChannel.telegram_bot_token}
+                    className="w-full"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    {isTestingConnection ? "Testing..." : "Test Connection"}
+                  </Button>
+                  {connectionTestResult && (
+                    <Alert variant={connectionTestResult.success ? "default" : "destructive"}>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        {connectionTestResult.message}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsCreateDialogOpen(false);
+                resetCreateForm();
+              }}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateChannel} disabled={!newChannel.name}>
-                Create
+              <Button onClick={handleCreateChannel} disabled={!newChannel.name.trim() || isCreating}>
+                {isCreating ? "Creating..." : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -494,6 +634,54 @@ export default function Channels() {
           </DialogHeader>
           {selectedChannel && (
             <div className="space-y-6">
+              {/* Telegram Configuration */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Telegram Configuration</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="edit-telegram-channel-id">Telegram Channel ID</Label>
+                    <Input
+                      id="edit-telegram-channel-id"
+                      value={selectedChannel.telegram_channel_id || ""}
+                      onChange={(e) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          telegram_channel_id: e.target.value,
+                        })
+                      }
+                      placeholder="@mychannel or -1001234567890"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-telegram-bot-token">Telegram Bot Token</Label>
+                    <Input
+                      id="edit-telegram-bot-token"
+                      type="password"
+                      value={selectedChannel.telegram_bot_token || ""}
+                      onChange={(e) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          telegram_bot_token: e.target.value,
+                        })
+                      }
+                      placeholder="123456:ABC-DEF..."
+                    />
+                  </div>
+                  {(selectedChannel.telegram_channel_id || selectedChannel.telegram_bot_token) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestConnectionForEdit}
+                      disabled={isTestingConnection || !selectedChannel.telegram_channel_id || !selectedChannel.telegram_bot_token}
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      {isTestingConnection ? "Testing..." : "Test Connection"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               {/* Auto Generation Toggle */}
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div>
@@ -708,7 +896,7 @@ Example: Generate questions focused on practical applications and real-world exa
             <Button
               onClick={() => {
                 if (selectedChannel) {
-                  handleUpdateSettings(selectedChannel, selectedChannel.settings);
+                  handleUpdateSettings(selectedChannel);
                   setIsEditDialogOpen(false);
                 }
               }}
