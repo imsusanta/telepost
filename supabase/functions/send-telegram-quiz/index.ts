@@ -17,6 +17,7 @@ interface TelegramQuizRequest {
     }>;
   };
   scheduleInterval?: number | null;
+  minQuestionsPerInterval?: number | null;
   instantPoll?: boolean;
 }
 
@@ -26,7 +27,7 @@ serve(async (req) => {
   }
 
   try {
-    const { chatId, quiz, scheduleInterval, instantPoll }: TelegramQuizRequest = await req.json();
+    const { chatId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
     
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
@@ -45,16 +46,26 @@ serve(async (req) => {
       const now = new Date();
       const scheduledPosts = [];
 
-      // Create a scheduled post for each question at the specified interval
-      for (let i = 0; i < quiz.questions.length; i++) {
+      // Determine how many questions per post (default to 1 if not specified)
+      const questionsPerPost = minQuestionsPerInterval || 1;
+
+      // Group questions into batches according to minQuestionsPerInterval
+      const questionBatches = [];
+      for (let i = 0; i < quiz.questions.length; i += questionsPerPost) {
+        questionBatches.push(quiz.questions.slice(i, i + questionsPerPost));
+      }
+
+      // Create a scheduled post for each batch at the specified interval
+      for (let i = 0; i < questionBatches.length; i++) {
         const scheduledTime = new Date(now.getTime() + (i * scheduleInterval * 60 * 1000));
         scheduledPosts.push({
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
-            questions: [quiz.questions[i]], // Each post contains one question
+            questions: questionBatches[i],
           },
           scheduled_time: scheduledTime.toISOString(),
+          min_questions_per_interval: questionsPerPost,
         });
       }
 
@@ -66,11 +77,18 @@ serve(async (req) => {
         throw new Error(`Failed to schedule posts: ${insertError.message}`);
       }
 
+      const totalPosts = questionBatches.length;
+      const message = questionsPerPost === 1
+        ? `Scheduled ${quiz.questions.length} quiz questions to post every ${scheduleInterval} minute(s)`
+        : `Scheduled ${totalPosts} posts with ${questionsPerPost} questions each to post every ${scheduleInterval} minute(s) (${quiz.questions.length} total questions)`;
+
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Scheduled ${quiz.questions.length} quiz questions to post every ${scheduleInterval} minute(s)`,
+        JSON.stringify({
+          success: true,
+          message,
           scheduledCount: quiz.questions.length,
+          postsCount: totalPosts,
+          questionsPerPost,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

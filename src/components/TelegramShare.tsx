@@ -20,6 +20,8 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleInterval, setScheduleInterval] = useState<string>("5");
+  const [minQuestionsPerInterval, setMinQuestionsPerInterval] = useState<string>("5");
+  const [customMinQuestions, setCustomMinQuestions] = useState<string>("");
   const [instantPoll, setInstantPoll] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -74,6 +76,21 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       return;
     }
 
+    // Validate minimum questions per interval
+    let minQuestions = 1;
+    if (isScheduled) {
+      if (minQuestionsPerInterval === "custom") {
+        const customValue = parseInt(customMinQuestions);
+        if (!customMinQuestions || isNaN(customValue) || customValue < 1) {
+          toast.error("Please enter a valid custom number of questions (minimum 1)");
+          return;
+        }
+        minQuestions = customValue;
+      } else {
+        minQuestions = parseInt(minQuestionsPerInterval);
+      }
+    }
+
     // Auto-correct common chat ID format issues
     let correctedChatId = chatId.trim();
     
@@ -93,6 +110,7 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
             questions: quiz.questions,
           },
           scheduleInterval: isScheduled ? parseInt(scheduleInterval) : null,
+          minQuestionsPerInterval: isScheduled ? minQuestions : null,
           instantPoll,
         },
       });
@@ -113,6 +131,8 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       setIsOpen(false);
       setChatId("");
       setScheduleInterval("5");
+      setMinQuestionsPerInterval("5");
+      setCustomMinQuestions("");
       setIsScheduled(false);
       setInstantPoll(false);
     } catch (error) {
@@ -234,6 +254,38 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
               </Select>
               <p className="text-xs text-muted-foreground">
                 Quiz questions will be posted at this interval
+              </p>
+            </div>
+          )}
+
+          {isScheduled && (
+            <div className="space-y-2">
+              <Label htmlFor="min-questions">Questions per Post</Label>
+              <Select value={minQuestionsPerInterval} onValueChange={setMinQuestionsPerInterval}>
+                <SelectTrigger id="min-questions" disabled={isSending}>
+                  <SelectValue placeholder="Select number of questions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 question</SelectItem>
+                  <SelectItem value="5">5 questions</SelectItem>
+                  <SelectItem value="10">10 questions</SelectItem>
+                  <SelectItem value="15">15 questions</SelectItem>
+                  <SelectItem value="custom">Custom number</SelectItem>
+                </SelectContent>
+              </Select>
+              {minQuestionsPerInterval === "custom" && (
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Enter number of questions"
+                  value={customMinQuestions}
+                  onChange={(e) => setCustomMinQuestions(e.target.value)}
+                  disabled={isSending}
+                  className="mt-2"
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Number of questions to post at each interval
               </p>
             </div>
           )}
