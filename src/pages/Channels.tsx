@@ -12,7 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Settings, FileText, MessageCircle, BarChart3 } from "lucide-react";
+import { Plus, Trash2, Settings, FileText, MessageCircle, BarChart3, Zap, Sparkles, BookOpen, AlertCircle } from "lucide-react";
+import { systemPromptTemplates, getSystemPromptTemplate, generateChannelSystemPrompt } from "@/utils/systemPromptTemplates";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Channels() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -20,6 +22,9 @@ export default function Channels() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [channelStats, setChannelStats] = useState<Record<string, { documentCount: number; quizCount: number }>>({});
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -131,6 +136,114 @@ export default function Channels() {
       });
     }
   };
+
+  const loadChannelStats = async (channelId: string, userId: string) => {
+    try {
+      const stats = await ChannelService.getChannelStats(channelId, userId);
+      setChannelStats(prev => ({
+        ...prev,
+        [channelId]: {
+          documentCount: stats.documentCount,
+          quizCount: stats.quizCount,
+        },
+      }));
+    } catch (error) {
+      console.error("Error loading channel stats:", error);
+    }
+  };
+
+  const handleManualGeneration = async (channel: Channel) => {
+    if (!channel.telegram_channel_id || !channel.telegram_bot_token) {
+      toast({
+        title: "Error",
+        description: "Please configure Telegram credentials first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!channel.settings.default_subject) {
+      toast({
+        title: "Error",
+        description: "Please set a default subject for quiz generation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-generate-channel-quizzes", {
+        body: {
+          channelId: channel.id,
+          forceGenerate: true,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Quiz generated and sent to ${channel.name}`,
+      });
+
+      loadChannels();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate quiz",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    if (!selectedChannel || !templateId) return;
+
+    const template = getSystemPromptTemplate(templateId);
+    if (!template) return;
+
+    // Generate a customized prompt based on the template and channel settings
+    const customPrompt = generateChannelSystemPrompt(
+      selectedChannel.settings.default_subject || template.subject,
+      selectedChannel.settings.default_language,
+      ""
+    );
+
+    setSelectedChannel({
+      ...selectedChannel,
+      settings: {
+        ...selectedChannel.settings,
+        system_prompt: customPrompt,
+        default_subject: selectedChannel.settings.default_subject || template.subject,
+      },
+    });
+
+    setSelectedTemplate(templateId);
+
+    toast({
+      title: "Template Applied",
+      description: `Applied "${template.name}" template. You can customize the prompt further.`,
+    });
+  };
+
+  // Load stats for all channels
+  useEffect(() => {
+    const loadAllStats = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      for (const channel of channels) {
+        loadChannelStats(channel.id, user.id);
+      }
+    };
+
+    if (channels.length > 0) {
+      loadAllStats();
+    }
+  }, [channels]);
 
   if (loading) {
     return (
@@ -245,12 +358,26 @@ export default function Channels() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Stats */}
+                {channelStats[channel.id] && (
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center">
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      {channelStats[channel.id].documentCount} docs
+                    </div>
+                    <div className="flex items-center">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      {channelStats[channel.id].quizCount} quizzes
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => navigate(`/documents?channel=${channel.id}`)}
+                    onClick={() => navigate(`/dashboard/documents?channel=${channel.id}`)}
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     Documents
@@ -261,6 +388,7 @@ export default function Channels() {
                     className="flex-1"
                     onClick={() => {
                       setSelectedChannel(channel);
+                      setSelectedTemplate("");
                       setIsEditDialogOpen(true);
                     }}
                   >
@@ -268,6 +396,20 @@ export default function Channels() {
                     Settings
                   </Button>
                 </div>
+
+                {/* Generate Now Button */}
+                {channel.settings.auto_generate_quizzes && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleManualGeneration(channel)}
+                    disabled={isGenerating}
+                  >
+                    <Zap className="mr-2 h-4 w-4" />
+                    {isGenerating ? "Generating..." : "Generate Quiz Now"}
+                  </Button>
+                )}
 
                 {channel.telegram_channel_id && (
                   <div className="text-sm text-muted-foreground">
@@ -278,11 +420,37 @@ export default function Channels() {
 
                 {channel.settings.auto_generate_quizzes && (
                   <div className="text-sm bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 px-3 py-2 rounded-md">
-                    Auto-generation enabled
-                    <div className="text-xs mt-1">
-                      {channel.settings.default_subject && `Subject: ${channel.settings.default_subject}`}
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      Auto-generation enabled
+                    </div>
+                    <div className="text-xs mt-1 space-y-0.5">
+                      {channel.settings.default_subject && (
+                        <div>Subject: {channel.settings.default_subject}</div>
+                      )}
+                      <div>Frequency: {channel.settings.generation_frequency}</div>
+                      <div>Questions: {channel.settings.questions_per_quiz}</div>
                     </div>
                   </div>
+                )}
+
+                {/* Warning if missing configuration */}
+                {channel.settings.auto_generate_quizzes && (!channel.telegram_channel_id || !channel.telegram_bot_token) && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Missing Telegram credentials
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {channel.settings.auto_generate_quizzes && !channel.settings.system_prompt && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      No system prompt configured. Add one in Settings for better quiz quality.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardContent>
             </Card>
@@ -292,107 +460,179 @@ export default function Channels() {
 
       {/* Edit Channel Settings Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Channel Settings: {selectedChannel?.name}</DialogTitle>
             <DialogDescription>
-              Configure auto quiz generation and system prompts
+              Configure auto quiz generation and system prompts for this channel's isolated knowledge base
             </DialogDescription>
           </DialogHeader>
           {selectedChannel && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="auto-generate">Auto Generate Quizzes</Label>
+            <div className="space-y-6">
+              {/* Auto Generation Toggle */}
+              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                <div>
+                  <Label htmlFor="auto-generate" className="text-base font-medium">Auto Generate Quizzes</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically generate and send quizzes based on this channel's knowledge base
+                  </p>
+                </div>
                 <Switch
                   id="auto-generate"
                   checked={selectedChannel.settings.auto_generate_quizzes}
                   onCheckedChange={(checked) =>
-                    handleUpdateSettings(selectedChannel, { auto_generate_quizzes: checked })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="default-subject">Default Subject</Label>
-                <Input
-                  id="default-subject"
-                  value={selectedChannel.settings.default_subject}
-                  onChange={(e) =>
                     setSelectedChannel({
                       ...selectedChannel,
-                      settings: { ...selectedChannel.settings, default_subject: e.target.value },
-                    })
-                  }
-                  placeholder="e.g., Mathematics, Science, History..."
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="default-difficulty">Default Difficulty</Label>
-                <Select
-                  value={selectedChannel.settings.default_difficulty}
-                  onValueChange={(value: any) =>
-                    setSelectedChannel({
-                      ...selectedChannel,
-                      settings: { ...selectedChannel.settings, default_difficulty: value },
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="default-language">Default Language</Label>
-                <Select
-                  value={selectedChannel.settings.default_language}
-                  onValueChange={(value: any) =>
-                    setSelectedChannel({
-                      ...selectedChannel,
-                      settings: { ...selectedChannel.settings, default_language: value },
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bn">Bengali (বাংলা)</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="hi">Hindi (हिन्दी)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="questions-per-quiz">Questions Per Quiz</Label>
-                <Input
-                  id="questions-per-quiz"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={selectedChannel.settings.questions_per_quiz}
-                  onChange={(e) =>
-                    setSelectedChannel({
-                      ...selectedChannel,
-                      settings: {
-                        ...selectedChannel.settings,
-                        questions_per_quiz: parseInt(e.target.value) || 10,
-                      },
+                      settings: { ...selectedChannel.settings, auto_generate_quizzes: checked },
                     })
                   }
                 />
               </div>
 
-              <div>
-                <Label htmlFor="system-prompt">System Prompt for Quiz Generation</Label>
+              {/* Basic Settings */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Quiz Configuration</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="default-subject">Subject/Topic</Label>
+                    <Input
+                      id="default-subject"
+                      value={selectedChannel.settings.default_subject}
+                      onChange={(e) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          settings: { ...selectedChannel.settings, default_subject: e.target.value },
+                        })
+                      }
+                      placeholder="e.g., Mathematics, Science..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="questions-per-quiz">Questions Per Quiz</Label>
+                    <Input
+                      id="questions-per-quiz"
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={selectedChannel.settings.questions_per_quiz}
+                      onChange={(e) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          settings: {
+                            ...selectedChannel.settings,
+                            questions_per_quiz: parseInt(e.target.value) || 10,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="default-difficulty">Difficulty</Label>
+                    <Select
+                      value={selectedChannel.settings.default_difficulty}
+                      onValueChange={(value: any) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          settings: { ...selectedChannel.settings, default_difficulty: value },
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="default-language">Language</Label>
+                    <Select
+                      value={selectedChannel.settings.default_language}
+                      onValueChange={(value: any) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          settings: { ...selectedChannel.settings, default_language: value },
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bn">Bengali</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="hi">Hindi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="generation-frequency">Frequency</Label>
+                    <Select
+                      value={selectedChannel.settings.generation_frequency}
+                      onValueChange={(value: any) =>
+                        setSelectedChannel({
+                          ...selectedChannel,
+                          settings: { ...selectedChannel.settings, generation_frequency: value },
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="bi-weekly">Bi-weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="manual">Manual only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Prompt Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">AI System Prompt</h3>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="template-select" className="text-sm">Template:</Label>
+                    <Select
+                      value={selectedTemplate}
+                      onValueChange={(value) => handleApplyTemplate(value)}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Choose template..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemPromptTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Alert>
+                  <Sparkles className="h-4 w-4" />
+                  <AlertDescription>
+                    The system prompt tells the AI how to generate quiz questions for this specific channel.
+                    It ensures questions are created only from this channel's knowledge base and follow the appropriate format.
+                  </AlertDescription>
+                </Alert>
+
                 <Textarea
                   id="system-prompt"
                   value={selectedChannel.settings.system_prompt}
@@ -402,13 +642,38 @@ export default function Channels() {
                       settings: { ...selectedChannel.settings, system_prompt: e.target.value },
                     })
                   }
-                  placeholder="e.g., Generate questions focused on practical applications and real-world examples..."
-                  rows={4}
+                  placeholder="Enter custom instructions for the AI quiz generator...
+
+Example: Generate questions focused on practical applications and real-world examples. Include questions that test both recall and understanding. Make explanations educational and clear."
+                  rows={8}
+                  className="font-mono text-sm"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This prompt will be used to guide the AI when generating quizzes for this channel
+                <p className="text-xs text-muted-foreground">
+                  This prompt guides the AI when generating quizzes. It will use ONLY documents uploaded to this channel.
                 </p>
               </div>
+
+              {/* Knowledge Base Info */}
+              {channelStats[selectedChannel.id] && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h3 className="font-medium mb-2">Channel Knowledge Base</h3>
+                  <div className="flex gap-6 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Documents:</span>{" "}
+                      <span className="font-medium">{channelStats[selectedChannel.id].documentCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Quizzes Generated:</span>{" "}
+                      <span className="font-medium">{channelStats[selectedChannel.id].quizCount}</span>
+                    </div>
+                  </div>
+                  {channelStats[selectedChannel.id].documentCount === 0 && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      No documents uploaded yet. Upload PDFs to build the knowledge base for better quiz generation.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
