@@ -33,14 +33,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const checkAdminStatus = useCallback(async () => {
     try {
-      const isSuper = await AdminService.isSuperAdmin();
-      setIsSuperAdmin(isSuper);
+      const adminStatus = await AdminService.isAdmin();
+      setIsAdmin(adminStatus);
     } catch {
-      setIsSuperAdmin(false);
+      setIsAdmin(false);
     }
   }, []);
 
@@ -78,7 +78,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
-  const adminMenuItems = isSuperAdmin
+  const adminMenuItems = isAdmin
     ? [{ icon: Shield, label: "User Management", path: "/admin/users", isAdmin: true }]
     : [];
 

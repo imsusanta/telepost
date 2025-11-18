@@ -20,7 +20,6 @@ import Leaderboards from "./pages/Leaderboards";
 import Support from "./pages/Support";
 import Channels from "./pages/Channels";
 import UserManagement from "./pages/UserManagement";
-import SuperAdmin from "./pages/admin/SuperAdmin";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient({
@@ -61,7 +60,6 @@ const App = () => (
             <Route path="/dashboard/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-            <Route path="/admin/super" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

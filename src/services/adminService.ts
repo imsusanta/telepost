@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { sanitizeInput, validateInteger } from "@/utils/security";
 import { obfuscateForLog } from "@/utils/encryption";
 
-export type UserRole = 'user' | 'admin' | 'super_admin';
+export type UserRole = 'user' | 'admin';
 export type UserStatus = 'active' | 'suspended' | 'banned';
 
 export interface UserProfile {
@@ -34,29 +34,7 @@ export interface AdminActivityLog {
 
 export class AdminService {
   /**
-   * Check if current user is super admin
-   */
-  static async isSuperAdmin(): Promise<boolean> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      return data?.role === 'super_admin';
-    } catch (error) {
-      console.error('Error checking super admin status:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Check if current user is admin (admin or super_admin)
+   * Check if current user is admin
    */
   static async isAdmin(): Promise<boolean> {
     try {
@@ -70,7 +48,7 @@ export class AdminService {
         .single();
 
       if (error) throw error;
-      return data?.role === 'admin' || data?.role === 'super_admin';
+      return data?.role === 'admin';
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;
@@ -148,7 +126,7 @@ export class AdminService {
   }
 
   /**
-   * Update user role (super admin only)
+   * Update user role (admin only)
    */
   static async updateUserRole(userId: string, newRole: UserRole): Promise<void> {
     try {
@@ -165,7 +143,7 @@ export class AdminService {
   }
 
   /**
-   * Toggle user's purchase permission (super admin only)
+   * Toggle user's purchase permission (admin only)
    */
   static async togglePurchasePermission(userId: string, canPurchase: boolean): Promise<void> {
     try {
@@ -254,7 +232,7 @@ export class AdminService {
       if (subsError) throw subsError;
 
       const totalUsers = profiles?.length || 0;
-      const totalAdmins = profiles?.filter(p => p.role === 'admin' || p.role === 'super_admin').length || 0;
+      const totalAdmins = profiles?.filter(p => p.role === 'admin').length || 0;
       const usersWithPurchaseRestrictions = profiles?.filter(p => !p.can_purchase_plans).length || 0;
 
       return {
@@ -322,7 +300,7 @@ export class AdminService {
   }
 
   /**
-   * Get detailed user information (super admin only)
+   * Get detailed user information (admin only)
    */
   static async getUserDetails(userId: string): Promise<any> {
     try {
@@ -387,7 +365,7 @@ export class AdminService {
   }
 
   /**
-   * Bulk update user roles (super admin only)
+   * Bulk update user roles (admin only)
    */
   static async bulkUpdateRoles(userIds: string[], newRole: UserRole): Promise<void> {
     try {
@@ -415,7 +393,7 @@ export class AdminService {
   }
 
   /**
-   * Delete user account (super admin only - DANGEROUS)
+   * Delete user account (admin only - DANGEROUS)
    */
   static async deleteUser(userId: string, reason: string): Promise<void> {
     try {
@@ -578,7 +556,7 @@ export class AdminService {
   }
 
   /**
-   * Impersonate user (super admin only - for support purposes)
+   * Impersonate user (admin only - for support purposes)
    * Note: This logs the action for audit purposes
    */
   static async impersonateUser(userId: string, reason: string): Promise<void> {

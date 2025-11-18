@@ -39,7 +39,7 @@ export default function UserManagement() {
   const [filteredUsers, setFilteredUsers] = useState<UserWithSubscription[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [statistics, setStatistics] = useState({
     totalUsers: 0,
     activeSubscriptions: 0,
@@ -53,10 +53,10 @@ export default function UserManagement() {
 
   const checkAdminAccess = async () => {
     try {
-      const isSuper = await AdminService.isSuperAdmin();
-      setIsSuperAdmin(isSuper);
+      const adminStatus = await AdminService.isAdmin();
+      setIsAdmin(adminStatus);
 
-      if (!isSuper) {
+      if (!adminStatus) {
         toast({
           title: "Access Denied",
           description: "You don't have permission to access this page",
@@ -147,8 +147,6 @@ export default function UserManagement() {
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case "super_admin":
-        return "bg-red-500 text-white";
       case "admin":
         return "bg-blue-500 text-white";
       default:
@@ -334,7 +332,6 @@ export default function UserManagement() {
                             <SelectContent>
                               <SelectItem value="user">User</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="super_admin">Super Admin</SelectItem>
                             </SelectContent>
                           </Select>
                           <div className="text-sm text-muted-foreground space-y-2">
@@ -342,10 +339,7 @@ export default function UserManagement() {
                               <strong>User:</strong> Standard user with no admin privileges
                             </p>
                             <p>
-                              <strong>Admin:</strong> Can view all data but cannot modify roles
-                            </p>
-                            <p>
-                              <strong>Super Admin:</strong> Full access to all features and user management
+                              <strong>Admin:</strong> Full access to all features and user management
                             </p>
                           </div>
                         </div>
