@@ -17,14 +17,11 @@ import {
   Trophy,
   MessageSquare,
   Keyboard,
-  Shield,
-  FileText,
-  Users
+  FileText
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
-import { AdminService } from "@/services/adminService";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -35,20 +32,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-  const checkAdminStatus = useCallback(async () => {
-    try {
-      const isSuper = await AdminService.isSuperAdmin();
-      setIsSuperAdmin(isSuper);
-    } catch {
-      setIsSuperAdmin(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkAdminStatus();
-  }, [checkAdminStatus]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -68,7 +51,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [navigate, toast]);
 
-  const baseMenuItems = [
+  const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
     { icon: FileText, label: "Posts", path: "/posts" },
@@ -80,15 +63,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: MessageSquare, label: "Support", path: "/dashboard/support" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
-
-  const adminMenuItems = isSuperAdmin
-    ? [
-        { icon: Shield, label: "User Management", path: "/admin/users", isAdmin: true },
-        { icon: Users, label: "Admin Management", path: "/admin/management", isAdmin: true }
-      ]
-    : [];
-
-  const menuItems = [...baseMenuItems, ...adminMenuItems];
 
   const SidebarContent = () => (
     <>
@@ -102,18 +76,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <nav className="space-y-2 flex-1">
-        {menuItems.map((item, index) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
-          const isAdminSection = 'isAdmin' in item && item.isAdmin;
 
           return (
             <div key={item.path}>
-              {isAdminSection && index > 0 && (
-                <div className="my-4 border-t border-sidebar-border pt-4">
-                  <p className="text-xs font-semibold text-sidebar-foreground/50 px-5 mb-2">ADMINISTRATION</p>
-                </div>
-              )}
               <Link
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
