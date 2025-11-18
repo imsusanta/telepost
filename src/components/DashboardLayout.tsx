@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
   Sparkles,
-  Send,
+  Radio,
   Calendar,
   CreditCard,
   Settings,
@@ -13,8 +13,6 @@ import {
   LayoutDashboard,
   Menu,
   X,
-  FileText,
-  Database,
   BarChart3,
   Trophy,
   MessageSquare,
@@ -67,11 +65,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const baseMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Send, label: "Connect Bot", path: "/dashboard/connect-bot" },
+    { icon: Radio, label: "Channels", path: "/dashboard/channels" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
-    { icon: FileText, label: "Documents", path: "/dashboard/documents" },
-    { icon: Database, label: "Question Bank", path: "/dashboard/question-bank" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
     { icon: Trophy, label: "Leaderboards", path: "/dashboard/leaderboards" },
     { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
