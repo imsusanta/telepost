@@ -1,70 +1,34 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { Send, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { ChannelManager } from "@/components/ChannelManager";
+import { ChannelService } from "@/services/channelService";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function ConnectBot() {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [botToken, setBotToken] = useState("");
-  const [channelId, setChannelId] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
+  const navigate = useNavigate();
+  const [channelCount, setChannelCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBotInfo();
-  }, []);
-
-  const loadBotInfo = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("telegram_bot_token, telegram_channel_id")
-        .eq("id", user.id)
-        .single();
-      
-      if (data) {
-        setBotToken(data.telegram_bot_token || "");
-        setChannelId(data.telegram_channel_id || "");
-        setIsConnected(!!(data.telegram_bot_token && data.telegram_channel_id));
-      }
+      loadChannelInfo();
     }
-  };
+  }, [user]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const loadChannelInfo = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          telegram_bot_token: botToken,
-          telegram_channel_id: channelId,
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
-
-      setIsConnected(true);
-      toast({
-        title: "Success!",
-        description: "Bot connected successfully.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      setLoading(true);
+      const count = await ChannelService.getChannelCount(user!.id);
+      setChannelCount(count);
+    } catch (error) {
+      console.error("Failed to load channel info:", error);
     } finally {
       setLoading(false);
     }
@@ -72,98 +36,88 @@ export default function ConnectBot() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-8">
+      <div className="max-w-4xl space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">Connect Telegram Bot</h1>
-          <p className="text-gray-400">Link your Telegram bot to start posting quizzes</p>
+          <h1 className="text-4xl font-bold mb-2">Manage Telegram Channels</h1>
+          <p className="text-muted-foreground">
+            Connect and manage multiple Telegram channels for quiz delivery
+          </p>
         </div>
 
-        <Card className="bg-slate-900/50 border-white/10">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Send className="w-5 h-5" />
-              <span>Bot Configuration</span>
+              <span>Channel Configuration</span>
             </CardTitle>
             <CardDescription>
-              {isConnected ? (
-                <span className="flex items-center text-green-400">
+              {loading ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                  Loading channels...
+                </span>
+              ) : channelCount > 0 ? (
+                <span className="flex items-center text-green-600 dark:text-green-400">
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Bot is connected
+                  {channelCount} channel{channelCount > 1 ? "s" : ""} connected
                 </span>
               ) : (
-                <span className="flex items-center text-yellow-400">
+                <span className="flex items-center text-yellow-600 dark:text-yellow-400">
                   <AlertCircle className="w-4 h-4 mr-2" />
-                  Bot not connected yet
+                  No channels connected yet
                 </span>
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="botToken">Bot Token</Label>
-                <Input
-                  id="botToken"
-                  type="password"
-                  placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-                  value={botToken}
-                  onChange={(e) => setBotToken(e.target.value)}
-                  required
-                />
-                <p className="text-sm text-gray-400">
-                  Get your bot token from @BotFather on Telegram
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="channelId">Channel ID</Label>
-                <Input
-                  id="channelId"
-                  type="text"
-                  placeholder="@yourchannel or -1001234567890"
-                  value={channelId}
-                  onChange={(e) => setChannelId(e.target.value)}
-                  required
-                />
-                <p className="text-sm text-gray-400">
-                  Your channel username or ID (make sure the bot is an admin)
-                </p>
-              </div>
-
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Saving..." : isConnected ? "Update Connection" : "Connect Bot"}
-              </Button>
-            </form>
+            <ChannelManager />
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-500/10 border-blue-500/20">
+        <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
-            <CardTitle className="text-blue-400">How to Set Up</CardTitle>
+            <CardTitle className="text-primary">Quick Start Guide</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-300">
+          <CardContent className="space-y-3 text-sm">
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">1.</span>
+              <span className="font-bold text-primary">1.</span>
               <p>Open Telegram and search for @BotFather</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">2.</span>
+              <span className="font-bold text-primary">2.</span>
               <p>Create a new bot using /newbot command</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">3.</span>
-              <p>Copy the bot token and paste it above</p>
+              <span className="font-bold text-primary">3.</span>
+              <p>Copy the bot token you receive</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">4.</span>
-              <p>Add your bot as an admin to your channel</p>
+              <span className="font-bold text-primary">4.</span>
+              <p>Add your bot as an admin to your Telegram channel</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">5.</span>
-              <p>Enter your channel username (with @) or channel ID</p>
+              <span className="font-bold text-primary">5.</span>
+              <p>Click "Add Channel" above and fill in your bot token and channel ID</p>
+            </div>
+            <div className="flex items-start space-x-2">
+              <span className="font-bold text-primary">6.</span>
+              <p>You can manage all your channels from the Create Quiz page</p>
             </div>
           </CardContent>
         </Card>
+
+        {channelCount > 0 && (
+          <div className="flex justify-center">
+            <Button
+              size="lg"
+              onClick={() => navigate("/dashboard/create-quiz")}
+              className="gap-2"
+            >
+              Go to Create Quiz
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

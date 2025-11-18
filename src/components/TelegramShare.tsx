@@ -1,21 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Send, HelpCircle, Calendar, Zap } from "lucide-react";
+import { Send, HelpCircle, Calendar, Zap, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz } from "@/types/quiz";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChannelService, TelegramChannel } from "@/services/channelService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TelegramShareProps {
   quiz: Quiz;
+  selectedChannelId?: string;
 }
 
-export const TelegramShare = ({ quiz }: TelegramShareProps) => {
-  const [chatId, setChatId] = useState("");
+export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) => {
+  const { user } = useAuth();
+  const [channels, setChannels] = useState<TelegramChannel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<string>(selectedChannelId || "");
+  const [customChatId, setCustomChatId] = useState("");
+  const [useCustomChannel, setUseCustomChannel] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
@@ -24,13 +31,50 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  useEffect(() => {
+    if (user) {
+      loadChannels();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedChannelId) {
+      setSelectedChannel(selectedChannelId);
+    }
+  }, [selectedChannelId]);
+
+  const loadChannels = async () => {
+    try {
+      const data = await ChannelService.getActiveChannels(user!.id);
+      setChannels(data);
+
+      // Auto-select default channel if none selected
+      if (!selectedChannel && data.length > 0) {
+        const defaultChannel = data.find((c) => c.is_default) || data[0];
+        setSelectedChannel(defaultChannel.id);
+      }
+    } catch (error) {
+      console.error("Failed to load channels:", error);
+    }
+  };
+
+  const getChatId = (): string => {
+    if (useCustomChannel) {
+      return customChatId.trim();
+    }
+
+    const channel = channels.find((c) => c.id === selectedChannel);
+    return channel?.telegram_channel_id || "";
+  };
+
   const handleTestConnection = async () => {
-    if (!chatId.trim()) {
-      toast.error("Please enter a Chat ID");
+    const chatId = getChatId();
+    if (!chatId) {
+      toast.error("Please select a channel or enter a Chat ID");
       return;
     }
 
-    let correctedChatId = chatId.trim();
+    let correctedChatId = chatId;
     if (/^\d+$/.test(correctedChatId) && correctedChatId.startsWith("100")) {
       correctedChatId = `-${correctedChatId}`;
     }
@@ -64,8 +108,9 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   };
 
   const handleSend = async () => {
-    if (!chatId.trim()) {
-      toast.error("Please enter a Chat ID");
+    const chatId = getChatId();
+    if (!chatId) {
+      toast.error("Please select a channel or enter a Chat ID");
       return;
     }
 
@@ -75,8 +120,8 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
     }
 
     // Auto-correct common chat ID format issues
-    let correctedChatId = chatId.trim();
-    
+    let correctedChatId = chatId;
+
     // If user enters a number starting with "100" (likely forgot the minus sign)
     if (/^\d+$/.test(correctedChatId) && correctedChatId.startsWith("100")) {
       correctedChatId = `-${correctedChatId}`;
@@ -104,14 +149,23 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
         return;
       }
 
+      // Increment channel quiz count if using saved channel
+      if (!useCustomChannel && selectedChannel) {
+        try {
+          await ChannelService.incrementQuizCount(selectedChannel);
+        } catch (err) {
+          console.error("Failed to increment quiz count:", err);
+        }
+      }
+
       if (isScheduled) {
         toast.success(`Quiz scheduled to post every ${scheduleInterval} minute(s) 📅`);
       } else {
         toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
       }
-      
+
       setIsOpen(false);
-      setChatId("");
+      setCustomChatId("");
       setScheduleInterval("5");
       setIsScheduled(false);
       setInstantPoll(false);
@@ -144,36 +198,103 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="chatId">Telegram Chat ID</Label>
-            <Input
-              id="chatId"
-              placeholder="e.g., -1001234567890 or @channelname"
-              value={chatId}
-              onChange={(e) => setChatId(e.target.value)}
-              disabled={isSending}
-            />
-            <div className="flex items-center gap-2 mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestConnection}
-                disabled={!chatId.trim() || isTesting || isSending}
-                className="text-xs"
-              >
-                {isTesting ? "Testing..." : "Test Connection"}
-              </Button>
-              {testResult && (
-                <span className={`text-xs ${testResult.success ? 'text-green-600' : 'text-destructive'}`}>
-                  {testResult.success ? "✓ Connected" : "✗ Failed"}
-                </span>
+          {channels.length > 0 && !useCustomChannel ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="channel">Select Channel</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setUseCustomChannel(true)}
+                  className="text-xs"
+                >
+                  Use Custom ID
+                </Button>
+              </div>
+              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                <SelectTrigger id="channel" disabled={isSending}>
+                  <SelectValue placeholder="Select a channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      <div className="flex items-center gap-2">
+                        <Hash className="w-4 h-4" />
+                        <span>{channel.channel_name}</span>
+                        {channel.is_default && (
+                          <span className="text-xs text-muted-foreground">(Default)</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedChannel && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestConnection}
+                    disabled={isTesting || isSending}
+                    className="text-xs"
+                  >
+                    {isTesting ? "Testing..." : "Test Connection"}
+                  </Button>
+                  {testResult && (
+                    <span className={`text-xs ${testResult.success ? 'text-green-600' : 'text-destructive'}`}>
+                      {testResult.success ? "✓ Connected" : "✗ Failed"}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              For channels: Use -100xxxxxxxxxx format (with minus sign)
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="chatId">Telegram Chat ID</Label>
+                {channels.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUseCustomChannel(false)}
+                    className="text-xs"
+                  >
+                    Use Saved Channel
+                  </Button>
+                )}
+              </div>
+              <Input
+                id="chatId"
+                placeholder="e.g., -1001234567890 or @channelname"
+                value={customChatId}
+                onChange={(e) => setCustomChatId(e.target.value)}
+                disabled={isSending}
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestConnection}
+                  disabled={!customChatId.trim() || isTesting || isSending}
+                  className="text-xs"
+                >
+                  {isTesting ? "Testing..." : "Test Connection"}
+                </Button>
+                {testResult && (
+                  <span className={`text-xs ${testResult.success ? 'text-green-600' : 'text-destructive'}`}>
+                    {testResult.success ? "✓ Connected" : "✗ Failed"}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                For channels: Use -100xxxxxxxxxx format (with minus sign)
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center justify-between space-x-2 rounded-lg border p-3">
             <div className="flex items-center gap-2">
@@ -258,7 +379,7 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
 
           <Button
             onClick={handleSend}
-            disabled={!chatId.trim() || isSending || (isScheduled && !scheduleInterval)}
+            disabled={!getChatId() || isSending || (isScheduled && !scheduleInterval)}
             className="w-full"
           >
             {isSending ? (
