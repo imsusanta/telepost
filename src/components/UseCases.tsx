@@ -4,37 +4,37 @@ const useCases = [
   {
     icon: <BookOpen className="w-8 h-8" />,
     title: "JEE/NEET Coaching",
-    description: "Prepare students for competitive exams with timed tests and analytics",
+    description: "Auto-post daily quizzes to your Telegram channel. Keep 50K+ students engaged with zero manual work.",
     gradient: "from-primary to-accent"
   },
   {
     icon: <Briefcase className="w-8 h-8" />,
-    title: "Language Classes",
-    description: "Test vocabulary, grammar, and comprehension skills effectively",
+    title: "UPSC Preparation",
+    description: "Schedule current affairs quizzes. Auto-generate PDFs with detailed explanations for your channel.",
     gradient: "from-accent to-secondary"
   },
   {
     icon: <Trophy className="w-8 h-8" />,
-    title: "K-12 Schools",
-    description: "Create chapter-wise tests and track student progress over time",
+    title: "Language Learning",
+    description: "Run vocabulary and grammar quizzes on Telegram. Track engagement with leaderboards.",
     gradient: "from-secondary to-success"
   },
   {
     icon: <Newspaper className="w-8 h-8" />,
-    title: "Online Tutors",
-    description: "Assess students remotely with automated grading and reports",
+    title: "Banking & SSC",
+    description: "Post aptitude and reasoning quizzes daily. Build a loyal student community on Telegram.",
     gradient: "from-success to-primary"
   },
   {
     icon: <Film className="w-8 h-8" />,
-    title: "Universities",
-    description: "Conduct semester exams, mid-terms, and assignment assessments",
+    title: "CBSE/ICSE Classes",
+    description: "Share chapter-wise quizzes on your Telegram channel. Parents love the engagement reports.",
     gradient: "from-primary to-secondary"
   },
   {
     icon: <Gamepad2 className="w-8 h-8" />,
-    title: "Corporate Training",
-    description: "Employee skill assessment and certification programs",
+    title: "General Knowledge",
+    description: "Run daily GK quizzes on Telegram. Perfect for current affairs channels and quiz enthusiasts.",
     gradient: "from-accent to-success"
   }
 ];

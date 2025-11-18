@@ -1,58 +1,58 @@
-import { Sparkles, BarChart3, Send, CheckCircle2, Globe, Upload, Users, Award, TrendingUp } from "lucide-react";
+import { Sparkles, BarChart3, FileText, CheckCircle2, Clock, Upload, Zap, Languages, Trophy } from "lucide-react";
 
 const features = [
   {
     icon: <Upload className="w-6 h-6" />,
     title: "Knowledge Base Upload",
-    description: "Upload PDFs, documents, presentations. AI extracts content and generates quizzes automatically.",
+    description: "Upload PDFs, study notes, textbooks. AI generates high-quality quizzes from your content automatically.",
     gradient: "from-primary to-accent"
   },
   {
-    icon: <Users className="w-6 h-6" />,
-    title: "Student Management",
-    description: "Manage unlimited students, create batches, track attendance, and monitor progress in real-time.",
+    icon: <FileText className="w-6 h-6" />,
+    title: "Auto PDF Explanations",
+    description: "After quiz ends, automatically generate & post a beautiful PDF with all answers and detailed explanations.",
     gradient: "from-accent to-secondary"
   },
   {
-    icon: <BarChart3 className="w-6 h-6" />,
-    title: "Advanced Analytics",
-    description: "Deep insights into student performance, weak topics, batch comparisons, and predictive success rates.",
+    icon: <Clock className="w-6 h-6" />,
+    title: "Smart Scheduling",
+    description: "Schedule quizzes daily/weekly with auto-posting. Set it once, run for months on autopilot.",
     gradient: "from-secondary to-success"
   },
   {
-    icon: <Sparkles className="w-6 h-6" />,
-    title: "Auto-Grading System",
-    description: "Automated grading with detailed explanations, negative marking support, and instant feedback.",
+    icon: <BarChart3 className="w-6 h-6" />,
+    title: "Engagement Analytics",
+    description: "Track views, participation rate, popular topics. Know what content resonates with your audience.",
     gradient: "from-success to-primary"
   },
   {
-    icon: <Award className="w-6 h-6" />,
-    title: "Live Competitions",
-    description: "Host real-time quiz tournaments with leaderboards, gamification, and inter-batch challenges.",
+    icon: <Sparkles className="w-6 h-6" />,
+    title: "Question Bank (50K+)",
+    description: "Access pre-made questions for JEE, NEET, UPSC, etc. Filter by subject, difficulty, exam type.",
     gradient: "from-primary to-secondary"
   },
   {
-    icon: <TrendingUp className="w-6 h-6" />,
-    title: "Parent Portal",
-    description: "Real-time progress updates, automated reports, and direct parent-teacher communication.",
+    icon: <Trophy className="w-6 h-6" />,
+    title: "Leaderboards & Gamification",
+    description: "Auto-generate weekly leaderboards. Award badges. Keep students engaged and coming back.",
     gradient: "from-accent to-success"
   },
   {
-    icon: <CheckCircle2 className="w-6 h-6" />,
-    title: "Question Bank",
-    description: "Access 10,000+ pre-made questions across subjects, filtered by difficulty and exam type.",
+    icon: <Zap className="w-6 h-6" />,
+    title: "Batch Quiz Generation",
+    description: "Generate 30 quizzes from one document. Schedule entire month's content in 5 minutes.",
     gradient: "from-secondary to-primary"
   },
   {
-    icon: <Globe className="w-6 h-6" />,
-    title: "White-Label Solution",
-    description: "Custom branding, domain, and remove our branding completely for your coaching institute.",
+    icon: <Languages className="w-6 h-6" />,
+    title: "Multi-Language Support",
+    description: "Create quizzes in Hindi, English, regional languages. AI translates questions instantly.",
     gradient: "from-success to-accent"
   },
   {
-    icon: <Send className="w-6 h-6" />,
-    title: "LMS Integrations",
-    description: "Seamlessly integrate with Moodle, Canvas, Google Classroom, and other learning platforms.",
+    icon: <CheckCircle2 className="w-6 h-6" />,
+    title: "Custom Branding",
+    description: "Add your institute logo on PDFs, customize colors, add watermarks. Professional look guaranteed.",
     gradient: "from-primary to-success"
   }
 ];

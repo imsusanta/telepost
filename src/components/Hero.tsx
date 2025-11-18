@@ -13,19 +13,19 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           <div className="space-y-8 animate-slide-up">
             <div className="inline-flex items-center space-x-2 px-5 py-2.5 bg-primary/10 clay-card">
               <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
-              <span className="text-sm text-primary font-semibold">AI-Powered Educational Platform</span>
+              <span className="text-sm text-primary font-semibold">AI-Powered Telegram Quiz Generator</span>
             </div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight text-foreground">
-              Transform Your
+              Run Your Entire
               <span className="block text-gradient bg-gradient-to-r from-primary via-accent to-secondary mt-2">
-                Teaching with AI
+                Quiz Channel
               </span>
-              Create Quizzes from PDFs in Seconds
+              on Autopilot with AI
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed">
-              Upload your study materials and let AI generate personalized quizzes. Manage students, track performance, and boost learning outcomes for coaching institutes and tutors.
+              Upload PDFs → AI generates quizzes → Auto-posts to Telegram → Sends explanation PDFs. Your coaching institute's Telegram channel runs 24/7 without lifting a finger.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -44,19 +44,19 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
                 <div className="clay-card bg-success/20 p-1 rounded-full">
                   <CheckCircle2 className="w-4 h-4 text-success-foreground" />
                 </div>
-                <span className="text-sm text-foreground font-medium">Free 14-day trial</span>
+                <span className="text-sm text-foreground font-medium">Save 15+ hours/week</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="clay-card bg-success/20 p-1 rounded-full">
                   <CheckCircle2 className="w-4 h-4 text-success-foreground" />
                 </div>
-                <span className="text-sm text-foreground font-medium">500+ institutes trust us</span>
+                <span className="text-sm text-foreground font-medium">800+ coaching institutes</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="clay-card bg-success/20 p-1 rounded-full">
                   <CheckCircle2 className="w-4 h-4 text-success-foreground" />
                 </div>
-                <span className="text-sm text-foreground font-medium">98% student engagement</span>
+                <span className="text-sm text-foreground font-medium">95% retention rate</span>
               </div>
             </div>
           </div>

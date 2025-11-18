@@ -6,39 +6,41 @@ import { CreditCard, Check } from "lucide-react";
 export default function Billing() {
   const plans = [
     {
-      name: "Teacher",
+      name: "Starter",
       price: "$29",
       period: "/month",
       features: [
-        "Up to 100 students",
-        "Upload PDFs & Documents",
+        "1 Telegram Channel",
+        "Upload PDFs (Up to 10GB)",
         "AI Quiz Generation",
-        "5 Batches/Classes",
-        "Basic Analytics",
-        "Student Performance Reports",
-        "1 Knowledge Base (5GB)"
+        "50 Quizzes/month",
+        "Basic Scheduling",
+        "PDF Explanations",
+        "Question Bank (10K questions)",
+        "Email Support"
       ],
       current: false,
       gradient: "from-primary to-accent",
-      description: "Perfect for individual tutors"
+      description: "Perfect for small coaching classes"
     },
     {
-      name: "Coaching",
+      name: "Pro",
       price: "$99",
       period: "/month",
       features: [
-        "Up to 500 students",
-        "Unlimited PDF Uploads",
+        "3 Telegram Channels",
+        "Unlimited PDF Uploads (50GB)",
         "Advanced AI from Documents",
-        "Unlimited Batches",
-        "Student Management System",
-        "Parent Portal Access",
-        "Advanced Analytics Dashboard",
-        "Question Bank (10K+ questions)",
-        "Auto-grading & Reports",
-        "Live Quiz Competitions",
-        "5 Knowledge Bases (50GB)",
-        "Custom Branding"
+        "Unlimited Quizzes",
+        "Auto-Post Scheduling (Set & Forget)",
+        "Auto PDF Explanations",
+        "Batch Generate 30 Quizzes at Once",
+        "Question Bank (50K+ questions)",
+        "Engagement Analytics Dashboard",
+        "Leaderboards & Gamification",
+        "Custom Branding on PDFs",
+        "Multi-Language Support",
+        "Priority Support"
       ],
       current: true,
       gradient: "from-accent to-secondary",
@@ -46,46 +48,42 @@ export default function Billing() {
       description: "Best for coaching institutes"
     },
     {
-      name: "Institute",
-      price: "$299",
+      name: "Agency",
+      price: "$249",
       period: "/month",
       features: [
-        "Unlimited Students",
+        "10 Telegram Channels",
         "Unlimited Everything",
         "White-Label Solution",
-        "Custom Domain",
         "API Access",
-        "LMS Integrations",
-        "Certificate Generation",
-        "Plagiarism Detection",
-        "Mobile Apps (iOS & Android)",
         "Dedicated Account Manager",
+        "Custom Quiz Templates",
+        "Advanced Analytics & Reporting",
+        "Multi-Admin Access",
         "24/7 Priority Support",
-        "Unlimited Knowledge Bases",
-        "Multi-branch Management"
+        "Custom Integrations"
       ],
       current: false,
       gradient: "from-secondary to-success",
-      description: "For large educational institutions"
+      description: "For multi-branch institutes"
     },
     {
       name: "Enterprise",
       price: "Custom",
       period: "pricing",
       features: [
-        "Everything in Institute",
-        "Custom Development",
+        "Unlimited Channels",
+        "Everything in Agency",
         "On-premise Deployment",
-        "SSO & Advanced Security",
-        "Compliance (SOC2, GDPR)",
+        "Custom Development",
         "SLA Guarantee",
         "Training & Onboarding",
-        "Custom Integrations",
-        "Dedicated Infrastructure"
+        "Dedicated Infrastructure",
+        "Advanced Security & Compliance"
       ],
       current: false,
       gradient: "from-success to-primary",
-      description: "Tailored for universities"
+      description: "For large organizations"
     },
   ];
 
