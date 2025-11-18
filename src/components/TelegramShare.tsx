@@ -53,8 +53,9 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
         toast.error(data.error);
       }
     } catch (error) {
-      console.error("Test connection error:", error);
-      const errorMsg = "Failed to test connection. Please check your bot token and chat ID.";
+      const errorMsg = error instanceof Error
+        ? error.message
+        : "Failed to test connection. Please check your bot token and chat ID.";
       setTestResult({ success: false, message: errorMsg });
       toast.error(errorMsg);
     } finally {
@@ -115,8 +116,10 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
       setIsScheduled(false);
       setInstantPoll(false);
     } catch (error) {
-      console.error("Error sending to Telegram:", error);
-      toast.error("Failed to send quiz to Telegram. Please try again.");
+      const errorMsg = error instanceof Error
+        ? error.message
+        : "Failed to send quiz to Telegram. Please try again.";
+      toast.error(errorMsg);
     } finally {
       setIsSending(false);
     }

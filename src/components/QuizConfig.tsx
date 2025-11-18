@@ -90,7 +90,7 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
             <Label htmlFor="difficulty" className="text-sm font-medium">
               Difficulty Level
             </Label>
-            <Select value={difficulty} onValueChange={(v) => setDifficulty(v as any)}>
+            <Select value={difficulty} onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}>
               <SelectTrigger id="difficulty" className="h-12">
                 <SelectValue />
               </SelectTrigger>

@@ -61,11 +61,11 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
             </div>
           </div>
 
-          <div className="relative animate-float">
+          <div className="relative animate-float" role="img" aria-label="Interactive demonstration of Telegram quiz channel with live voting statistics">
             <div className="relative z-10">
               <div className="mx-auto w-full max-w-sm">
                 <div className="clay-card-hover bg-gradient-to-br from-card to-card/80 rounded-[3rem] p-4 backdrop-blur-sm">
-                  <div className="bg-background/80 rounded-[2.5rem] overflow-hidden shadow-clay-inner">
+                  <div className="bg-background/80 rounded-[2.5rem] overflow-hidden shadow-clay-inner" role="presentation">
                     <div className="bg-gradient-to-r from-primary/20 to-accent/20 px-6 py-2 flex justify-between items-center text-xs text-foreground">
                       <span className="font-semibold">9:41</span>
                       <div className="flex items-center space-x-1">

@@ -13,9 +13,10 @@ export function LoadingState({ message = "Loading...", size = "md" }: LoadingSta
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 gap-4">
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary`} />
+    <div className="flex flex-col items-center justify-center py-12 gap-4" role="status" aria-live="polite">
+      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary`} aria-hidden="true" />
       <p className="text-muted-foreground text-sm">{message}</p>
+      <span className="sr-only">{message}</span>
     </div>
   );
 }

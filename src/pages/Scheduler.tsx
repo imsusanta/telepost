@@ -6,7 +6,7 @@ import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { format } from "date-fns";
 import { Clock, CheckCircle2, XCircle, Calendar, AlertCircle } from "lucide-react";
 import { LoadingState } from "@/components/LoadingState";
-import { EmptyState } from "@/components/EmptyState";
+import type { Quiz } from "@/types/quiz";
 
 export default function Scheduler() {
   const { scheduledPosts, isLoading } = useScheduledPosts();
@@ -83,7 +83,7 @@ export default function Scheduler() {
                   </TableHeader>
                   <TableBody>
                     {scheduledPosts.map((post) => {
-                      const quizData = post.quiz_data as any;
+                      const quizData = post.quiz_data as Quiz;
                       return (
                         <TableRow key={post.id}>
                           <TableCell className="font-medium">

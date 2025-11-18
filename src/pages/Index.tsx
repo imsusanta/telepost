@@ -43,8 +43,10 @@ const Index = () => {
       handleQuizCreated(data);
       toast.success("Quiz generated successfully!");
     } catch (error) {
-      console.error("Error generating quiz:", error);
-      toast.error("Failed to generate quiz. Please try again.");
+      const errorMsg = error instanceof Error
+        ? error.message
+        : "Failed to generate quiz. Please try again.";
+      toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
     }
