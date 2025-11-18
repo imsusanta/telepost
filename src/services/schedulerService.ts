@@ -86,9 +86,9 @@ export class SchedulerService {
     userId: string,
     post: {
       chatId: string;
-      botToken: string;
       quizData: any;
       scheduledTime: Date;
+      minQuestionsPerInterval?: number;
     }
   ): Promise<ScheduledPost> {
     const { data, error } = await supabase
@@ -96,9 +96,9 @@ export class SchedulerService {
       .insert({
         user_id: userId,
         chat_id: post.chatId,
-        bot_token: post.botToken,
         quiz_data: post.quizData,
         scheduled_time: post.scheduledTime.toISOString(),
+        min_questions_per_interval: post.minQuestionsPerInterval || 1,
         status: "pending",
       })
       .select()

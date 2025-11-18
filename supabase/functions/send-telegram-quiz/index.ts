@@ -56,8 +56,9 @@ serve(async (req) => {
       }
 
       // Create a scheduled post for each batch at the specified interval
+      // Start from interval 1 (not 0) so first post is also scheduled at interval time
       for (let i = 0; i < questionBatches.length; i++) {
-        const scheduledTime = new Date(now.getTime() + (i * scheduleInterval * 60 * 1000));
+        const scheduledTime = new Date(now.getTime() + ((i + 1) * scheduleInterval * 60 * 1000));
         scheduledPosts.push({
           chat_id: chatId,
           quiz_data: {
@@ -107,7 +108,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `🎯 *${quiz.topic} Quiz*\n\nHere are ${quiz.questions.length} questions for you! Answer the polls below:`,
+        text: `Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the polls below:`,
         parse_mode: "Markdown",
       }),
     });
