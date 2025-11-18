@@ -47,7 +47,7 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: post.chat_id,
-            text: `🎯 *${post.quiz_data.topic} Quiz*\n\nHere are ${post.quiz_data.questions.length} questions for you! Answer the polls below:`,
+            text: `Topic: ${post.quiz_data.topic}\n\nHere are ${post.quiz_data.questions.length} questions for you! Answer the polls below:`,
             parse_mode: "Markdown",
           }),
         });
