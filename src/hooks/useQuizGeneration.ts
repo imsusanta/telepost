@@ -48,12 +48,8 @@ export function useQuizGeneration() {
       return "Topic is too long (maximum 200 characters)";
     }
 
-    if (!config.numQuestions || config.numQuestions < 1 || config.numQuestions > 20) {
+    if (!config.questionCount || config.questionCount < 1 || config.questionCount > 20) {
       return "Number of questions must be between 1 and 20";
-    }
-
-    if (!config.channelId) {
-      return "Please select a channel";
     }
 
     return null;

@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Search, Filter, Plus, Trash2, RefreshCw } from "lucide-react";
+import { Database, Search, Filter, Trash2, RefreshCw } from "lucide-react";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AddQuestionDialog } from "@/components/AddQuestionDialog";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
@@ -128,6 +129,7 @@ export default function QuestionBank() {
                 className="pl-10 w-64"
               />
             </div>
+            <AddQuestionDialog onQuestionAdded={handleRefresh} />
             <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
