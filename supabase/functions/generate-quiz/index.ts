@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    // Get the authorization header to authenticate the user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const {
       topic,
       questionCount,
@@ -48,25 +57,56 @@ serve(async (req) => {
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
 
-          // Get channel settings for system prompt
-          const { data: channel } = await supabase
+          // First, verify the channel belongs to the user by getting user from auth header
+          const supabaseClient = createClient(
+            supabaseUrl,
+            Deno.env.get("SUPABASE_ANON_KEY") || "",
+            { global: { headers: { Authorization: authHeader } } }
+          );
+
+          const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+          if (userError || !user) {
+            console.error("Failed to authenticate user:", userError);
+            throw new Error("Authentication failed");
+          }
+
+          // Verify channel ownership
+          const { data: channel, error: channelError } = await supabase
             .from("channels")
-            .select("settings")
+            .select("settings, user_id")
             .eq("id", channelId)
             .single();
+
+          if (channelError || !channel) {
+            console.error("Channel not found:", channelError);
+            throw new Error("Channel not found");
+          }
+
+          // Security check: Verify the channel belongs to the authenticated user
+          if (channel.user_id !== user.id) {
+            console.error("Channel does not belong to user");
+            throw new Error("Unauthorized access to channel");
+          }
 
           if (channel?.settings?.system_prompt) {
             channelSystemPrompt = channel.settings.system_prompt;
           }
 
-          // Get channel documents
-          const { data: documents } = await supabase
+          // Get channel documents (now safe because we verified channel ownership)
+          const { data: documents, error: docsError } = await supabase
             .from("documents")
             .select("title, extracted_text, ai_summary")
             .eq("channel_id", channelId)
+            .eq("user_id", user.id)
             .eq("processing_status", "completed")
             .not("extracted_text", "is", null)
             .limit(10);
+
+          if (docsError) {
+            console.error("Error fetching documents:", docsError);
+            throw docsError;
+          }
 
           if (documents && documents.length > 0) {
             knowledgeBaseContext = documents
@@ -75,11 +115,20 @@ serve(async (req) => {
 
             // Limit total knowledge base to 5000 characters
             knowledgeBaseContext = knowledgeBaseContext.substring(0, 5000);
+          } else {
+            console.log("No completed documents found for channel");
           }
         }
       } catch (error) {
         console.error("Error fetching channel knowledge base:", error);
-        // Continue without knowledge base
+        // Return error to user so they know what went wrong
+        return new Response(
+          JSON.stringify({
+            error: "Failed to load channel knowledge base",
+            details: error instanceof Error ? error.message : "Unknown error"
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
