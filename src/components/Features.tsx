@@ -1,41 +1,59 @@
-import { Sparkles, Zap, BarChart3, Send, CheckCircle2, Globe } from "lucide-react";
+import { Sparkles, BarChart3, Send, CheckCircle2, Globe, Upload, Users, Award, TrendingUp } from "lucide-react";
 
 const features = [
   {
-    icon: <Sparkles className="w-6 h-6" />,
-    title: "AI Quiz Generation",
-    description: "Paste any content, get quiz questions instantly. Our AI understands context and creates engaging questions.",
+    icon: <Upload className="w-6 h-6" />,
+    title: "Knowledge Base Upload",
+    description: "Upload PDFs, documents, presentations. AI extracts content and generates quizzes automatically.",
     gradient: "from-primary to-accent"
   },
   {
-    icon: <Send className="w-6 h-6" />,
-    title: "Telegram Native",
-    description: "Perfect formatting for Telegram polls. Looks beautiful on mobile and desktop.",
+    icon: <Users className="w-6 h-6" />,
+    title: "Student Management",
+    description: "Manage unlimited students, create batches, track attendance, and monitor progress in real-time.",
     gradient: "from-accent to-secondary"
   },
   {
     icon: <BarChart3 className="w-6 h-6" />,
-    title: "Engagement Analytics",
-    description: "Track quiz performance, participation rates, and subscriber engagement in real-time.",
+    title: "Advanced Analytics",
+    description: "Deep insights into student performance, weak topics, batch comparisons, and predictive success rates.",
     gradient: "from-secondary to-success"
   },
   {
-    icon: <Zap className="w-6 h-6" />,
-    title: "Instant Publishing",
-    description: "Direct integration with your Telegram channel. Post quizzes with one click.",
+    icon: <Sparkles className="w-6 h-6" />,
+    title: "Auto-Grading System",
+    description: "Automated grading with detailed explanations, negative marking support, and instant feedback.",
     gradient: "from-success to-primary"
   },
   {
-    icon: <CheckCircle2 className="w-6 h-6" />,
-    title: "Question Types",
-    description: "Multiple choice, true/false, polls, and custom quiz formats for variety.",
+    icon: <Award className="w-6 h-6" />,
+    title: "Live Competitions",
+    description: "Host real-time quiz tournaments with leaderboards, gamification, and inter-batch challenges.",
     gradient: "from-primary to-secondary"
   },
   {
-    icon: <Globe className="w-6 h-6" />,
-    title: "Multi-language",
-    description: "Support for all languages. Create quizzes in any language your audience speaks.",
+    icon: <TrendingUp className="w-6 h-6" />,
+    title: "Parent Portal",
+    description: "Real-time progress updates, automated reports, and direct parent-teacher communication.",
     gradient: "from-accent to-success"
+  },
+  {
+    icon: <CheckCircle2 className="w-6 h-6" />,
+    title: "Question Bank",
+    description: "Access 10,000+ pre-made questions across subjects, filtered by difficulty and exam type.",
+    gradient: "from-secondary to-primary"
+  },
+  {
+    icon: <Globe className="w-6 h-6" />,
+    title: "White-Label Solution",
+    description: "Custom branding, domain, and remove our branding completely for your coaching institute.",
+    gradient: "from-success to-accent"
+  },
+  {
+    icon: <Send className="w-6 h-6" />,
+    title: "LMS Integrations",
+    description: "Seamlessly integrate with Moodle, Canvas, Google Classroom, and other learning platforms.",
+    gradient: "from-primary to-success"
   }
 ];
 

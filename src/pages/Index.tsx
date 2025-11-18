@@ -124,10 +124,10 @@ const Index = () => {
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { value: '50K+', label: 'Quizzes Created', gradient: 'from-primary to-accent' },
-                  { value: '10K+', label: 'Active Channels', gradient: 'from-secondary to-accent' },
-                  { value: '2M+', label: 'Participants', gradient: 'from-accent to-primary' },
-                  { value: '4.9★', label: 'User Rating', gradient: 'from-success to-secondary' }
+                  { value: '500+', label: 'Coaching Institutes', gradient: 'from-primary to-accent' },
+                  { value: '50K+', label: 'Active Students', gradient: 'from-secondary to-accent' },
+                  { value: '2M+', label: 'Quizzes Taken', gradient: 'from-accent to-primary' },
+                  { value: '98%', label: 'Engagement Rate', gradient: 'from-success to-secondary' }
                 ].map((stat, idx) => (
                   <div
                     key={idx}

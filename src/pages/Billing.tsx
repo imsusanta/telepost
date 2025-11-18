@@ -6,37 +6,86 @@ import { CreditCard, Check } from "lucide-react";
 export default function Billing() {
   const plans = [
     {
-      name: "Free",
-      price: "₹0",
-      period: "forever",
-      features: ["20 quizzes/month", "Basic AI generation", "1 connected bot", "Community support"],
+      name: "Teacher",
+      price: "$29",
+      period: "/month",
+      features: [
+        "Up to 100 students",
+        "Upload PDFs & Documents",
+        "AI Quiz Generation",
+        "5 Batches/Classes",
+        "Basic Analytics",
+        "Student Performance Reports",
+        "1 Knowledge Base (5GB)"
+      ],
+      current: false,
+      gradient: "from-primary to-accent",
+      description: "Perfect for individual tutors"
+    },
+    {
+      name: "Coaching",
+      price: "$99",
+      period: "/month",
+      features: [
+        "Up to 500 students",
+        "Unlimited PDF Uploads",
+        "Advanced AI from Documents",
+        "Unlimited Batches",
+        "Student Management System",
+        "Parent Portal Access",
+        "Advanced Analytics Dashboard",
+        "Question Bank (10K+ questions)",
+        "Auto-grading & Reports",
+        "Live Quiz Competitions",
+        "5 Knowledge Bases (50GB)",
+        "Custom Branding"
+      ],
       current: true,
-      gradient: "from-muted to-secondary/30"
-    },
-    {
-      name: "Basic",
-      price: "₹499",
-      period: "/month",
-      features: ["Unlimited quizzes", "Advanced AI generation", "5 connected bots", "Priority support", "Custom branding"],
-      current: false,
-      gradient: "from-primary to-accent"
-    },
-    {
-      name: "Pro",
-      price: "₹999",
-      period: "/month",
-      features: ["Everything in Basic", "Scheduled daily quizzes", "Unlimited bots", "Analytics dashboard", "API access", "24/7 support"],
-      current: false,
       gradient: "from-accent to-secondary",
-      popular: true
+      popular: true,
+      description: "Best for coaching institutes"
     },
     {
-      name: "Agency",
-      price: "₹2,499",
+      name: "Institute",
+      price: "$299",
       period: "/month",
-      features: ["Everything in Pro", "Unlimited channels", "Team collaboration", "White-label solution", "Dedicated account manager", "Custom integrations"],
+      features: [
+        "Unlimited Students",
+        "Unlimited Everything",
+        "White-Label Solution",
+        "Custom Domain",
+        "API Access",
+        "LMS Integrations",
+        "Certificate Generation",
+        "Plagiarism Detection",
+        "Mobile Apps (iOS & Android)",
+        "Dedicated Account Manager",
+        "24/7 Priority Support",
+        "Unlimited Knowledge Bases",
+        "Multi-branch Management"
+      ],
       current: false,
-      gradient: "from-secondary to-success"
+      gradient: "from-secondary to-success",
+      description: "For large educational institutions"
+    },
+    {
+      name: "Enterprise",
+      price: "Custom",
+      period: "pricing",
+      features: [
+        "Everything in Institute",
+        "Custom Development",
+        "On-premise Deployment",
+        "SSO & Advanced Security",
+        "Compliance (SOC2, GDPR)",
+        "SLA Guarantee",
+        "Training & Onboarding",
+        "Custom Integrations",
+        "Dedicated Infrastructure"
+      ],
+      current: false,
+      gradient: "from-success to-primary",
+      description: "Tailored for universities"
     },
   ];
 
@@ -76,6 +125,7 @@ export default function Billing() {
                   )}
                 </CardTitle>
                 <CardDescription>
+                  <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
                   <div className="flex items-baseline space-x-1 mt-2">
                     <span className={`text-4xl font-bold text-gradient bg-gradient-to-r ${plan.gradient}`}>
                       {plan.price}
