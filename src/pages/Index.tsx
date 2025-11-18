@@ -113,27 +113,31 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white">
+    <div className="min-h-screen w-full relative">
       <Navigation onGetStarted={handleGetStarted} />
-      
+
       {state === "landing" && (
         <>
           <Hero onGetStarted={handleGetStarted} />
-          
-          <section className="py-12 px-4 border-y border-white/5 bg-white/5 backdrop-blur-xl">
+
+          <section className="py-16 px-4 relative">
             <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { value: '50K+', label: 'Quizzes Created' },
-                  { value: '10K+', label: 'Active Channels' },
-                  { value: '2M+', label: 'Participants' },
-                  { value: '4.9★', label: 'User Rating' }
+                  { value: '50K+', label: 'Quizzes Created', gradient: 'from-primary to-accent' },
+                  { value: '10K+', label: 'Active Channels', gradient: 'from-secondary to-accent' },
+                  { value: '2M+', label: 'Participants', gradient: 'from-accent to-primary' },
+                  { value: '4.9★', label: 'User Rating', gradient: 'from-success to-secondary' }
                 ].map((stat, idx) => (
-                  <div key={idx} className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  <div
+                    key={idx}
+                    className="text-center clay-card-hover bg-card/50 backdrop-blur-sm p-6 animate-scale-in"
+                    style={{ animationDelay: `${idx * 0.1}s` }}
+                  >
+                    <div className={`text-3xl md:text-4xl font-bold text-gradient bg-gradient-to-r ${stat.gradient}`}>
                       {stat.value}
                     </div>
-                    <div className="text-sm text-gray-400 mt-1">{stat.label}</div>
+                    <div className="text-sm text-muted-foreground mt-2 font-medium">{stat.label}</div>
                   </div>
                 ))}
               </div>
@@ -149,26 +153,38 @@ const Index = () => {
       {state === "config" && (
         <div className="min-h-screen pt-24 pb-12 px-4">
           <div className="max-w-4xl mx-auto">
-            <Tabs defaultValue="ai" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="ai">AI Generated</TabsTrigger>
-                <TabsTrigger value="manual">Manual Input</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="ai">
-                <QuizConfigForm
-                  onStartQuiz={handleStartQuiz}
-                  isGenerating={isGenerating}
-                />
-              </TabsContent>
-              
-              <TabsContent value="manual">
-                <ManualQuizInput
-                  onQuizCreated={handleQuizCreated}
-                  isGenerating={isGenerating}
-                />
-              </TabsContent>
-            </Tabs>
+            <div className="clay-card bg-card/50 backdrop-blur-sm p-8 animate-scale-in">
+              <h2 className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent mb-2 text-center">
+                Create Your Quiz
+              </h2>
+              <p className="text-muted-foreground text-center mb-8">
+                Choose how you'd like to create your quiz
+              </p>
+              <Tabs defaultValue="ai" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-8 clay-card bg-muted/50 p-1.5 h-auto">
+                  <TabsTrigger value="ai" className="rounded-2xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all">
+                    AI Generated
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="rounded-2xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all">
+                    Manual Input
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="ai">
+                  <QuizConfigForm
+                    onStartQuiz={handleStartQuiz}
+                    isGenerating={isGenerating}
+                  />
+                </TabsContent>
+
+                <TabsContent value="manual">
+                  <ManualQuizInput
+                    onQuizCreated={handleQuizCreated}
+                    isGenerating={isGenerating}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
         </div>
       )}
@@ -180,7 +196,7 @@ const Index = () => {
               onClick={handleNewQuiz}
               variant="outline"
               size="sm"
-              className="bg-white/5 border-white/10 hover:bg-white/10 text-white"
+              className="clay-button bg-card/50 border-border hover:bg-card"
             >
               ← Back to Home
             </Button>
@@ -195,13 +211,13 @@ const Index = () => {
             onSelectAnswer={handleSelectAnswer}
           />
           {isAnswered && (
-            <div className="flex gap-4">
+            <div className="flex gap-4 animate-slide-up">
               {currentQuestionIndex > 0 && (
                 <Button
                   onClick={handlePreviousQuestion}
                   size="lg"
                   variant="outline"
-                  className="min-w-[200px]"
+                  className="min-w-[200px] clay-button bg-card/50 border-border"
                 >
                   Previous Question
                 </Button>
@@ -209,7 +225,7 @@ const Index = () => {
               <Button
                 onClick={handleNextQuestion}
                 size="lg"
-                className="min-w-[200px] bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent text-accent-foreground font-semibold"
+                className="min-w-[200px] clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold"
               >
                 {currentQuestionIndex < quiz.questions.length - 1 ? "Next Question" : "See Results"}
               </Button>

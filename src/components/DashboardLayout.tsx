@@ -49,14 +49,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+    <div className="min-h-screen relative">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900/50 backdrop-blur-xl border-r border-white/10 p-6">
-        <div className="flex items-center space-x-2 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-white" />
+      <aside className="fixed left-0 top-0 h-full w-72 bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border p-6 shadow-clay-lg z-50">
+        <div className="flex items-center space-x-3 mb-10">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay">
+            <Sparkles className="w-7 h-7 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+          <span className="text-2xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
             QuizGenie
           </span>
         </div>
@@ -69,10 +69,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${
                   isActive
-                    ? "bg-blue-500/20 text-blue-400 font-medium"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
+                    ? "clay-button bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-clay-hover scale-105"
+                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent clay-card font-medium"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -86,7 +86,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <Button
             onClick={handleSignOut}
             variant="ghost"
-            className="w-full justify-start text-gray-400 hover:text-white hover:bg-white/5"
+            className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground clay-card-hover rounded-2xl py-6"
           >
             <LogOut className="w-5 h-5 mr-3" />
             Sign Out
@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
+      <main className="ml-72 p-8 min-h-screen">
         {children}
       </main>
     </div>

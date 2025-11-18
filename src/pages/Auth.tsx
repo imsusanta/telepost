@@ -91,36 +91,40 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <div className="w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-white" />
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay animate-float">
+              <Sparkles className="w-8 h-8 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
               QuizGenie
             </span>
           </div>
-          <p className="text-gray-400">AI-Powered Quiz Generation for Telegram</p>
+          <p className="text-muted-foreground text-lg">AI-Powered Quiz Generation for Telegram</p>
         </div>
 
-        <Card className="bg-slate-900/50 border-white/10">
-          <CardHeader>
-            <CardTitle>Welcome</CardTitle>
-            <CardDescription>Sign in to your account or create a new one</CardDescription>
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-bold text-foreground">Welcome</CardTitle>
+            <CardDescription className="text-muted-foreground">Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-6 clay-card bg-muted/50 p-1.5 h-auto">
+                <TabsTrigger value="signin" className="rounded-2xl py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all font-semibold">
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="rounded-2xl py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all font-semibold">
+                  Sign Up
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                <form onSubmit={handleSignIn} className="space-y-5">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signin-email" className="text-foreground font-semibold">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -128,10 +132,11 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signin-password" className="text-foreground font-semibold">Password</Label>
                     <Input
                       id="signin-password"
                       type="password"
@@ -139,18 +144,19 @@ export default function Auth() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
                     {loading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                <form onSubmit={handleSignUp} className="space-y-5">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signup-name" className="text-foreground font-semibold">Full Name</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -158,10 +164,11 @@ export default function Auth() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
+                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signup-email" className="text-foreground font-semibold">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -169,10 +176,11 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signup-password" className="text-foreground font-semibold">Password</Label>
                     <Input
                       id="signup-password"
                       type="password"
@@ -181,9 +189,10 @@ export default function Auth() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
+                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
                     {loading ? "Creating account..." : "Sign Up"}
                   </Button>
                 </form>
@@ -192,11 +201,11 @@ export default function Auth() {
           </CardContent>
         </Card>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-6">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground clay-card-hover rounded-2xl px-6 py-3"
           >
             Back to Home
           </Button>
