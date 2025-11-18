@@ -3,36 +3,25 @@ import { Quiz, QuizConfig } from "@/types/quiz";
 
 export class QuizService {
   static async generateQuiz(config: QuizConfig): Promise<Quiz> {
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: config,
-      });
+    const { data, error } = await supabase.functions.invoke("generate-quiz", {
+      body: config,
+    });
 
-      if (error) {
-        console.error("Quiz generation error:", error);
-        throw new Error("Unable to generate quiz. Please try again.");
-      }
-
-      // Additional validation: check if data contains an error field
-      if (data && typeof data === 'object' && 'error' in data) {
-        console.error("Quiz generation returned error:", (data as any).error);
-        throw new Error("Unable to generate quiz. Please try again.");
-      }
-
-      // Validate that data has the required quiz structure
-      if (!data || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-        console.error("Invalid quiz data received:", data);
-        throw new Error("Unable to generate quiz. Invalid response from server.");
-      }
-
-      return data as Quiz;
-    } catch (error: any) {
-      if (error.message?.includes("Unable to generate")) {
-        throw error;
-      }
-      console.error("Quiz generation failed:", error);
-      throw new Error("Unable to generate quiz. Please check your connection.");
+    if (error) {
+      throw new Error(error.message || "Failed to generate quiz");
     }
+
+    // Additional validation: check if data contains an error field
+    if (data && typeof data === 'object' && 'error' in data) {
+      throw new Error((data as any).error || "Failed to generate quiz");
+    }
+
+    // Validate that data has the required quiz structure
+    if (!data || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+      throw new Error("Invalid quiz data received from server");
+    }
+
+    return data as Quiz;
   }
 
   static async sendToTelegram(params: {

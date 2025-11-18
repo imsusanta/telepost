@@ -7,26 +7,18 @@ export class ChannelService {
    * Get all channels for a user
    */
   static async getUserChannels(userId: string): Promise<Channel[]> {
-    try {
-      const { data, error } = await supabase
-        .from("channels")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("channels")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching channels:", error);
-        throw new Error("Unable to load channels. Please try again.");
-      }
-
-      return data || [];
-    } catch (error: any) {
-      if (error.message?.includes("Unable to load")) {
-        throw error;
-      }
+    if (error) {
       console.error("Error fetching channels:", error);
-      throw new Error("Unable to load channels. Please check your connection.");
+      throw new Error(error.message || "Failed to fetch channels");
     }
+
+    return data || [];
   }
 
   /**
