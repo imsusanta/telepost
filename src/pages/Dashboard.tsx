@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Send, BarChart3, Calendar, LayoutDashboard, RefreshCw, Database, FileText } from "lucide-react";
+import { Sparkles, Bot, BarChart3, Calendar, LayoutDashboard, RefreshCw, Database, FileText } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -26,14 +26,9 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -41,7 +36,13 @@ export default function Dashboard() {
         return;
       }
 
-      // Load all data in parallel for better performance
+      // First get quiz IDs for responses query
+      const { data: quizIds } = await supabase
+        .from("quiz_generations")
+        .select("id")
+        .eq("user_id", user.id);
+
+      // Load all data in parallel
       const [
         profileResult,
         quizzesResult,
@@ -52,54 +53,17 @@ export default function Dashboard() {
         questionsResult,
         channelsResult
       ] = await Promise.all([
-        // Profile
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single(),
-        // Total quizzes
-        supabase
-          .from("quiz_generations")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        // Total scheduled posts
-        supabase
-          .from("scheduled_telegram_posts")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        // Pending scheduled posts
-        supabase
-          .from("scheduled_telegram_posts")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("status", "pending"),
-        // Total views (from quiz responses)
-        supabase
-          .from("quiz_responses")
-          .select("quiz_generation_id", { count: "exact", head: true })
-          .in("quiz_generation_id",
-            (await supabase.from("quiz_generations").select("id").eq("user_id", user.id)).data?.map(q => q.id) || []
-          ),
-        // Total documents
-        supabase
-          .from("documents")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        // Total questions in bank
-        supabase
-          .from("question_banks")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        // Total channels
-        supabase
-          .from("channels")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        supabase.from("quiz_generations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
+        supabase.from("quiz_responses").select("quiz_generation_id", { count: "exact", head: true }).in("quiz_generation_id", quizIds?.map(q => q.id) || []),
+        supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id)
       ]);
 
       setProfile(profileResult.data);
-
       setStats({
         totalQuizzes: quizzesResult.count || 0,
         scheduledPosts: scheduledResult.count || 0,
@@ -110,30 +74,32 @@ export default function Dashboard() {
         connectedBots: profileResult.data?.telegram_bot_token ? 1 : 0,
         totalChannels: channelsResult.count || 0
       });
-
-    } catch (error: any) {
-      console.error("Dashboard load error:", error);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load dashboard data";
       toast({
         title: "Error loading dashboard",
-        description: error.message || "Failed to load dashboard data",
+        description: message,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsLoading(true);
     await loadDashboardData();
-    setIsRefreshing(false);
     toast({
       title: "Dashboard refreshed",
       description: "All stats have been updated",
     });
-  };
+  }, [loadDashboardData, toast]);
 
-  const statsCards = [
+  const statsCards = useMemo(() => [
     {
       title: "Total Quizzes",
       value: stats?.totalQuizzes || 0,
@@ -158,7 +124,7 @@ export default function Dashboard() {
     {
       title: "Connected Bots",
       value: stats?.connectedBots || 0,
-      icon: Send,
+      icon: Bot,
       gradient: "from-success to-primary",
       description: `${stats?.totalChannels || 0} channels`
     },
@@ -176,7 +142,7 @@ export default function Dashboard() {
       gradient: "from-accent to-success",
       description: "Questions saved"
     }
-  ];
+  ], [stats]);
 
   return (
     <DashboardLayout>
@@ -191,23 +157,18 @@ export default function Dashboard() {
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isLoading}
             className="gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading ? (
-            // Loading skeleton
             Array.from({ length: 6 }).map((_, idx) => (
-              <Card
-                key={idx}
-                className="clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in"
-                style={{ animationDelay: `${idx * 0.1}s` }}
-              >
+              <Card key={idx} className="bg-card/50 backdrop-blur-sm border-border">
                 <CardHeader className="pb-3">
                   <Skeleton className="h-4 w-24" />
                 </CardHeader>
@@ -222,11 +183,7 @@ export default function Dashboard() {
             ))
           ) : (
             statsCards.map((stat, idx) => (
-              <Card
-                key={idx}
-                className="clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in"
-                style={{ animationDelay: `${idx * 0.1}s` }}
-              >
+              <Card key={idx} className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold text-muted-foreground">{stat.title}</CardTitle>
                 </CardHeader>
@@ -244,7 +201,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border animate-scale-in" style={{ animationDelay: "0.4s" }}>
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-foreground">Quick Start Guide</CardTitle>
             <CardDescription className="text-muted-foreground">Get started with creating your first quiz</CardDescription>

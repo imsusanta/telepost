@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ProfileService, Profile } from "@/services/profileService";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,11 +8,7 @@ export function useProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -22,18 +18,23 @@ export function useProfile() {
 
       const profileData = await ProfileService.fetchProfile(user.id);
       setProfile(profileData);
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to fetch profile";
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch profile",
+        description: message,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!profile) return;
 
     try {
@@ -44,17 +45,18 @@ export function useProfile() {
         description: "Profile updated successfully",
       });
       return updated;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update profile";
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile",
+        description: message,
         variant: "destructive",
       });
       throw error;
     }
-  };
+  }, [profile, toast]);
 
-  const saveTelegramConfig = async (botToken: string, channelId: string) => {
+  const saveTelegramConfig = useCallback(async (botToken: string, channelId: string) => {
     if (!profile) return;
 
     try {
@@ -65,15 +67,16 @@ export function useProfile() {
         description: "Telegram configuration saved",
       });
       return updated;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save Telegram configuration";
       toast({
         title: "Error",
-        description: error.message || "Failed to save Telegram configuration",
+        description: message,
         variant: "destructive",
       });
       throw error;
     }
-  };
+  }, [profile, toast]);
 
   return {
     profile,

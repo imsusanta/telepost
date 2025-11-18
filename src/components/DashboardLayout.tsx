@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,19 +33,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const checkAdminStatus = useCallback(async () => {
+    try {
+      const isSuper = await AdminService.isSuperAdmin();
+      setIsSuperAdmin(isSuper);
+    } catch {
+      setIsSuperAdmin(false);
+    }
+  }, []);
 
   useEffect(() => {
     checkAdminStatus();
-  }, []);
+  }, [checkAdminStatus]);
 
-  const checkAdminStatus = async () => {
-    const isSuper = await AdminService.isSuperAdmin();
-    setIsSuperAdmin(isSuper);
-  };
-
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await supabase.auth.signOut();
       navigate("/");
@@ -61,7 +64,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         variant: "destructive",
       });
     }
-  };
+  }, [navigate, toast]);
 
   const baseMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -145,10 +148,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         variant="outline"
         size="icon"
         className="fixed bottom-6 right-6 z-50 clay-button shadow-clay-lg rounded-full w-12 h-12"
-        onClick={() => {
-          const event = new KeyboardEvent('keydown', { key: '?' });
-          window.dispatchEvent(event);
-        }}
+        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))}
         title="Keyboard shortcuts (?)"
         aria-label="Show keyboard shortcuts"
       >

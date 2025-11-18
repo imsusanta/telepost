@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "@/types/channel";
 import { ChannelService } from "@/services/channelService";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,9 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Settings, FileText, MessageCircle, BarChart3, Zap, Sparkles, BookOpen, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Settings, FileText, MessageCircle, Zap, Sparkles, BookOpen, AlertCircle } from "lucide-react";
 import { systemPromptTemplates, getSystemPromptTemplate, generateChannelSystemPrompt } from "@/utils/systemPromptTemplates";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Channels() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -35,27 +37,28 @@ export default function Channels() {
     telegram_bot_token: "",
   });
 
-  useEffect(() => {
-    loadChannels();
-  }, []);
-
-  const loadChannels = async () => {
+  const loadChannels = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load channels";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadChannels();
+  }, [loadChannels]);
 
   const handleCreateChannel = async () => {
     try {
@@ -137,7 +140,7 @@ export default function Channels() {
     }
   };
 
-  const loadChannelStats = async (channelId: string, userId: string) => {
+  const loadChannelStats = useCallback(async (channelId: string, userId: string) => {
     try {
       const stats = await ChannelService.getChannelStats(channelId, userId);
       setChannelStats(prev => ({
@@ -147,10 +150,10 @@ export default function Channels() {
           quizCount: stats.quizCount,
         },
       }));
-    } catch (error) {
-      console.error("Error loading channel stats:", error);
+    } catch {
+      // Silently fail for individual channel stats
     }
-  };
+  }, []);
 
   const handleManualGeneration = async (channel: Channel) => {
     if (!channel.telegram_channel_id || !channel.telegram_bot_token) {
@@ -229,32 +232,54 @@ export default function Channels() {
     });
   };
 
-  // Load stats for all channels
+  // Load stats for all channels in parallel
   useEffect(() => {
     const loadAllStats = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      for (const channel of channels) {
-        loadChannelStats(channel.id, user.id);
-      }
+      await Promise.all(
+        channels.map(channel => loadChannelStats(channel.id, user.id))
+      );
     };
 
     if (channels.length > 0) {
       loadAllStats();
     }
-  }, [channels]);
+  }, [channels, loadChannelStats]);
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">Loading channels...</div>
-      </div>
+      <DashboardLayout>
+        <div className="container mx-auto p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <Skeleton className="h-8 w-32 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32 mb-2" />
+                  <Skeleton className="h-4 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-20 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Channels</h1>
@@ -693,6 +718,7 @@ Example: Generate questions focused on practical applications and real-world exa
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
