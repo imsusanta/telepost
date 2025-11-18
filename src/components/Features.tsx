@@ -1,41 +1,59 @@
-import { Sparkles, Zap, BarChart3, Send, CheckCircle2, Globe } from "lucide-react";
+import { Sparkles, BarChart3, FileText, CheckCircle2, Clock, Upload, Zap, Languages, Trophy } from "lucide-react";
 
 const features = [
   {
-    icon: <Sparkles className="w-6 h-6" />,
-    title: "AI Quiz Generation",
-    description: "Paste any content, get quiz questions instantly. Our AI understands context and creates engaging questions.",
+    icon: <Upload className="w-6 h-6" />,
+    title: "Knowledge Base Upload",
+    description: "Upload PDFs, study notes, textbooks. AI generates high-quality quizzes from your content automatically.",
     gradient: "from-primary to-accent"
   },
   {
-    icon: <Send className="w-6 h-6" />,
-    title: "Telegram Native",
-    description: "Perfect formatting for Telegram polls. Looks beautiful on mobile and desktop.",
+    icon: <FileText className="w-6 h-6" />,
+    title: "Auto PDF Explanations",
+    description: "After quiz ends, automatically generate & post a beautiful PDF with all answers and detailed explanations.",
     gradient: "from-accent to-secondary"
+  },
+  {
+    icon: <Clock className="w-6 h-6" />,
+    title: "Smart Scheduling",
+    description: "Schedule quizzes daily/weekly with auto-posting. Set it once, run for months on autopilot.",
+    gradient: "from-secondary to-success"
   },
   {
     icon: <BarChart3 className="w-6 h-6" />,
     title: "Engagement Analytics",
-    description: "Track quiz performance, participation rates, and subscriber engagement in real-time.",
-    gradient: "from-secondary to-success"
-  },
-  {
-    icon: <Zap className="w-6 h-6" />,
-    title: "Instant Publishing",
-    description: "Direct integration with your Telegram channel. Post quizzes with one click.",
+    description: "Track views, participation rate, popular topics. Know what content resonates with your audience.",
     gradient: "from-success to-primary"
   },
   {
-    icon: <CheckCircle2 className="w-6 h-6" />,
-    title: "Question Types",
-    description: "Multiple choice, true/false, polls, and custom quiz formats for variety.",
+    icon: <Sparkles className="w-6 h-6" />,
+    title: "Question Bank (50K+)",
+    description: "Access pre-made questions for JEE, NEET, UPSC, etc. Filter by subject, difficulty, exam type.",
     gradient: "from-primary to-secondary"
   },
   {
-    icon: <Globe className="w-6 h-6" />,
-    title: "Multi-language",
-    description: "Support for all languages. Create quizzes in any language your audience speaks.",
+    icon: <Trophy className="w-6 h-6" />,
+    title: "Leaderboards & Gamification",
+    description: "Auto-generate weekly leaderboards. Award badges. Keep students engaged and coming back.",
     gradient: "from-accent to-success"
+  },
+  {
+    icon: <Zap className="w-6 h-6" />,
+    title: "Batch Quiz Generation",
+    description: "Generate 30 quizzes from one document. Schedule entire month's content in 5 minutes.",
+    gradient: "from-secondary to-primary"
+  },
+  {
+    icon: <Languages className="w-6 h-6" />,
+    title: "Multi-Language Support",
+    description: "Create quizzes in Hindi, English, regional languages. AI translates questions instantly.",
+    gradient: "from-success to-accent"
+  },
+  {
+    icon: <CheckCircle2 className="w-6 h-6" />,
+    title: "Custom Branding",
+    description: "Add your institute logo on PDFs, customize colors, add watermarks. Professional look guaranteed.",
+    gradient: "from-primary to-success"
   }
 ];
 

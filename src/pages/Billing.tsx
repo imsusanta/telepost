@@ -6,37 +6,84 @@ import { CreditCard, Check } from "lucide-react";
 export default function Billing() {
   const plans = [
     {
-      name: "Free",
-      price: "₹0",
-      period: "forever",
-      features: ["20 quizzes/month", "Basic AI generation", "1 connected bot", "Community support"],
-      current: true,
-      gradient: "from-muted to-secondary/30"
-    },
-    {
-      name: "Basic",
-      price: "₹499",
+      name: "Starter",
+      price: "$29",
       period: "/month",
-      features: ["Unlimited quizzes", "Advanced AI generation", "5 connected bots", "Priority support", "Custom branding"],
+      features: [
+        "1 Telegram Channel",
+        "Upload PDFs (Up to 10GB)",
+        "AI Quiz Generation",
+        "50 Quizzes/month",
+        "Basic Scheduling",
+        "PDF Explanations",
+        "Question Bank (10K questions)",
+        "Email Support"
+      ],
       current: false,
-      gradient: "from-primary to-accent"
+      gradient: "from-primary to-accent",
+      description: "Perfect for small coaching classes"
     },
     {
       name: "Pro",
-      price: "₹999",
+      price: "$99",
       period: "/month",
-      features: ["Everything in Basic", "Scheduled daily quizzes", "Unlimited bots", "Analytics dashboard", "API access", "24/7 support"],
-      current: false,
+      features: [
+        "3 Telegram Channels",
+        "Unlimited PDF Uploads (50GB)",
+        "Advanced AI from Documents",
+        "Unlimited Quizzes",
+        "Auto-Post Scheduling (Set & Forget)",
+        "Auto PDF Explanations",
+        "Batch Generate 30 Quizzes at Once",
+        "Question Bank (50K+ questions)",
+        "Engagement Analytics Dashboard",
+        "Leaderboards & Gamification",
+        "Custom Branding on PDFs",
+        "Multi-Language Support",
+        "Priority Support"
+      ],
+      current: true,
       gradient: "from-accent to-secondary",
-      popular: true
+      popular: true,
+      description: "Best for coaching institutes"
     },
     {
       name: "Agency",
-      price: "₹2,499",
+      price: "$249",
       period: "/month",
-      features: ["Everything in Pro", "Unlimited channels", "Team collaboration", "White-label solution", "Dedicated account manager", "Custom integrations"],
+      features: [
+        "10 Telegram Channels",
+        "Unlimited Everything",
+        "White-Label Solution",
+        "API Access",
+        "Dedicated Account Manager",
+        "Custom Quiz Templates",
+        "Advanced Analytics & Reporting",
+        "Multi-Admin Access",
+        "24/7 Priority Support",
+        "Custom Integrations"
+      ],
       current: false,
-      gradient: "from-secondary to-success"
+      gradient: "from-secondary to-success",
+      description: "For multi-branch institutes"
+    },
+    {
+      name: "Enterprise",
+      price: "Custom",
+      period: "pricing",
+      features: [
+        "Unlimited Channels",
+        "Everything in Agency",
+        "On-premise Deployment",
+        "Custom Development",
+        "SLA Guarantee",
+        "Training & Onboarding",
+        "Dedicated Infrastructure",
+        "Advanced Security & Compliance"
+      ],
+      current: false,
+      gradient: "from-success to-primary",
+      description: "For large organizations"
     },
   ];
 
@@ -76,6 +123,7 @@ export default function Billing() {
                   )}
                 </CardTitle>
                 <CardDescription>
+                  <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
                   <div className="flex items-baseline space-x-1 mt-2">
                     <span className={`text-4xl font-bold text-gradient bg-gradient-to-r ${plan.gradient}`}>
                       {plan.price}

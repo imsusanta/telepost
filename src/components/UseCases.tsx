@@ -3,39 +3,39 @@ import { BookOpen, Newspaper, Gamepad2, Briefcase, Film, Trophy, ArrowRight } fr
 const useCases = [
   {
     icon: <BookOpen className="w-8 h-8" />,
-    title: "Education Channels",
-    description: "Test student knowledge",
+    title: "JEE/NEET Coaching",
+    description: "Auto-post daily quizzes to your Telegram channel. Keep 50K+ students engaged with zero manual work.",
     gradient: "from-primary to-accent"
   },
   {
-    icon: <Newspaper className="w-8 h-8" />,
-    title: "News Channels",
-    description: "Current affairs quizzes",
+    icon: <Briefcase className="w-8 h-8" />,
+    title: "UPSC Preparation",
+    description: "Schedule current affairs quizzes. Auto-generate PDFs with detailed explanations for your channel.",
     gradient: "from-accent to-secondary"
   },
   {
-    icon: <Gamepad2 className="w-8 h-8" />,
-    title: "Gaming Communities",
-    description: "Trivia contests",
-    gradient: "from-destructive to-success"
-  },
-  {
-    icon: <Briefcase className="w-8 h-8" />,
-    title: "Business Channels",
-    description: "Lead generation",
+    icon: <Trophy className="w-8 h-8" />,
+    title: "Language Learning",
+    description: "Run vocabulary and grammar quizzes on Telegram. Track engagement with leaderboards.",
     gradient: "from-secondary to-success"
   },
   {
+    icon: <Newspaper className="w-8 h-8" />,
+    title: "Banking & SSC",
+    description: "Post aptitude and reasoning quizzes daily. Build a loyal student community on Telegram.",
+    gradient: "from-success to-primary"
+  },
+  {
     icon: <Film className="w-8 h-8" />,
-    title: "Entertainment",
-    description: "Movie/TV show quizzes",
+    title: "CBSE/ICSE Classes",
+    description: "Share chapter-wise quizzes on your Telegram channel. Parents love the engagement reports.",
     gradient: "from-primary to-secondary"
   },
   {
-    icon: <Trophy className="w-8 h-8" />,
-    title: "Contests",
-    description: "Prize giveaways",
-    gradient: "from-success to-accent"
+    icon: <Gamepad2 className="w-8 h-8" />,
+    title: "General Knowledge",
+    description: "Run daily GK quizzes on Telegram. Perfect for current affairs channels and quiz enthusiasts.",
+    gradient: "from-accent to-success"
   }
 ];
 
@@ -45,13 +45,13 @@ export const UseCases = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16 animate-slide-up">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Perfect for Every
+            Trusted by Educators
             <span className="block text-gradient bg-gradient-to-r from-primary via-accent to-secondary mt-2">
-              Type of Channel
+              Across All Sectors
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            From education to entertainment, QuizGenie works for all Telegram communities
+            From competitive exam coaching to corporate training, QuizGenie powers learning for everyone
           </p>
         </div>
 
