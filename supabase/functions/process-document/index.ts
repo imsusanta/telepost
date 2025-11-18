@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore - pdf-parse types
+import pdfParse from "npm:pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,20 +28,43 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // In a production environment, you would:
-    // 1. Download the PDF from storage
-    // 2. Use a PDF parsing library (like pdf-parse or pdfjs-dist)
-    // 3. Extract text content
-    // 4. Use AI to analyze and summarize
-
-    // For now, we'll simulate the processing
-    // In production, integrate with actual PDF parsing libraries
-
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    // Simulated extraction (replace with actual PDF parsing)
-    const extractedText = "Sample extracted text from PDF. In production, this would be actual content.";
-    const pageCount = 10;
+    // Download PDF from storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from("documents")
+      .download(storagePath);
+
+    if (downloadError) {
+      throw new Error(`Failed to download PDF: ${downloadError.message}`);
+    }
+
+    // Convert blob to buffer for pdf-parse
+    const arrayBuffer = await fileData.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    // Parse PDF to extract text
+    let extractedText = "";
+    let pageCount = 0;
+
+    try {
+      const pdfData = await pdfParse(buffer);
+      extractedText = pdfData.text;
+      pageCount = pdfData.numpages;
+
+      // Clean up extracted text (remove excessive whitespace)
+      extractedText = extractedText
+        .replace(/\s+/g, " ")
+        .replace(/\n\s*\n/g, "\n")
+        .trim();
+
+      if (!extractedText) {
+        throw new Error("No text could be extracted from PDF");
+      }
+    } catch (parseError) {
+      console.error("PDF parsing error:", parseError);
+      throw new Error(`Failed to parse PDF: ${parseError instanceof Error ? parseError.message : "Unknown error"}`);
+    }
 
     // Use AI to generate summary and topics
     let aiSummary = "";
