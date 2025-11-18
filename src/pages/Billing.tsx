@@ -37,7 +37,11 @@ export default function Billing() {
         setPurchaseRestrictionMessage(purchasePermission.reason || "Purchase restricted");
       }
     } catch (error: any) {
-      console.error("Failed to load billing info:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load billing information: " + error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -71,6 +75,15 @@ export default function Billing() {
       });
     }
   };
+
+  const handleAddPaymentMethod = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Payment method integration is being set up. Contact support for manual payment options.",
+      variant: "default",
+    });
+  };
+
   const plans = [
     {
       name: "Starter",
@@ -254,7 +267,11 @@ export default function Billing() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-6">No payment method added yet.</p>
-            <Button variant="outline" className="clay-button rounded-2xl px-6 py-5">
+            <Button
+              variant="outline"
+              className="clay-button rounded-2xl px-6 py-5"
+              onClick={handleAddPaymentMethod}
+            >
               Add Payment Method
             </Button>
           </CardContent>

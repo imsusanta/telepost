@@ -47,9 +47,16 @@ export default function Leaderboards() {
 
       const rank = await LeaderboardService.getUserRank(user.id, "global");
       setUserRank(rank);
-    } catch (error) {
-      // User might not be on leaderboard yet
-      console.log("User not on leaderboard yet");
+    } catch (error: any) {
+      // User might not be on leaderboard yet - this is not an error condition
+      // Only show error for unexpected failures
+      if (error.message && !error.message.includes("not found")) {
+        toast({
+          title: "Notice",
+          description: "Could not load your rank data",
+          variant: "default",
+        });
+      }
     }
   };
 

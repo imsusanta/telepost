@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export default function Documents() {
   const [storageUsed, setStorageUsed] = useState({ current: 0, limit: 50 });
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadChannels();
@@ -52,7 +53,11 @@ export default function Documents() {
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
     } catch (error: any) {
-      console.error("Failed to load channels:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load channels: " + error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -83,8 +88,12 @@ export default function Documents() {
       if (canUpload.limit && canUpload.current !== undefined) {
         setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
       }
-    } catch (error) {
-      console.error("Failed to load storage info:", error);
+    } catch (error: any) {
+      toast({
+        title: "Warning",
+        description: "Failed to load storage info",
+        variant: "default",
+      });
     }
   };
 
@@ -178,6 +187,24 @@ export default function Documents() {
       title: "Refreshed",
       description: "Documents list updated",
     });
+  };
+
+  const handleGenerateQuiz = (doc: Document) => {
+    if (doc.processing_status !== "completed") {
+      toast({
+        title: "Document Processing",
+        description: "Please wait for the document to finish processing before generating a quiz",
+        variant: "default",
+      });
+      return;
+    }
+    // Navigate to quiz generation with the document pre-selected
+    const params = new URLSearchParams();
+    params.set("document", doc.id);
+    if (doc.channel_id) {
+      params.set("channel", doc.channel_id);
+    }
+    navigate(`/generate?${params.toString()}`);
   };
 
   // Filter documents by search query
@@ -318,7 +345,13 @@ export default function Documents() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => handleGenerateQuiz(doc)}
+                        disabled={doc.processing_status !== "completed"}
+                      >
                         <Sparkles className="w-4 h-4" />
                         Generate Quiz
                       </Button>

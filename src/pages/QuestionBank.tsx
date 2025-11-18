@@ -52,8 +52,12 @@ export default function QuestionBank() {
 
       const statistics = await QuestionBankService.getStatistics(user.id);
       setStats(statistics);
-    } catch (error) {
-      console.error("Failed to load stats:", error);
+    } catch (error: any) {
+      toast({
+        title: "Warning",
+        description: "Failed to load statistics",
+        variant: "default",
+      });
     }
   };
 
