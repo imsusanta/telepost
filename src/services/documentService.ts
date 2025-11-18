@@ -4,6 +4,7 @@ import { SubscriptionService } from "./subscriptionService";
 export interface Document {
   id: string;
   user_id: string;
+  channel_id?: string;
   file_name: string;
   file_size_bytes: number;
   file_type: string;
@@ -32,6 +33,7 @@ export class DocumentService {
       title?: string;
       description?: string;
       language?: string;
+      channelId?: string;
     }
   ): Promise<Document> {
     // Check if user can upload PDFs
@@ -61,6 +63,7 @@ export class DocumentService {
       .from("documents")
       .insert({
         user_id: userId,
+        channel_id: metadata?.channelId,
         file_name: file.name,
         file_size_bytes: file.size,
         file_type: file.type,
@@ -146,17 +149,29 @@ export class DocumentService {
   }
 
   /**
-   * Get user's documents
+   * Get user's documents (optionally filtered by channel)
    */
-  static async getUserDocuments(userId: string): Promise<Document[]> {
-    const { data, error } = await supabase
+  static async getUserDocuments(userId: string, channelId?: string): Promise<Document[]> {
+    let query = supabase
       .from("documents")
       .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .eq("user_id", userId);
+
+    if (channelId) {
+      query = query.eq("channel_id", channelId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) throw error;
     return data || [];
+  }
+
+  /**
+   * Get documents for a specific channel
+   */
+  static async getChannelDocuments(channelId: string, userId: string): Promise<Document[]> {
+    return this.getUserDocuments(userId, channelId);
   }
 
   /**
@@ -221,20 +236,51 @@ export class DocumentService {
   }
 
   /**
-   * Search documents
+   * Search documents (optionally filtered by channel)
    */
   static async searchDocuments(
     userId: string,
-    query: string
+    query: string,
+    channelId?: string
   ): Promise<Document[]> {
-    const { data, error } = await supabase
+    let dbQuery = supabase
       .from("documents")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", userId);
+
+    if (channelId) {
+      dbQuery = dbQuery.eq("channel_id", channelId);
+    }
+
+    const { data, error } = await dbQuery
       .or(`title.ilike.%${query}%,description.ilike.%${query}%,extracted_text.ilike.%${query}%`)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
     return data || [];
+  }
+
+  /**
+   * Get all documents in a channel's knowledge base for quiz generation
+   */
+  static async getChannelKnowledgeBase(channelId: string, userId: string): Promise<string> {
+    const documents = await this.getChannelDocuments(channelId, userId);
+
+    // Filter only completed documents with extracted text
+    const processedDocs = documents.filter(
+      doc => doc.processing_status === 'completed' && doc.extracted_text
+    );
+
+    if (processedDocs.length === 0) {
+      return '';
+    }
+
+    // Combine all extracted text with document titles
+    const knowledgeBase = processedDocs
+      .map(doc => `Document: ${doc.title}\n${doc.extracted_text}`)
+      .join('\n\n---\n\n');
+
+    // Limit to reasonable size (e.g., 10000 characters)
+    return knowledgeBase.substring(0, 10000);
   }
 }

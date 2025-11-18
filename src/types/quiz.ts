@@ -23,4 +23,7 @@ export interface QuizConfig {
   questionCount: number;
   difficulty: 'easy' | 'medium' | 'hard';
   systemPrompt?: string;
+  channelId?: string;
+  language?: 'bn' | 'en' | 'hi';
+  useChannelKnowledgeBase?: boolean;
 }

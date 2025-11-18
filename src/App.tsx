@@ -18,6 +18,7 @@ import Analytics from "./pages/Analytics";
 import QuestionBank from "./pages/QuestionBank";
 import Leaderboards from "./pages/Leaderboards";
 import Support from "./pages/Support";
+import Channels from "./pages/Channels";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient({
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/dashboard/connect-bot" element={<ProtectedRoute><ConnectBot /></ProtectedRoute>} />
             <Route path="/dashboard/create-quiz" element={<ProtectedRoute><CreateQuizPage /></ProtectedRoute>} />
             <Route path="/dashboard/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
+            <Route path="/dashboard/channels" element={<ProtectedRoute><Channels /></ProtectedRoute>} />
             <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
             <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />

@@ -1,32 +1,64 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Upload, Trash2, Download, Sparkles } from "lucide-react";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { ChannelService } from "@/services/channelService";
+import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [storageUsed, setStorageUsed] = useState({ current: 0, limit: 50 });
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    loadChannels();
     loadDocuments();
     loadStorageInfo();
   }, []);
+
+  useEffect(() => {
+    const channelFromUrl = searchParams.get("channel");
+    if (channelFromUrl) {
+      setSelectedChannel(channelFromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [selectedChannel]);
+
+  const loadChannels = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userChannels = await ChannelService.getUserChannels(user.id);
+      setChannels(userChannels);
+    } catch (error: any) {
+      console.error("Failed to load channels:", error);
+    }
+  };
 
   const loadDocuments = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const docs = await DocumentService.getUserDocuments(user.id);
+      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
       setDocuments(docs);
     } catch (error: any) {
       toast({
@@ -66,6 +98,15 @@ export default function Documents() {
       return;
     }
 
+    if (!selectedChannel) {
+      toast({
+        title: "Channel Required",
+        description: "Please select a channel before uploading",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -74,11 +115,12 @@ export default function Documents() {
       await DocumentService.uploadDocument(user.id, file, {
         title: file.name,
         language: "bn",
+        channelId: selectedChannel,
       });
 
       toast({
         title: "Upload Successful",
-        description: "Your document is being processed",
+        description: "Your document is being processed and added to the channel's knowledge base",
       });
 
       loadDocuments();
@@ -130,23 +172,42 @@ export default function Documents() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold">Document Library</h1>
-            <p className="text-muted-foreground">Upload PDFs and generate quizzes from your documents</p>
+            <p className="text-muted-foreground">Upload PDFs to your channel's knowledge base</p>
           </div>
-          <div>
-            <Input
-              type="file"
-              accept=".pdf"
-              onChange={handleUpload}
-              disabled={uploading}
-              className="hidden"
-              id="pdf-upload"
-            />
-            <Button asChild disabled={uploading} className="gap-2">
-              <label htmlFor="pdf-upload" className="cursor-pointer">
-                <Upload className="w-4 h-4" />
-                {uploading ? "Uploading..." : "Upload PDF"}
-              </label>
-            </Button>
+          <div className="flex gap-3 items-center">
+            <div className="w-64">
+              <Label htmlFor="channel-select" className="text-sm mb-2 block">
+                Channel
+              </Label>
+              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                <SelectTrigger id="channel-select">
+                  <SelectValue placeholder="Select channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="mt-6">
+              <Input
+                type="file"
+                accept=".pdf"
+                onChange={handleUpload}
+                disabled={uploading || !selectedChannel}
+                className="hidden"
+                id="pdf-upload"
+              />
+              <Button asChild disabled={uploading || !selectedChannel} className="gap-2">
+                <label htmlFor="pdf-upload" className="cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  {uploading ? "Uploading..." : "Upload PDF"}
+                </label>
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, questionCount, difficulty, systemPrompt, language = 'bn', batchCount = 1 } = await req.json();
+    const {
+      topic,
+      questionCount,
+      difficulty,
+      systemPrompt,
+      language = 'bn',
+      batchCount = 1,
+      channelId,
+      useChannelKnowledgeBase = false,
+      userId
+    } = await req.json();
 
     if (!topic || !questionCount || !difficulty) {
       return new Response(
@@ -25,14 +36,63 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Fetch channel knowledge base if requested
+    let knowledgeBaseContext = '';
+    let channelSystemPrompt = '';
+
+    if (channelId && useChannelKnowledgeBase) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+
+          // Get channel settings for system prompt
+          const { data: channel } = await supabase
+            .from("channels")
+            .select("settings")
+            .eq("id", channelId)
+            .single();
+
+          if (channel?.settings?.system_prompt) {
+            channelSystemPrompt = channel.settings.system_prompt;
+          }
+
+          // Get channel documents
+          const { data: documents } = await supabase
+            .from("documents")
+            .select("title, extracted_text, ai_summary")
+            .eq("channel_id", channelId)
+            .eq("processing_status", "completed")
+            .not("extracted_text", "is", null)
+            .limit(10);
+
+          if (documents && documents.length > 0) {
+            knowledgeBaseContext = documents
+              .map(doc => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
+              .join('\n\n---\n\n');
+
+            // Limit total knowledge base to 5000 characters
+            knowledgeBaseContext = knowledgeBaseContext.substring(0, 5000);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching channel knowledge base:", error);
+        // Continue without knowledge base
+      }
+    }
+
     const requestId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const baseSystemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested. 
-You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON. 
+    const baseSystemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
+You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON.
 If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
 
-    const customInstructions = systemPrompt ? `\n\nADDITIONAL CUSTOM INSTRUCTIONS:\n${systemPrompt}` : "";
+    // Priority: channelSystemPrompt > systemPrompt parameter
+    const effectiveSystemPrompt = channelSystemPrompt || systemPrompt || '';
+    const customInstructions = effectiveSystemPrompt ? `\n\nADDITIONAL CUSTOM INSTRUCTIONS:\n${effectiveSystemPrompt}` : "";
     const finalSystemPrompt = baseSystemPrompt + customInstructions;
 
     // Language-specific instructions
@@ -44,8 +104,13 @@ If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
 
     const langInstruction = languageInstructions[language as keyof typeof languageInstructions] || languageInstructions['bn'];
 
-    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
+    // Add knowledge base context if available
+    const knowledgeBaseSection = knowledgeBaseContext
+      ? `\n\nKNOWLEDGE BASE CONTEXT:\nUse the following documents to create quiz questions. Base your questions on the content in these documents:\n\n${knowledgeBaseContext}\n\n`
+      : '';
 
+    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
+${knowledgeBaseSection}
 REQUIREMENTS:
 1. Number of questions: ${questionCount}.
 2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
@@ -56,6 +121,7 @@ REQUIREMENTS:
 7. Keep each option under 80 characters.
 8. Provide a very short "explanation" for the correct answer (max 200 chars).
 9. Output MUST be ONLY the JSON object below. No other text.
+${knowledgeBaseContext ? '10. IMPORTANT: Base questions on the Knowledge Base Context provided above.' : ''}
 
 OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
 
