@@ -12,7 +12,12 @@ import {
   LogOut,
   LayoutDashboard,
   Menu,
-  X
+  X,
+  FileText,
+  Database,
+  BarChart3,
+  Trophy,
+  MessageSquare
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -49,7 +54,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Send, label: "Connect Bot", path: "/dashboard/connect-bot" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
+    { icon: FileText, label: "Documents", path: "/dashboard/documents" },
+    { icon: Database, label: "Question Bank", path: "/dashboard/question-bank" },
+    { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
+    { icon: Trophy, label: "Leaderboards", path: "/dashboard/leaderboards" },
     { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
+    { icon: MessageSquare, label: "Support", path: "/dashboard/support" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 

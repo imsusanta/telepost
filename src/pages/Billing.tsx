@@ -1,9 +1,69 @@
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { SubscriptionService, SubscriptionPlan, UserSubscription } from "@/services/subscriptionService";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Billing() {
+  const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+  const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadBillingInfo();
+  }, []);
+
+  const loadBillingInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [subscription, plans] = await Promise.all([
+        SubscriptionService.getUserSubscription(user.id),
+        SubscriptionService.getPlans(),
+      ]);
+
+      setCurrentSubscription(subscription);
+      setAvailablePlans(plans);
+    } catch (error: any) {
+      console.error("Failed to load billing info:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgrade = async (planName: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      if (currentSubscription) {
+        await SubscriptionService.upgradeSubscription(user.id, planName);
+        toast({
+          title: "Plan Upgraded",
+          description: `Successfully upgraded to ${planName}`,
+        });
+      } else {
+        await SubscriptionService.createSubscription(user.id, planName);
+        toast({
+          title: "Subscription Created",
+          description: `Successfully subscribed to ${planName}`,
+        });
+      }
+
+      loadBillingInfo();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
   const plans = [
     {
       name: "Starter",
@@ -87,6 +147,13 @@ export default function Billing() {
     },
   ];
 
+  // Match current plan with UI plans
+  const currentPlanName = currentSubscription?.plan ? (currentSubscription.plan as any).name : null;
+  const plansWithCurrentStatus = plans.map((plan) => ({
+    ...plan,
+    current: plan.name.toLowerCase() === currentPlanName?.toLowerCase(),
+  }));
+
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-slide-up">
@@ -98,7 +165,7 @@ export default function Billing() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan, idx) => (
+          {plansWithCurrentStatus.map((plan, idx) => (
             <Card
               key={plan.name}
               className={`clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in relative ${
@@ -150,9 +217,10 @@ export default function Billing() {
                       : ""
                   }`}
                   variant={plan.current ? "secondary" : "default"}
-                  disabled={plan.current}
+                  disabled={plan.current || loading}
+                  onClick={() => handleUpgrade(plan.name.toLowerCase())}
                 >
-                  {plan.current ? "Current Plan" : "Upgrade Now"}
+                  {plan.current ? "Current Plan" : loading ? "Loading..." : "Upgrade Now"}
                 </Button>
               </CardContent>
             </Card>
