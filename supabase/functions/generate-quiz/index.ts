@@ -11,8 +11,8 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, questionCount, difficulty, systemPrompt } = await req.json();
-    
+    const { topic, questionCount, difficulty, systemPrompt, language = 'bn', batchCount = 1 } = await req.json();
+
     if (!topic || !questionCount || !difficulty) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
@@ -35,17 +35,26 @@ If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
     const customInstructions = systemPrompt ? `\n\nADDITIONAL CUSTOM INSTRUCTIONS:\n${systemPrompt}` : "";
     const finalSystemPrompt = baseSystemPrompt + customInstructions;
 
-    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}" IN BENGALI LANGUAGE.
+    // Language-specific instructions
+    const languageInstructions = {
+      'bn': 'ALL questions, options, and explanations MUST be written in Bengali (বাংলা).',
+      'en': 'ALL questions, options, and explanations MUST be written in English.',
+      'hi': 'ALL questions, options, and explanations MUST be written in Hindi (हिन्दी).',
+    };
+
+    const langInstruction = languageInstructions[language as keyof typeof languageInstructions] || languageInstructions['bn'];
+
+    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
 
 REQUIREMENTS:
 1. Number of questions: ${questionCount}.
 2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
-3. ALL questions, options, and explanations MUST be written in Bengali (বাংলা).
+3. ${langInstruction}
 4. Each question must have 3–5 options.
 5. Use zero-based indexing for the correct option: "correct_option_index".
 6. Keep each question under 120 characters.
 7. Keep each option under 80 characters.
-8. Provide a very short "explanation" for the correct answer in Bengali (max 200 chars).
+8. Provide a very short "explanation" for the correct answer (max 200 chars).
 9. Output MUST be ONLY the JSON object below. No other text.
 
 OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):

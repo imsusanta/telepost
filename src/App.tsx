@@ -13,6 +13,11 @@ import CreateQuizPage from "./pages/CreateQuizPage";
 import Scheduler from "./pages/Scheduler";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import Documents from "./pages/Documents";
+import Analytics from "./pages/Analytics";
+import QuestionBank from "./pages/QuestionBank";
+import Leaderboards from "./pages/Leaderboards";
+import Support from "./pages/Support";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient({
@@ -44,7 +49,12 @@ const App = () => (
             <Route path="/dashboard/connect-bot" element={<ProtectedRoute><ConnectBot /></ProtectedRoute>} />
             <Route path="/dashboard/create-quiz" element={<ProtectedRoute><CreateQuizPage /></ProtectedRoute>} />
             <Route path="/dashboard/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
+            <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+            <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
+            <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/dashboard/leaderboards" element={<ProtectedRoute><Leaderboards /></ProtectedRoute>} />
             <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+            <Route path="/dashboard/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
