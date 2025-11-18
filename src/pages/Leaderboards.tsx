@@ -1,18 +1,28 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award, Star } from "lucide-react";
+import { Trophy, Medal, Award, Star, RefreshCw, User } from "lucide-react";
 import { LeaderboardService, LeaderboardEntry } from "@/services/leaderboardService";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Leaderboards() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [userRank, setUserRank] = useState<{
+    rank: number;
+    total: number;
+    entry: LeaderboardEntry;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadLeaderboard();
+    loadUserRank();
   }, []);
 
   const loadLeaderboard = async () => {
@@ -30,6 +40,30 @@ export default function Leaderboards() {
     }
   };
 
+  const loadUserRank = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const rank = await LeaderboardService.getUserRank(user.id, "global");
+      setUserRank(rank);
+    } catch (error) {
+      // User might not be on leaderboard yet
+      console.log("User not on leaderboard yet");
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadLeaderboard();
+    await loadUserRank();
+    setIsRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Leaderboard updated",
+    });
+  };
+
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
     if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
@@ -42,7 +76,22 @@ export default function Leaderboards() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">Loading leaderboard...</div>
+        <div className="space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold flex items-center gap-2">
+                <Trophy className="w-10 h-10" />
+                Leaderboards
+              </h1>
+              <p className="text-muted-foreground">Compete and track your progress</p>
+            </div>
+          </div>
+          <div className="grid gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -50,10 +99,47 @@ export default function Leaderboards() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-4xl font-bold">Leaderboards</h1>
-          <p className="text-muted-foreground">Compete and track your progress</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold flex items-center gap-2">
+              <Trophy className="w-10 h-10" />
+              Leaderboards
+            </h1>
+            <p className="text-muted-foreground">Compete and track your progress</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
+
+        {/* Your Position */}
+        {userRank && (
+          <Card className="bg-primary/5 border-primary">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Your Position
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-3xl font-bold">#{userRank.rank}</div>
+                  <p className="text-sm text-muted-foreground">
+                    out of {userRank.total} participants
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-primary">{userRank.entry.total_points}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Level {userRank.entry.level} • {userRank.entry.average_score.toFixed(1)}% avg
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Badges */}
         <Card>

@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Search, Filter, Plus } from "lucide-react";
+import { Database, Search, Filter, Plus, Trash2, RefreshCw } from "lucide-react";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<QuestionBankFilters>({
     includePublic: true,
   });
@@ -57,10 +60,54 @@ export default function QuestionBank() {
     setFilters({ ...filters, [key]: value || undefined });
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadQuestions();
+    await loadStats();
+    setIsRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Question bank updated",
+    });
+  };
+
+  const handleDelete = async (questionId: string) => {
+    if (!window.confirm("Are you sure you want to delete this question?")) {
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await QuestionBankService.deleteQuestion(questionId, user.id);
+      setQuestions(questions.filter(q => q.id !== questionId));
+      toast({
+        title: "Deleted",
+        description: "Question deleted successfully",
+      });
+      loadStats();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter questions by search query
+  const filteredQuestions = questions.filter(q =>
+    searchQuery === "" ||
+    q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    q.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    q.options.some(opt => opt.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <h1 className="text-4xl font-bold flex items-center gap-2">
               <Database className="w-10 h-10" />
@@ -68,12 +115,24 @@ export default function QuestionBank() {
             </h1>
             <p className="text-muted-foreground">
               {stats?.total || 0} questions available
+              {searchQuery && ` (${filteredQuestions.length} matching)`}
             </p>
           </div>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Question
-          </Button>
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search questions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -192,20 +251,40 @@ export default function QuestionBank() {
 
         {/* Questions List */}
         {loading ? (
-          <div className="text-center py-12">Loading questions...</div>
-        ) : questions.length === 0 ? (
+          <div className="grid gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {Array.from({ length: 4 }).map((_, j) => (
+                      <Skeleton key={j} className="h-10 w-full" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : filteredQuestions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Database className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No questions found</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {searchQuery ? "No matching questions" : "No questions found"}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Add questions manually or import from quizzes and documents
+                {searchQuery
+                  ? "Try adjusting your search or filters"
+                  : "Add questions manually or import from quizzes and documents"}
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {questions.map((q) => (
+            {filteredQuestions.map((q) => (
               <Card key={q.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -215,11 +294,21 @@ export default function QuestionBank() {
                         {q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times
                       </CardDescription>
                     </div>
-                    {q.is_public && (
-                      <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
-                        Public
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {q.is_public && (
+                        <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                          Public
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(q.id)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

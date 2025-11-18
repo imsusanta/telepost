@@ -1,15 +1,36 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { format } from "date-fns";
-import { Clock, CheckCircle2, XCircle, Calendar, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Calendar, AlertCircle, RefreshCw, Trash2, RotateCcw } from "lucide-react";
 import { LoadingState } from "@/components/LoadingState";
+import { useToast } from "@/hooks/use-toast";
 import type { Quiz } from "@/types/quiz";
 
 export default function Scheduler() {
-  const { scheduledPosts, isLoading } = useScheduledPosts();
+  const { scheduledPosts, isLoading, statistics, refetch, cancelPost, retryPost } = useScheduledPosts();
+  const { toast } = useToast();
+
+  const handleCancel = async (postId: string) => {
+    if (window.confirm("Are you sure you want to cancel this scheduled post?")) {
+      await cancelPost(postId);
+    }
+  };
+
+  const handleRetry = async (postId: string) => {
+    await retryPost(postId);
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
+    toast({
+      title: "Refreshed",
+      description: "Scheduled posts updated",
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -46,10 +67,54 @@ export default function Scheduler() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-white mb-2">Quiz Scheduler</h1>
-          <p className="text-gray-400">View and manage scheduled quiz posts to your Telegram channel</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">Quiz Scheduler</h1>
+            <p className="text-gray-400">View and manage scheduled quiz posts to your Telegram channel</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
         </div>
+
+        {/* Statistics Cards */}
+        {statistics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-slate-900/50 border-white/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Total Posts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics.total}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900/50 border-white/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Pending</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-500">{statistics.pending}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900/50 border-white/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Sent</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-500">{statistics.sent}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900/50 border-white/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Failed</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-500">{statistics.failed}</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card className="bg-slate-900/50 border-white/10">
           <CardHeader>
@@ -79,6 +144,7 @@ export default function Scheduler() {
                       <TableHead>Scheduled Time</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Sent At</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -96,6 +162,32 @@ export default function Scheduler() {
                           <TableCell>{getStatusBadge(post.status)}</TableCell>
                           <TableCell>
                             {post.sent_at ? format(new Date(post.sent_at), 'PPp') : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              {post.status === 'pending' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancel(post.id)}
+                                  className="gap-1 text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Cancel
+                                </Button>
+                              )}
+                              {post.status === 'failed' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRetry(post.id)}
+                                  className="gap-1"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  Retry
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Sparkles } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Sparkles, Search, RefreshCw } from "lucide-react";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
 import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -20,6 +21,8 @@ export default function Documents() {
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [storageUsed, setStorageUsed] = useState({ current: 0, limit: 50 });
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -166,16 +169,49 @@ export default function Documents() {
     return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadDocuments();
+    await loadStorageInfo();
+    setIsRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Documents list updated",
+    });
+  };
+
+  // Filter documents by search query
+  const filteredDocuments = documents.filter(doc =>
+    searchQuery === "" ||
+    (doc.title || doc.file_name).toLowerCase().includes(searchQuery.toLowerCase()) ||
+    doc.ai_summary?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
-            <h1 className="text-4xl font-bold">Document Library</h1>
-            <p className="text-muted-foreground">Upload PDFs to your channel's knowledge base</p>
+            <h1 className="text-4xl font-bold flex items-center gap-2">
+              <FileText className="w-10 h-10" />
+              Document Library
+            </h1>
+            <p className="text-muted-foreground">
+              Upload PDFs to your channel's knowledge base
+              {searchQuery && ` (${filteredDocuments.length} matching)`}
+            </p>
           </div>
-          <div className="flex gap-3 items-center">
-            <div className="w-64">
+          <div className="flex gap-3 items-end flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search documents..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-48"
+              />
+            </div>
+            <div className="w-48">
               <Label htmlFor="channel-select" className="text-sm mb-2 block">
                 Channel
               </Label>
@@ -184,6 +220,7 @@ export default function Documents() {
                   <SelectValue placeholder="Select channel" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Channels</SelectItem>
                   {channels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
                       {channel.name}
@@ -192,16 +229,19 @@ export default function Documents() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="mt-6">
+            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <div>
               <Input
                 type="file"
                 accept=".pdf"
                 onChange={handleUpload}
-                disabled={uploading || !selectedChannel}
+                disabled={uploading || !selectedChannel || selectedChannel === "all"}
                 className="hidden"
                 id="pdf-upload"
               />
-              <Button asChild disabled={uploading || !selectedChannel} className="gap-2">
+              <Button asChild disabled={uploading || !selectedChannel || selectedChannel === "all"} className="gap-2">
                 <label htmlFor="pdf-upload" className="cursor-pointer">
                   <Upload className="w-4 h-4" />
                   {uploading ? "Uploading..." : "Upload PDF"}
@@ -229,20 +269,41 @@ export default function Documents() {
         </Card>
 
         {loading ? (
-          <div className="text-center py-12">Loading documents...</div>
-        ) : documents.length === 0 ? (
+          <div className="grid gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex gap-3">
+                      <Skeleton className="w-10 h-10 rounded" />
+                      <div>
+                        <Skeleton className="h-6 w-48 mb-2" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        ) : filteredDocuments.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No documents yet</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {searchQuery ? "No matching documents" : "No documents yet"}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Upload your first PDF to generate AI-powered quizzes
+                {searchQuery
+                  ? "Try adjusting your search query"
+                  : "Upload your first PDF to generate AI-powered quizzes"}
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {documents.map((doc) => (
+            {filteredDocuments.map((doc) => (
               <Card key={doc.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">

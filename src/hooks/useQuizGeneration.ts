@@ -1,23 +1,119 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuizService } from "@/services/quizService";
+import { SubscriptionService } from "@/services/subscriptionService";
 import { Quiz, QuizConfig } from "@/types/quiz";
 import { useToast } from "@/hooks/use-toast";
+
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5;
 
 export function useQuizGeneration() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationCount, setGenerationCount] = useState(0);
+  const requestTimestamps = useRef<number[]>([]);
   const { toast } = useToast();
 
+  // Check rate limiting
+  const checkRateLimit = useCallback((): boolean => {
+    const now = Date.now();
+    // Remove timestamps outside the window
+    requestTimestamps.current = requestTimestamps.current.filter(
+      (timestamp) => now - timestamp < RATE_LIMIT_WINDOW
+    );
+
+    if (requestTimestamps.current.length >= MAX_REQUESTS_PER_WINDOW) {
+      const oldestTimestamp = requestTimestamps.current[0];
+      const waitTime = Math.ceil((RATE_LIMIT_WINDOW - (now - oldestTimestamp)) / 1000);
+      toast({
+        title: "Rate Limited",
+        description: `Please wait ${waitTime} seconds before generating another quiz`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  }, [toast]);
+
+  // Validate quiz configuration
+  const validateConfig = useCallback((config: QuizConfig): string | null => {
+    if (!config.topic || config.topic.trim().length < 2) {
+      return "Please provide a valid topic (at least 2 characters)";
+    }
+
+    if (config.topic.length > 200) {
+      return "Topic is too long (maximum 200 characters)";
+    }
+
+    if (!config.numQuestions || config.numQuestions < 1 || config.numQuestions > 20) {
+      return "Number of questions must be between 1 and 20";
+    }
+
+    if (!config.channelId) {
+      return "Please select a channel";
+    }
+
+    return null;
+  }, []);
+
   const generateQuiz = async (config: QuizConfig) => {
+    // Validate configuration
+    const validationError = validateConfig(config);
+    if (validationError) {
+      toast({
+        title: "Invalid Configuration",
+        description: validationError,
+        variant: "destructive",
+      });
+      throw new Error(validationError);
+    }
+
+    // Check rate limiting
+    if (!checkRateLimit()) {
+      throw new Error("Rate limited");
+    }
+
+    // Already generating
+    if (isGenerating) {
+      toast({
+        title: "Please Wait",
+        description: "A quiz is already being generated",
+        variant: "destructive",
+      });
+      throw new Error("Already generating");
+    }
+
     setIsGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("You must be logged in to generate quizzes");
+      }
+
+      // Check subscription limits
+      const canGenerate = await SubscriptionService.canUserPerformAction(user.id, "generate_quiz");
+      if (!canGenerate.allowed) {
+        toast({
+          title: "Limit Reached",
+          description: canGenerate.reason || "You've reached your quiz generation limit. Please upgrade your plan.",
+          variant: "destructive",
+        });
+        throw new Error(canGenerate.reason || "Generation limit reached");
+      }
+
+      // Record this request for rate limiting
+      requestTimestamps.current.push(Date.now());
+
       const generatedQuiz = await QuizService.generateQuiz({
         ...config,
-        userId: user?.id,
+        userId: user.id,
       } as any);
+
       setQuiz(generatedQuiz);
+      setGenerationCount((prev) => prev + 1);
 
       const knowledgeBaseNote = config.useChannelKnowledgeBase
         ? " using channel knowledge base"
@@ -29,11 +125,16 @@ export function useQuizGeneration() {
       });
       return generatedQuiz;
     } catch (error: any) {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate quiz",
-        variant: "destructive",
-      });
+      // Only show toast if not already shown
+      if (!error.message?.includes("Rate limited") &&
+          !error.message?.includes("Already generating") &&
+          !error.message?.includes("Limit Reached")) {
+        toast({
+          title: "Generation Failed",
+          description: error.message || "Failed to generate quiz",
+          variant: "destructive",
+        });
+      }
       throw error;
     } finally {
       setIsGenerating(false);
@@ -47,6 +148,7 @@ export function useQuizGeneration() {
   return {
     quiz,
     isGenerating,
+    generationCount,
     generateQuiz,
     resetQuiz,
     setQuiz,
