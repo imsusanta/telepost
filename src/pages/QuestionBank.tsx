@@ -57,6 +57,13 @@ export default function QuestionBank() {
     setFilters({ ...filters, [key]: value || undefined });
   };
 
+  const handleAddQuestion = () => {
+    toast({
+      title: "Add Question",
+      description: "To add questions, create a quiz and save individual questions to your question bank.",
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -70,7 +77,7 @@ export default function QuestionBank() {
               {stats?.total || 0} questions available
             </p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={handleAddQuestion}>
             <Plus className="w-4 h-4" />
             Add Question
           </Button>

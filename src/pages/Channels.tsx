@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "@/types/channel";
 import { ChannelService } from "@/services/channelService";
+import DashboardLayout from "@/components/DashboardLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -132,90 +134,84 @@ export default function Channels() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">Loading channels...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Channels</h1>
-          <p className="text-muted-foreground">
-            Manage your Telegram channels and their knowledge bases
-          </p>
+    <DashboardLayout>
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <PageHeader
+            title="Channels"
+            description="Manage your Telegram channels and their knowledge bases"
+            icon={MessageCircle}
+          />
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Channel
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Channel</DialogTitle>
+                <DialogDescription>
+                  Add a new Telegram channel with its own knowledge base
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Channel Name</Label>
+                  <Input
+                    id="name"
+                    value={newChannel.name}
+                    onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })}
+                    placeholder="My Channel"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Textarea
+                    id="description"
+                    value={newChannel.description}
+                    onChange={(e) => setNewChannel({ ...newChannel, description: e.target.value })}
+                    placeholder="Channel description..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telegram_channel_id">Telegram Channel ID (Optional)</Label>
+                  <Input
+                    id="telegram_channel_id"
+                    value={newChannel.telegram_channel_id}
+                    onChange={(e) => setNewChannel({ ...newChannel, telegram_channel_id: e.target.value })}
+                    placeholder="@mychannel or -1001234567890"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telegram_bot_token">Telegram Bot Token (Optional)</Label>
+                  <Input
+                    id="telegram_bot_token"
+                    type="password"
+                    value={newChannel.telegram_bot_token}
+                    onChange={(e) => setNewChannel({ ...newChannel, telegram_bot_token: e.target.value })}
+                    placeholder="123456:ABC-DEF..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateChannel} disabled={!newChannel.name}>
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Channel
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Channel</DialogTitle>
-              <DialogDescription>
-                Add a new Telegram channel with its own knowledge base
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Channel Name</Label>
-                <Input
-                  id="name"
-                  value={newChannel.name}
-                  onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })}
-                  placeholder="My Channel"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  value={newChannel.description}
-                  onChange={(e) => setNewChannel({ ...newChannel, description: e.target.value })}
-                  placeholder="Channel description..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="telegram_channel_id">Telegram Channel ID (Optional)</Label>
-                <Input
-                  id="telegram_channel_id"
-                  value={newChannel.telegram_channel_id}
-                  onChange={(e) => setNewChannel({ ...newChannel, telegram_channel_id: e.target.value })}
-                  placeholder="@mychannel or -1001234567890"
-                />
-              </div>
-              <div>
-                <Label htmlFor="telegram_bot_token">Telegram Bot Token (Optional)</Label>
-                <Input
-                  id="telegram_bot_token"
-                  type="password"
-                  value={newChannel.telegram_bot_token}
-                  onChange={(e) => setNewChannel({ ...newChannel, telegram_bot_token: e.target.value })}
-                  placeholder="123456:ABC-DEF..."
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateChannel} disabled={!newChannel.name}>
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      {channels.length === 0 ? (
-        <Card>
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading channels...</div>
+        ) : channels.length === 0 ? (
+          <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">No channels yet</p>
@@ -225,8 +221,8 @@ export default function Channels() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {channels.map((channel) => (
             <Card key={channel.id}>
               <CardHeader>
@@ -287,11 +283,11 @@ export default function Channels() {
               </CardContent>
             </Card>
           ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Edit Channel Settings Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        {/* Edit Channel Settings Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Channel Settings: {selectedChannel?.name}</DialogTitle>
@@ -427,7 +423,8 @@ export default function Channels() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </div>
+        </Dialog>
+      </div>
+    </DashboardLayout>
   );
 }

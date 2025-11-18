@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ export default function Documents() {
   const [storageUsed, setStorageUsed] = useState({ current: 0, limit: 50 });
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadChannels();
@@ -160,6 +161,10 @@ export default function Documents() {
     }
   };
 
+  const handleGenerateQuiz = (documentId: string) => {
+    navigate(`/dashboard/create-quiz?document=${documentId}`);
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
@@ -257,7 +262,12 @@ export default function Documents() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => handleGenerateQuiz(doc.id)}
+                      >
                         <Sparkles className="w-4 h-4" />
                         Generate Quiz
                       </Button>

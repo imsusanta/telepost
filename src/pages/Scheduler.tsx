@@ -47,11 +47,11 @@ export default function Scheduler() {
     <DashboardLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">Quiz Scheduler</h1>
-          <p className="text-gray-400">View and manage scheduled quiz posts to your Telegram channel</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Quiz Scheduler</h1>
+          <p className="text-muted-foreground">View and manage scheduled quiz posts to your Telegram channel</p>
         </div>
 
-        <Card className="bg-slate-900/50 border-white/10">
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Calendar className="w-5 h-5" />
@@ -63,9 +63,9 @@ export default function Scheduler() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-gray-400">Loading scheduled posts...</div>
+              <div className="text-center py-8 text-muted-foreground">Loading scheduled posts...</div>
             ) : scheduledPosts.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No scheduled posts yet. Create a quiz and schedule it to see it here!</p>
               </div>

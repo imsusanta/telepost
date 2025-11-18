@@ -36,6 +36,13 @@ export default function Billing() {
     }
   };
 
+  const handleAddPaymentMethod = () => {
+    toast({
+      title: "Payment Setup",
+      description: "Payment method integration is coming soon. You can upgrade your plan directly for now.",
+    });
+  };
+
   const handleUpgrade = async (planName: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -239,7 +246,11 @@ export default function Billing() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-6">No payment method added yet.</p>
-            <Button variant="outline" className="clay-button rounded-2xl px-6 py-5">
+            <Button
+              variant="outline"
+              className="clay-button rounded-2xl px-6 py-5"
+              onClick={handleAddPaymentMethod}
+            >
               Add Payment Method
             </Button>
           </CardContent>

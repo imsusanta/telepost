@@ -110,12 +110,12 @@ export default function Support() {
 
   const getPriorityColor = (priority: string) => {
     const colors: Record<string, string> = {
-      low: "text-gray-500",
-      normal: "text-blue-500",
-      high: "text-orange-500",
-      urgent: "text-red-500",
+      low: "text-muted-foreground",
+      normal: "text-primary",
+      high: "text-warning",
+      urgent: "text-destructive",
     };
-    return colors[priority] || "text-gray-500";
+    return colors[priority] || "text-muted-foreground";
   };
 
   return (
@@ -230,7 +230,7 @@ export default function Support() {
                           {ticket.priority.toUpperCase()}
                         </span>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs text-white ${getStatusColor(
+                          className={`px-2 py-1 rounded-full text-xs text-primary-foreground ${getStatusColor(
                             ticket.status
                           )}`}
                         >

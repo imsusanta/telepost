@@ -31,9 +31,9 @@ export default function Leaderboards() {
   };
 
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-    if (rank === 3) return <Medal className="w-6 h-6 text-amber-600" />;
+    if (rank === 1) return <Trophy className="w-6 h-6 text-warning" />;
+    if (rank === 2) return <Medal className="w-6 h-6 text-muted-foreground" />;
+    if (rank === 3) return <Medal className="w-6 h-6 text-secondary" />;
     return null;
   };
 

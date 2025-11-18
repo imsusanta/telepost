@@ -74,11 +74,11 @@ export default function ConnectBot() {
     <DashboardLayout>
       <div className="max-w-2xl space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">Connect Telegram Bot</h1>
-          <p className="text-gray-400">Link your Telegram bot to start posting quizzes</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Connect Telegram Bot</h1>
+          <p className="text-muted-foreground">Link your Telegram bot to start posting quizzes</p>
         </div>
 
-        <Card className="bg-slate-900/50 border-white/10">
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Send className="w-5 h-5" />
@@ -86,12 +86,12 @@ export default function ConnectBot() {
             </CardTitle>
             <CardDescription>
               {isConnected ? (
-                <span className="flex items-center text-green-400">
+                <span className="flex items-center text-success">
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Bot is connected
                 </span>
               ) : (
-                <span className="flex items-center text-yellow-400">
+                <span className="flex items-center text-warning">
                   <AlertCircle className="w-4 h-4 mr-2" />
                   Bot not connected yet
                 </span>
@@ -110,7 +110,7 @@ export default function ConnectBot() {
                   onChange={(e) => setBotToken(e.target.value)}
                   required
                 />
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Get your bot token from @BotFather on Telegram
                 </p>
               </div>
@@ -125,7 +125,7 @@ export default function ConnectBot() {
                   onChange={(e) => setChannelId(e.target.value)}
                   required
                 />
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Your channel username or ID (make sure the bot is an admin)
                 </p>
               </div>
@@ -137,29 +137,29 @@ export default function ConnectBot() {
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-500/10 border-blue-500/20">
+        <Card className="clay-card bg-primary/10 border-primary/20">
           <CardHeader>
-            <CardTitle className="text-blue-400">How to Set Up</CardTitle>
+            <CardTitle className="text-primary">How to Set Up</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-300">
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">1.</span>
+              <span className="font-bold text-primary">1.</span>
               <p>Open Telegram and search for @BotFather</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">2.</span>
+              <span className="font-bold text-primary">2.</span>
               <p>Create a new bot using /newbot command</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">3.</span>
+              <span className="font-bold text-primary">3.</span>
               <p>Copy the bot token and paste it above</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">4.</span>
+              <span className="font-bold text-primary">4.</span>
               <p>Add your bot as an admin to your channel</p>
             </div>
             <div className="flex items-start space-x-2">
-              <span className="font-bold text-blue-400">5.</span>
+              <span className="font-bold text-primary">5.</span>
               <p>Enter your channel username (with @) or channel ID</p>
             </div>
           </CardContent>
