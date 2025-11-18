@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Send, BarChart3, Calendar } from "lucide-react";
+import { Sparkles, Send, BarChart3, Calendar, LayoutDashboard } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -35,13 +36,12 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-slide-up">
-        <div>
-          <h1 className="text-4xl font-bold text-gradient bg-gradient-to-r from-primary via-accent to-secondary mb-2">
-            Welcome back, {profile?.full_name || "User"}!
-          </h1>
-          <p className="text-muted-foreground text-lg">Manage your Telegram quizzes from here</p>
-        </div>
+      <div className="space-y-8">
+        <PageHeader
+          title={`Welcome back, ${profile?.full_name || "User"}!`}
+          description="Manage your Telegram quizzes from here"
+          icon={LayoutDashboard}
+        />
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, idx) => (

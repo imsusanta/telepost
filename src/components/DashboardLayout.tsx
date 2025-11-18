@@ -17,9 +17,12 @@ import {
   Database,
   BarChart3,
   Trophy,
-  MessageSquare
+  MessageSquare,
+  Keyboard
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -30,6 +33,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -112,6 +116,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen relative">
+      <KeyboardShortcuts />
+
+      {/* Keyboard Shortcut Indicator */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed bottom-6 right-6 z-50 clay-button shadow-clay-lg rounded-full w-12 h-12"
+        onClick={() => {
+          const event = new KeyboardEvent('keydown', { key: '?' });
+          window.dispatchEvent(event);
+        }}
+        title="Keyboard shortcuts (?)"
+        aria-label="Show keyboard shortcuts"
+      >
+        <Keyboard className="w-5 h-5" />
+      </Button>
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-sidebar/95 backdrop-blur-xl border-b border-sidebar-border px-4 flex items-center justify-between z-50">
         <div className="flex items-center space-x-2">
@@ -152,8 +172,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="md:ml-72 pt-16 md:pt-0 p-4 md:p-8 min-h-screen">
-        {children}
+      <main className="md:ml-72 pt-16 md:pt-0 p-4 md:p-8 min-h-screen" id="main-content">
+        <Breadcrumb />
+        <div className="animate-in fade-in duration-300">
+          {children}
+        </div>
       </main>
     </div>
   );
