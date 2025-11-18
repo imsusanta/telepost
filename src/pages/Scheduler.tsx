@@ -1,9 +1,10 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { format } from "date-fns";
-import { Clock, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Calendar, AlertCircle } from "lucide-react";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
 

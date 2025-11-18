@@ -23,101 +23,78 @@ export default function Dashboard() {
     }
   };
 
+  const stats = [
+    { title: "Total Quizzes", value: "0", icon: Sparkles, gradient: "from-primary to-accent" },
+    { title: "Scheduled", value: "0", icon: Calendar, gradient: "from-accent to-secondary" },
+    { title: "Total Views", value: "0", icon: BarChart3, gradient: "from-secondary to-success" },
+    { title: "Connected Bots", value: profile?.telegram_bot_token ? "1" : "0", icon: Send, gradient: "from-success to-primary" }
+  ];
+
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 animate-slide-up">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-4xl font-bold text-gradient bg-gradient-to-r from-primary via-accent to-secondary mb-2">
             Welcome back, {profile?.full_name || "User"}!
           </h1>
-          <p className="text-gray-400">Manage your Telegram quizzes from here</p>
+          <p className="text-muted-foreground text-lg">Manage your Telegram quizzes from here</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-slate-900/50 border-white/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-400">Total Quizzes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-3xl font-bold text-white">0</div>
-                <Sparkles className="w-8 h-8 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900/50 border-white/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-400">Scheduled</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-3xl font-bold text-white">0</div>
-                <Calendar className="w-8 h-8 text-cyan-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900/50 border-white/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-400">Total Views</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-3xl font-bold text-white">0</div>
-                <BarChart3 className="w-8 h-8 text-purple-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900/50 border-white/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-400">Connected Bots</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-3xl font-bold text-white">
-                  {profile?.telegram_bot_token ? "1" : "0"}
+          {stats.map((stat, idx) => (
+            <Card
+              key={idx}
+              className="clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in"
+              style={{ animationDelay: `${idx * 0.1}s` }}
+            >
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">{stat.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.gradient} rounded-2xl flex items-center justify-center shadow-clay`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
                 </div>
-                <Send className="w-8 h-8 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        <Card className="bg-slate-900/50 border-white/10">
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border animate-scale-in" style={{ animationDelay: "0.4s" }}>
           <CardHeader>
-            <CardTitle>Quick Start</CardTitle>
-            <CardDescription>Get started with creating your first quiz</CardDescription>
+            <CardTitle className="text-2xl font-bold text-foreground">Quick Start Guide</CardTitle>
+            <CardDescription className="text-muted-foreground">Get started with creating your first quiz</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start space-x-4 p-4 bg-white/5 rounded-lg">
-              <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">1</span>
+            <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
+                <span className="text-white font-bold text-lg">1</span>
               </div>
               <div>
-                <h3 className="font-medium text-white mb-1">Connect Your Telegram Bot</h3>
-                <p className="text-sm text-gray-400">Link your Telegram bot to start posting quizzes</p>
+                <h3 className="font-bold text-foreground mb-1.5">Connect Your Telegram Bot</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Link your Telegram bot to start posting quizzes to your channel</p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4 p-4 bg-white/5 rounded-lg">
-              <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">2</span>
+            <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm">
+              <div className="w-10 h-10 bg-gradient-to-br from-accent to-secondary rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
+                <span className="text-white font-bold text-lg">2</span>
               </div>
               <div>
-                <h3 className="font-medium text-white mb-1">Create Your First Quiz</h3>
-                <p className="text-sm text-gray-400">Use AI to generate engaging quiz questions</p>
+                <h3 className="font-bold text-foreground mb-1.5">Create Your First Quiz</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Use AI to generate engaging quiz questions in seconds</p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-4 p-4 bg-white/5 rounded-lg">
-              <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-400 font-bold">3</span>
+            <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm">
+              <div className="w-10 h-10 bg-gradient-to-br from-secondary to-success rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
+                <span className="text-white font-bold text-lg">3</span>
               </div>
               <div>
-                <h3 className="font-medium text-white mb-1">Schedule Automatic Posts</h3>
-                <p className="text-sm text-gray-400">Set up daily quiz posts to keep your audience engaged</p>
+                <h3 className="font-bold text-foreground mb-1.5">Schedule Automatic Posts</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Set up daily quiz posts to keep your audience engaged</p>
               </div>
             </div>
           </CardContent>
