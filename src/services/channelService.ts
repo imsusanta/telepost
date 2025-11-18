@@ -241,4 +241,75 @@ export class ChannelService {
 
     return data || [];
   }
+
+  /**
+   * Trigger auto-generation for a specific channel
+   */
+  static async triggerAutoGeneration(
+    channelId: string,
+    forceGenerate: boolean = true
+  ): Promise<{ success: boolean; message: string; quizId?: string }> {
+    const { data, error } = await supabase.functions.invoke(
+      "auto-generate-channel-quizzes",
+      {
+        body: {
+          channelId,
+          forceGenerate,
+        },
+      }
+    );
+
+    if (error) {
+      console.error("Error triggering auto-generation:", error);
+      throw new Error(error.message || "Failed to trigger auto-generation");
+    }
+
+    // Check results for the specific channel
+    const channelResult = data?.results?.find(
+      (r: any) => r.channelId === channelId
+    );
+
+    if (channelResult?.success) {
+      return {
+        success: true,
+        message: `Quiz generated successfully`,
+        quizId: channelResult.quizId,
+      };
+    }
+
+    return {
+      success: false,
+      message: channelResult?.error || data?.message || "Generation failed",
+    };
+  }
+
+  /**
+   * Get auto-generation status for a channel
+   */
+  static async getAutoGenerationStatus(channelId: string, userId: string) {
+    // Get last quiz generation for the channel
+    const { data: lastQuiz } = await supabase
+      .from("quiz_generations")
+      .select("created_at, topic, question_count")
+      .eq("channel_id", channelId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get channel settings
+    const channel = await this.getChannel(channelId, userId);
+
+    return {
+      lastGeneratedAt: lastQuiz?.created_at || null,
+      lastTopic: lastQuiz?.topic || null,
+      lastQuestionCount: lastQuiz?.question_count || 0,
+      isAutoGenerateEnabled: channel.settings.auto_generate_quizzes,
+      generationFrequency: channel.settings.generation_frequency,
+      systemPromptConfigured: !!channel.settings.system_prompt,
+      telegramConfigured: !!(
+        channel.telegram_channel_id && channel.telegram_bot_token
+      ),
+    };
+  }
 }
