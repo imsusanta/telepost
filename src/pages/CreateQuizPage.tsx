@@ -5,6 +5,7 @@ import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
 import { QuizResults } from "@/components/QuizResults";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
+import { TelegramShare } from "@/components/TelegramShare";
 import { Quiz, QuizConfig as QuizConfigType } from "@/types/quiz";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -119,6 +120,9 @@ export default function CreateQuizPage() {
 
         {state === "quiz" && quiz && (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <TelegramShare quiz={quiz} />
+            </div>
             <QuizQuestion
               question={quiz.questions[currentQuestionIndex]}
               questionNumber={currentQuestionIndex + 1}
