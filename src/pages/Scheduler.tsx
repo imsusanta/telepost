@@ -1,70 +1,46 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { format } from "date-fns";
-import type { Database } from "@/integrations/supabase/types";
-
-type ScheduledPost = Database['public']['Tables']['scheduled_telegram_posts']['Row'];
+import { Clock, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function Scheduler() {
-  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetchScheduledPosts();
-    
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('scheduled_posts')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scheduled_telegram_posts'
-        },
-        () => {
-          fetchScheduledPosts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchScheduledPosts = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from('scheduled_telegram_posts')
-      .select('*')
-      .order('scheduled_time', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching scheduled posts:', error);
-    } else {
-      setScheduledPosts(data || []);
-    }
-    setIsLoading(false);
-  };
+  const { scheduledPosts, isLoading } = useScheduledPosts();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> Pending</Badge>;
       case 'sent':
-        return <Badge variant="default" className="gap-1 bg-green-600"><CheckCircle className="w-3 h-3" /> Sent</Badge>;
+        return <Badge variant="default" className="gap-1 bg-green-600"><CheckCircle2 className="w-3 h-3" /> Sent</Badge>;
       case 'failed':
         return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Failed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-lg">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold">Quiz Scheduler</h1>
+              <p className="text-muted-foreground">View and manage your scheduled Telegram posts</p>
+            </div>
+          </div>
+          <LoadingState message="Loading scheduled posts..." />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
