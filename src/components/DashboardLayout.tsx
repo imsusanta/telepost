@@ -16,8 +16,7 @@ import {
   BarChart3,
   Trophy,
   MessageSquare,
-  Keyboard,
-  FileText
+  Keyboard
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -54,7 +53,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
-    { icon: FileText, label: "Posts", path: "/posts" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
