@@ -255,6 +255,53 @@ ADDITIONAL RULES:
       );
     }
 
+    // Validate that the AI returned a valid quiz structure, not an error
+    if (quizData.error) {
+      console.error("AI returned an error:", quizData.error);
+      return new Response(
+        JSON.stringify({ error: "Failed to generate quiz: AI returned an error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate required quiz fields
+    if (!quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+      console.error("AI response missing valid questions array:", JSON.stringify(quizData));
+      return new Response(
+        JSON.stringify({ error: "Invalid quiz format: missing or empty questions array" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!quizData.topic || !quizData.metadata) {
+      console.error("AI response missing required fields:", JSON.stringify(quizData));
+      return new Response(
+        JSON.stringify({ error: "Invalid quiz format: missing required fields" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate each question has required fields
+    for (let i = 0; i < quizData.questions.length; i++) {
+      const q = quizData.questions[i];
+      if (!q.question || !Array.isArray(q.options) || q.options.length < 2 || typeof q.correct_option_index !== 'number') {
+        console.error(`Question ${i} is invalid:`, JSON.stringify(q));
+        return new Response(
+          JSON.stringify({ error: `Invalid quiz format: question ${i} is malformed` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate correct_option_index is within bounds
+      if (q.correct_option_index < 0 || q.correct_option_index >= q.options.length) {
+        console.error(`Question ${i} has out-of-bounds correct_option_index:`, JSON.stringify(q));
+        return new Response(
+          JSON.stringify({ error: `Invalid quiz format: question ${i} has invalid correct_option_index` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     return new Response(JSON.stringify(quizData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

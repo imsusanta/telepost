@@ -11,6 +11,16 @@ export class QuizService {
       throw new Error(error.message || "Failed to generate quiz");
     }
 
+    // Additional validation: check if data contains an error field
+    if (data && typeof data === 'object' && 'error' in data) {
+      throw new Error((data as any).error || "Failed to generate quiz");
+    }
+
+    // Validate that data has the required quiz structure
+    if (!data || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+      throw new Error("Invalid quiz data received from server");
+    }
+
     return data as Quiz;
   }
 
