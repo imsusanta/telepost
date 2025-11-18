@@ -52,6 +52,10 @@ export function useQuizGeneration() {
       return "Number of questions must be between 1 and 20";
     }
 
+    if (!config.difficulty || !['easy', 'medium', 'hard'].includes(config.difficulty)) {
+      return "Please select a valid difficulty level (easy, medium, or hard)";
+    }
+
     return null;
   }, []);
 
