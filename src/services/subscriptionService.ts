@@ -87,12 +87,45 @@ export class SubscriptionService {
   }
 
   /**
+   * Check if user can purchase plans
+   */
+  static async canPurchasePlans(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("can_purchase_plans, role")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      return {
+        allowed: false,
+        reason: "Failed to verify purchase permissions"
+      };
+    }
+
+    if (!profile.can_purchase_plans) {
+      return {
+        allowed: false,
+        reason: "Your account does not have permission to purchase plans. Please contact support."
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  /**
    * Create a new subscription for a user
    */
   static async createSubscription(
     userId: string,
     planName: string
   ): Promise<UserSubscription> {
+    // Check if user can purchase plans
+    const purchaseCheck = await this.canPurchasePlans(userId);
+    if (!purchaseCheck.allowed) {
+      throw new Error(purchaseCheck.reason);
+    }
+
     // Get the plan
     const { data: plan, error: planError } = await supabase
       .from("subscription_plans")
@@ -338,6 +371,12 @@ export class SubscriptionService {
     userId: string,
     newPlanName: string
   ): Promise<UserSubscription> {
+    // Check if user can purchase plans
+    const purchaseCheck = await this.canPurchasePlans(userId);
+    if (!purchaseCheck.allowed) {
+      throw new Error(purchaseCheck.reason);
+    }
+
     // Get the new plan
     const { data: newPlan, error: planError } = await supabase
       .from("subscription_plans")

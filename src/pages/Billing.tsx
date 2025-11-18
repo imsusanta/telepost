@@ -11,6 +11,8 @@ export default function Billing() {
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
   const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canPurchase, setCanPurchase] = useState(true);
+  const [purchaseRestrictionMessage, setPurchaseRestrictionMessage] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -22,13 +24,18 @@ export default function Billing() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [subscription, plans] = await Promise.all([
+      const [subscription, plans, purchasePermission] = await Promise.all([
         SubscriptionService.getUserSubscription(user.id),
         SubscriptionService.getPlans(),
+        SubscriptionService.canPurchasePlans(user.id),
       ]);
 
       setCurrentSubscription(subscription);
       setAvailablePlans(plans);
+      setCanPurchase(purchasePermission.allowed);
+      if (!purchasePermission.allowed) {
+        setPurchaseRestrictionMessage(purchasePermission.reason || "Purchase restricted");
+      }
     } catch (error: any) {
       console.error("Failed to load billing info:", error);
     } finally {
@@ -164,6 +171,14 @@ export default function Billing() {
           <p className="text-muted-foreground text-lg">Choose the perfect plan for your needs</p>
         </div>
 
+        {!canPurchase && (
+          <Card className="bg-destructive/10 border-destructive/20">
+            <CardContent className="pt-6">
+              <p className="text-destructive font-medium">{purchaseRestrictionMessage}</p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plansWithCurrentStatus.map((plan, idx) => (
             <Card
@@ -217,10 +232,10 @@ export default function Billing() {
                       : ""
                   }`}
                   variant={plan.current ? "secondary" : "default"}
-                  disabled={plan.current || loading}
+                  disabled={plan.current || loading || !canPurchase}
                   onClick={() => handleUpgrade(plan.name.toLowerCase())}
                 >
-                  {plan.current ? "Current Plan" : loading ? "Loading..." : "Upgrade Now"}
+                  {plan.current ? "Current Plan" : loading ? "Loading..." : !canPurchase ? "Purchase Restricted" : "Upgrade Now"}
                 </Button>
               </CardContent>
             </Card>

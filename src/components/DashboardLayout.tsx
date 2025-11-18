@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,13 @@ import {
   BarChart3,
   Trophy,
   MessageSquare,
-  Keyboard
+  Keyboard,
+  Shield
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { AdminService } from "@/services/adminService";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -34,6 +36,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    const isSuper = await AdminService.isSuperAdmin();
+    setIsSuperAdmin(isSuper);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -53,7 +65,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  const menuItems = [
+  const baseMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Send, label: "Connect Bot", path: "/dashboard/connect-bot" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
@@ -67,6 +79,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
+  const adminMenuItems = isSuperAdmin
+    ? [{ icon: Shield, label: "User Management", path: "/admin/users", isAdmin: true }]
+    : [];
+
+  const menuItems = [...baseMenuItems, ...adminMenuItems];
+
   const SidebarContent = () => (
     <>
       <div className="flex items-center space-x-3 mb-10">
@@ -79,24 +97,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <nav className="space-y-2 flex-1">
-        {menuItems.map((item) => {
+        {menuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
+          const isAdminSection = 'isAdmin' in item && item.isAdmin;
+
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${
-                isActive
-                  ? "clay-button bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-clay-hover scale-105"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent clay-card font-medium"
-              }`}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
-            </Link>
+            <div key={item.path}>
+              {isAdminSection && index > 0 && (
+                <div className="my-4 border-t border-sidebar-border pt-4">
+                  <p className="text-xs font-semibold text-sidebar-foreground/50 px-5 mb-2">ADMINISTRATION</p>
+                </div>
+              )}
+              <Link
+                to={item.path}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${
+                  isActive
+                    ? "clay-button bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-clay-hover scale-105"
+                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent clay-card font-medium"
+                }`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </Link>
+            </div>
           );
         })}
       </nav>
