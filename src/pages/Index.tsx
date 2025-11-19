@@ -5,8 +5,12 @@ import { QuizResults } from "@/components/QuizResults";
 import { TelegramShare } from "@/components/TelegramShare";
 import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
+import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
+import { Testimonials } from "@/components/Testimonials";
 import { UseCases } from "@/components/UseCases";
+import { FAQ } from "@/components/FAQ";
+import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
@@ -71,7 +75,7 @@ const Index = () => {
 
     if (answerIndex === quiz.questions[currentQuestionIndex].correct_option_index) {
       setScore(score + 1);
-      toast.success("Correct! 🎉");
+      toast.success("Correct!");
     } else {
       toast.error("Incorrect. Try the next one!");
     }
@@ -121,33 +125,12 @@ const Index = () => {
       {state === "landing" && (
         <>
           <Hero onGetStarted={handleGetStarted} />
-
-          <section className="py-16 px-4 relative">
-            <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {[
-                  { value: '500+', label: 'Coaching Institutes', gradient: 'from-primary to-accent' },
-                  { value: '50K+', label: 'Active Students', gradient: 'from-secondary to-accent' },
-                  { value: '2M+', label: 'Quizzes Taken', gradient: 'from-accent to-primary' },
-                  { value: '98%', label: 'Engagement Rate', gradient: 'from-success to-secondary' }
-                ].map((stat, idx) => (
-                  <div
-                    key={idx}
-                    className="text-center clay-card-hover bg-card/50 backdrop-blur-sm p-6 animate-scale-in"
-                    style={{ animationDelay: `${idx * 0.1}s` }}
-                  >
-                    <div className={`text-3xl md:text-4xl font-bold text-gradient bg-gradient-to-r ${stat.gradient}`}>
-                      {stat.value}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2 font-medium">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
+          <HowItWorks />
           <Features />
+          <Testimonials />
           <UseCases />
+          <FAQ />
+          <CTA onGetStarted={handleGetStarted} />
           <Footer />
         </>
       )}
