@@ -169,6 +169,59 @@ export type Database = {
           },
         ]
       }
+      leaderboards: {
+        Row: {
+          achievements: Json | null
+          channel_id: string | null
+          correct_answers: number
+          created_at: string
+          id: string
+          quizzes_completed: number
+          rank: number | null
+          score: number
+          streak_days: number
+          total_answers: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievements?: Json | null
+          channel_id?: string | null
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          quizzes_completed?: number
+          rank?: number | null
+          score?: number
+          streak_days?: number
+          total_answers?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievements?: Json | null
+          channel_id?: string | null
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          quizzes_completed?: number
+          rank?: number | null
+          score?: number
+          streak_days?: number
+          total_answers?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaderboards_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -486,6 +539,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      support_ticket_messages: {
+        Row: {
+          attachments: Json | null
+          created_at: string
+          id: string
+          is_staff: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_staff?: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_staff?: boolean | null
+          message?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          priority: string
+          resolved_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       usage_tracking: {
         Row: {
