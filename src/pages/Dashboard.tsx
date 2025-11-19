@@ -36,19 +36,13 @@ export default function Dashboard() {
         return;
       }
 
-      // First get quiz IDs for responses query
-      const { data: quizIds } = await supabase
-        .from("quiz_generations")
-        .select("id")
-        .eq("user_id", user.id);
-
-      // Load all data in parallel
+      // Load all data in parallel (including quiz IDs for responses)
       const [
         profileResult,
         quizzesResult,
         scheduledResult,
         pendingResult,
-        viewsResult,
+        quizIdsResult,
         documentsResult,
         questionsResult,
         channelsResult
@@ -57,18 +51,29 @@ export default function Dashboard() {
         supabase.from("quiz_generations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
-        supabase.from("quiz_responses").select("quiz_generation_id", { count: "exact", head: true }).in("quiz_generation_id", quizIds?.map(q => q.id) || []),
+        supabase.from("quiz_generations").select("id").eq("user_id", user.id),
         supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id)
       ]);
+
+      // Get response count using the quiz IDs from parallel load
+      const quizIds = quizIdsResult.data?.map(q => q.id) || [];
+      let totalViews = 0;
+      if (quizIds.length > 0) {
+        const { count } = await supabase
+          .from("quiz_responses")
+          .select("quiz_generation_id", { count: "exact", head: true })
+          .in("quiz_generation_id", quizIds);
+        totalViews = count || 0;
+      }
 
       setProfile(profileResult.data);
       setStats({
         totalQuizzes: quizzesResult.count || 0,
         scheduledPosts: scheduledResult.count || 0,
         pendingPosts: pendingResult.count || 0,
-        totalViews: viewsResult.count || 0,
+        totalViews,
         totalDocuments: documentsResult.count || 0,
         totalQuestions: questionsResult.count || 0,
         connectedBots: profileResult.data?.telegram_bot_token ? 1 : 0,

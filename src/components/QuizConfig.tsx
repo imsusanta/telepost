@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles, Database } from "lucide-react";
+import { Sparkles, Database, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import type { QuizConfig } from "@/types/quiz";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuizConfigProps {
   onStartQuiz: (config: QuizConfig) => void;
@@ -25,6 +26,8 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [useChannelKnowledgeBase, setUseChannelKnowledgeBase] = useState(false);
+  const [channelsLoading, setChannelsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadChannels();
@@ -55,14 +58,25 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
   }, [selectedChannel, channels]);
 
   const loadChannels = async () => {
+    setChannelsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setChannelsLoading(false);
+        return;
+      }
 
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
     } catch (error) {
       console.error("Failed to load channels:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load channels",
+        variant: "destructive",
+      });
+    } finally {
+      setChannelsLoading(false);
     }
   };
 
@@ -96,16 +110,29 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
           <Label htmlFor="channel" className="text-sm font-medium">
             Channel (Optional)
           </Label>
-          <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+          <Select value={selectedChannel} onValueChange={setSelectedChannel} disabled={channelsLoading}>
             <SelectTrigger id="channel" className="h-12">
-              <SelectValue placeholder="Select a channel" />
+              {channelsLoading ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading channels...
+                </span>
+              ) : (
+                <SelectValue placeholder={channels.length === 0 ? "No channels available" : "Select a channel"} />
+              )}
             </SelectTrigger>
             <SelectContent>
-              {channels.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  {channel.name}
-                </SelectItem>
-              ))}
+              {channels.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No channels found. Create a channel first.
+                </div>
+              ) : (
+                channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>

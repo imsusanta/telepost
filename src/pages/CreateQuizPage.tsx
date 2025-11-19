@@ -44,9 +44,7 @@ export default function CreateQuizPage() {
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [isQuestionsRefreshing, setIsQuestionsRefreshing] = useState(false);
   const [questionSearchQuery, setQuestionSearchQuery] = useState("");
-  const [filters, setFilters] = useState<QuestionBankFilters>({
-    includePublic: true,
-  });
+  const [filters, setFilters] = useState<QuestionBankFilters>({});
   const [stats, setStats] = useState<any>(null);
 
   // Data loading functions

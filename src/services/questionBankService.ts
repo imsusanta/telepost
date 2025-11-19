@@ -2,34 +2,27 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface QuestionBankItem {
   id: string;
-  user_id?: string;
+  user_id: string;
+  channel_id?: string;
   question: string;
   options: string[];
   correct_option_index: number;
   explanation?: string;
   topic: string;
-  subject?: string;
-  difficulty: "easy" | "medium" | "hard";
-  language: string;
+  difficulty: string;
   tags?: string[];
   source?: string;
-  source_document_id?: string;
-  times_used: number;
-  times_correct: number;
-  times_incorrect: number;
-  is_active: boolean;
-  is_public: boolean;
+  usage_count?: number;
+  success_rate?: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface QuestionBankFilters {
   topic?: string;
-  subject?: string;
-  difficulty?: "easy" | "medium" | "hard";
-  language?: string;
+  difficulty?: string;
   tags?: string[];
-  includePublic?: boolean;
+  channelId?: string;
 }
 
 export class QuestionBankService {
@@ -65,27 +58,17 @@ export class QuestionBankService {
     let query = supabase
       .from("question_banks")
       .select("*")
-      .eq("is_active", true);
-
-    // Filter by user's questions or public questions
-    if (filters?.includePublic !== false) {
-      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
-    } else {
-      query = query.eq("user_id", userId);
-    }
+      .eq("user_id", userId);
 
     // Apply filters
     if (filters?.topic) {
       query = query.eq("topic", filters.topic);
     }
-    if (filters?.subject) {
-      query = query.eq("subject", filters.subject);
-    }
     if (filters?.difficulty) {
       query = query.eq("difficulty", filters.difficulty);
     }
-    if (filters?.language) {
-      query = query.eq("language", filters.language);
+    if (filters?.channelId) {
+      query = query.eq("channel_id", filters.channelId);
     }
     if (filters?.tags && filters.tags.length > 0) {
       query = query.contains("tags", filters.tags);
@@ -123,8 +106,7 @@ export class QuestionBankService {
     quizData: any,
     topic: string,
     options?: {
-      subject?: string;
-      makePublic?: boolean;
+      channelId?: string;
     }
   ): Promise<QuestionBankItem[]> {
     const questions = quizData.questions.map((q: any) => ({
@@ -134,12 +116,9 @@ export class QuestionBankService {
       correct_option_index: q.correct_option_index,
       explanation: q.explanation,
       topic: topic,
-      subject: options?.subject,
       difficulty: quizData.metadata?.difficulty || "medium",
-      language: "bn",
       source: "quiz_import",
-      is_public: options?.makePublic || false,
-      is_active: true,
+      channel_id: options?.channelId || null,
     }));
 
     const { data, error } = await supabase
@@ -160,8 +139,7 @@ export class QuestionBankService {
     questions: any[],
     options?: {
       topic?: string;
-      subject?: string;
-      makePublic?: boolean;
+      channelId?: string;
     }
   ): Promise<QuestionBankItem[]> {
     const questionRecords = questions.map((q) => ({
@@ -171,13 +149,9 @@ export class QuestionBankService {
       correct_option_index: q.correct_option_index,
       explanation: q.explanation,
       topic: options?.topic || "General",
-      subject: options?.subject,
       difficulty: q.difficulty || "medium",
-      language: q.language || "bn",
       source: "document",
-      source_document_id: documentId,
-      is_public: options?.makePublic || false,
-      is_active: true,
+      channel_id: options?.channelId || null,
     }));
 
     const { data, error } = await supabase
@@ -229,13 +203,11 @@ export class QuestionBankService {
     total: number;
     byTopic: Record<string, number>;
     byDifficulty: Record<string, number>;
-    byLanguage: Record<string, number>;
   }> {
     const { data, error } = await supabase
       .from("question_banks")
-      .select("topic, difficulty, language")
-      .eq("user_id", userId)
-      .eq("is_active", true);
+      .select("topic, difficulty")
+      .eq("user_id", userId);
 
     if (error) throw error;
 
@@ -243,7 +215,6 @@ export class QuestionBankService {
       total: data.length,
       byTopic: {} as Record<string, number>,
       byDifficulty: {} as Record<string, number>,
-      byLanguage: {} as Record<string, number>,
     };
 
     data.forEach((q) => {
@@ -252,9 +223,6 @@ export class QuestionBankService {
 
       // By difficulty
       stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1;
-
-      // By language
-      stats.byLanguage[q.language] = (stats.byLanguage[q.language] || 0) + 1;
     });
 
     return stats;
@@ -272,11 +240,8 @@ export class QuestionBankService {
         correct_option_index: 1,
         explanation: "ভারতের রাজধানী নতুন দিল্লি",
         topic: "Geography",
-        subject: "General Knowledge",
-        difficulty: "easy" as const,
-        language: "bn",
-        is_public: true,
-        is_active: true,
+        difficulty: "easy",
+        source: "sample",
       },
       {
         user_id: userId,
@@ -285,13 +250,9 @@ export class QuestionBankService {
         correct_option_index: 1,
         explanation: "২ + ২ = ৪",
         topic: "Mathematics",
-        subject: "Basic Math",
-        difficulty: "easy" as const,
-        language: "bn",
-        is_public: true,
-        is_active: true,
+        difficulty: "easy",
+        source: "sample",
       },
-      // Add more sample questions as needed
     ];
 
     const { error } = await supabase
