@@ -27,8 +27,11 @@ export interface QuestionBankItem {
 export interface QuestionBankFilters {
   topic?: string;
   difficulty?: string;
+  language?: string;
+  subject?: string;
   tags?: string[];
   channelId?: string;
+  includePublic?: boolean;
 }
 
 export class QuestionBankService {
@@ -63,8 +66,14 @@ export class QuestionBankService {
   ): Promise<QuestionBankItem[]> {
     let query = supabase
       .from("question_banks")
-      .select("*")
-      .eq("user_id", userId);
+      .select("*");
+
+    // Handle user filtering with public questions option
+    if (filters?.includePublic) {
+      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
+    } else {
+      query = query.eq("user_id", userId);
+    }
 
     // Apply filters
     if (filters?.topic) {
@@ -72,6 +81,12 @@ export class QuestionBankService {
     }
     if (filters?.difficulty) {
       query = query.eq("difficulty", filters.difficulty);
+    }
+    if (filters?.language) {
+      query = query.eq("language", filters.language);
+    }
+    if (filters?.subject) {
+      query = query.ilike("topic", `%${filters.subject}%`);
     }
     if (filters?.channelId) {
       query = query.eq("channel_id", filters.channelId);
