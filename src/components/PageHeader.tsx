@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface PageHeaderProps {
   title: string;

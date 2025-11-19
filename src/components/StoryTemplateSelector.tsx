@@ -5,7 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StoryService, StoryTemplate } from "@/services/storyService";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, Image, Video, Type } from "lucide-react";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import Image from "lucide-react/dist/esm/icons/image";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import Type from "lucide-react/dist/esm/icons/type";
+import Video from "lucide-react/dist/esm/icons/video";
 
 interface StoryTemplateSelectorProps {
   onSelect: (template: StoryTemplate) => void;

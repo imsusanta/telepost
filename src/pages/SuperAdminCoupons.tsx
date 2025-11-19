@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Trash2, Copy, Tag, Calendar, DollarSign } from 'lucide-react';
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import DollarSign from "lucide-react/dist/esm/icons/dollar-sign";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import Tag from "lucide-react/dist/esm/icons/tag";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import {
   getAllCoupons,
   createCoupon,

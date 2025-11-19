@@ -6,7 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, Search, Edit, Ban, Check } from 'lucide-react';
+import Ban from "lucide-react/dist/esm/icons/ban";
+import Check from "lucide-react/dist/esm/icons/check";
+import Edit from "lucide-react/dist/esm/icons/edit";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import Search from "lucide-react/dist/esm/icons/search";
+import Users from "lucide-react/dist/esm/icons/users";
 import {
   getAllUsers,
   updateUserSubscription,

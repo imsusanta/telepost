@@ -3,22 +3,20 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Sparkles,
-  Radio,
-  Calendar,
-  Settings,
-  LogOut,
-  LayoutDashboard,
-  Menu,
-  X,
-  BarChart3,
-  Keyboard,
-  Shield,
-  Tag,
-  Users,
-  Image
-} from "lucide-react";
+import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import Image from "lucide-react/dist/esm/icons/image";
+import Keyboard from "lucide-react/dist/esm/icons/keyboard";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
+import LogOut from "lucide-react/dist/esm/icons/log-out";
+import Menu from "lucide-react/dist/esm/icons/menu";
+import Radio from "lucide-react/dist/esm/icons/radio";
+import Settings from "lucide-react/dist/esm/icons/settings";
+import Shield from "lucide-react/dist/esm/icons/shield";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import Tag from "lucide-react/dist/esm/icons/tag";
+import Users from "lucide-react/dist/esm/icons/users";
+import X from "lucide-react/dist/esm/icons/x";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
