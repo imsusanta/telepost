@@ -44,8 +44,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
 
-      console.log("Auth state changed:", _event, session ? "Session exists" : "No session");
-
       // Use the session from the event directly - Supabase has already validated it
       // This avoids race conditions and retry loops that cause multi-tab issues
       setUser(session?.user ?? null);

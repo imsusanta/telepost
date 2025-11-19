@@ -72,10 +72,10 @@ export default function Stories() {
 
       // Load stories
       await loadStories(user.id);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to load data",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -100,10 +100,10 @@ export default function Stories() {
       // Load highlights
       const highlightList = await StoryService.getHighlights(uid);
       setHighlights(highlightList);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to load stories",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }
@@ -129,10 +129,10 @@ export default function Stories() {
       if (userId) {
         loadStories(userId);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to delete story",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }
@@ -152,17 +152,20 @@ export default function Stories() {
       if (userId) {
         loadStories(userId);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to update story",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }
   };
 
   const getStatusBadge = (status: Story["status"]) => {
-    const variants: Record<Story["status"], { variant: any; icon: any; label: string }> = {
+    type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+    type IconType = typeof Clock | typeof Calendar | typeof CheckCircle2 | typeof XCircle | typeof Trash2;
+
+    const variants: Record<Story["status"], { variant: BadgeVariant; icon: IconType; label: string }> = {
       draft: { variant: "secondary", icon: Clock, label: "Draft" },
       scheduled: { variant: "default", icon: Calendar, label: "Scheduled" },
       posted: { variant: "default", icon: CheckCircle2, label: "Posted" },
@@ -175,7 +178,7 @@ export default function Stories() {
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant as any}>
+      <Badge variant={config.variant}>
         <Icon className="h-3 w-3 mr-1" />
         {config.label}
       </Badge>

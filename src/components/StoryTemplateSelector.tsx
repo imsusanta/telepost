@@ -193,7 +193,7 @@ export const StoryTemplateSelector: React.FC<StoryTemplateSelectorProps> = ({
                                     fontSize: `${Math.min(overlay.fontSize / 3, 16)}px`,
                                     fontWeight: overlay.fontWeight || "normal",
                                     color: overlay.color,
-                                    textAlign: overlay.align as any,
+                                    textAlign: (overlay.align as "left" | "center" | "right" | "justify") || "left",
                                   }}
                                 >
                                   {overlay.text}

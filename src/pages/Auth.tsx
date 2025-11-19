@@ -216,12 +216,7 @@ export default function Auth() {
 
         // Verify session is actually available in the client
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Navigation will be handled by the auth state change listener
-          console.log("Login successful, session established");
-        } else {
-          console.warn("Session not immediately available after login");
-        }
+        // Navigation will be handled by the auth state change listener
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
