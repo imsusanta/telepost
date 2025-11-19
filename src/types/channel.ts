@@ -14,10 +14,11 @@ export interface Channel {
   id: string;
   user_id: string;
   name: string;
-  telegram_channel_id?: string;
-  telegram_bot_token?: string;
-  description?: string;
+  telegram_channel_id: string | null;
+  telegram_bot_token: string | null;
+  description: string | null;
   settings: ChannelSettings;
+  last_auto_generated_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -92,7 +92,7 @@ export class SubscriptionService {
   static async canPurchasePlans(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("can_purchase_plans, role")
+      .select("*")
       .eq("id", userId)
       .single();
 
