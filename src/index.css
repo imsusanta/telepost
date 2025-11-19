@@ -39,6 +39,54 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r;
   }
+
+  /* Glassmorphism utility */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+
+  /* Premium gradient text */
+  .gradient-text-primary {
+    @apply bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent;
+  }
+
+  /* Animated gradient border */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(135deg, hsl(265 85% 75%), hsl(200 80% 80%), hsl(160 70% 80%)) border-box;
+    border: 2px solid transparent;
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Glow effect */
+  .glow {
+    box-shadow: 0 0 40px rgba(165, 130, 220, 0.3);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px rgba(135, 206, 235, 0.3);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes fade-in {
