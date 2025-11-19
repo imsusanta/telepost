@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "db:setup": "node scripts/setup-database.js",
     "db:check": "node scripts/setup-database.js",
-    "db:fix": "node scripts/fix-billing-schema.js"
+    "db:fix": "node scripts/fix-billing-schema.js",
+    "db:stories": "node scripts/apply-stories-migration.js",
+    "db:stories-check": "node scripts/apply-stories-migration.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
