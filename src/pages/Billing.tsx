@@ -96,8 +96,7 @@ export default function Billing() {
         "50 Quizzes/month",
         "Basic Scheduling",
         "PDF Explanations",
-        "Question Bank (10K questions)",
-        "Email Support"
+        "Question Bank (10K questions)"
       ],
       current: false,
       gradient: "from-primary to-accent",
@@ -117,10 +116,8 @@ export default function Billing() {
         "Batch Generate 30 Quizzes at Once",
         "Question Bank (50K+ questions)",
         "Engagement Analytics Dashboard",
-        "Leaderboards & Gamification",
         "Custom Branding on PDFs",
-        "Multi-Language Support",
-        "Priority Support"
+        "Multi-Language Support"
       ],
       current: true,
       gradient: "from-accent to-secondary",
@@ -140,7 +137,6 @@ export default function Billing() {
         "Custom Quiz Templates",
         "Advanced Analytics & Reporting",
         "Multi-Admin Access",
-        "24/7 Priority Support",
         "Custom Integrations"
       ],
       current: false,

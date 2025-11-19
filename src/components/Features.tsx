@@ -1,4 +1,4 @@
-import { Sparkles, BarChart3, FileText, CheckCircle2, Clock, Upload, Zap, Languages, Trophy } from "lucide-react";
+import { Sparkles, BarChart3, FileText, CheckCircle2, Clock, Upload, Zap, Languages } from "lucide-react";
 
 const features = [
   {
@@ -32,28 +32,22 @@ const features = [
     gradient: "from-primary to-secondary"
   },
   {
-    icon: <Trophy className="w-6 h-6" />,
-    title: "Leaderboards & Gamification",
-    description: "Auto-generate weekly leaderboards. Award badges. Keep students engaged and coming back.",
-    gradient: "from-accent to-success"
-  },
-  {
     icon: <Zap className="w-6 h-6" />,
     title: "Batch Quiz Generation",
     description: "Generate 30 quizzes from one document. Schedule entire month's content in 5 minutes.",
-    gradient: "from-secondary to-primary"
+    gradient: "from-accent to-success"
   },
   {
     icon: <Languages className="w-6 h-6" />,
     title: "Multi-Language Support",
     description: "Create quizzes in Hindi, English, regional languages. AI translates questions instantly.",
-    gradient: "from-success to-accent"
+    gradient: "from-secondary to-primary"
   },
   {
     icon: <CheckCircle2 className="w-6 h-6" />,
     title: "Custom Branding",
     description: "Add your institute logo on PDFs, customize colors, add watermarks. Professional look guaranteed.",
-    gradient: "from-primary to-success"
+    gradient: "from-success to-accent"
   }
 ];
 

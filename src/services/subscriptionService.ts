@@ -19,10 +19,8 @@ export interface SubscriptionPlan {
   has_auto_scheduling: boolean;
   has_auto_pdf_explanations: boolean;
   has_analytics_dashboard: boolean;
-  has_leaderboards: boolean;
   has_custom_branding: boolean;
   has_multi_language: boolean;
-  has_priority_support: boolean;
   has_api_access: boolean;
   has_white_label: boolean;
 }
@@ -331,10 +329,8 @@ export class SubscriptionService {
       | "has_auto_scheduling"
       | "has_auto_pdf_explanations"
       | "has_analytics_dashboard"
-      | "has_leaderboards"
       | "has_custom_branding"
       | "has_multi_language"
-      | "has_priority_support"
       | "has_api_access"
       | "has_white_label"
     >
