@@ -302,6 +302,85 @@ ADDITIONAL RULES:
       }
     }
 
+    // Save quiz to database if userId is provided
+    if (userId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+
+          // Save quiz generation to database
+          const { error: insertError } = await supabase
+            .from("quiz_generations")
+            .insert({
+              user_id: userId,
+              channel_id: channelId || null,
+              document_id: null,
+              request_id: requestId,
+              topic: topic,
+              difficulty: difficulty,
+              question_count: questionCount,
+              questions: quizData.questions,
+              metadata: {
+                ...quizData.metadata,
+                language: language,
+                used_knowledge_base: useChannelKnowledgeBase && !!knowledgeBaseContext,
+                has_custom_prompt: !!systemPrompt || !!channelSystemPrompt,
+              },
+              status: "completed",
+            });
+
+          if (insertError) {
+            console.error("Failed to save quiz to database:", insertError);
+            // Don't fail the request, just log the error
+          } else {
+            // Track quiz generation in usage statistics
+            const { error: usageError } = await supabase.rpc("increment_quiz_count", {
+              p_user_id: userId,
+            });
+
+            if (usageError) {
+              console.error("Failed to track quiz usage:", usageError);
+              // Fallback: manually check and update usage tracking
+              const { data: existingUsage } = await supabase
+                .from("usage_tracking")
+                .select("*")
+                .eq("user_id", userId)
+                .single();
+
+              if (existingUsage) {
+                // Update existing usage
+                await supabase
+                  .from("usage_tracking")
+                  .update({
+                    quizzes_generated_this_month: existingUsage.quizzes_generated_this_month + 1,
+                    total_quizzes_generated: existingUsage.total_quizzes_generated + 1,
+                  })
+                  .eq("user_id", userId);
+              } else {
+                // Create new usage tracking record
+                await supabase
+                  .from("usage_tracking")
+                  .insert({
+                    user_id: userId,
+                    quizzes_generated_this_month: 1,
+                    total_quizzes_generated: 1,
+                    pdfs_uploaded_this_month: 0,
+                    total_pdfs_uploaded: 0,
+                    total_storage_used_bytes: 0,
+                  });
+              }
+            }
+          }
+        }
+      } catch (dbError) {
+        console.error("Database operation failed:", dbError);
+        // Don't fail the request, quiz generation was successful
+      }
+    }
+
     return new Response(JSON.stringify(quizData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
