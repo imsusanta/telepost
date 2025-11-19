@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Sparkles, Search, RefreshCw } from "lucide-react";
+import { FileText, Upload, Trash2, Sparkles, Search, RefreshCw } from "lucide-react";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
 import { ChannelService } from "@/services/channelService";

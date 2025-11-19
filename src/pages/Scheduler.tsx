@@ -149,7 +149,7 @@ export default function Scheduler() {
                   </TableHeader>
                   <TableBody>
                     {scheduledPosts.map((post) => {
-                      const quizData = post.quiz_data as Quiz;
+                      const quizData = post.quiz_data as unknown as Quiz;
                       return (
                         <TableRow key={post.id}>
                           <TableCell className="font-medium">

@@ -228,8 +228,8 @@ export default function Channels() {
       if (!user) return;
 
       await ChannelService.updateChannel(channel.id, user.id, {
-        telegram_channel_id: channel.telegram_channel_id,
-        telegram_bot_token: channel.telegram_bot_token,
+        telegram_channel_id: channel.telegram_channel_id || undefined,
+        telegram_bot_token: channel.telegram_bot_token || undefined,
         settings: channel.settings,
       });
 
@@ -284,7 +284,7 @@ export default function Channels() {
 
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("auto-generate-channel-quizzes", {
+      const { error } = await supabase.functions.invoke("auto-generate-channel-quizzes", {
         body: {
           channelId: channel.id,
           forceGenerate: true,
