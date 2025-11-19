@@ -1,4 +1,4 @@
-import { BookOpen, Newspaper, Gamepad2, Briefcase, Film, Trophy, ArrowRight } from "lucide-react";
+import { BookOpen, Newspaper, Gamepad2, Briefcase, Film, Languages, ArrowRight } from "lucide-react";
 
 const useCases = [
   {
@@ -14,9 +14,9 @@ const useCases = [
     gradient: "from-accent to-secondary"
   },
   {
-    icon: <Trophy className="w-8 h-8" />,
+    icon: <Languages className="w-8 h-8" />,
     title: "Language Learning",
-    description: "Run vocabulary and grammar quizzes on Telegram. Track engagement with leaderboards.",
+    description: "Run vocabulary and grammar quizzes on Telegram. Track student progress and engagement.",
     gradient: "from-secondary to-success"
   },
   {

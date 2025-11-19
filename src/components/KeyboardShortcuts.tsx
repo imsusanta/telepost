@@ -51,9 +51,9 @@ export function KeyboardShortcuts() {
       action: () => navigate("/dashboard/question-bank"),
     },
     {
-      key: "g l",
-      description: "Go to Leaderboards",
-      action: () => navigate("/dashboard/leaderboards"),
+      key: "g b",
+      description: "Go to Billing",
+      action: () => navigate("/dashboard/billing"),
     },
     {
       key: "?",
