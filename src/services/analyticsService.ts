@@ -109,10 +109,14 @@ export class AnalyticsService {
     const quizzesByDay = this.groupByDay(quizzes || [], 30);
 
     // Quizzes by topic
-    const quizzesByTopic = this.groupByField(quizzes || [], "topic");
+    const quizzesByTopic = this.groupByField(quizzes || [], "topic")
+      .filter(q => q.topic)
+      .map(q => ({ topic: q.topic!, count: q.count }));
 
     // Quizzes by difficulty
-    const quizzesByDifficulty = this.groupByField(quizzes || [], "difficulty");
+    const quizzesByDifficulty = this.groupByField(quizzes || [], "difficulty")
+      .filter(q => q.difficulty)
+      .map(q => ({ difficulty: q.difficulty!, count: q.count }));
 
     // Top topics
     const topTopics = quizzesByTopic.slice(0, 5);

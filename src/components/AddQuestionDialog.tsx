@@ -128,7 +128,6 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
         correct_option_index: correctIndex,
         explanation: explanation.trim() || undefined,
         topic: topic.trim(),
-        subject: subject.trim() || undefined,
         difficulty,
         language,
         tags: tagArray.length > 0 ? tagArray : undefined,

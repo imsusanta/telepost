@@ -45,14 +45,14 @@ export class QuestionBankService {
     const { data, error } = await supabase
       .from("question_banks")
       .insert({
-        user_id: userId,
         ...question,
+        user_id: userId,
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as QuestionBankItem;
   }
 
   /**
@@ -100,7 +100,7 @@ export class QuestionBankService {
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as QuestionBankItem[];
   }
 
   /**
@@ -148,7 +148,7 @@ export class QuestionBankService {
       .select();
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as QuestionBankItem[];
   }
 
   /**
@@ -156,7 +156,7 @@ export class QuestionBankService {
    */
   static async importQuestionsFromDocument(
     userId: string,
-    documentId: string,
+    _documentId: string,
     questions: any[],
     options?: {
       topic?: string;
@@ -181,7 +181,7 @@ export class QuestionBankService {
       .select();
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as QuestionBankItem[];
   }
 
   /**
@@ -201,7 +201,7 @@ export class QuestionBankService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as QuestionBankItem;
   }
 
   /**

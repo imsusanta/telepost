@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Channel, CreateChannelRequest, UpdateChannelRequest, ChannelSettings } from "@/types/channel";
-import { SubscriptionService } from "./subscriptionService";
 
 export class ChannelService {
   /**
