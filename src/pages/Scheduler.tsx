@@ -4,8 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
-import { format } from "date-fns";
-import { Clock, CheckCircle2, XCircle, Calendar, AlertCircle, RefreshCw, Trash2, RotateCcw } from "lucide-react";
+import { formatDateTime } from "@/lib/utils";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import XCircle from "lucide-react/dist/esm/icons/x-circle";
 import { LoadingState } from "@/components/LoadingState";
 import { useToast } from "@/hooks/use-toast";
 import type { Quiz } from "@/types/quiz";
@@ -157,11 +164,11 @@ export default function Scheduler() {
                           </TableCell>
                           <TableCell>{post.chat_id}</TableCell>
                           <TableCell>
-                            {format(new Date(post.scheduled_time), 'PPp')}
+                            {formatDateTime(post.scheduled_time)}
                           </TableCell>
                           <TableCell>{getStatusBadge(post.status)}</TableCell>
                           <TableCell>
-                            {post.sent_at ? format(new Date(post.sent_at), 'PPp') : '-'}
+                            {post.sent_at ? formatDateTime(post.sent_at) : '-'}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">

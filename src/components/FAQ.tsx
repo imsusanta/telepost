@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 
 const faqs = [
   {

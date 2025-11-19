@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
 import { Button } from "./ui/button";
 
 interface CTAProps {

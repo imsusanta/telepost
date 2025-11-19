@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, CheckCircle2, XCircle, Shield } from "lucide-react";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import Shield from "lucide-react/dist/esm/icons/shield";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import XCircle from "lucide-react/dist/esm/icons/x-circle";
 import {
   validatePassword as validatePasswordSecurity,
   isValidEmail,

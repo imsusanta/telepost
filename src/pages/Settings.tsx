@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Settings as SettingsIcon } from "lucide-react";
+import SettingsIcon from "lucide-react/dist/esm/icons/settings";
 
 export default function Settings() {
   const { toast } = useToast();

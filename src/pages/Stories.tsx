@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DashboardLayout } from "@/components/DashboardLayout";
+import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { TelegramStoryEditor } from "@/components/TelegramStoryEditor";
 import { StoryAnalytics } from "@/components/StoryAnalytics";
@@ -10,21 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { StoryService, Story } from "@/services/storyService";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Loader2,
-  Plus,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Calendar,
-  Trash2,
-  Star,
-  Eye,
-  Image as ImageIcon,
-  Video as VideoIcon,
-  Type,
-  Sparkles,
-} from "lucide-react";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import ImageIcon from "lucide-react/dist/esm/icons/image";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import Star from "lucide-react/dist/esm/icons/star";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Type from "lucide-react/dist/esm/icons/type";
+import VideoIcon from "lucide-react/dist/esm/icons/video";
+import XCircle from "lucide-react/dist/esm/icons/x-circle";
 import {
   AlertDialog,
   AlertDialogAction,
