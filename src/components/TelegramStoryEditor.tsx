@@ -151,10 +151,10 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       });
 
       return mediaUrl;
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload media",
+        description: error instanceof Error ? error.message : "Failed to upload media",
         variant: "destructive",
       });
       throw error;
@@ -197,10 +197,10 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       if (onStoryCreated) {
         onStoryCreated(story.story_id);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to save draft",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }
@@ -241,10 +241,10 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       if (onStoryCreated) {
         onStoryCreated(createdStoryId);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to post story",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -309,10 +309,10 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       if (onStoryCreated) {
         onStoryCreated(story.story_id);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to schedule story",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {

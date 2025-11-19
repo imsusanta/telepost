@@ -256,10 +256,10 @@ export default function CreateQuizPage() {
 
       loadDocuments();
       loadStorageInfo();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Upload Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to upload document",
         variant: "destructive",
       });
     } finally {
@@ -282,10 +282,10 @@ export default function CreateQuizPage() {
 
       loadDocuments();
       loadStorageInfo();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete document",
         variant: "destructive",
       });
     }
@@ -339,10 +339,10 @@ export default function CreateQuizPage() {
         description: "Question deleted successfully",
       });
       loadStats();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete question",
         variant: "destructive",
       });
     }

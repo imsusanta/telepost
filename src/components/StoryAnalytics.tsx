@@ -10,6 +10,21 @@ import MousePointer from "lucide-react/dist/esm/icons/mouse-pointer";
 import Share2 from "lucide-react/dist/esm/icons/share-2";
 import { Badge } from "@/components/ui/badge";
 
+interface AnalyticsEvent {
+  event_type: string;
+  viewer_username?: string;
+  created_at: string;
+}
+
+interface AnalyticsData {
+  total_views: number;
+  total_shares: number;
+  total_reactions: number;
+  total_clicks: number;
+  total_forwards: number;
+  events?: AnalyticsEvent[];
+}
+
 interface StoryAnalyticsProps {
   storyId: string;
   userId: string;
@@ -22,7 +37,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
   story,
 }) => {
   const { toast } = useToast();
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -34,10 +49,10 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
       setIsLoading(true);
       const data = await StoryService.getStoryAnalytics(storyId, userId);
       setAnalytics(data);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to load analytics",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -169,7 +184,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {analytics.events.slice(0, 10).map((event: any, index: number) => (
+              {analytics.events.slice(0, 10).map((event, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-2 rounded border"
