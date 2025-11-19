@@ -34,23 +34,39 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
+      console.log("Auth state changed:", _event, session ? "Session exists" : "No session");
 
       // If signing in, ensure session is fully established
       if (session && _event === 'SIGNED_IN') {
         setLoading(true);
-        // Longer delay to ensure session fully propagates to client and storage
-        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Verify session is actually available
-        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
-        if (!verifiedSession) {
-          console.error("Session verification failed after SIGNED_IN event");
-        } else {
-          console.log("Session verified after login");
+        // Verify session is actually available with retry logic
+        let retries = 0;
+        const maxRetries = 5;
+        let verifiedSession = null;
+
+        while (retries < maxRetries && !verifiedSession) {
+          const { data: { session: checkSession } } = await supabase.auth.getSession();
+          if (checkSession) {
+            verifiedSession = checkSession;
+            console.log("Session verified after login");
+            break;
+          }
+
+          // Wait with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 100 * (retries + 1)));
+          retries++;
         }
 
+        if (!verifiedSession) {
+          console.error("Session verification failed after SIGNED_IN event - max retries exceeded");
+        }
+
+        setUser(verifiedSession?.user ?? null);
         setLoading(false);
+      } else {
+        // For other events, just update the user state immediately
+        setUser(session?.user ?? null);
       }
     });
 

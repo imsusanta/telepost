@@ -369,17 +369,48 @@ export class SubscriptionService {
       p_user_id: userId,
     });
 
-    // If RPC doesn't exist, do it manually
+    // If RPC doesn't exist or fails, do it manually
     if (error) {
-      const { error: updateError } = await supabase
-        .from("usage_tracking")
-        .update({
-          quizzes_generated_this_month: supabase.raw("quizzes_generated_this_month + 1"),
-          total_quizzes_generated: supabase.raw("total_quizzes_generated + 1"),
-        })
-        .eq("user_id", userId);
+      console.warn("increment_quiz_count RPC failed, using manual update:", error);
 
-      if (updateError) throw updateError;
+      // Get current usage
+      const { data: currentUsage } = await supabase
+        .from("usage_tracking")
+        .select("quizzes_generated_this_month, total_quizzes_generated")
+        .eq("user_id", userId)
+        .single();
+
+      if (currentUsage) {
+        // Update with incremented values
+        const { error: updateError } = await supabase
+          .from("usage_tracking")
+          .update({
+            quizzes_generated_this_month: currentUsage.quizzes_generated_this_month + 1,
+            total_quizzes_generated: currentUsage.total_quizzes_generated + 1,
+          })
+          .eq("user_id", userId);
+
+        if (updateError) throw updateError;
+      } else {
+        // Initialize usage tracking if it doesn't exist
+        await this.initializeUsageTracking(userId);
+        // Recursive call after initialization
+        const { data: newUsage } = await supabase
+          .from("usage_tracking")
+          .select("quizzes_generated_this_month, total_quizzes_generated")
+          .eq("user_id", userId)
+          .single();
+
+        if (newUsage) {
+          await supabase
+            .from("usage_tracking")
+            .update({
+              quizzes_generated_this_month: newUsage.quizzes_generated_this_month + 1,
+              total_quizzes_generated: newUsage.total_quizzes_generated + 1,
+            })
+            .eq("user_id", userId);
+        }
+      }
     }
   }
 
@@ -387,12 +418,27 @@ export class SubscriptionService {
    * Track PDF upload
    */
   static async trackPdfUpload(userId: string, fileSize: number): Promise<void> {
+    // Get current usage first
+    const { data: currentUsage } = await supabase
+      .from("usage_tracking")
+      .select("pdfs_uploaded_this_month, total_pdfs_uploaded, total_storage_used_bytes")
+      .eq("user_id", userId)
+      .single();
+
+    if (!currentUsage) {
+      // Initialize usage tracking if it doesn't exist
+      await this.initializeUsageTracking(userId);
+      // Try again
+      return this.trackPdfUpload(userId, fileSize);
+    }
+
+    // Update with incremented values
     const { error } = await supabase
       .from("usage_tracking")
       .update({
-        pdfs_uploaded_this_month: supabase.raw("pdfs_uploaded_this_month + 1"),
-        total_pdfs_uploaded: supabase.raw("total_pdfs_uploaded + 1"),
-        total_storage_used_bytes: supabase.raw(`total_storage_used_bytes + ${fileSize}`),
+        pdfs_uploaded_this_month: currentUsage.pdfs_uploaded_this_month + 1,
+        total_pdfs_uploaded: currentUsage.total_pdfs_uploaded + 1,
+        total_storage_used_bytes: currentUsage.total_storage_used_bytes + fileSize,
       })
       .eq("user_id", userId);
 
