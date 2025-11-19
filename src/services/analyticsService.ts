@@ -5,8 +5,8 @@ export interface AnalyticsEvent {
   user_id: string;
   event_type: string;
   event_data?: any;
-  quiz_generation_id?: string;
-  document_id?: string;
+  quiz_generation_id: string | null;
+  document_id: string | null;
   created_at: string;
 }
 
@@ -99,10 +99,10 @@ export class AnalyticsService {
 
     const { data: responses, count: totalResponses } = await responsesQuery;
 
-    // Calculate average score
+    // Calculate average score from is_correct field
     const averageScore =
       responses && responses.length > 0
-        ? responses.reduce((acc, r) => acc + r.percentage, 0) / responses.length
+        ? (responses.filter(r => r.is_correct).length / responses.length) * 100
         : 0;
 
     // Quizzes by day (last 30 days)

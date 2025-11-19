@@ -26,4 +26,5 @@ export interface QuizConfig {
   channelId?: string;
   language?: 'bn' | 'en' | 'hi';
   useChannelKnowledgeBase?: boolean;
+  userId?: string;
 }

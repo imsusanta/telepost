@@ -14,84 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_activity_log: {
-        Row: {
-          id: string
-          admin_id: string
-          action: string
-          target_user_id: string | null
-          details: Json | null
-          ip_address: string | null
-          user_agent: string | null
-          session_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          admin_id: string
-          action: string
-          target_user_id?: string | null
-          details?: Json | null
-          ip_address?: string | null
-          user_agent?: string | null
-          session_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          admin_id?: string
-          action?: string
-          target_user_id?: string | null
-          details?: Json | null
-          ip_address?: string | null
-          user_agent?: string | null
-          session_id?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_activity_log_admin_id_fkey"
-            columns: ["admin_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admin_activity_log_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       analytics_events: {
         Row: {
-          id: string
-          user_id: string
-          event_type: string
-          event_data: Json | null
-          quiz_generation_id: string | null
-          document_id: string | null
           created_at: string
+          document_id: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          quiz_generation_id: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          event_type: string
-          event_data?: Json | null
-          quiz_generation_id?: string | null
-          document_id?: string | null
           created_at?: string
+          document_id?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          quiz_generation_id?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          event_type?: string
-          event_data?: Json | null
-          quiz_generation_id?: string | null
-          document_id?: string | null
           created_at?: string
+          document_id?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          quiz_generation_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -108,163 +57,107 @@ export type Database = {
             referencedRelation: "quiz_generations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "analytics_events_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       channels: {
         Row: {
-          id: string
-          user_id: string
-          name: string
-          telegram_channel_id: string | null
-          telegram_bot_token: string | null
-          description: string | null
-          settings: Json
           created_at: string
-          updated_at: string
-          last_auto_generated_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          telegram_channel_id?: string | null
-          telegram_bot_token?: string | null
-          description?: string | null
-          settings?: Json
-          created_at?: string
-          updated_at?: string
-          last_auto_generated_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          telegram_channel_id?: string | null
-          telegram_bot_token?: string | null
-          description?: string | null
-          settings?: Json
-          created_at?: string
-          updated_at?: string
-          last_auto_generated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "channels_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      data_audit_log: {
-        Row: {
+          description: string | null
           id: string
-          table_name: string
-          record_id: string | null
-          action: string
-          old_data: Json | null
-          new_data: Json | null
-          changed_by: string | null
-          changed_at: string
+          last_auto_generated_at: string | null
+          name: string
+          settings: Json | null
+          telegram_bot_token: string | null
+          telegram_channel_id: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
+          created_at?: string
+          description?: string | null
           id?: string
-          table_name: string
-          record_id?: string | null
-          action: string
-          old_data?: Json | null
-          new_data?: Json | null
-          changed_by?: string | null
-          changed_at?: string
+          last_auto_generated_at?: string | null
+          name: string
+          settings?: Json | null
+          telegram_bot_token?: string | null
+          telegram_channel_id?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
+          created_at?: string
+          description?: string | null
           id?: string
-          table_name?: string
-          record_id?: string | null
-          action?: string
-          old_data?: Json | null
-          new_data?: Json | null
-          changed_by?: string | null
-          changed_at?: string
+          last_auto_generated_at?: string | null
+          name?: string
+          settings?: Json | null
+          telegram_bot_token?: string | null
+          telegram_channel_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "data_audit_log_changed_by_fkey"
-            columns: ["changed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       documents: {
         Row: {
-          id: string
-          user_id: string
+          channel_id: string | null
+          created_at: string
+          description: string | null
+          extracted_text: string | null
           file_name: string
           file_size_bytes: number
           file_type: string
+          id: string
+          language: string | null
+          metadata: Json | null
+          page_count: number | null
+          processing_error: string | null
+          processing_status: string
           storage_path: string
           title: string | null
-          description: string | null
-          language: string | null
-          extracted_text: string | null
-          page_count: number | null
-          processing_status: string
-          processing_error: string | null
-          ai_summary: string | null
-          topics: Json | null
-          channel_id: string | null
-          created_at: string
           updated_at: string
+          user_id: string
+          word_count: number | null
         }
         Insert: {
-          id?: string
-          user_id: string
-          file_name: string
-          file_size_bytes: number
-          file_type?: string
-          storage_path: string
-          title?: string | null
-          description?: string | null
-          language?: string | null
-          extracted_text?: string | null
-          page_count?: number | null
-          processing_status?: string
-          processing_error?: string | null
-          ai_summary?: string | null
-          topics?: Json | null
           channel_id?: string | null
           created_at?: string
+          description?: string | null
+          extracted_text?: string | null
+          file_name: string
+          file_size_bytes: number
+          file_type: string
+          id?: string
+          language?: string | null
+          metadata?: Json | null
+          page_count?: number | null
+          processing_error?: string | null
+          processing_status?: string
+          storage_path: string
+          title?: string | null
           updated_at?: string
+          user_id: string
+          word_count?: number | null
         }
         Update: {
-          id?: string
-          user_id?: string
+          channel_id?: string | null
+          created_at?: string
+          description?: string | null
+          extracted_text?: string | null
           file_name?: string
           file_size_bytes?: number
           file_type?: string
+          id?: string
+          language?: string | null
+          metadata?: Json | null
+          page_count?: number | null
+          processing_error?: string | null
+          processing_status?: string
           storage_path?: string
           title?: string | null
-          description?: string | null
-          language?: string | null
-          extracted_text?: string | null
-          page_count?: number | null
-          processing_status?: string
-          processing_error?: string | null
-          ai_summary?: string | null
-          topics?: Json | null
-          channel_id?: string | null
-          created_at?: string
           updated_at?: string
+          user_id?: string
+          word_count?: number | null
         }
         Relationships: [
           {
@@ -274,114 +167,59 @@ export type Database = {
             referencedRelation: "channels"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "documents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
-      }
-      login_attempts: {
-        Row: {
-          id: string
-          email: string
-          success: boolean
-          ip_address: string | null
-          user_agent: string | null
-          error_message: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          email: string
-          success?: boolean
-          ip_address?: string | null
-          user_agent?: string | null
-          error_message?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          success?: boolean
-          ip_address?: string | null
-          user_agent?: string | null
-          error_message?: string | null
-          created_at?: string
-        }
-        Relationships: []
       }
       leaderboards: {
         Row: {
-          id: string
-          user_id: string
-          student_name: string | null
-          student_telegram_id: string | null
-          board_type: string
-          board_key: string | null
-          total_quizzes_taken: number
-          total_questions_answered: number
-          total_correct_answers: number
-          average_score: number
-          total_points: number
-          rank: number | null
-          level: number
-          experience_points: number
-          badges: Json | null
-          last_quiz_at: string | null
+          achievements: Json | null
+          channel_id: string | null
+          correct_answers: number
           created_at: string
+          id: string
+          quizzes_completed: number
+          rank: number | null
+          score: number
+          streak_days: number
+          total_answers: number
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          student_name?: string | null
-          student_telegram_id?: string | null
-          board_type: string
-          board_key?: string | null
-          total_quizzes_taken?: number
-          total_questions_answered?: number
-          total_correct_answers?: number
-          average_score?: number
-          total_points?: number
-          rank?: number | null
-          level?: number
-          experience_points?: number
-          badges?: Json | null
-          last_quiz_at?: string | null
+          achievements?: Json | null
+          channel_id?: string | null
+          correct_answers?: number
           created_at?: string
+          id?: string
+          quizzes_completed?: number
+          rank?: number | null
+          score?: number
+          streak_days?: number
+          total_answers?: number
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          student_name?: string | null
-          student_telegram_id?: string | null
-          board_type?: string
-          board_key?: string | null
-          total_quizzes_taken?: number
-          total_questions_answered?: number
-          total_correct_answers?: number
-          average_score?: number
-          total_points?: number
-          rank?: number | null
-          level?: number
-          experience_points?: number
-          badges?: Json | null
-          last_quiz_at?: string | null
+          achievements?: Json | null
+          channel_id?: string | null
+          correct_answers?: number
           created_at?: string
+          id?: string
+          quizzes_completed?: number
+          rank?: number | null
+          score?: number
+          streak_days?: number
+          total_answers?: number
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "leaderboards_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "leaderboards_channel_id_fkey"
+            columns: ["channel_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "channels"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       profiles: {
@@ -393,11 +231,6 @@ export type Database = {
           telegram_bot_token: string | null
           telegram_channel_id: string | null
           updated_at: string
-          role: string
-          can_purchase_plans: boolean
-          status: string
-          last_login: string | null
-          login_count: number
         }
         Insert: {
           created_at?: string
@@ -407,11 +240,6 @@ export type Database = {
           telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
-          role?: string
-          can_purchase_plans?: boolean
-          status?: string
-          last_login?: string | null
-          login_count?: number
         }
         Update: {
           created_at?: string
@@ -421,83 +249,60 @@ export type Database = {
           telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
-          role?: string
-          can_purchase_plans?: boolean
-          status?: string
-          last_login?: string | null
-          login_count?: number
         }
         Relationships: []
       }
       question_banks: {
         Row: {
-          id: string
-          user_id: string | null
-          question: string
-          options: Json
-          correct_option_index: number
-          explanation: string | null
-          topic: string
-          subject: string | null
-          difficulty: string
-          language: string
-          tags: Json | null
-          source: string | null
-          source_document_id: string | null
-          times_used: number
-          times_correct: number
-          times_incorrect: number
-          is_active: boolean
-          is_public: boolean
           channel_id: string | null
+          correct_option_index: number
           created_at: string
+          difficulty: string
+          explanation: string | null
+          id: string
+          options: Json
+          question: string
+          source: string | null
+          success_rate: number | null
+          tags: Json | null
+          topic: string
           updated_at: string
+          usage_count: number | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id?: string | null
-          question: string
-          options: Json
-          correct_option_index: number
-          explanation?: string | null
-          topic: string
-          subject?: string | null
-          difficulty?: string
-          language?: string
-          tags?: Json | null
-          source?: string | null
-          source_document_id?: string | null
-          times_used?: number
-          times_correct?: number
-          times_incorrect?: number
-          is_active?: boolean
-          is_public?: boolean
           channel_id?: string | null
+          correct_option_index: number
           created_at?: string
+          difficulty: string
+          explanation?: string | null
+          id?: string
+          options: Json
+          question: string
+          source?: string | null
+          success_rate?: number | null
+          tags?: Json | null
+          topic: string
           updated_at?: string
+          usage_count?: number | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string | null
-          question?: string
-          options?: Json
-          correct_option_index?: number
-          explanation?: string | null
-          topic?: string
-          subject?: string | null
-          difficulty?: string
-          language?: string
-          tags?: Json | null
-          source?: string | null
-          source_document_id?: string | null
-          times_used?: number
-          times_correct?: number
-          times_incorrect?: number
-          is_active?: boolean
-          is_public?: boolean
           channel_id?: string | null
+          correct_option_index?: number
           created_at?: string
+          difficulty?: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question?: string
+          source?: string | null
+          success_rate?: number | null
+          tags?: Json | null
+          topic?: string
           updated_at?: string
+          usage_count?: number | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -507,70 +312,56 @@ export type Database = {
             referencedRelation: "channels"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "question_banks_source_document_id_fkey"
-            columns: ["source_document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_banks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       quiz_generations: {
         Row: {
-          id: string
-          user_id: string
-          topic: string
-          question_count: number
-          difficulty: string
-          language: string
-          source_type: string
-          source_document_id: string | null
-          quiz_data: Json
-          delivery_method: string | null
-          telegram_chat_id: string | null
-          scheduled_post_id: string | null
           channel_id: string | null
           created_at: string
+          difficulty: string
+          document_id: string | null
+          error_message: string | null
+          generation_time_ms: number | null
+          id: string
+          metadata: Json | null
+          question_count: number
+          questions: Json
+          request_id: string | null
+          status: string
+          topic: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          topic: string
-          question_count: number
-          difficulty: string
-          language?: string
-          source_type?: string
-          source_document_id?: string | null
-          quiz_data: Json
-          delivery_method?: string | null
-          telegram_chat_id?: string | null
-          scheduled_post_id?: string | null
           channel_id?: string | null
           created_at?: string
+          difficulty: string
+          document_id?: string | null
+          error_message?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          question_count: number
+          questions: Json
+          request_id?: string | null
+          status?: string
+          topic: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          topic?: string
-          question_count?: number
-          difficulty?: string
-          language?: string
-          source_type?: string
-          source_document_id?: string | null
-          quiz_data?: Json
-          delivery_method?: string | null
-          telegram_chat_id?: string | null
-          scheduled_post_id?: string | null
           channel_id?: string | null
           created_at?: string
+          difficulty?: string
+          document_id?: string | null
+          error_message?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          question_count?: number
+          questions?: Json
+          request_id?: string | null
+          status?: string
+          topic?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -581,63 +372,44 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "quiz_generations_source_document_id_fkey"
-            columns: ["source_document_id"]
+            foreignKeyName: "quiz_generations_document_id_fkey"
+            columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "quiz_generations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       quiz_responses: {
         Row: {
-          id: string
-          user_id: string | null
-          quiz_generation_id: string | null
-          student_name: string | null
-          student_telegram_id: string | null
-          student_email: string | null
-          responses: Json
-          score: number
-          total_questions: number
-          percentage: number
-          time_taken_seconds: number | null
           created_at: string
+          id: string
+          is_correct: boolean
+          question_index: number
+          quiz_generation_id: string | null
+          selected_option_index: number
+          time_taken_ms: number | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id?: string | null
-          quiz_generation_id?: string | null
-          student_name?: string | null
-          student_telegram_id?: string | null
-          student_email?: string | null
-          responses: Json
-          score: number
-          total_questions: number
-          percentage: number
-          time_taken_seconds?: number | null
           created_at?: string
+          id?: string
+          is_correct: boolean
+          question_index: number
+          quiz_generation_id?: string | null
+          selected_option_index: number
+          time_taken_ms?: number | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string | null
-          quiz_generation_id?: string | null
-          student_name?: string | null
-          student_telegram_id?: string | null
-          student_email?: string | null
-          responses?: Json
-          score?: number
-          total_questions?: number
-          percentage?: number
-          time_taken_seconds?: number | null
           created_at?: string
+          id?: string
+          is_correct?: boolean
+          question_index?: number
+          quiz_generation_id?: string | null
+          selected_option_index?: number
+          time_taken_ms?: number | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -647,111 +419,6 @@ export type Database = {
             referencedRelation: "quiz_generations"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "quiz_responses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      security_alerts: {
-        Row: {
-          id: string
-          alert_type: string
-          severity: string
-          user_id: string | null
-          details: Json
-          resolved: boolean
-          resolved_by: string | null
-          resolved_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          alert_type: string
-          severity: string
-          user_id?: string | null
-          details?: Json
-          resolved?: boolean
-          resolved_by?: string | null
-          resolved_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          alert_type?: string
-          severity?: string
-          user_id?: string | null
-          details?: Json
-          resolved?: boolean
-          resolved_by?: string | null
-          resolved_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "security_alerts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "security_alerts_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      session_tracking: {
-        Row: {
-          id: string
-          user_id: string
-          session_token: string
-          ip_address: string | null
-          user_agent: string | null
-          last_activity: string
-          created_at: string
-          expires_at: string | null
-          is_active: boolean
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          session_token: string
-          ip_address?: string | null
-          user_agent?: string | null
-          last_activity?: string
-          created_at?: string
-          expires_at?: string | null
-          is_active?: boolean
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          session_token?: string
-          ip_address?: string | null
-          user_agent?: string | null
-          last_activity?: string
-          created_at?: string
-          expires_at?: string | null
-          is_active?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_tracking_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       scheduled_telegram_posts: {
@@ -760,7 +427,6 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
-          min_questions_per_interval: number | null
           quiz_data: Json
           scheduled_time: string
           sent_at: string | null
@@ -772,7 +438,6 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
-          min_questions_per_interval?: number | null
           quiz_data: Json
           scheduled_time: string
           sent_at?: string | null
@@ -784,140 +449,86 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
-          min_questions_per_interval?: number | null
           quiz_data?: Json
           scheduled_time?: string
           sent_at?: string | null
           status?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "scheduled_telegram_posts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       subscription_plans: {
         Row: {
-          id: string
-          name: string
-          display_name: string
-          price: number
-          billing_period: string
-          max_telegram_channels: number
-          max_pdf_storage_gb: number
-          max_quizzes_per_month: number | null
-          max_batch_quiz_generation: number
-          max_question_bank_size: number
-          has_advanced_ai: boolean
-          has_auto_scheduling: boolean
-          has_auto_pdf_explanations: boolean
-          has_analytics_dashboard: boolean
-          has_leaderboards: boolean
-          has_custom_branding: boolean
-          has_multi_language: boolean
-          has_priority_support: boolean
-          has_api_access: boolean
-          has_white_label: boolean
-          is_active: boolean
           created_at: string
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          limits: Json | null
+          name: string
+          price_monthly: number
+          price_yearly: number | null
           updated_at: string
         }
         Insert: {
-          id?: string
-          name: string
-          display_name: string
-          price: number
-          billing_period?: string
-          max_telegram_channels?: number
-          max_pdf_storage_gb?: number
-          max_quizzes_per_month?: number | null
-          max_batch_quiz_generation?: number
-          max_question_bank_size?: number
-          has_advanced_ai?: boolean
-          has_auto_scheduling?: boolean
-          has_auto_pdf_explanations?: boolean
-          has_analytics_dashboard?: boolean
-          has_leaderboards?: boolean
-          has_custom_branding?: boolean
-          has_multi_language?: boolean
-          has_priority_support?: boolean
-          has_api_access?: boolean
-          has_white_label?: boolean
-          is_active?: boolean
           created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          limits?: Json | null
+          name: string
+          price_monthly: number
+          price_yearly?: number | null
           updated_at?: string
         }
         Update: {
-          id?: string
-          name?: string
-          display_name?: string
-          price?: number
-          billing_period?: string
-          max_telegram_channels?: number
-          max_pdf_storage_gb?: number
-          max_quizzes_per_month?: number | null
-          max_batch_quiz_generation?: number
-          max_question_bank_size?: number
-          has_advanced_ai?: boolean
-          has_auto_scheduling?: boolean
-          has_auto_pdf_explanations?: boolean
-          has_analytics_dashboard?: boolean
-          has_leaderboards?: boolean
-          has_custom_branding?: boolean
-          has_multi_language?: boolean
-          has_priority_support?: boolean
-          has_api_access?: boolean
-          has_white_label?: boolean
-          is_active?: boolean
           created_at?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          limits?: Json | null
+          name?: string
+          price_monthly?: number
+          price_yearly?: number | null
           updated_at?: string
         }
         Relationships: []
       }
       subscriptions: {
         Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
           id: string
-          user_id: string
           plan_id: string
           status: string
-          current_period_start: string
-          current_period_end: string
-          cancel_at_period_end: boolean
-          stripe_subscription_id: string | null
-          stripe_customer_id: string | null
-          created_at: string
           updated_at: string
+          user_id: string
         }
         Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end: string
+          current_period_start: string
           id?: string
-          user_id: string
           plan_id: string
           status?: string
-          current_period_start?: string
-          current_period_end: string
-          cancel_at_period_end?: boolean
-          stripe_subscription_id?: string | null
-          stripe_customer_id?: string | null
-          created_at?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
           id?: string
-          user_id?: string
           plan_id?: string
           status?: string
-          current_period_start?: string
-          current_period_end?: string
-          cancel_at_period_end?: boolean
-          stripe_subscription_id?: string | null
-          stripe_customer_id?: string | null
-          created_at?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -927,39 +538,35 @@ export type Database = {
             referencedRelation: "subscription_plans"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       support_ticket_messages: {
         Row: {
+          attachments: Json | null
+          created_at: string
           id: string
+          is_staff: boolean | null
+          message: string
           ticket_id: string
           user_id: string
-          message: string
-          is_staff_reply: boolean
-          created_at: string
         }
         Insert: {
+          attachments?: Json | null
+          created_at?: string
           id?: string
+          is_staff?: boolean | null
+          message: string
           ticket_id: string
           user_id: string
-          message: string
-          is_staff_reply?: boolean
-          created_at?: string
         }
         Update: {
+          attachments?: Json | null
+          created_at?: string
           id?: string
+          is_staff?: boolean | null
+          message?: string
           ticket_id?: string
           user_id?: string
-          message?: string
-          is_staff_reply?: boolean
-          created_at?: string
         }
         Relationships: [
           {
@@ -969,192 +576,125 @@ export type Database = {
             referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "support_ticket_messages_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       support_tickets: {
         Row: {
-          id: string
-          user_id: string
-          subject: string
-          description: string
-          priority: string
-          status: string
-          category: string | null
           assigned_to: string | null
-          resolution: string | null
-          resolved_at: string | null
+          category: string | null
           created_at: string
+          description: string
+          id: string
+          priority: string
+          resolved_at: string | null
+          status: string
+          subject: string
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          subject: string
-          description: string
-          priority?: string
-          status?: string
-          category?: string | null
           assigned_to?: string | null
-          resolution?: string | null
-          resolved_at?: string | null
+          category?: string | null
           created_at?: string
+          description: string
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject: string
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          subject?: string
-          description?: string
-          priority?: string
-          status?: string
-          category?: string | null
           assigned_to?: string | null
-          resolution?: string | null
-          resolved_at?: string | null
+          category?: string | null
           created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "support_tickets_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "support_tickets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       usage_tracking: {
         Row: {
-          id: string
-          user_id: string
-          quizzes_generated_this_month: number
-          pdfs_uploaded_this_month: number
-          total_quizzes_generated: number
-          total_pdfs_uploaded: number
-          total_storage_used_bytes: number
-          current_period_start: string
-          last_reset_at: string
+          action_type: string
+          count: number
           created_at: string
+          id: string
+          period_end: string
+          period_start: string
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          quizzes_generated_this_month?: number
-          pdfs_uploaded_this_month?: number
-          total_quizzes_generated?: number
-          total_pdfs_uploaded?: number
-          total_storage_used_bytes?: number
-          current_period_start?: string
-          last_reset_at?: string
+          action_type: string
+          count?: number
           created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          quizzes_generated_this_month?: number
-          pdfs_uploaded_this_month?: number
-          total_quizzes_generated?: number
-          total_pdfs_uploaded?: number
-          total_storage_used_bytes?: number
-          current_period_start?: string
-          last_reset_at?: string
+          action_type?: string
+          count?: number
           created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "usage_tracking_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       user_branding: {
         Row: {
+          created_at: string
+          custom_css: string | null
+          font_family: string | null
           id: string
-          user_id: string
           logo_url: string | null
-          logo_storage_path: string | null
           primary_color: string | null
           secondary_color: string | null
-          pdf_header: string | null
-          pdf_footer: string | null
-          institute_name: string | null
-          institute_website: string | null
-          created_at: string
           updated_at: string
+          user_id: string
         }
         Insert: {
+          created_at?: string
+          custom_css?: string | null
+          font_family?: string | null
           id?: string
-          user_id: string
           logo_url?: string | null
-          logo_storage_path?: string | null
           primary_color?: string | null
           secondary_color?: string | null
-          pdf_header?: string | null
-          pdf_footer?: string | null
-          institute_name?: string | null
-          institute_website?: string | null
-          created_at?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
+          created_at?: string
+          custom_css?: string | null
+          font_family?: string | null
           id?: string
-          user_id?: string
           logo_url?: string | null
-          logo_storage_path?: string | null
           primary_color?: string | null
           secondary_color?: string | null
-          pdf_header?: string | null
-          pdf_footer?: string | null
-          institute_name?: string | null
-          institute_website?: string | null
-          created_at?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_branding_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      get_user_plan: {
-        Args: {
-          p_user_id: string
-        }
-        Returns: {
-          plan_name: string
-          plan_features: Json
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
