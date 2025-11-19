@@ -116,7 +116,8 @@ export class SubscriptionService {
    */
   static async createSubscription(
     userId: string,
-    planName: string
+    planName: string,
+    couponCode?: string
   ): Promise<UserSubscription> {
     // Check if user can purchase plans
     const purchaseCheck = await this.canPurchasePlans(userId);
@@ -133,6 +134,38 @@ export class SubscriptionService {
 
     if (planError) throw planError;
 
+    // Handle coupon if provided
+    let couponId: string | null = null;
+    let discountAmount: number = 0;
+    let originalPrice: number = plan.price;
+    let finalPrice: number = plan.price;
+
+    if (couponCode) {
+      const { data: validationResult, error: couponError } = await supabase
+        .rpc('validate_coupon', {
+          p_coupon_code: couponCode,
+          p_user_id: userId,
+          p_plan_name: planName,
+          p_purchase_amount: plan.price,
+        });
+
+      if (couponError) {
+        throw new Error(`Coupon validation failed: ${couponError.message}`);
+      }
+
+      const validation = validationResult && validationResult.length > 0 ? validationResult[0] : null;
+
+      if (validation && !validation.is_valid) {
+        throw new Error(validation.error_message || 'Invalid coupon code');
+      }
+
+      if (validation && validation.is_valid) {
+        couponId = validation.coupon_id;
+        discountAmount = validation.discount_amount || 0;
+        finalPrice = validation.final_amount || plan.price;
+      }
+    }
+
     // Create subscription
     const currentPeriodStart = new Date();
     const currentPeriodEnd = new Date();
@@ -146,6 +179,9 @@ export class SubscriptionService {
         status: "active",
         current_period_start: currentPeriodStart.toISOString(),
         current_period_end: currentPeriodEnd.toISOString(),
+        coupon_id: couponId,
+        discount_amount: discountAmount,
+        original_price: originalPrice,
       })
       .select(`
         *,
@@ -154,6 +190,18 @@ export class SubscriptionService {
       .single();
 
     if (error) throw error;
+
+    // Apply coupon if used
+    if (couponCode && couponId) {
+      await supabase.rpc('apply_coupon', {
+        p_coupon_code: couponCode,
+        p_user_id: userId,
+        p_subscription_id: data.id,
+        p_discount_amount: discountAmount,
+        p_original_amount: originalPrice,
+        p_final_amount: finalPrice,
+      });
+    }
 
     // Initialize usage tracking
     await this.initializeUsageTracking(userId);
