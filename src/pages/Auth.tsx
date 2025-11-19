@@ -194,7 +194,7 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password,
       });
@@ -205,6 +205,21 @@ export default function Auth() {
 
       // Clear rate limit on successful login
       localStorage.removeItem('ratelimit_login');
+
+      // Ensure session is fully established before navigation
+      if (data.session) {
+        // Small delay to ensure session is persisted to storage and available in client
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Verify session is actually available in the client
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Navigation will be handled by the auth state change listener
+          console.log("Login successful, session established");
+        } else {
+          console.warn("Session not immediately available after login");
+        }
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
       toast({
@@ -212,9 +227,9 @@ export default function Auth() {
         description: errorMsg,
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
+    // Don't set loading to false here - let the navigation handle it
   };
 
   return (
