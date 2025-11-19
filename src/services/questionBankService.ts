@@ -14,6 +14,12 @@ export interface QuestionBankItem {
   source?: string;
   usage_count?: number;
   success_rate?: number;
+  times_used: number;
+  times_correct: number;
+  times_incorrect: number;
+  language: string;
+  is_public: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -203,10 +209,11 @@ export class QuestionBankService {
     total: number;
     byTopic: Record<string, number>;
     byDifficulty: Record<string, number>;
+    byLanguage: Record<string, number>;
   }> {
     const { data, error } = await supabase
       .from("question_banks")
-      .select("topic, difficulty")
+      .select("topic, difficulty, language")
       .eq("user_id", userId);
 
     if (error) throw error;
@@ -215,6 +222,7 @@ export class QuestionBankService {
       total: data.length,
       byTopic: {} as Record<string, number>,
       byDifficulty: {} as Record<string, number>,
+      byLanguage: {} as Record<string, number>,
     };
 
     data.forEach((q) => {
@@ -223,6 +231,11 @@ export class QuestionBankService {
 
       // By difficulty
       stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1;
+
+      // By language
+      if (q.language) {
+        stats.byLanguage[q.language] = (stats.byLanguage[q.language] || 0) + 1;
+      }
     });
 
     return stats;
