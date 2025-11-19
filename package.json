@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "db:setup": "node scripts/setup-database.js",
-    "db:check": "node scripts/setup-database.js"
+    "db:check": "node scripts/setup-database.js",
+    "db:fix": "node scripts/fix-billing-schema.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
