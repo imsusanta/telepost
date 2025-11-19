@@ -189,16 +189,15 @@ export default function CreateQuizPage() {
       setSelectedChannel(channelFromUrl);
     }
 
-    // Load all data once on mount
+    // Load all data in parallel on mount - optimized for faster startup
     const initializeData = async () => {
       await Promise.all([
         loadChannels(),
         loadStorageInfo(),
         loadQuestions(),
-        loadStats()
+        loadStats(),
+        loadDocuments()
       ]);
-      // Load documents after we have the channel selection
-      await loadDocuments();
     };
 
     initializeData();

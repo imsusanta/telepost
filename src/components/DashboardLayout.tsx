@@ -31,20 +31,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUserSuperAdmin, setIsUserSuperAdmin] = useState(false);
+  const [isUserSuperAdmin, setIsUserSuperAdmin] = useState(() => {
+    // Initialize from cache to avoid blocking render
+    const cached = sessionStorage.getItem('isUserSuperAdmin');
+    return cached === 'true';
+  });
 
   useEffect(() => {
+    // Check super admin status in background without blocking render
+    const checkSuperAdminStatus = async () => {
+      try {
+        // Check cache first to avoid unnecessary API calls
+        const cacheKey = 'superAdminCheckTime';
+        const lastCheck = sessionStorage.getItem(cacheKey);
+        const now = Date.now();
+
+        // Only recheck if more than 5 minutes have passed
+        if (lastCheck && now - parseInt(lastCheck) < 5 * 60 * 1000) {
+          return;
+        }
+
+        const superAdmin = await isSuperAdmin();
+        setIsUserSuperAdmin(superAdmin);
+        sessionStorage.setItem('isUserSuperAdmin', String(superAdmin));
+        sessionStorage.setItem(cacheKey, String(now));
+      } catch (error) {
+        console.error('Error checking super admin status:', error);
+      }
+    };
+
     checkSuperAdminStatus();
   }, []);
-
-  const checkSuperAdminStatus = async () => {
-    try {
-      const superAdmin = await isSuperAdmin();
-      setIsUserSuperAdmin(superAdmin);
-    } catch (error) {
-      console.error('Error checking super admin status:', error);
-    }
-  };
 
   const handleSignOut = useCallback(async () => {
     try {
