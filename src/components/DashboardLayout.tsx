@@ -1,4 +1,4 @@
-import { ReactNode, useState, useCallback } from "react";
+import { ReactNode, useState, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,15 @@ import {
   Menu,
   X,
   BarChart3,
-  Keyboard
+  Keyboard,
+  Shield,
+  Tag,
+  Users
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { isSuperAdmin } from "@/services/couponService";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -29,6 +33,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserSuperAdmin, setIsUserSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    checkSuperAdminStatus();
+  }, []);
+
+  const checkSuperAdminStatus = async () => {
+    try {
+      const superAdmin = await isSuperAdmin();
+      setIsUserSuperAdmin(superAdmin);
+    } catch (error) {
+      console.error('Error checking super admin status:', error);
+    }
+  };
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -48,7 +66,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [navigate, toast]);
 
-  const menuItems = [
+  const baseMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
@@ -57,6 +75,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
+
+  const superAdminMenuItems = [
+    { icon: Shield, label: "Super Admin", path: "", isSeparator: true },
+    { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
+    { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
+  ];
+
+  const menuItems = isUserSuperAdmin
+    ? [...baseMenuItems, ...superAdminMenuItems]
+    : baseMenuItems;
 
   const SidebarContent = () => (
     <>
@@ -70,9 +98,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <nav className="space-y-2 flex-1">
-        {menuItems.map((item) => {
+        {menuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
+
+          // Render separator for super admin section
+          if ('isSeparator' in item && item.isSeparator) {
+            return (
+              <div key={`separator-${index}`} className="pt-4 pb-2">
+                <div className="flex items-center space-x-2 px-5 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </div>
+                <div className="mt-2 border-t border-sidebar-border"></div>
+              </div>
+            );
+          }
 
           return (
             <div key={item.path}>

@@ -2,10 +2,14 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CreditCard, Check, Tag, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionService, SubscriptionPlan, UserSubscription } from "@/services/subscriptionService";
+import { validateCoupon } from "@/services/couponService";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 export default function Billing() {
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
@@ -13,6 +17,16 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [canPurchase, setCanPurchase] = useState(true);
   const [purchaseRestrictionMessage, setPurchaseRestrictionMessage] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    discount_amount: number;
+    final_amount: number;
+    plan_name: string;
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,10 +61,64 @@ export default function Billing() {
     }
   };
 
+  const handleApplyCoupon = async (planName: string, planPrice: number) => {
+    if (!couponCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a coupon code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setValidatingCoupon(true);
+      const result = await validateCoupon(couponCode.toUpperCase(), planName.toLowerCase(), planPrice);
+
+      if (result.is_valid) {
+        setAppliedCoupon({
+          code: couponCode.toUpperCase(),
+          discount_type: result.discount_type!,
+          discount_value: result.discount_value!,
+          discount_amount: result.discount_amount!,
+          final_amount: result.final_amount!,
+          plan_name: planName.toLowerCase(),
+        });
+        toast({
+          title: "Coupon Applied",
+          description: `You saved $${result.discount_amount?.toFixed(2)}!`,
+        });
+      } else {
+        toast({
+          title: "Invalid Coupon",
+          description: result.error_message || "This coupon is not valid",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to validate coupon",
+        variant: "destructive",
+      });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+  };
+
   const handleUpgrade = async (planName: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      const couponToApply = appliedCoupon && appliedCoupon.plan_name === planName.toLowerCase()
+        ? appliedCoupon.code
+        : undefined;
 
       if (currentSubscription) {
         await SubscriptionService.upgradeSubscription(user.id, planName);
@@ -59,13 +127,18 @@ export default function Billing() {
           description: `Successfully upgraded to ${planName}`,
         });
       } else {
-        await SubscriptionService.createSubscription(user.id, planName);
+        await SubscriptionService.createSubscription(user.id, planName, couponToApply);
         toast({
           title: "Subscription Created",
-          description: `Successfully subscribed to ${planName}`,
+          description: couponToApply
+            ? `Successfully subscribed to ${planName} with coupon ${couponToApply}`
+            : `Successfully subscribed to ${planName}`,
         });
       }
 
+      // Clear coupon after successful purchase
+      setAppliedCoupon(null);
+      setCouponCode("");
       loadBillingInfo();
     } catch (error: any) {
       toast({
@@ -88,6 +161,7 @@ export default function Billing() {
     {
       name: "Starter",
       price: "$29",
+      numericPrice: 29,
       period: "/month",
       features: [
         "1 Telegram Channel",
@@ -105,6 +179,7 @@ export default function Billing() {
     {
       name: "Pro",
       price: "$99",
+      numericPrice: 99,
       period: "/month",
       features: [
         "3 Telegram Channels",
@@ -127,6 +202,7 @@ export default function Billing() {
     {
       name: "Agency",
       price: "$249",
+      numericPrice: 249,
       period: "/month",
       features: [
         "10 Telegram Channels",
@@ -146,6 +222,7 @@ export default function Billing() {
     {
       name: "Enterprise",
       price: "Custom",
+      numericPrice: 999,
       period: "pricing",
       features: [
         "Unlimited Channels",
@@ -188,6 +265,72 @@ export default function Billing() {
           </Card>
         )}
 
+        {/* Coupon Code Section */}
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-foreground">
+              <div className="clay-card bg-primary/20 p-2 rounded-xl">
+                <Tag className="w-5 h-5 text-primary" />
+              </div>
+              <span>Have a Coupon Code?</span>
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Enter your coupon code to get a discount on your subscription
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between p-4 bg-success/10 border border-success/20 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="default" className="font-mono">
+                      {appliedCoupon.code}
+                    </Badge>
+                    <span className="text-sm text-success-foreground font-medium">
+                      {appliedCoupon.discount_type === 'percentage'
+                        ? `${appliedCoupon.discount_value}% OFF`
+                        : `$${appliedCoupon.discount_value} OFF`}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Applied to {appliedCoupon.plan_name} plan - You save ${appliedCoupon.discount_amount.toFixed(2)}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveCoupon}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  className="font-mono"
+                />
+                <Button
+                  variant="outline"
+                  disabled={validatingCoupon || !couponCode.trim()}
+                  onClick={() => {
+                    // For now, just validate without applying to a specific plan
+                    // The coupon will be validated again when user selects a plan
+                    toast({
+                      title: "Info",
+                      description: "Select a plan below to apply your coupon",
+                    });
+                  }}
+                >
+                  {validatingCoupon ? "Validating..." : "Ready"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plansWithCurrentStatus.map((plan, idx) => (
             <Card
@@ -215,11 +358,23 @@ export default function Billing() {
                 </CardTitle>
                 <CardDescription>
                   <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
-                  <div className="flex items-baseline space-x-1 mt-2">
-                    <span className={`text-4xl font-bold text-gradient bg-gradient-to-r ${plan.gradient}`}>
-                      {plan.price}
-                    </span>
-                    <span className="text-muted-foreground text-sm">{plan.period}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-baseline space-x-1">
+                      <span className={`text-4xl font-bold text-gradient bg-gradient-to-r ${plan.gradient}`}>
+                        {appliedCoupon && appliedCoupon.plan_name === plan.name.toLowerCase() && plan.price !== "Custom"
+                          ? `$${appliedCoupon.final_amount.toFixed(0)}`
+                          : plan.price}
+                      </span>
+                      <span className="text-muted-foreground text-sm">{plan.period}</span>
+                    </div>
+                    {appliedCoupon && appliedCoupon.plan_name === plan.name.toLowerCase() && plan.price !== "Custom" && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground line-through">{plan.price}</span>
+                        <Badge variant="default" className="text-xs">
+                          Save ${appliedCoupon.discount_amount.toFixed(2)}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </CardDescription>
               </CardHeader>
@@ -234,6 +389,16 @@ export default function Billing() {
                     </li>
                   ))}
                 </ul>
+                {couponCode && !appliedCoupon && plan.price !== "Custom" && (
+                  <Button
+                    variant="outline"
+                    className="w-full mb-2"
+                    disabled={validatingCoupon}
+                    onClick={() => handleApplyCoupon(plan.name, plan.numericPrice)}
+                  >
+                    {validatingCoupon ? "Validating..." : "Apply Coupon"}
+                  </Button>
+                )}
                 <Button
                   className={`w-full clay-button rounded-2xl py-6 font-semibold ${
                     plan.popular
