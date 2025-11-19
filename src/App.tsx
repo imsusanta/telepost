@@ -15,6 +15,7 @@ import Documents from "./pages/Documents";
 import Analytics from "./pages/Analytics";
 import QuestionBank from "./pages/QuestionBank";
 import Channels from "./pages/Channels";
+import Stories from "./pages/Stories";
 import SuperAdminCoupons from "./pages/SuperAdminCoupons";
 import SuperAdminUsers from "./pages/SuperAdminUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/dashboard/create-quiz" element={<ProtectedRoute><CreateQuizPage /></ProtectedRoute>} />
             <Route path="/dashboard/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
             <Route path="/dashboard/channels" element={<ProtectedRoute><Channels /></ProtectedRoute>} />
+            <Route path="/dashboard/stories" element={<ProtectedRoute><Stories /></ProtectedRoute>} />
             <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
             <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
