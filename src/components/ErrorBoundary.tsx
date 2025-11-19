@@ -24,10 +24,28 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to monitoring service in production
-    if (process.env.NODE_ENV === "production") {
-      // TODO: Send to error monitoring service (e.g., Sentry)
-      console.error("Error caught by boundary:", error, errorInfo);
+    // Log error details for debugging
+    console.error("==== Error Boundary Caught Error ====");
+    console.error("Error:", error);
+    console.error("Error Message:", error.message);
+    console.error("Error Stack:", error.stack);
+    console.error("Component Stack:", errorInfo.componentStack);
+    console.error("====================================");
+
+    // In production, you would send this to an error monitoring service
+    // Example: Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
+
+    // Store error in localStorage for debugging
+    try {
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+      };
+      localStorage.setItem('last_error', JSON.stringify(errorLog));
+    } catch (e) {
+      // Ignore localStorage errors
     }
   }
 
