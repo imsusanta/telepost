@@ -221,11 +221,44 @@ export class SubscriptionService {
   ): Promise<{ allowed: boolean; reason?: string; limit?: number; current?: number }> {
     const subscription = await this.getUserSubscription(userId);
 
+    // If no subscription found, allow with generous default limits (free tier)
     if (!subscription || !subscription.plan) {
-      return {
-        allowed: false,
-        reason: "No active subscription found. Please upgrade to continue.",
+      const usage = await this.getUserUsage(userId);
+
+      // Default free tier limits
+      const defaultLimits = {
+        max_quizzes_per_month: null, // Unlimited for development/testing
+        max_pdf_storage_gb: 50,
+        max_batch_quiz_generation: 1,
+        has_advanced_ai: true, // Enable all features for testing
       };
+
+      switch (action) {
+        case "generate_quiz":
+          return { allowed: true }; // Unlimited quizzes for free tier
+
+        case "upload_pdf":
+          const storageUsedGB = usage.total_storage_used_bytes / (1024 * 1024 * 1024);
+          if (storageUsedGB >= defaultLimits.max_pdf_storage_gb) {
+            return {
+              allowed: false,
+              reason: `You've reached your storage limit of ${defaultLimits.max_pdf_storage_gb}GB. Upgrade for more storage.`,
+              limit: defaultLimits.max_pdf_storage_gb,
+              current: Math.round(storageUsedGB * 100) / 100,
+            };
+          }
+          return {
+            allowed: true,
+            limit: defaultLimits.max_pdf_storage_gb,
+            current: Math.round(storageUsedGB * 100) / 100,
+          };
+
+        case "batch_quiz":
+          return { allowed: true }; // Allow batch quiz generation
+
+        default:
+          return { allowed: true };
+      }
     }
 
     const usage = await this.getUserUsage(userId);
@@ -337,8 +370,9 @@ export class SubscriptionService {
   ): Promise<boolean> {
     const subscription = await this.getUserSubscription(userId);
 
+    // If no subscription found, grant access to all features (free tier)
     if (!subscription || !subscription.plan) {
-      return false;
+      return true; // Allow all features for development/testing
     }
 
     const plan = subscription.plan as unknown as SubscriptionPlan;
