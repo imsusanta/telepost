@@ -7,7 +7,6 @@ import {
   Sparkles,
   Radio,
   Calendar,
-  CreditCard,
   Settings,
   LogOut,
   LayoutDashboard,
@@ -72,7 +71,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
-    { icon: CreditCard, label: "Billing", path: "/dashboard/billing" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 

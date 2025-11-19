@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { SubscriptionService } from "./subscriptionService";
 
 export interface Document {
   id: string;
@@ -36,13 +35,6 @@ export class DocumentService {
       channelId?: string;
     }
   ): Promise<Document> {
-    // Check if user can upload PDFs
-    const canUpload = await SubscriptionService.canUserPerformAction(userId, "upload_pdf");
-
-    if (!canUpload.allowed) {
-      throw new Error(canUpload.reason || "Cannot upload PDF");
-    }
-
     // Create storage path
     const timestamp = Date.now();
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
@@ -77,9 +69,6 @@ export class DocumentService {
       .single();
 
     if (error) throw error;
-
-    // Track usage
-    await SubscriptionService.trackPdfUpload(userId, file.size);
 
     // Trigger processing (in background)
     this.processDocument(data.id).catch(console.error);

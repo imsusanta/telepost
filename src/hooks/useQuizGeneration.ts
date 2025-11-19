@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuizService } from "@/services/quizService";
-import { SubscriptionService } from "@/services/subscriptionService";
 import { Quiz, QuizConfig } from "@/types/quiz";
 import { useToast } from "@/hooks/use-toast";
 
@@ -101,17 +100,6 @@ export function useQuizGeneration() {
       if (userError || !user) {
         console.error("User error during quiz generation:", userError);
         throw new Error("You must be logged in to generate quizzes");
-      }
-
-      // Check subscription limits
-      const canGenerate = await SubscriptionService.canUserPerformAction(user.id, "generate_quiz");
-      if (!canGenerate.allowed) {
-        toast({
-          title: "Limit Reached",
-          description: canGenerate.reason || "You've reached your quiz generation limit. Please upgrade your plan.",
-          variant: "destructive",
-        });
-        throw new Error(canGenerate.reason || "Generation limit reached");
       }
 
       // Record this request for rate limiting

@@ -10,7 +10,6 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import CreateQuizPage from "./pages/CreateQuizPage";
 import Scheduler from "./pages/Scheduler";
-import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
 import Documents from "./pages/Documents";
 import Analytics from "./pages/Analytics";
@@ -52,7 +51,6 @@ const App = () => (
             <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
             <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/dashboard/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/dashboard/super-admin/coupons" element={<ProtectedRoute><SuperAdminCoupons /></ProtectedRoute>} />
             <Route path="/dashboard/super-admin/users" element={<ProtectedRoute><SuperAdminUsers /></ProtectedRoute>} />

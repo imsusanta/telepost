@@ -51,11 +51,6 @@ export function KeyboardShortcuts() {
       action: () => navigate("/dashboard/question-bank"),
     },
     {
-      key: "g b",
-      description: "Go to Billing",
-      action: () => navigate("/dashboard/billing"),
-    },
-    {
       key: "?",
       description: "Show keyboard shortcuts",
       action: () => setShowDialog(true),
