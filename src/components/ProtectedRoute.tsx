@@ -39,8 +39,17 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       // If signing in, ensure session is fully established
       if (session && _event === 'SIGNED_IN') {
         setLoading(true);
-        // Small delay to ensure session propagates
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Longer delay to ensure session fully propagates to client and storage
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Verify session is actually available
+        const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+        if (!verifiedSession) {
+          console.error("Session verification failed after SIGNED_IN event");
+        } else {
+          console.log("Session verified after login");
+        }
+
         setLoading(false);
       }
     });

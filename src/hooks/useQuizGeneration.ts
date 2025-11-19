@@ -88,8 +88,18 @@ export function useQuizGeneration() {
 
     setIsGenerating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // Verify both user and session are available
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        console.error("Session error during quiz generation:", sessionError);
+        throw new Error("Authentication session expired. Please log in again.");
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("User error during quiz generation:", userError);
         throw new Error("You must be logged in to generate quizzes");
       }
 
@@ -129,7 +139,8 @@ export function useQuizGeneration() {
       // Only show toast if not already shown
       if (!message.includes("Rate limited") &&
           !message.includes("Already generating") &&
-          !message.includes("limit")) {
+          !message.includes("limit") &&
+          !message.includes("session expired")) {
         toast({
           title: "Generation Failed",
           description: message,
