@@ -9,35 +9,38 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-card/80 backdrop-blur-xl border-b border-border shadow-clay">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay">
-              <Sparkles className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-background" />
             </div>
-            <span className="text-xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
+            <span className="text-lg font-semibold text-foreground">
               QuizGenie
             </span>
           </div>
 
-          <div className="hidden md:flex items-center space-x-6">
-            <a href="#features" className="text-foreground/70 hover:text-foreground transition-colors font-medium">
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Features
             </a>
-            <a href="#use-cases" className="text-foreground/70 hover:text-foreground transition-colors font-medium">
-              Use Cases
+            <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              How it works
             </a>
-            <a href="/auth" className="px-5 py-2 text-foreground/70 hover:text-foreground transition-colors font-medium">
-              Sign In
+            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              FAQ
             </a>
-            <a href="/auth" className="clay-button px-6 py-2.5 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl font-semibold">
-              Try Free
+            <a href="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Sign in
+            </a>
+            <a href="/auth" className="text-sm px-4 py-2 bg-foreground text-background rounded-full font-medium hover:bg-foreground/90 transition-colors">
+              Get started
             </a>
           </div>
 
           <button
-            className="md:hidden text-foreground clay-card p-2 rounded-xl"
+            className="md:hidden text-foreground p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
@@ -49,19 +52,22 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
       </div>
 
       {mobileMenuOpen && (
-        <div id="mobile-menu" className="md:hidden bg-card/95 backdrop-blur-xl border-t border-border shadow-clay-lg animate-slide-up">
-          <div className="px-4 py-4 space-y-3" role="menu">
-            <a href="#features" className="block text-foreground/70 hover:text-foreground transition-colors font-medium py-2">
+        <div id="mobile-menu" className="md:hidden bg-background border-t border-border/50">
+          <div className="px-4 py-6 space-y-4" role="menu">
+            <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
               Features
             </a>
-            <a href="#use-cases" className="block text-foreground/70 hover:text-foreground transition-colors font-medium py-2">
-              Use Cases
+            <a href="#how-it-works" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
+              How it works
             </a>
-            <a href="/auth" className="block text-foreground/70 hover:text-foreground transition-colors font-medium py-2">
-              Sign In
+            <a href="#faq" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
+              FAQ
             </a>
-            <a href="/auth" className="clay-button block w-full px-6 py-3 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-2xl font-semibold text-center mt-2">
-              Try Free
+            <a href="/auth" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Sign in
+            </a>
+            <a href="/auth" className="block w-full text-sm px-4 py-3 bg-foreground text-background rounded-full font-medium text-center mt-4">
+              Get started
             </a>
           </div>
         </div>
