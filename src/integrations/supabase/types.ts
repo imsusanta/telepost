@@ -260,11 +260,17 @@ export type Database = {
           difficulty: string
           explanation: string | null
           id: string
+          is_active: boolean | null
+          is_public: boolean | null
+          language: string | null
           options: Json
           question: string
           source: string | null
           success_rate: number | null
           tags: Json | null
+          times_correct: number | null
+          times_incorrect: number | null
+          times_used: number | null
           topic: string
           updated_at: string
           usage_count: number | null
@@ -277,11 +283,17 @@ export type Database = {
           difficulty: string
           explanation?: string | null
           id?: string
+          is_active?: boolean | null
+          is_public?: boolean | null
+          language?: string | null
           options: Json
           question: string
           source?: string | null
           success_rate?: number | null
           tags?: Json | null
+          times_correct?: number | null
+          times_incorrect?: number | null
+          times_used?: number | null
           topic: string
           updated_at?: string
           usage_count?: number | null
@@ -294,11 +306,17 @@ export type Database = {
           difficulty?: string
           explanation?: string | null
           id?: string
+          is_active?: boolean | null
+          is_public?: boolean | null
+          language?: string | null
           options?: Json
           question?: string
           source?: string | null
           success_rate?: number | null
           tags?: Json | null
+          times_correct?: number | null
+          times_incorrect?: number | null
+          times_used?: number | null
           topic?: string
           updated_at?: string
           usage_count?: number | null

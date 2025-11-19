@@ -84,7 +84,7 @@ export class DocumentService {
     // Trigger processing (in background)
     this.processDocument(data.id).catch(console.error);
 
-    return data;
+    return data as Document;
   }
 
   /**
@@ -164,7 +164,7 @@ export class DocumentService {
     const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as Document[];
   }
 
   /**
@@ -185,7 +185,7 @@ export class DocumentService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Document;
   }
 
   /**
@@ -249,7 +249,7 @@ export class DocumentService {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as Document[];
   }
 
   /**
