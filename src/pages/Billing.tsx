@@ -159,6 +159,22 @@ export default function Billing() {
 
   const plans = [
     {
+      name: "Free",
+      price: "$0",
+      numericPrice: 0,
+      period: "/month",
+      features: [
+        "1 Telegram Channel",
+        "Upload PDFs (Up to 1GB)",
+        "Basic AI Quiz Generation",
+        "10 Quizzes/month",
+        "Question Bank (100 questions)"
+      ],
+      current: false,
+      gradient: "from-gray-400 to-gray-600",
+      description: "Perfect for trying out QuizGenie"
+    },
+    {
       name: "Starter",
       price: "$29",
       numericPrice: 29,
