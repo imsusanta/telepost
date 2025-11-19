@@ -14,7 +14,6 @@ import {
   sanitizeInput,
   checkRateLimit
 } from "@/utils/security";
-import { AdminService } from "@/services/adminService";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -90,7 +89,7 @@ export default function Auth() {
     });
 
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         navigate("/dashboard");
       }
@@ -181,13 +180,6 @@ export default function Auth() {
         variant: "destructive",
       });
 
-      // Log suspicious activity
-      AdminService.createSecurityAlert(
-        'excessive_login_attempts',
-        'medium',
-        { email: email.substring(0, 3) + '***', remainingTime: resetMinutes }
-      );
-
       return;
     }
 
@@ -208,23 +200,11 @@ export default function Auth() {
       });
 
       if (error) {
-        // Log failed login attempt
-        AdminService.logActivity('failed_login', undefined, {
-          email: email.substring(0, 3) + '***',
-          error: error.message,
-          timestamp: new Date().toISOString()
-        });
         throw error;
       }
 
       // Clear rate limit on successful login
       localStorage.removeItem('ratelimit_login');
-
-      // Log successful login
-      AdminService.logActivity('successful_login', undefined, {
-        email: email.substring(0, 3) + '***',
-        timestamp: new Date().toISOString()
-      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
       toast({

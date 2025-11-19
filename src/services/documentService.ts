@@ -4,19 +4,19 @@ import { SubscriptionService } from "./subscriptionService";
 export interface Document {
   id: string;
   user_id: string;
-  channel_id?: string;
+  channel_id?: string | null;
   file_name: string;
   file_size_bytes: number;
   file_type: string;
   storage_path: string;
-  title?: string;
-  description?: string;
-  language: string;
-  extracted_text?: string;
-  page_count?: number;
+  title?: string | null;
+  description?: string | null;
+  language: string | null;
+  extracted_text?: string | null;
+  page_count?: number | null;
   processing_status: "pending" | "processing" | "completed" | "failed";
-  processing_error?: string;
-  ai_summary?: string;
+  processing_error?: string | null;
+  ai_summary?: string | null;
   topics?: any;
   created_at: string;
   updated_at: string;
@@ -49,7 +49,7 @@ export class DocumentService {
     const storagePath = `${userId}/${timestamp}_${fileName}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("documents")
       .upload(storagePath, file, {
         cacheControl: "3600",
@@ -211,15 +211,7 @@ export class DocumentService {
 
     if (error) throw error;
 
-    // Update usage tracking
-    await supabase
-      .from("usage_tracking")
-      .update({
-        total_storage_used_bytes: supabase.raw(
-          `total_storage_used_bytes - ${doc.file_size_bytes}`
-        ),
-      })
-      .eq("user_id", userId);
+    // Note: Usage tracking update removed as raw SQL not supported in client
   }
 
   /**

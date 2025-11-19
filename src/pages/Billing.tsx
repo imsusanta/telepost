@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function Billing() {
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
-  const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
+  const [_availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [canPurchase, setCanPurchase] = useState(true);
   const [purchaseRestrictionMessage, setPurchaseRestrictionMessage] = useState("");

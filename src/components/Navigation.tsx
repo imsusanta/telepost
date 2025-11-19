@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Sparkles, Menu, X } from "lucide-react";
-import { Button } from "./ui/button";
 
 interface NavigationProps {
   onGetStarted?: () => void;
 }
 
-export const Navigation = ({ onGetStarted }: NavigationProps) => {
+export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (

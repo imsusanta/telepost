@@ -282,7 +282,7 @@ export default function Analytics() {
                     outerRadius={80}
                     label
                   >
-                    {data.quizzesByDifficulty.map((entry, index) => (
+                    {data.quizzesByDifficulty.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
