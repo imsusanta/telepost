@@ -12,10 +12,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Check current session with error handling
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
         if (error) {
           console.error("Session check error:", error);
           setUser(null);
@@ -24,53 +28,48 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         }
       } catch (error) {
         console.error("Failed to check session:", error);
-        setUser(null);
+        if (isMounted) {
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkSession();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes - use session from event directly to avoid race conditions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+
       console.log("Auth state changed:", _event, session ? "Session exists" : "No session");
 
-      // If signing in, ensure session is fully established
-      if (session && _event === 'SIGNED_IN') {
-        setLoading(true);
-
-        // Verify session is actually available with retry logic
-        let retries = 0;
-        const maxRetries = 5;
-        let verifiedSession = null;
-
-        while (retries < maxRetries && !verifiedSession) {
-          const { data: { session: checkSession } } = await supabase.auth.getSession();
-          if (checkSession) {
-            verifiedSession = checkSession;
-            console.log("Session verified after login");
-            break;
-          }
-
-          // Wait with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 100 * (retries + 1)));
-          retries++;
-        }
-
-        if (!verifiedSession) {
-          console.error("Session verification failed after SIGNED_IN event - max retries exceeded");
-        }
-
-        setUser(verifiedSession?.user ?? null);
-        setLoading(false);
-      } else {
-        // For other events, just update the user state immediately
-        setUser(session?.user ?? null);
-      }
+      // Use the session from the event directly - Supabase has already validated it
+      // This avoids race conditions and retry loops that cause multi-tab issues
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for storage changes from other tabs to sync auth state
+    const handleStorageChange = (event: StorageEvent) => {
+      if (!isMounted) return;
+
+      // Check for Supabase auth token changes from other tabs
+      if (event.key && event.key.includes('supabase.auth.token')) {
+        // Re-check session when auth token changes in another tab
+        checkSession();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   if (loading) {
