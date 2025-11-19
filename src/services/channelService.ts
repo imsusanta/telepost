@@ -163,21 +163,33 @@ export class ChannelService {
     chatId: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(
-        `https://api.telegram.org/bot${botToken}/getChat?chat_id=${chatId}`
+      const { data, error } = await supabase.functions.invoke(
+        "test-telegram-connection",
+        {
+          body: {
+            botToken,
+            chatId,
+          },
+        }
       );
 
-      const result = await response.json();
+      if (error) {
+        console.error("Error testing Telegram connection:", error);
+        return {
+          success: false,
+          message: error.message || "Failed to test connection",
+        };
+      }
 
-      if (result.ok) {
+      if (data?.success) {
         return {
           success: true,
-          message: `Connected to ${result.result.title || result.result.first_name}`,
+          message: data.message || `Connected to ${data.chatInfo?.title || chatId}`,
         };
       } else {
         return {
           success: false,
-          message: result.description || "Failed to connect",
+          message: data?.error || "Failed to connect",
         };
       }
     } catch (error) {

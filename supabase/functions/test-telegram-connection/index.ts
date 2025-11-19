@@ -11,8 +11,8 @@ serve(async (req) => {
   }
 
   try {
-    const { chatId } = await req.json();
-    
+    const { chatId, botToken } = await req.json();
+
     if (!chatId) {
       return new Response(
         JSON.stringify({ success: false, error: "Chat ID is required" }),
@@ -20,14 +20,15 @@ serve(async (req) => {
       );
     }
 
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    // Use provided bot token or fall back to environment variable
+    const TELEGRAM_BOT_TOKEN = botToken || Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!TELEGRAM_BOT_TOKEN) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Bot token is not configured. Please add TELEGRAM_BOT_TOKEN in your secrets." 
+        JSON.stringify({
+          success: false,
+          error: "Bot token is required. Please provide a bot token or configure TELEGRAM_BOT_TOKEN in secrets."
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
