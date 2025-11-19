@@ -88,14 +88,67 @@ for insert
 with check (auth.uid() = id);
 
 -- Function to handle new user creation
+-- This function creates a profile, assigns free plan, and initializes usage tracking
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_free_plan_id uuid;
 begin
+  -- 1. Create user profile
   insert into public.profiles (id, email, full_name)
   values (new.id, new.email, new.raw_user_meta_data->>'full_name');
+
+  -- 2. Get the free plan ID
+  select id into v_free_plan_id
+  from public.subscription_plans
+  where name = 'free' and is_active = true
+  limit 1;
+
+  -- 3. Create subscription with free plan (if free plan exists)
+  if v_free_plan_id is not null then
+    insert into public.subscriptions (
+      user_id,
+      plan_id,
+      status,
+      current_period_start,
+      current_period_end,
+      cancel_at_period_end
+    )
+    values (
+      new.id,
+      v_free_plan_id,
+      'active',
+      now(),
+      now() + interval '100 years', -- Free plan never expires
+      false
+    );
+
+    -- 4. Initialize usage tracking
+    insert into public.usage_tracking (
+      user_id,
+      quizzes_generated_this_month,
+      pdfs_uploaded_this_month,
+      total_quizzes_generated,
+      total_pdfs_uploaded,
+      total_storage_used_bytes,
+      current_period_start,
+      last_reset_at
+    )
+    values (
+      new.id,
+      0,
+      0,
+      0,
+      0,
+      0,
+      now(),
+      now()
+    );
+  end if;
+
   return new;
 end;
 $$;
