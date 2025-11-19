@@ -43,13 +43,13 @@ export default function Dashboard() {
         return;
       }
 
-      // Load all data in parallel (including quiz IDs for responses)
+      // Load all data in parallel - optimized to avoid sequential calls
       const [
         profileResult,
         quizzesResult,
         scheduledResult,
         pendingResult,
-        quizIdsResult,
+        responsesResult,
         documentsResult,
         questionsResult,
         channelsResult
@@ -58,22 +58,14 @@ export default function Dashboard() {
         supabase.from("quiz_generations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
-        supabase.from("quiz_generations").select("id").eq("user_id", user.id),
+        // Count quiz responses using inner join to filter by user's quizzes - avoids sequential call
+        supabase.from("quiz_responses").select("id, quiz_generations!inner(user_id)", { count: "exact", head: true }).eq("quiz_generations.user_id", user.id),
         supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id)
       ]);
 
-      // Get response count using the quiz IDs from parallel load
-      const quizIds = quizIdsResult.data?.map(q => q.id) || [];
-      let totalViews = 0;
-      if (quizIds.length > 0) {
-        const { count } = await supabase
-          .from("quiz_responses")
-          .select("quiz_generation_id", { count: "exact", head: true })
-          .in("quiz_generation_id", quizIds);
-        totalViews = count || 0;
-      }
+      const totalViews = responsesResult.count || 0;
 
       setProfile(profileResult.data);
       setStats({
