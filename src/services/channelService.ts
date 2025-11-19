@@ -9,7 +9,7 @@ export class ChannelService {
   static async getUserChannels(userId: string): Promise<Channel[]> {
     const { data, error } = await supabase
       .from("channels")
-      .select("*")
+      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -30,7 +30,7 @@ export class ChannelService {
   static async getChannel(channelId: string, userId: string): Promise<Channel> {
     const { data, error } = await supabase
       .from("channels")
-      .select("*")
+      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("id", channelId)
       .eq("user_id", userId)
       .single();
@@ -251,7 +251,7 @@ export class ChannelService {
   static async getChannelsForAutoGeneration(): Promise<Channel[]> {
     const { data, error } = await supabase
       .from("channels")
-      .select("*")
+      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("settings->>auto_generate_quizzes", "true");
 
     if (error) {
