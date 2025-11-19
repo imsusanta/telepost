@@ -58,17 +58,18 @@ serve(async (req) => {
           const supabase = createClient(supabaseUrl, supabaseKey);
 
           // First, verify the channel belongs to the user by getting user from auth header
+          // Use service role client with auth header for reliable authentication
           const supabaseClient = createClient(
             supabaseUrl,
-            Deno.env.get("SUPABASE_ANON_KEY") || "",
+            supabaseKey,
             { global: { headers: { Authorization: authHeader } } }
           );
 
           const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
           if (userError || !user) {
-            console.error("Failed to authenticate user:", userError);
-            throw new Error("Authentication failed");
+            console.error("Failed to authenticate user:", userError?.message || "No user returned");
+            throw new Error(`Authentication failed: ${userError?.message || "Invalid or expired token"}`);
           }
 
           // Verify channel ownership
