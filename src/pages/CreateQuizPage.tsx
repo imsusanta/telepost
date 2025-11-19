@@ -50,25 +50,46 @@ export default function CreateQuizPage() {
   // Data loading functions
   const loadChannels = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Auth error loading channels:", authError);
+        return;
+      }
+      if (!user) {
+        console.error("No user found when loading channels");
+        return;
+      }
 
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
-    } catch {
-      // Silently fail for channels list
+    } catch (error) {
+      console.error("Failed to load channels:", error);
+      // Don't show toast for channels as it's not critical
     }
   }, []);
 
   const loadDocuments = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Auth error loading documents:", authError);
+        toast({
+          title: "Authentication Error",
+          description: "Please try logging in again",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!user) {
+        console.error("No user found when loading documents");
+        return;
+      }
 
       const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
       setDocuments(docs);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load documents";
+      console.error("Failed to load documents:", error);
       toast({
         title: "Error",
         description: message,
@@ -81,27 +102,48 @@ export default function CreateQuizPage() {
 
   const loadStorageInfo = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Auth error loading storage:", authError);
+        return;
+      }
+      if (!user) {
+        console.error("No user found when loading storage info");
+        return;
+      }
 
       const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
       if (canUpload.limit && canUpload.current !== undefined) {
         setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
       }
-    } catch {
-      // Silently fail for storage info
+    } catch (error) {
+      console.error("Failed to load storage info:", error);
+      // Don't show toast for storage info as it's not critical
     }
   }, []);
 
   const loadQuestions = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Auth error loading questions:", authError);
+        toast({
+          title: "Authentication Error",
+          description: "Please try logging in again",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!user) {
+        console.error("No user found when loading questions");
+        return;
+      }
 
       const data = await QuestionBankService.getQuestions(user.id, filters, 100);
       setQuestions(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load questions";
+      console.error("Failed to load questions:", error);
       toast({
         title: "Error",
         description: message,
@@ -114,40 +156,58 @@ export default function CreateQuizPage() {
 
   const loadStats = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Auth error loading stats:", authError);
+        return;
+      }
+      if (!user) {
+        console.error("No user found when loading stats");
+        return;
+      }
 
       const statistics = await QuestionBankService.getStatistics(user.id);
       setStats(statistics);
-    } catch {
-      // Silently fail for stats
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+      // Don't show toast for stats as it's not critical
     }
   }, []);
 
   // Effects for loading data
   useEffect(() => {
-    loadChannels();
-    loadDocuments();
-    loadStorageInfo();
-    loadQuestions();
-    loadStats();
-  }, [loadChannels, loadDocuments, loadStorageInfo, loadQuestions, loadStats]);
-
-  useEffect(() => {
     const channelFromUrl = searchParams.get("channel");
     if (channelFromUrl) {
       setSelectedChannel(channelFromUrl);
     }
-  }, [searchParams]);
 
+    // Load all data once on mount
+    const initializeData = async () => {
+      await Promise.all([
+        loadChannels(),
+        loadStorageInfo(),
+        loadQuestions(),
+        loadStats()
+      ]);
+      // Load documents after we have the channel selection
+      await loadDocuments();
+    };
+
+    initializeData();
+  }, []); // Empty dependency array - run once on mount
+
+  // Reload documents when selectedChannel changes
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    if (selectedChannel) {
+      loadDocuments();
+    }
+  }, [selectedChannel]);
 
+  // Reload questions when filters change
   useEffect(() => {
     loadQuestions();
     loadStats();
-  }, [loadQuestions, loadStats]);
+  }, [filters]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
