@@ -157,7 +157,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
   };
 
   // Create story draft
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = async (showToast: boolean = true): Promise<string | null> => {
     try {
       let mediaUrl: string | undefined;
 
@@ -182,20 +182,25 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       const story = await StoryService.createStory(userId, storyData);
       setCreatedStoryId(story.story_id);
 
-      toast({
-        title: "Draft saved",
-        description: "Your story draft has been saved successfully",
-      });
+      if (showToast) {
+        toast({
+          title: "Draft saved",
+          description: "Your story draft has been saved successfully",
+        });
+      }
 
       if (onStoryCreated) {
         onStoryCreated(story.story_id);
       }
+
+      return story.story_id;
     } catch (error) {
       toast({
         title: "Failed to save draft",
         description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
+      return null;
     }
   };
 
@@ -213,15 +218,15 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
     try {
       setIsPosting(true);
 
-      // Save draft first
-      await handleSaveDraft();
+      // Save draft first and get the story ID directly
+      const storyId = await handleSaveDraft(false);
 
-      if (!createdStoryId) {
+      if (!storyId) {
         throw new Error("Failed to create story");
       }
 
       // Post story
-      await StoryService.postStoryNow(createdStoryId);
+      await StoryService.postStoryNow(storyId);
 
       toast({
         title: "Story posted!",
@@ -232,7 +237,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       resetForm();
 
       if (onStoryCreated) {
-        onStoryCreated(createdStoryId);
+        onStoryCreated(storyId);
       }
     } catch (error) {
       toast({
@@ -541,7 +546,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
           </Button>
           <Button
             variant="outline"
-            onClick={handleSaveDraft}
+            onClick={() => handleSaveDraft()}
             disabled={isUploading || isPosting}
           >
             {isUploading ? (
