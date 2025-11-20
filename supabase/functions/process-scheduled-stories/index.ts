@@ -34,8 +34,8 @@ serve(async (req) => {
         duration_hours,
         telegram_chat_id,
         channels (
-          chat_id,
-          bot_token
+          telegram_channel_id,
+          telegram_bot_token
         )
       `)
       .eq('status', 'scheduled')
