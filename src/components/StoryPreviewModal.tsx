@@ -76,7 +76,7 @@ export const StoryPreviewModal: React.FC<StoryPreviewModalProps> = ({
                     left: `${overlay.position.x}%`,
                     top: `${overlay.position.y}%`,
                     transform: "translate(-50%, -50%)",
-                    textAlign: overlay.align || "center",
+                    textAlign: (overlay.align as any) || "center",
                     maxWidth: "90%",
                   }}
                 >

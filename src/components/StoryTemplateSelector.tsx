@@ -111,7 +111,7 @@ export const StoryTemplateSelector: React.FC<StoryTemplateSelectorProps> = ({
       <Tabs value={activeCategory} onValueChange={setActiveCategory}>
         <TabsList>
           {categories.map((category) => (
-            <TabsTrigger key={category} value={category} className="capitalize">
+            <TabsTrigger key={category} value={category || ''} className="capitalize">
               {category}
             </TabsTrigger>
           ))}
