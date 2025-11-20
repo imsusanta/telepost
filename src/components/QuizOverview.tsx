@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
 import type { Quiz } from "@/types/quiz";
 
 interface QuizOverviewProps {

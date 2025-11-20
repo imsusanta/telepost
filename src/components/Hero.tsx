@@ -1,5 +1,5 @@
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
 import { Button } from "./ui/button";
+import { ArrowRight } from "lucide-react";
 
 interface HeroProps {
   onGetStarted: () => void;

@@ -1,6 +1,5 @@
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Home from "lucide-react/dist/esm/icons/home";
 import { Link, useLocation } from "react-router-dom";
+import { ChevronRight, Home } from "lucide-react";
 
 export function Breadcrumb() {
   const location = useLocation();

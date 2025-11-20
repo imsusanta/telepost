@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingsIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import SettingsIcon from "lucide-react/dist/esm/icons/settings";
 
 export default function Settings() {
   const { toast } = useToast();

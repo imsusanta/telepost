@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Keyboard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -7,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Keyboard from "lucide-react/dist/esm/icons/keyboard";
 
 interface Shortcut {
   key: string;

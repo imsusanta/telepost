@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Ban, Check, Edit, Loader2, Search, Users } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -6,12 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import Ban from "lucide-react/dist/esm/icons/ban";
-import Check from "lucide-react/dist/esm/icons/check";
-import Edit from "lucide-react/dist/esm/icons/edit";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Search from "lucide-react/dist/esm/icons/search";
-import Users from "lucide-react/dist/esm/icons/users";
 import {
   getAllUsers,
   updateUserSubscription,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Calendar, Copy, DollarSign, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -6,13 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Copy from "lucide-react/dist/esm/icons/copy";
-import DollarSign from "lucide-react/dist/esm/icons/dollar-sign";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import Tag from "lucide-react/dist/esm/icons/tag";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import {
   getAllCoupons,
   createCoupon,

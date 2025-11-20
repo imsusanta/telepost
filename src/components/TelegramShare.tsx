@@ -1,12 +1,9 @@
 import { useState } from "react";
+import { Calendar, HelpCircle, Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import HelpCircle from "lucide-react/dist/esm/icons/help-circle";
-import Send from "lucide-react/dist/esm/icons/send";
-import Zap from "lucide-react/dist/esm/icons/zap";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Quiz } from "@/types/quiz";

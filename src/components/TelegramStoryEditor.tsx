@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Calendar, ImageIcon, Loader2, Send, Sparkles, Type, Upload, VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,14 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StoryService, CreateStoryData, StoryTemplate, TextOverlay, Sticker } from "@/services/storyService";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import ImageIcon from "lucide-react/dist/esm/icons/image";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Send from "lucide-react/dist/esm/icons/send";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Type from "lucide-react/dist/esm/icons/type";
-import Upload from "lucide-react/dist/esm/icons/upload";
-import VideoIcon from "lucide-react/dist/esm/icons/video";
 import { StoryPreviewModal } from "./StoryPreviewModal";
 import { StoryTemplateSelector } from "./StoryTemplateSelector";
 import { TextOverlayEditor } from "./TextOverlayEditor";

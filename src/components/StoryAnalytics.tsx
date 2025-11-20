@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { Eye, Forward, Heart, Loader2, MousePointer, Share2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoryService, Story } from "@/services/storyService";
 import { useToast } from "@/hooks/use-toast";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import Forward from "lucide-react/dist/esm/icons/forward";
-import Heart from "lucide-react/dist/esm/icons/heart";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import MousePointer from "lucide-react/dist/esm/icons/mouse-pointer";
-import Share2 from "lucide-react/dist/esm/icons/share-2";
 import { Badge } from "@/components/ui/badge";
 
 interface AnalyticsEvent {

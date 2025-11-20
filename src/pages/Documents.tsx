@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FileText, RefreshCw, Search, Sparkles, Trash2, Upload } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,12 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Search from "lucide-react/dist/esm/icons/search";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Upload from "lucide-react/dist/esm/icons/upload";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
 import { ChannelService } from "@/services/channelService";
