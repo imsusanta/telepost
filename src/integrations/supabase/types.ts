@@ -475,6 +475,89 @@ export type Database = {
         }
         Relationships: []
       }
+      story_analytics: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_analytics_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_stories"
+            referencedColumns: ["story_id"]
+          },
+        ]
+      }
+      story_templates: {
+        Row: {
+          background_color: string | null
+          category: string
+          created_at: string | null
+          created_by: string | null
+          default_stickers: Json | null
+          default_text_overlay: Json | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          media_type: string
+          name: string
+          template_media_url: string | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          background_color?: string | null
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          default_stickers?: Json | null
+          default_text_overlay?: Json | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          media_type: string
+          name: string
+          template_media_url?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          background_color?: string | null
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          default_stickers?: Json | null
+          default_text_overlay?: Json | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          media_type?: string
+          name?: string
+          template_media_url?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string
@@ -637,6 +720,99 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      telegram_stories: {
+        Row: {
+          background_color: string | null
+          caption: string | null
+          channel_id: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          engagement_rate: number | null
+          error_message: string | null
+          expires_at: string | null
+          is_highlight: boolean | null
+          media_type: string
+          media_url: string
+          posted_at: string | null
+          reach: number | null
+          scheduled_time: string | null
+          status: string
+          stickers: Json | null
+          story_id: string
+          telegram_message_id: string | null
+          template_id: string | null
+          text_overlay: Json | null
+          updated_at: string | null
+          user_id: string
+          view_count: number | null
+        }
+        Insert: {
+          background_color?: string | null
+          caption?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          engagement_rate?: number | null
+          error_message?: string | null
+          expires_at?: string | null
+          is_highlight?: boolean | null
+          media_type: string
+          media_url: string
+          posted_at?: string | null
+          reach?: number | null
+          scheduled_time?: string | null
+          status?: string
+          stickers?: Json | null
+          story_id?: string
+          telegram_message_id?: string | null
+          template_id?: string | null
+          text_overlay?: Json | null
+          updated_at?: string | null
+          user_id: string
+          view_count?: number | null
+        }
+        Update: {
+          background_color?: string | null
+          caption?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          engagement_rate?: number | null
+          error_message?: string | null
+          expires_at?: string | null
+          is_highlight?: boolean | null
+          media_type?: string
+          media_url?: string
+          posted_at?: string | null
+          reach?: number | null
+          scheduled_time?: string | null
+          status?: string
+          stickers?: Json | null
+          story_id?: string
+          telegram_message_id?: string | null
+          template_id?: string | null
+          text_overlay?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_stories_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_stories_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "story_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usage_tracking: {
         Row: {
