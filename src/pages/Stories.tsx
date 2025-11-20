@@ -10,10 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { StoryService, Story } from "@/services/storyService";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, CheckCircle2, Clock, Eye, Image as ImageIcon, Loader2, Plus, Sparkles, Star, Trash2 } from "lucide-react";
-import Type from "lucide-react/dist/esm/icons/type";
-import VideoIcon from "lucide-react/dist/esm/icons/video";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
+import { Calendar, CheckCircle2, Clock, Eye, Image as ImageIcon, Loader2, Plus, Sparkles, Star, Trash2, Type, Video as VideoIcon, XCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
