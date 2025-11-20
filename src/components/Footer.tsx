@@ -1,4 +1,4 @@
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import { Sparkles } from "lucide-react";
 
 export const Footer = () => {
   return (

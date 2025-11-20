@@ -119,8 +119,6 @@ export class DocumentService {
           processing_status: "completed",
           extracted_text: data.extractedText,
           page_count: data.pageCount,
-          ai_summary: data.aiSummary,
-          topics: data.topics,
         })
         .eq("id", documentId);
     } catch (error: any) {
