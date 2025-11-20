@@ -4,10 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Check from "lucide-react/dist/esm/icons/check";
-import CreditCard from "lucide-react/dist/esm/icons/credit-card";
-import Tag from "lucide-react/dist/esm/icons/tag";
-import X from "lucide-react/dist/esm/icons/x";
+import { Check, CreditCard, Tag, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionService, SubscriptionPlan, UserSubscription } from "@/services/subscriptionService";
 import { validateCoupon } from "@/services/couponService";
