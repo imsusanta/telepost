@@ -54,7 +54,7 @@
   .gradient-border {
     position: relative;
     background: linear-gradient(var(--background), var(--background)) padding-box,
-                linear-gradient(135deg, hsl(265 85% 75%), hsl(200 80% 80%), hsl(160 70% 80%)) border-box;
+                linear-gradient(135deg, hsl(150 70% 65%), hsl(165 65% 78%), hsl(170 60% 75%)) border-box;
     border: 2px solid transparent;
   }
 
@@ -72,11 +72,11 @@
 
   /* Glow effect */
   .glow {
-    box-shadow: 0 0 40px rgba(165, 130, 220, 0.3);
+    box-shadow: 0 0 40px rgba(100, 180, 140, 0.3);
   }
 
   .glow-accent {
-    box-shadow: 0 0 40px rgba(135, 206, 235, 0.3);
+    box-shadow: 0 0 40px rgba(120, 200, 160, 0.3);
   }
 }
 
@@ -127,95 +127,95 @@
 
 @layer base {
   :root {
-    /* Beautiful Pastel Color Palette */
-    --background: 250 70% 97%;
-    --foreground: 250 20% 25%;
+    /* Beautiful Pastel Green Color Palette */
+    --background: 145 60% 97%;
+    --foreground: 145 20% 20%;
 
-    /* Lavender - Primary color */
-    --primary: 265 85% 75%;
-    --primary-foreground: 265 20% 15%;
+    /* Mint Green - Primary color */
+    --primary: 150 70% 65%;
+    --primary-foreground: 150 30% 15%;
 
-    /* Mint Green - Secondary color */
-    --secondary: 160 70% 80%;
-    --secondary-foreground: 160 40% 20%;
+    /* Teal - Secondary color */
+    --secondary: 170 60% 75%;
+    --secondary-foreground: 170 40% 20%;
 
-    /* Baby Blue - Accent color */
-    --accent: 200 80% 80%;
-    --accent-foreground: 200 40% 20%;
+    /* Seafoam - Accent color */
+    --accent: 165 65% 78%;
+    --accent-foreground: 165 40% 18%;
 
-    /* Soft Pink - Success color */
-    --success: 340 75% 80%;
-    --success-foreground: 340 40% 25%;
+    /* Sage Green - Success color */
+    --success: 130 60% 70%;
+    --success-foreground: 130 40% 20%;
 
-    /* Peach - Destructive/Warning color */
+    /* Coral Peach - Destructive/Warning color */
     --destructive: 15 85% 75%;
     --destructive-foreground: 15 40% 25%;
 
-    /* Card with subtle lavender tint */
-    --card: 250 80% 95%;
-    --card-foreground: 250 20% 25%;
+    /* Card with subtle green tint */
+    --card: 145 70% 95%;
+    --card-foreground: 145 20% 20%;
 
     /* Popover with soft background */
-    --popover: 250 90% 96%;
-    --popover-foreground: 250 20% 25%;
+    --popover: 145 80% 96%;
+    --popover-foreground: 145 20% 20%;
 
-    /* Muted with gentle gray-lavender */
-    --muted: 250 40% 92%;
-    --muted-foreground: 250 15% 50%;
+    /* Muted with gentle gray-green */
+    --muted: 145 35% 92%;
+    --muted-foreground: 145 15% 45%;
 
     /* Input and borders */
-    --border: 250 40% 88%;
-    --input: 250 50% 94%;
-    --ring: 265 85% 75%;
+    --border: 145 35% 85%;
+    --input: 145 45% 94%;
+    --ring: 150 70% 65%;
 
     /* Large, soft border radius for clay effect */
     --radius: 1.25rem;
 
     /* Sidebar colors */
-    --sidebar-background: 250 80% 96%;
-    --sidebar-foreground: 250 20% 30%;
-    --sidebar-primary: 265 85% 75%;
-    --sidebar-primary-foreground: 265 20% 15%;
-    --sidebar-accent: 250 60% 92%;
-    --sidebar-accent-foreground: 250 30% 25%;
-    --sidebar-border: 250 40% 90%;
-    --sidebar-ring: 265 85% 75%;
+    --sidebar-background: 145 70% 96%;
+    --sidebar-foreground: 145 20% 25%;
+    --sidebar-primary: 150 70% 65%;
+    --sidebar-primary-foreground: 150 30% 15%;
+    --sidebar-accent: 145 55% 90%;
+    --sidebar-accent-foreground: 145 30% 22%;
+    --sidebar-border: 145 35% 88%;
+    --sidebar-ring: 150 70% 65%;
 
-    /* Beautiful gradients with pastel colors */
-    --gradient-primary: linear-gradient(135deg, hsl(265 85% 75%) 0%, hsl(280 75% 80%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(160 70% 80%) 0%, hsl(175 65% 75%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(200 80% 80%) 0%, hsl(220 75% 85%) 100%);
-    --gradient-warm: linear-gradient(135deg, hsl(340 75% 80%) 0%, hsl(15 85% 75%) 100%);
-    --gradient-bg: linear-gradient(180deg, hsl(250 70% 97%) 0%, hsl(265 60% 95%) 50%, hsl(200 50% 96%) 100%);
-    --gradient-mesh: radial-gradient(at 0% 0%, hsl(265 85% 85%) 0px, transparent 50%),
-                     radial-gradient(at 100% 0%, hsl(200 80% 85%) 0px, transparent 50%),
-                     radial-gradient(at 100% 100%, hsl(160 70% 85%) 0px, transparent 50%),
-                     radial-gradient(at 0% 100%, hsl(340 75% 85%) 0px, transparent 50%);
+    /* Beautiful gradients with pastel green colors */
+    --gradient-primary: linear-gradient(135deg, hsl(150 70% 65%) 0%, hsl(165 65% 70%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(170 60% 75%) 0%, hsl(180 55% 70%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(165 65% 78%) 0%, hsl(175 60% 80%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(130 60% 70%) 0%, hsl(145 55% 75%) 100%);
+    --gradient-bg: linear-gradient(180deg, hsl(145 60% 97%) 0%, hsl(150 55% 95%) 50%, hsl(165 50% 96%) 100%);
+    --gradient-mesh: radial-gradient(at 0% 0%, hsl(150 70% 85%) 0px, transparent 50%),
+                     radial-gradient(at 100% 0%, hsl(165 65% 85%) 0px, transparent 50%),
+                     radial-gradient(at 100% 100%, hsl(170 60% 85%) 0px, transparent 50%),
+                     radial-gradient(at 0% 100%, hsl(130 60% 85%) 0px, transparent 50%);
 
     /* Claymorphism Shadows - soft, layered, and dimensional */
     --shadow-clay-sm:
-      2px 2px 6px rgba(165, 130, 220, 0.15),
+      2px 2px 6px rgba(100, 180, 140, 0.15),
       -2px -2px 6px rgba(255, 255, 255, 0.95),
-      inset 0 0 0 rgba(165, 130, 220, 0.05);
+      inset 0 0 0 rgba(100, 180, 140, 0.05);
 
     --shadow-clay:
-      6px 6px 16px rgba(165, 130, 220, 0.2),
+      6px 6px 16px rgba(100, 180, 140, 0.2),
       -6px -6px 16px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(165, 130, 220, 0.05);
+      inset 0 0 0 rgba(100, 180, 140, 0.05);
 
     --shadow-clay-lg:
-      10px 10px 24px rgba(165, 130, 220, 0.25),
+      10px 10px 24px rgba(100, 180, 140, 0.25),
       -10px -10px 24px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(165, 130, 220, 0.05);
+      inset 0 0 0 rgba(100, 180, 140, 0.05);
 
     --shadow-clay-inner:
-      inset 4px 4px 12px rgba(165, 130, 220, 0.15),
+      inset 4px 4px 12px rgba(100, 180, 140, 0.15),
       inset -4px -4px 12px rgba(255, 255, 255, 0.9);
 
     --shadow-clay-hover:
-      8px 8px 20px rgba(165, 130, 220, 0.3),
+      8px 8px 20px rgba(100, 180, 140, 0.3),
       -8px -8px 20px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(165, 130, 220, 0.08);
+      inset 0 0 0 rgba(100, 180, 140, 0.08);
 
     /* Smooth transitions */
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -225,45 +225,45 @@
   .dark {
     /* Dark mode is intentionally removed for this design
        Claymorphism works best with light, pastel backgrounds */
-    --background: 250 70% 97%;
-    --foreground: 250 20% 25%;
+    --background: 145 60% 97%;
+    --foreground: 145 20% 20%;
 
-    --primary: 265 85% 75%;
-    --primary-foreground: 265 20% 15%;
+    --primary: 150 70% 65%;
+    --primary-foreground: 150 30% 15%;
 
-    --secondary: 160 70% 80%;
-    --secondary-foreground: 160 40% 20%;
+    --secondary: 170 60% 75%;
+    --secondary-foreground: 170 40% 20%;
 
-    --accent: 200 80% 80%;
-    --accent-foreground: 200 40% 20%;
+    --accent: 165 65% 78%;
+    --accent-foreground: 165 40% 18%;
 
-    --success: 340 75% 80%;
-    --success-foreground: 340 40% 25%;
+    --success: 130 60% 70%;
+    --success-foreground: 130 40% 20%;
 
     --destructive: 15 85% 75%;
     --destructive-foreground: 15 40% 25%;
 
-    --card: 250 80% 95%;
-    --card-foreground: 250 20% 25%;
+    --card: 145 70% 95%;
+    --card-foreground: 145 20% 20%;
 
-    --popover: 250 90% 96%;
-    --popover-foreground: 250 20% 25%;
+    --popover: 145 80% 96%;
+    --popover-foreground: 145 20% 20%;
 
-    --muted: 250 40% 92%;
-    --muted-foreground: 250 15% 50%;
+    --muted: 145 35% 92%;
+    --muted-foreground: 145 15% 45%;
 
-    --border: 250 40% 88%;
-    --input: 250 50% 94%;
-    --ring: 265 85% 75%;
+    --border: 145 35% 85%;
+    --input: 145 45% 94%;
+    --ring: 150 70% 65%;
 
-    --sidebar-background: 250 80% 96%;
-    --sidebar-foreground: 250 20% 30%;
-    --sidebar-primary: 265 85% 75%;
-    --sidebar-primary-foreground: 265 20% 15%;
-    --sidebar-accent: 250 60% 92%;
-    --sidebar-accent-foreground: 250 30% 25%;
-    --sidebar-border: 250 40% 90%;
-    --sidebar-ring: 265 85% 75%;
+    --sidebar-background: 145 70% 96%;
+    --sidebar-foreground: 145 20% 25%;
+    --sidebar-primary: 150 70% 65%;
+    --sidebar-primary-foreground: 150 30% 15%;
+    --sidebar-accent: 145 55% 90%;
+    --sidebar-accent-foreground: 145 30% 22%;
+    --sidebar-border: 145 35% 88%;
+    --sidebar-ring: 150 70% 65%;
   }
 }
 
