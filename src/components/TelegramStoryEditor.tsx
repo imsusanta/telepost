@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StoryService, CreateStoryData, StoryTemplate, TextOverlay, Sticker } from "@/services/storyService";
-import { Calendar as CalendarIcon, Image as ImageIcon, Loader2, Send, Sparkles, Type, Upload, Video as VideoIcon } from "lucide-react";
+import { Calendar, Image as ImageIcon, Loader2, Send, Sparkles, Type, Upload, Video as VideoIcon } from "lucide-react";
 import { StoryPreviewModal } from "./StoryPreviewModal";
 import { StoryTemplateSelector } from "./StoryTemplateSelector";
 import { TextOverlayEditor } from "./TextOverlayEditor";
