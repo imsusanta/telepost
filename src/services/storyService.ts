@@ -20,28 +20,25 @@ export interface Story {
   user_id: string;
   channel_id?: string | null;
   media_type: "image" | "video" | "text";
-  media_url?: string | null;
-  media_thumbnail_url?: string | null;
+  media_url: string;
   caption?: string | null;
   text_overlay?: TextOverlay[];
   background_color?: string | null;
   template_id?: string | null;
   stickers?: Sticker[];
-  duration_hours: number;
+  duration_seconds?: number | null;
   scheduled_time?: string | null;
   posted_at?: string | null;
   expires_at?: string | null;
   status: "draft" | "scheduled" | "posted" | "failed" | "expired" | "deleted";
   error_message?: string | null;
-  views_count: number;
-  interactions_count: number;
-  analytics_data?: any;
+  view_count?: number | null;
+  reach?: number | null;
+  engagement_rate?: number | null;
   telegram_message_id?: string | null;
-  telegram_chat_id?: string | null;
-  is_highlight: boolean;
-  highlight_order?: number | null;
-  created_at: string;
-  updated_at: string;
+  is_highlight?: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface StoryTemplate {
@@ -65,15 +62,14 @@ export interface StoryTemplate {
 export interface CreateStoryData {
   channel_id?: string;
   media_type: "image" | "video" | "text";
-  media_url?: string;
+  media_url: string;
   caption?: string;
   text_overlay?: TextOverlay[];
   background_color?: string;
   template_id?: string;
   stickers?: Sticker[];
-  duration_hours?: number;
+  duration_seconds?: number;
   scheduled_time?: string;
-  telegram_chat_id?: string;
   is_highlight?: boolean;
 }
 
@@ -145,9 +141,8 @@ export class StoryService {
         background_color: storyData.background_color,
         template_id: storyData.template_id,
         stickers: storyData.stickers || [],
-        duration_hours: storyData.duration_hours || 24,
+        duration_seconds: storyData.duration_seconds || 24,
         scheduled_time: storyData.scheduled_time,
-        telegram_chat_id: storyData.telegram_chat_id,
         is_highlight: storyData.is_highlight || false,
         status: storyData.scheduled_time ? "scheduled" : "draft",
       })
