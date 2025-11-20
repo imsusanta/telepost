@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Calendar, CheckCircle2, Clock, Eye, ImageIcon, Loader2, Plus, Sparkles, Star, Trash2, Type, VideoIcon, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { TelegramStoryEditor } from "@/components/TelegramStoryEditor";
@@ -10,19 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { StoryService, Story } from "@/services/storyService";
 import { supabase } from "@/integrations/supabase/client";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import ImageIcon from "lucide-react/dist/esm/icons/image";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Star from "lucide-react/dist/esm/icons/star";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Type from "lucide-react/dist/esm/icons/type";
-import VideoIcon from "lucide-react/dist/esm/icons/video";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -1,10 +1,8 @@
 import { useState } from 'react';
+import { AlertCircle, FileText, Send } from "lucide-react";
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Send from "lucide-react/dist/esm/icons/send";
 import { Quiz, QuizQuestion } from '@/types/quiz';
 import { useToast } from '@/hooks/use-toast';
 

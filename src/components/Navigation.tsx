@@ -1,7 +1,5 @@
 import { useState } from "react";
-import Menu from "lucide-react/dist/esm/icons/menu";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import X from "lucide-react/dist/esm/icons/x";
+import { Menu, Sparkles, X } from "lucide-react";
 
 interface NavigationProps {
   onGetStarted?: () => void;

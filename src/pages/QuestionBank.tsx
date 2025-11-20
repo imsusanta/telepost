@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
+import { Database, Filter, RefreshCw, Search, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import Database from "lucide-react/dist/esm/icons/database";
-import Filter from "lucide-react/dist/esm/icons/filter";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Search from "lucide-react/dist/esm/icons/search";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";

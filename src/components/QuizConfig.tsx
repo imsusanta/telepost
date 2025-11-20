@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
+import { Database, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import Database from "lucide-react/dist/esm/icons/database";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import { supabase } from "@/integrations/supabase/client";
 import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";

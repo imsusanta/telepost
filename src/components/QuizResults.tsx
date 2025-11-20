@@ -1,8 +1,6 @@
 import { Card } from "@/components/ui/card";
+import { Home, RotateCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Home from "lucide-react/dist/esm/icons/home";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import Trophy from "lucide-react/dist/esm/icons/trophy";
 import { TelegramShare } from "./TelegramShare";
 import type { Quiz } from "@/types/quiz";
 

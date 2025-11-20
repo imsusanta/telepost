@@ -1,10 +1,4 @@
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import BookOpen from "lucide-react/dist/esm/icons/book-open";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import Film from "lucide-react/dist/esm/icons/film";
-import Gamepad2 from "lucide-react/dist/esm/icons/gamepad-2";
-import Languages from "lucide-react/dist/esm/icons/languages";
-import Newspaper from "lucide-react/dist/esm/icons/newspaper";
+import { ArrowRight, BookOpen, Briefcase, Film, Gamepad2, Languages, Newspaper } from "lucide-react";
 
 const useCases = [
   {

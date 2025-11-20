@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Award, BarChart3, Download, FileText, RefreshCw, TrendingUp } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { AnalyticsService, AnalyticsDashboardData } from "@/services/analyticsService";
 import { supabase } from "@/integrations/supabase/client";
-import Award from "lucide-react/dist/esm/icons/award";
-import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
-import Download from "lucide-react/dist/esm/icons/download";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
