@@ -33,15 +33,40 @@ export interface UserWithSubscription extends UserProfile {
   } | null;
 }
 
+export interface PaginatedUsersResponse {
+  users: UserWithSubscription[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 /**
- * Get all users with their subscription details (super admin only)
+ * Get paginated users with their subscription details (super admin only)
  */
-export async function getAllUsers(): Promise<UserWithSubscription[]> {
-  // First get all profiles
-  const { data: profiles, error: profilesError } = await supabase
+export async function getPaginatedUsers(
+  page: number = 1,
+  pageSize: number = 20,
+  searchQuery?: string
+): Promise<PaginatedUsersResponse> {
+  const offset = (page - 1) * pageSize;
+
+  // Build base query for profiles
+  let profilesQuery = supabase
     .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('*', { count: 'exact' });
+
+  // Add search filter if provided
+  if (searchQuery && searchQuery.trim()) {
+    profilesQuery = profilesQuery.or(
+      `email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`
+    );
+  }
+
+  // Get paginated profiles
+  const { data: profiles, error: profilesError, count } = await profilesQuery
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (profilesError) {
     console.error('Error fetching profiles:', profilesError);
@@ -49,44 +74,148 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
   }
 
   if (!profiles || profiles.length === 0) {
-    return [];
+    return {
+      users: [],
+      totalCount: count || 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((count || 0) / pageSize)
+    };
   }
 
-  // Get subscriptions for all users
-  const { data: subscriptions, error: subsError } = await supabase
-    .from('subscriptions')
-    .select(`
-      id,
-      user_id,
-      plan_id,
-      status,
-      current_period_start,
-      current_period_end,
-      subscription_plans (
-        name,
-        display_name,
-        price
-      )
-    `)
-    .eq('status', 'active');
+  // Get user IDs for this page
+  const userIds = profiles.map(p => p.id);
 
-  if (subsError) {
-    console.error('Error fetching subscriptions:', subsError);
+  // Fetch subscriptions and usage for these users in parallel
+  const [subscriptionsResult, usageResult] = await Promise.all([
+    supabase
+      .from('subscriptions')
+      .select(`
+        id,
+        user_id,
+        plan_id,
+        status,
+        current_period_start,
+        current_period_end,
+        subscription_plans (
+          name,
+          display_name,
+          price
+        )
+      `)
+      .in('user_id', userIds)
+      .eq('status', 'active'),
+    supabase
+      .from('usage_tracking')
+      .select('user_id, quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
+      .in('user_id', userIds)
+  ]);
+
+  if (subscriptionsResult.error) {
+    console.error('Error fetching subscriptions:', subscriptionsResult.error);
   }
 
-  // Get usage tracking for all users
-  const { data: usage, error: usageError } = await supabase
-    .from('usage_tracking')
-    .select('user_id, quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes');
-
-  if (usageError) {
-    console.error('Error fetching usage:', usageError);
+  if (usageResult.error) {
+    console.error('Error fetching usage:', usageResult.error);
   }
+
+  // Create lookup maps for O(1) access
+  const subscriptionMap = new Map(
+    (subscriptionsResult.data || []).map(s => [s.user_id, s])
+  );
+  const usageMap = new Map(
+    (usageResult.data || []).map(u => [u.user_id, u])
+  );
 
   // Combine the data
   const users: UserWithSubscription[] = profiles.map(profile => {
-    const userSub = subscriptions?.find(s => s.user_id === profile.id);
-    const userUsage = usage?.find(u => u.user_id === profile.id);
+    const userSub = subscriptionMap.get(profile.id);
+    const userUsage = usageMap.get(profile.id);
+
+    return {
+      ...profile,
+      subscription: userSub ? {
+        id: userSub.id,
+        plan_id: userSub.plan_id,
+        status: userSub.status,
+        current_period_start: userSub.current_period_start,
+        current_period_end: userSub.current_period_end,
+        plan: userSub.subscription_plans as any,
+      } : null,
+      usage: userUsage || null,
+    };
+  });
+
+  return {
+    users,
+    totalCount: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize)
+  };
+}
+
+/**
+ * Get all users with their subscription details (super admin only)
+ * @deprecated Use getPaginatedUsers for better performance
+ */
+export async function getAllUsers(): Promise<UserWithSubscription[]> {
+  // Fetch all data in parallel for better performance
+  const [profilesResult, subscriptionsResult, usageResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('subscriptions')
+      .select(`
+        id,
+        user_id,
+        plan_id,
+        status,
+        current_period_start,
+        current_period_end,
+        subscription_plans (
+          name,
+          display_name,
+          price
+        )
+      `)
+      .eq('status', 'active'),
+    supabase
+      .from('usage_tracking')
+      .select('user_id, quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
+  ]);
+
+  if (profilesResult.error) {
+    console.error('Error fetching profiles:', profilesResult.error);
+    throw new Error(profilesResult.error.message);
+  }
+
+  if (!profilesResult.data || profilesResult.data.length === 0) {
+    return [];
+  }
+
+  if (subscriptionsResult.error) {
+    console.error('Error fetching subscriptions:', subscriptionsResult.error);
+  }
+
+  if (usageResult.error) {
+    console.error('Error fetching usage:', usageResult.error);
+  }
+
+  // Create lookup maps for O(1) access instead of O(n) find operations
+  const subscriptionMap = new Map(
+    (subscriptionsResult.data || []).map(s => [s.user_id, s])
+  );
+  const usageMap = new Map(
+    (usageResult.data || []).map(u => [u.user_id, u])
+  );
+
+  // Combine the data using maps for O(n) instead of O(n²)
+  const users: UserWithSubscription[] = profilesResult.data.map(profile => {
+    const userSub = subscriptionMap.get(profile.id);
+    const userUsage = usageMap.get(profile.id);
 
     return {
       ...profile,
