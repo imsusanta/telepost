@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Ban, Check, Edit, Loader2, Search, Users } from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { Ban, Check, ChevronLeft, ChevronRight, Edit, Loader2, Search, Users } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import {
-  getAllUsers,
+  getPaginatedUsers,
   updateUserSubscription,
   updateUserStatus,
   type UserWithSubscription,
+  type PaginatedUsersResponse,
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
 import { SubscriptionService } from '@/services/subscriptionService';
@@ -45,9 +46,15 @@ export default function SuperAdminUsers() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserWithSubscription[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [plans, setPlans] = useState<any[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
 
   // Edit subscription dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -55,13 +62,25 @@ export default function SuperAdminUsers() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     checkAccessAndLoadData();
   }, []);
 
+  // Load data when page or search changes
   useEffect(() => {
-    filterUsers();
-  }, [searchQuery, users]);
+    if (!loading) {
+      loadData();
+    }
+  }, [currentPage, debouncedSearch]);
 
   const checkAccessAndLoadData = async () => {
     try {
@@ -82,15 +101,16 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [usersData, plansData] = await Promise.all([
-        getAllUsers(),
+      const [paginatedData, plansData] = await Promise.all([
+        getPaginatedUsers(currentPage, pageSize, debouncedSearch),
         SubscriptionService.getPlans(),
       ]);
-      setUsers(usersData);
-      setFilteredUsers(usersData);
+      setUsers(paginatedData.users);
+      setTotalPages(paginatedData.totalPages);
+      setTotalCount(paginatedData.totalCount);
       setPlans(plansData);
     } catch (error: any) {
       toast({
@@ -101,21 +121,12 @@ export default function SuperAdminUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearch, toast]);
 
-  const filterUsers = () => {
-    if (!searchQuery.trim()) {
-      setFilteredUsers(users);
-      return;
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = users.filter(
-      (user) =>
-        user.email?.toLowerCase().includes(query) ||
-        user.full_name?.toLowerCase().includes(query)
-    );
-    setFilteredUsers(filtered);
   };
 
   const handleEditSubscription = (user: UserWithSubscription) => {
@@ -232,7 +243,7 @@ export default function SuperAdminUsers() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{totalCount}</div>
             </CardContent>
           </Card>
           <Card>
@@ -299,14 +310,14 @@ export default function SuperAdminUsers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.length === 0 ? (
+                {users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {searchQuery ? 'No users found' : 'No users yet'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
+                  users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div>
@@ -403,6 +414,38 @@ export default function SuperAdminUsers() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} users
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || loading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || loading}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Subscription Dialog */}

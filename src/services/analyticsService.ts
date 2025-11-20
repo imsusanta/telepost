@@ -54,92 +54,98 @@ export class AnalyticsService {
     userId: string,
     dateRange?: { start: Date; end: Date }
   ): Promise<AnalyticsDashboardData> {
-    // Get total quizzes
-    const { count: totalQuizzes } = await supabase
-      .from("quiz_generations")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    // Get total PDFs
-    const { count: totalPdfsUploaded } = await supabase
-      .from("documents")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    // Get total questions from question bank
-    const { count: totalQuestions } = await supabase
-      .from("question_banks")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    // Get quiz generations for analysis
-    let quizQuery = supabase
+    // Build quiz query with optional date range
+    let quizQueryBuilder = supabase
       .from("quiz_generations")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (dateRange) {
-      quizQuery = quizQuery
+      quizQueryBuilder = quizQueryBuilder
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString());
     }
 
-    const { data: quizzes } = await quizQuery;
+    // Fetch all counts and data in parallel for better performance
+    const [
+      quizzesCountResult,
+      pdfsCountResult,
+      questionsCountResult,
+      quizzesResult,
+      recentActivityResult
+    ] = await Promise.all([
+      supabase
+        .from("quiz_generations")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("documents")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("question_banks")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId),
+      quizQueryBuilder,
+      supabase
+        .from("analytics_events")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    ]);
 
-    // Get quiz responses
-    const quizIds = quizzes?.map((q) => q.id) || [];
-    let responsesQuery = supabase
-      .from("quiz_responses")
-      .select("*");
+    const quizzes = quizzesResult.data || [];
+    const quizIds = quizzes.map((q) => q.id);
+
+    // Fetch responses only if there are quizzes
+    let responses: any[] = [];
+    let totalResponses = 0;
 
     if (quizIds.length > 0) {
-      responsesQuery = responsesQuery.in("quiz_generation_id", quizIds);
-    }
+      const { data: responsesData, count } = await supabase
+        .from("quiz_responses")
+        .select("*", { count: "exact" })
+        .in("quiz_generation_id", quizIds);
 
-    const { data: responses, count: totalResponses } = await responsesQuery;
+      responses = responsesData || [];
+      totalResponses = count || 0;
+    }
 
     // Calculate average score from is_correct field
     const averageScore =
-      responses && responses.length > 0
+      responses.length > 0
         ? (responses.filter(r => r.is_correct).length / responses.length) * 100
         : 0;
 
     // Quizzes by day (last 30 days)
-    const quizzesByDay = this.groupByDay(quizzes || [], 30);
+    const quizzesByDay = this.groupByDay(quizzes, 30);
 
     // Quizzes by topic
-    const quizzesByTopic = this.groupByField(quizzes || [], "topic")
+    const quizzesByTopic = this.groupByField(quizzes, "topic")
       .filter(q => q.topic)
       .map(q => ({ topic: q.topic!, count: q.count }));
 
     // Quizzes by difficulty
-    const quizzesByDifficulty = this.groupByField(quizzes || [], "difficulty")
+    const quizzesByDifficulty = this.groupByField(quizzes, "difficulty")
       .filter(q => q.difficulty)
       .map(q => ({ difficulty: q.difficulty!, count: q.count }));
 
     // Top topics
     const topTopics = quizzesByTopic.slice(0, 5);
 
-    // Recent activity
-    const { data: recentActivity } = await supabase
-      .from("analytics_events")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
     return {
-      totalQuizzes: totalQuizzes || 0,
-      totalPdfsUploaded: totalPdfsUploaded || 0,
-      totalQuestions: totalQuestions || 0,
-      totalResponses: totalResponses || 0,
+      totalQuizzes: quizzesCountResult.count || 0,
+      totalPdfsUploaded: pdfsCountResult.count || 0,
+      totalQuestions: questionsCountResult.count || 0,
+      totalResponses,
       quizzesByDay,
       quizzesByTopic,
       quizzesByDifficulty,
       averageScore: Math.round(averageScore * 100) / 100,
       topTopics,
-      recentActivity: recentActivity || [],
+      recentActivity: recentActivityResult.data || [],
     };
   }
 

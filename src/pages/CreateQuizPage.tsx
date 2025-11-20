@@ -174,39 +174,63 @@ export default function CreateQuizPage() {
     }
   }, []);
 
-  // Effects for loading data
+  // Effects for loading data - consolidated to avoid duplicate calls
   useEffect(() => {
     const channelFromUrl = searchParams.get("channel");
+
+    // Set the channel from URL first (if present)
     if (channelFromUrl) {
       setSelectedChannel(channelFromUrl);
     }
 
-    // Load all data in parallel on mount - optimized for faster startup
+    // Load initial data in parallel on mount - optimized for faster startup
+    // Note: loadDocuments and loadQuestions handle their own filtering based on state
     const initializeData = async () => {
       await Promise.all([
         loadChannels(),
         loadStorageInfo(),
         loadQuestions(),
         loadStats(),
-        loadDocuments()
+        // Documents loaded with initial channel from URL (or empty)
+        (async () => {
+          if (channelFromUrl) {
+            // Temporarily set the channel for document loading
+            const docs = await DocumentService.getUserDocuments(
+              (await supabase.auth.getUser()).data.user?.id || '',
+              channelFromUrl
+            );
+            setDocuments(docs);
+            setDocumentsLoading(false);
+          } else {
+            await loadDocuments();
+          }
+        })()
       ]);
     };
 
     initializeData();
   }, []); // Empty dependency array - run once on mount
 
-  // Reload documents when selectedChannel changes
+  // Reload documents when selectedChannel changes (but not on initial mount)
+  const [isInitialMount, setIsInitialMount] = useState(true);
   useEffect(() => {
-    if (selectedChannel) {
-      loadDocuments();
+    if (isInitialMount) {
+      setIsInitialMount(false);
+      return;
     }
-  }, [selectedChannel]);
+    loadDocuments();
+  }, [selectedChannel, loadDocuments]);
 
-  // Reload questions when filters change
+  // Reload questions when filters change (but not on initial mount)
+  const [isFiltersInitialized, setIsFiltersInitialized] = useState(false);
   useEffect(() => {
+    if (!isFiltersInitialized) {
+      setIsFiltersInitialized(true);
+      return;
+    }
     loadQuestions();
     loadStats();
-  }, [filters]);
+  }, [filters, loadQuestions, loadStats]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
