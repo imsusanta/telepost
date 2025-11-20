@@ -26,7 +26,8 @@ export interface Story {
   background_color?: string | null;
   template_id?: string | null;
   stickers?: Sticker[];
-  duration_seconds?: number | null;
+  duration_hours?: number | null;
+  telegram_chat_id?: string | null;
   scheduled_time?: string | null;
   posted_at?: string | null;
   expires_at?: string | null;
@@ -68,7 +69,8 @@ export interface CreateStoryData {
   background_color?: string;
   template_id?: string;
   stickers?: Sticker[];
-  duration_seconds?: number;
+  duration_hours?: number;
+  telegram_chat_id?: string;
   scheduled_time?: string;
   is_highlight?: boolean;
 }
@@ -141,7 +143,8 @@ export class StoryService {
         background_color: storyData.background_color,
         template_id: storyData.template_id,
         stickers: storyData.stickers || [],
-        duration_seconds: storyData.duration_seconds || 24,
+        duration_hours: storyData.duration_hours || 24,
+        telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
         is_highlight: storyData.is_highlight || false,
         status: storyData.scheduled_time ? "scheduled" : "draft",
