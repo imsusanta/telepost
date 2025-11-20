@@ -67,12 +67,12 @@ serve(async (req) => {
     // Process each scheduled story
     for (const story of scheduledStories) {
       try {
-        const botToken = story.channels?.bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+        const botToken = story.channels?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
         if (!botToken) {
           throw new Error("Bot token not configured");
         }
 
-        const chatId = story.telegram_chat_id || story.channels?.chat_id;
+        const chatId = story.channels?.telegram_channel_id;
         if (!chatId) {
           throw new Error("Chat ID not configured");
         }

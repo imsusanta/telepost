@@ -1,9 +1,4 @@
-import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Send from "lucide-react/dist/esm/icons/send";
-import Shield from "lucide-react/dist/esm/icons/shield";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import { BarChart3, Clock, FileText, Send, Shield, Sparkles } from "lucide-react";
 
 const features = [
   {
