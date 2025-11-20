@@ -1,5 +1,4 @@
-import Quote from "lucide-react/dist/esm/icons/quote";
-import Star from "lucide-react/dist/esm/icons/star";
+import { Quote, Star } from "lucide-react";
 
 const testimonials = [
   {
