@@ -168,7 +168,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       const storyData: CreateStoryData = {
         channel_id: selectedChannel || undefined,
         media_type: mediaType,
-        media_url: mediaUrl || "",
+        media_url: mediaUrl,
         caption,
         text_overlay: textOverlays,
         background_color: mediaType === "text" ? backgroundColor : undefined,
@@ -282,7 +282,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
       const storyData: CreateStoryData = {
         channel_id: selectedChannel || undefined,
         media_type: mediaType,
-        media_url: mediaUrl || "",
+        media_url: mediaUrl,
         caption,
         text_overlay: textOverlays,
         background_color: mediaType === "text" ? backgroundColor : undefined,

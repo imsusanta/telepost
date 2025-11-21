@@ -63,7 +63,7 @@ export interface StoryTemplate {
 export interface CreateStoryData {
   channel_id?: string;
   media_type: "image" | "video" | "text";
-  media_url: string;
+  media_url?: string;
   caption?: string;
   text_overlay?: TextOverlay[];
   background_color?: string;
@@ -131,13 +131,19 @@ export class StoryService {
     userId: string,
     storyData: CreateStoryData
   ): Promise<Story> {
+    // For text stories, media_url must be null to satisfy DB constraint
+    // For image/video stories, media_url must have a value
+    const mediaUrl = storyData.media_type === "text"
+      ? null
+      : (storyData.media_url || null);
+
     const { data, error } = await supabase
       .from("telegram_stories")
       .insert({
         user_id: userId,
         channel_id: storyData.channel_id,
         media_type: storyData.media_type,
-        media_url: storyData.media_url,
+        media_url: mediaUrl,
         caption: storyData.caption,
         text_overlay: storyData.text_overlay || [],
         background_color: storyData.background_color,
