@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Copy, Key, Loader2, Plus, Trash2, Users, Shield } from "lucide-react";
+import { Copy, Key, Loader2, Plus, Trash2, Users, Shield } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';

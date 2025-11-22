@@ -145,10 +145,10 @@ export class StoryService {
         media_type: storyData.media_type,
         media_url: mediaUrl,
         caption: storyData.caption,
-        text_overlay: storyData.text_overlay || [],
+        text_overlay: storyData.text_overlay as any || [],
         background_color: storyData.background_color,
         template_id: storyData.template_id,
-        stickers: storyData.stickers || [],
+        stickers: storyData.stickers as any || [],
         duration_hours: storyData.duration_hours || 24,
         telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
@@ -159,7 +159,11 @@ export class StoryService {
       .single();
 
     if (error) throw error;
-    return data as Story;
+    return {
+      ...data,
+      text_overlay: (data.text_overlay as any) || [],
+      stickers: (data.stickers as any) || []
+    } as Story;
   }
 
   /**
@@ -172,14 +176,18 @@ export class StoryService {
   ): Promise<Story> {
     const { data, error } = await supabase
       .from("telegram_stories")
-      .update(updates)
+      .update(updates as any)
       .eq("story_id", storyId)
       .eq("user_id", userId)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Story;
+    return {
+      ...data,
+      text_overlay: (data.text_overlay as any) || [],
+      stickers: (data.stickers as any) || []
+    } as Story;
   }
 
   /**
@@ -220,7 +228,11 @@ export class StoryService {
     const { data, error } = await query;
 
     if (error) throw error;
-    return (data || []) as Story[];
+    return (data || []).map(story => ({
+      ...story,
+      text_overlay: (story.text_overlay as any) || [],
+      stickers: (story.stickers as any) || []
+    })) as Story[];
   }
 
   /**
@@ -235,7 +247,11 @@ export class StoryService {
       .single();
 
     if (error) throw error;
-    return data as Story;
+    return {
+      ...data,
+      text_overlay: (data.text_overlay as any) || [],
+      stickers: (data.stickers as any) || []
+    } as Story;
   }
 
   /**
@@ -315,7 +331,11 @@ export class StoryService {
     const { data, error } = await query;
 
     if (error) throw error;
-    return (data || []) as StoryTemplate[];
+    return (data || []).map(template => ({
+      ...template,
+      default_text_overlay: (template.default_text_overlay as any) || [],
+      default_stickers: (template.default_stickers as any) || []
+    })) as StoryTemplate[];
   }
 
   /**
@@ -344,9 +364,9 @@ export class StoryService {
     // Create story with template defaults
     return this.createStory(userId, {
       media_type: template.media_type,
-      background_color: template.background_color,
-      text_overlay: template.default_text_overlay || [],
-      stickers: template.default_stickers || [],
+      background_color: template.background_color || undefined,
+      text_overlay: (template.default_text_overlay as any) || [],
+      stickers: (template.default_stickers as any) || [],
       template_id: templateId,
       ...customizations,
     });
@@ -439,7 +459,11 @@ export class StoryService {
     const { data, error } = await query;
 
     if (error) throw error;
-    return (data || []) as Story[];
+    return (data || []).map(story => ({
+      ...story,
+      text_overlay: (story.text_overlay as any) || [],
+      stickers: (story.stickers as any) || []
+    })) as Story[];
   }
 
   /**

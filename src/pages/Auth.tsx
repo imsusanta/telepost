@@ -271,7 +271,7 @@ export default function Auth() {
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Verify session is actually available in the client
-        const { data: { session } } = await supabase.auth.getSession();
+        await supabase.auth.getSession();
         // Navigation will be handled by the auth state change listener
       }
     } catch (error) {
