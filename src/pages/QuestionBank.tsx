@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddQuestionDialog } from "@/components/AddQuestionDialog";
+import { AIQuestionGenerator } from "@/components/AIQuestionGenerator";
+import { PDFQuestionGenerator } from "@/components/PDFQuestionGenerator";
+import { QuestionSelectionDialog } from "@/components/QuestionSelectionDialog";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
@@ -20,6 +24,11 @@ export default function QuestionBank() {
     includePublic: true,
   });
   const [stats, setStats] = useState<any>(null);
+  const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([]);
+  const [showSelectionDialog, setShowSelectionDialog] = useState(false);
+  const [defaultTopic, setDefaultTopic] = useState("");
+  const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
+  const [defaultLanguage, setDefaultLanguage] = useState("en");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -101,6 +110,20 @@ export default function QuestionBank() {
     }
   };
 
+  const handleQuestionsGenerated = (generatedQs: any[], topic?: string, difficulty?: string, language?: string) => {
+    setGeneratedQuestions(generatedQs);
+    setDefaultTopic(topic || "");
+    setDefaultDifficulty(difficulty || "medium");
+    setDefaultLanguage(language || "en");
+    setShowSelectionDialog(true);
+  };
+
+  const handleQuestionsSaved = async () => {
+    setGeneratedQuestions([]);
+    await loadQuestions();
+    await loadStats();
+  };
+
   // Filter questions by search query
   const filteredQuestions = questions.filter(q =>
     searchQuery === "" ||
@@ -124,22 +147,43 @@ export default function QuestionBank() {
             </p>
           </div>
           <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search questions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
-              />
-            </div>
-            <AddQuestionDialog onQuestionAdded={handleRefresh} />
             <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
         </div>
+
+        <Tabs defaultValue="questions" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="questions" className="gap-2">
+              <List className="w-4 h-4" />
+              My Questions
+            </TabsTrigger>
+            <TabsTrigger value="ai-generate" className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              AI Generate
+            </TabsTrigger>
+            <TabsTrigger value="pdf-generate" className="gap-2">
+              <FileText className="w-4 h-4" />
+              PDF Generate
+            </TabsTrigger>
+          </TabsList>
+
+          {/* My Questions Tab */}
+          <TabsContent value="questions" className="space-y-6 mt-6">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search questions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <AddQuestionDialog onQuestionAdded={handleRefresh} />
+            </div>
 
         {/* Filters */}
         <Card>
@@ -343,6 +387,33 @@ export default function QuestionBank() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          {/* AI Generate Tab */}
+          <TabsContent value="ai-generate" className="space-y-6 mt-6">
+            <AIQuestionGenerator
+              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+            />
+          </TabsContent>
+
+          {/* PDF Generate Tab */}
+          <TabsContent value="pdf-generate" className="space-y-6 mt-6">
+            <PDFQuestionGenerator
+              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Question Selection Dialog */}
+        <QuestionSelectionDialog
+          open={showSelectionDialog}
+          onOpenChange={setShowSelectionDialog}
+          questions={generatedQuestions}
+          defaultTopic={defaultTopic}
+          defaultDifficulty={defaultDifficulty}
+          defaultLanguage={defaultLanguage}
+          onSaved={handleQuestionsSaved}
+        />
       </div>
     </DashboardLayout>
   );
