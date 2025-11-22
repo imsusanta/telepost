@@ -3,6 +3,14 @@ import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
+    question: "How do I get access to QuizGenie?",
+    answer: "QuizGenie is an invitation-only SAAS platform. You'll need an invitation code to sign up. Contact our support team or your organization administrator to request an invitation code.",
+  },
+  {
+    question: "What's included in the free tier?",
+    answer: "The free tier includes access to 1 Telegram channel and 10 quizzes per month. You also get 5GB of storage for your study materials and multi-language support. Perfect for individual educators or small groups!",
+  },
+  {
     question: "How does QuizGenie generate quizzes?",
     answer: "Upload your PDFs, notes, or textbooks. Our AI analyzes the content, identifies key concepts, and generates relevant multiple-choice questions aligned with your curriculum.",
   },
@@ -17,10 +25,6 @@ const faqs = [
   {
     question: "Is my data secure?",
     answer: "Yes. We're SOC 2 compliant and use AES-256 encryption. Your content is never shared or used for training. Student data is processed in compliance with GDPR.",
-  },
-  {
-    question: "Do you offer a free trial?",
-    answer: "Yes! Start with a 14-day free trial that includes all features. No credit card required. Generate up to 50 quizzes and connect one Telegram channel.",
   },
 ];
 

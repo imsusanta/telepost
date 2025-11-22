@@ -22,6 +22,7 @@ const Channels = lazy(() => import("./pages/Channels"));
 const Stories = lazy(() => import("./pages/Stories"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
+const SuperAdminInvitations = lazy(() => import("./pages/SuperAdminInvitations"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<ProtectedRoute><SuperAdminCoupons /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin/users" element={<ProtectedRoute><SuperAdminUsers /></ProtectedRoute>} />
+              <Route path="/dashboard/super-admin/invitations" element={<ProtectedRoute><SuperAdminInvitations /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

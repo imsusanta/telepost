@@ -22,8 +22,10 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [invitationError, setInvitationError] = useState("");
 
   const validateEmail = (email: string): boolean => {
     if (!email) {
@@ -80,6 +82,36 @@ export default function Auth() {
 
   const passwordStrength = getPasswordStrength(password);
 
+  const validateInvitationCode = async (code: string): Promise<boolean> => {
+    if (!code || code.trim().length === 0) {
+      setInvitationError("Invitation code is required");
+      return false;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('validate_invitation_code', {
+        p_code: code.trim().toUpperCase()
+      });
+
+      if (error) {
+        setInvitationError("Failed to validate invitation code");
+        return false;
+      }
+
+      if (!data || data.length === 0 || !data[0].is_valid) {
+        const message = data && data[0] ? data[0].message : "Invalid invitation code";
+        setInvitationError(message);
+        return false;
+      }
+
+      setInvitationError("");
+      return true;
+    } catch (error) {
+      setInvitationError("Failed to validate invitation code");
+      return false;
+    }
+  };
+
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -130,21 +162,47 @@ export default function Auth() {
       return;
     }
 
+    // Validate invitation code
+    const isInvitationValid = await validateInvitationCode(invitationCode);
+    if (!isInvitationValid) {
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: sanitizedFullName,
+            invitation_code_used: invitationCode.trim().toUpperCase(),
           },
         },
       });
 
       if (error) throw error;
+
+      // Consume the invitation code after successful signup
+      if (data.user) {
+        try {
+          await supabase.rpc('consume_invitation_code', {
+            p_code: invitationCode.trim().toUpperCase(),
+            p_user_id: data.user.id
+          });
+
+          // Update user profile with invitation code
+          await supabase
+            .from('profiles')
+            .update({ invitation_code_used: invitationCode.trim().toUpperCase() })
+            .eq('id', data.user.id);
+        } catch (consumeError) {
+          console.error('Error consuming invitation code:', consumeError);
+          // Don't fail signup if consuming code fails, as user is already created
+        }
+      }
 
       toast({
         title: "Success!",
@@ -155,6 +213,7 @@ export default function Auth() {
       setEmail("");
       setPassword("");
       setFullName("");
+      setInvitationCode("");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to create account";
       toast({
@@ -315,6 +374,32 @@ export default function Auth() {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-5">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="signup-invitation" className="text-foreground font-semibold">Invitation Code</Label>
+                    <Input
+                      id="signup-invitation"
+                      type="text"
+                      placeholder="Enter your invitation code"
+                      value={invitationCode}
+                      onChange={(e) => {
+                        setInvitationCode(e.target.value.toUpperCase());
+                        setInvitationError("");
+                      }}
+                      required
+                      aria-invalid={!!invitationError}
+                      aria-describedby={invitationError ? "signup-invitation-error" : undefined}
+                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${invitationError ? "border-destructive" : ""}`}
+                    />
+                    {invitationError && (
+                      <p id="signup-invitation-error" className="text-sm text-destructive flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        {invitationError}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      This is a SAAS product with invitation-only access. Contact support for an invitation code.
+                    </p>
+                  </div>
                   <div className="space-y-2.5">
                     <Label htmlFor="signup-name" className="text-foreground font-semibold">Full Name</Label>
                     <Input
