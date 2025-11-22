@@ -34,8 +34,10 @@ const PageLoader = () => (
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
+      retry: 2,
+      refetchOnWindowFocus: true, // Auto-refresh when user returns to tab
+      staleTime: 30000, // Consider data fresh for 30 seconds
+      gcTime: 300000, // Keep unused data in cache for 5 minutes
     },
   },
 });
