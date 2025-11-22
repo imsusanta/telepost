@@ -36,6 +36,21 @@ export function KeyboardShortcuts() {
       action: () => navigate("/dashboard/channels"),
     },
     {
+      key: "g t",
+      description: "Go to Stories",
+      action: () => navigate("/dashboard/stories"),
+    },
+    {
+      key: "g f",
+      description: "Go to Documents",
+      action: () => navigate("/dashboard/documents"),
+    },
+    {
+      key: "g q",
+      description: "Go to Question Bank",
+      action: () => navigate("/dashboard/question-bank"),
+    },
+    {
       key: "g s",
       description: "Go to Scheduler",
       action: () => navigate("/dashboard/scheduler"),
@@ -46,9 +61,9 @@ export function KeyboardShortcuts() {
       action: () => navigate("/dashboard/analytics"),
     },
     {
-      key: "g q",
-      description: "Go to Question Bank",
-      action: () => navigate("/dashboard/question-bank"),
+      key: "g e",
+      description: "Go to Settings",
+      action: () => navigate("/dashboard/settings"),
     },
     {
       key: "?",
