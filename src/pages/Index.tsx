@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Navigation } from "@/components/Navigation";
 import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
 import { QuizResults } from "@/components/QuizResults";
@@ -118,14 +119,17 @@ const Index = () => {
   return (
     <div className="min-h-screen w-full relative">
       {state === "landing" && (
-        <main>
-          <Hero onGetStarted={handleGetStarted} />
-          <HowItWorks />
-          <Features />
-          <FAQ />
-          <CTA onGetStarted={handleGetStarted} />
-          <Footer />
-        </main>
+        <>
+          <Navigation onGetStarted={handleGetStarted} />
+          <main>
+            <Hero onGetStarted={handleGetStarted} />
+            <HowItWorks />
+            <Features />
+            <FAQ />
+            <CTA onGetStarted={handleGetStarted} />
+            <Footer />
+          </main>
+        </>
       )}
 
       {state === "config" && (

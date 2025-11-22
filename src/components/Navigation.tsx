@@ -23,7 +23,7 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
       </a>
 
       <header role="banner">
-        <nav className="relative w-full bg-background/80 backdrop-blur-xl border-b border-border/50" aria-label="Main navigation">
+        <nav className="relative w-full bg-background/80 backdrop-blur-xl" aria-label="Main navigation">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-2">
@@ -81,7 +81,7 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
           </div>
 
           {mobileMenuOpen && (
-            <div id="mobile-menu" className="md:hidden bg-background border-t border-border/50">
+            <div id="mobile-menu" className="md:hidden bg-background">
               <div className="px-4 py-6 space-y-4">
                 <a
                   href="#features"

@@ -15,27 +15,18 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date().toISOString();
 
     // Fetch stories that are scheduled and due for posting
-    const { data: scheduledStories, error: fetchError } = await supabase
+    const { data: stories, error: fetchError } = await supabaseAdmin
       .from('telegram_stories')
       .select(`
-        story_id,
-        user_id,
-        channel_id,
-        media_type,
-        media_url,
-        caption,
-        text_overlay,
-        stickers,
-        duration_hours,
-        telegram_chat_id,
-        channels (
-          chat_id,
-          bot_token
+        *,
+        channels!telegram_stories_channel_id_fkey (
+          telegram_bot_token,
+          telegram_channel_id
         )
       `)
       .eq('status', 'scheduled')
@@ -44,10 +35,14 @@ serve(async (req) => {
       .limit(100);
 
     if (fetchError) {
-      throw new Error(`Failed to fetch scheduled stories: ${fetchError.message}`);
+      console.error('Error fetching scheduled stories:', fetchError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch scheduled stories' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (!scheduledStories || scheduledStories.length === 0) {
+    if (!stories || stories.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
@@ -58,21 +53,22 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${scheduledStories.length} scheduled stories...`);
+    console.log(`Processing ${stories.length} scheduled stories...`);
 
     let successCount = 0;
     let failedCount = 0;
     const results = [];
 
     // Process each scheduled story
-    for (const story of scheduledStories) {
+    for (const story of stories) {
       try {
-        const botToken = story.channels?.bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+        const channel = story.channels as any;
+        const botToken = channel?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
         if (!botToken) {
           throw new Error("Bot token not configured");
         }
 
-        const chatId = story.telegram_chat_id || story.channels?.chat_id;
+        const chatId = channel?.telegram_channel_id;
         if (!chatId) {
           throw new Error("Chat ID not configured");
         }
@@ -98,7 +94,6 @@ serve(async (req) => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.description || "Failed to send photo");
           messageId = data.result?.message_id?.toString();
-
         } else if (story.media_type === 'video') {
           const caption = buildCaption(story);
 
@@ -110,55 +105,25 @@ serve(async (req) => {
               video: story.media_url,
               caption: caption,
               parse_mode: "Markdown",
-              supports_streaming: true,
             }),
           });
 
           const data = await response.json();
           if (!response.ok) throw new Error(data.description || "Failed to send video");
           messageId = data.result?.message_id?.toString();
-
-        } else if (story.media_type === 'text') {
-          const textContent = buildTextStory(story);
-
-          const response = await fetch(`${baseUrl}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: textContent,
-              parse_mode: "Markdown",
-            }),
-          });
-
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.description || "Failed to send message");
-          messageId = data.result?.message_id?.toString();
         }
 
-        // Update story status to 'posted'
-        const postedAt = new Date().toISOString();
-        const expiresAt = new Date(Date.now() + (story.duration_hours || 24) * 60 * 60 * 1000).toISOString();
-
-        await supabase
+        // Update story status to posted
+        const { error: updateError } = await supabaseAdmin
           .from('telegram_stories')
           .update({
             status: 'posted',
-            posted_at: postedAt,
-            expires_at: expiresAt,
+            posted_at: new Date().toISOString(),
             telegram_message_id: messageId,
-            telegram_chat_id: chatId,
           })
           .eq('story_id', story.story_id);
 
-        // Log analytics
-        await supabase
-          .from('story_analytics')
-          .insert({
-            story_id: story.story_id,
-            event_type: 'view',
-            event_data: { posted_at: postedAt, chat_id: chatId, scheduled: true },
-          });
+        if (updateError) throw updateError;
 
         successCount++;
         results.push({
@@ -166,15 +131,12 @@ serve(async (req) => {
           status: 'success',
           message_id: messageId,
         });
-
-        console.log(`Successfully posted story ${story.story_id}`);
-
       } catch (error) {
-        failedCount++;
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Failed to process story ${story.story_id}:`, errorMessage);
 
-        // Update story status to 'failed'
-        await supabase
+        // Update story with error
+        await supabaseAdmin
           .from('telegram_stories')
           .update({
             status: 'failed',
@@ -182,30 +144,25 @@ serve(async (req) => {
           })
           .eq('story_id', story.story_id);
 
+        failedCount++;
         results.push({
           story_id: story.story_id,
           status: 'failed',
           error: errorMessage,
         });
-
-        console.error(`Failed to post story ${story.story_id}:`, errorMessage);
       }
     }
-
-    console.log(`Processed ${scheduledStories.length} stories: ${successCount} succeeded, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${scheduledStories.length} scheduled stories`,
-        processed: scheduledStories.length,
-        succeeded: successCount,
+        processed: stories.length,
+        successful: successCount,
         failed: failedCount,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
     console.error("Error processing scheduled stories:", error);
     return new Response(
@@ -217,52 +174,18 @@ serve(async (req) => {
   }
 });
 
-// Helper functions (same as in send-telegram-story)
 function buildCaption(story: any): string {
   let caption = story.caption || "";
-
-  if (story.text_overlay && Array.isArray(story.text_overlay) && story.text_overlay.length > 0) {
+  
+  if (story.text_overlay && Array.isArray(story.text_overlay)) {
     const overlayTexts = story.text_overlay
       .map((overlay: any) => overlay.text)
-      .filter((text: string) => text && text.trim() !== "");
-
-    if (overlayTexts.length > 0) {
-      caption = overlayTexts.join("\n") + (caption ? "\n\n" + caption : "");
+      .filter(Boolean)
+      .join("\n");
+    if (overlayTexts) {
+      caption = caption ? `${caption}\n\n${overlayTexts}` : overlayTexts;
     }
   }
-
-  return caption || "📸 New Story";
-}
-
-function buildTextStory(story: any): string {
-  let content = "";
-
-  if (story.text_overlay && Array.isArray(story.text_overlay) && story.text_overlay.length > 0) {
-    const overlayTexts = story.text_overlay.map((overlay: any) => {
-      let formattedText = overlay.text;
-      if (overlay.fontWeight === 'bold') {
-        formattedText = `*${formattedText}*`;
-      }
-      return formattedText;
-    });
-
-    content = overlayTexts.join("\n\n");
-  }
-
-  if (story.caption) {
-    content += content ? "\n\n" + story.caption : story.caption;
-  }
-
-  if (story.stickers && Array.isArray(story.stickers) && story.stickers.length > 0) {
-    const emojiString = story.stickers
-      .filter((s: any) => s.emoji)
-      .map((s: any) => s.emoji)
-      .join(" ");
-
-    if (emojiString) {
-      content += "\n\n" + emojiString;
-    }
-  }
-
-  return content || "📢 New Announcement";
+  
+  return caption;
 }

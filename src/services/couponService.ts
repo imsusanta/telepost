@@ -54,7 +54,7 @@ export async function getAllCoupons(): Promise<Coupon[]> {
     throw new Error(error.message);
   }
 
-  return data || [];
+  return (data || []) as Coupon[];
 }
 
 /**
@@ -93,7 +93,7 @@ export async function createCoupon(couponData: {
     throw new Error(error.message);
   }
 
-  return data;
+  return data as Coupon;
 }
 
 /**
@@ -115,7 +115,7 @@ export async function updateCoupon(
     throw new Error(error.message);
   }
 
-  return data;
+  return data as Coupon;
 }
 
 /**
