@@ -3,7 +3,6 @@ import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
 import { QuizResults } from "@/components/QuizResults";
 import { TelegramShare } from "@/components/TelegramShare";
-import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
@@ -118,8 +117,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen w-full relative">
-      <Navigation onGetStarted={handleGetStarted} />
-
       {state === "landing" && (
         <main>
           <Hero onGetStarted={handleGetStarted} />
