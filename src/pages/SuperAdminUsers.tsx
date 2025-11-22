@@ -5,14 +5,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import {
   getPaginatedUsers,
   updateUserSubscription,
   updateUserStatus,
   type UserWithSubscription,
-  type PaginatedUsersResponse,
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
 import { SubscriptionService } from '@/services/subscriptionService';

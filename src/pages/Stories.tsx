@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Calendar, CheckCircle2, Clock, Eye, ImageIcon, Loader2, Plus, Sparkles, Star, Trash2, Type, VideoIcon, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PageHeader } from "@/components/PageHeader";
 import { TelegramStoryEditor } from "@/components/TelegramStoryEditor";
 import { StoryAnalytics } from "@/components/StoryAnalytics";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -259,7 +258,7 @@ export default function Stories() {
           </div>
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            {story.duration_seconds ? Math.floor(story.duration_seconds / 3600) : 24}h
+            {story.duration_hours || 24}h
           </div>
         </div>
 

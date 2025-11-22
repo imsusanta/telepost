@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Image, Loader2, Type, Video } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StoryService, StoryTemplate } from "@/services/storyService";
@@ -111,8 +110,8 @@ export const StoryTemplateSelector: React.FC<StoryTemplateSelectorProps> = ({
       <Tabs value={activeCategory} onValueChange={setActiveCategory}>
         <TabsList>
           {categories.map((category) => (
-            <TabsTrigger key={category} value={category} className="capitalize">
-              {category}
+            <TabsTrigger key={category || 'null'} value={category || ''} className="capitalize">
+              {category || 'uncategorized'}
             </TabsTrigger>
           ))}
         </TabsList>

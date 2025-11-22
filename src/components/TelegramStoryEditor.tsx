@@ -61,7 +61,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [createdStoryId, setCreatedStoryId] = useState<string | null>(null);
+  const [_createdStoryId, setCreatedStoryId] = useState<string | null>(null);
 
   // Update chat ID when channel is selected
   useEffect(() => {

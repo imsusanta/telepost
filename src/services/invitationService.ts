@@ -29,7 +29,7 @@ export async function isAdmin(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
+    const { data, error } = await supabase.rpc('is_admin', { p_user_id: user.id });
 
     if (error) {
       console.error('Error checking admin status:', error);
@@ -54,7 +54,7 @@ export async function getAllInvitationCodes(): Promise<InvitationCode[]> {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as InvitationCode[];
   } catch (error: any) {
     throw new Error(error.message || 'Failed to fetch invitation codes');
   }
@@ -72,19 +72,31 @@ export async function generateInvitationCode(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase.rpc('generate_invitation_code', {
-      p_created_by: user.id,
-      p_max_uses: maxUses,
-      p_expires_in_days: expiresInDays,
-      p_metadata: metadata
-    });
+    // Generate a random code
+    const code = generateRandomCode(12);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    // Insert directly into the table
+    const { data, error } = await supabase
+      .from('invitation_codes')
+      .insert({
+        code: code,
+        created_by: user.id,
+        max_uses: maxUses,
+        expires_at: expiresAt.toISOString(),
+        metadata: metadata,
+        is_active: true
+      })
+      .select('id, code')
+      .single();
 
     if (error) throw error;
-    if (!data || data.length === 0) throw new Error('Failed to generate invitation code');
+    if (!data) throw new Error('Failed to generate invitation code');
 
     return {
-      code: data[0].code,
-      code_id: data[0].code_id
+      code: data.code,
+      code_id: data.id
     };
   } catch (error: any) {
     throw new Error(error.message || 'Failed to generate invitation code');
@@ -101,7 +113,7 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
     });
 
     if (error) throw error;
-    if (!data || data.length === 0) {
+    if (!data || (Array.isArray(data) && data.length === 0)) {
       return {
         is_valid: false,
         message: 'Invalid invitation code',
@@ -109,7 +121,12 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
       };
     }
 
-    return data[0];
+    const result = Array.isArray(data) ? data[0] : data;
+    return {
+      is_valid: result.is_valid || false,
+      message: result.message || '',
+      code_id: result.code_id || null
+    };
   } catch (error: any) {
     throw new Error(error.message || 'Failed to validate invitation code');
   }
@@ -205,7 +222,7 @@ export async function createInvitationCodeBatch(
         .single();
 
       if (error) throw error;
-      if (data) codes.push(data);
+      if (data) codes.push(data as InvitationCode);
     }
 
     return codes;
