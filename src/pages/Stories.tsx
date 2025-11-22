@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, CheckCircle2, Clock, Eye, ImageIcon, Loader2, Plus, Sparkles, Star, Trash2, Type, VideoIcon, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
@@ -97,7 +97,7 @@ export default function Stories() {
     }
   };
 
-  const handleStoryCreated = (storyId: string) => {
+  const handleStoryCreated = () => {
     setShowEditor(false);
     if (userId) {
       loadStories(userId);
@@ -255,11 +255,11 @@ export default function Stories() {
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Eye className="h-4 w-4" />
-            {story.views_count}
+            {story.view_count || 0}
           </div>
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            {story.duration_hours}h
+            {story.duration_seconds ? Math.floor(story.duration_seconds / 3600) : 24}h
           </div>
         </div>
 
@@ -325,10 +325,11 @@ export default function Stories() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <PageHeader
-          title="Telegram Stories"
-          description="Create and manage engaging stories for your Telegram channels"
-        >
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Telegram Stories</h1>
+            <p className="text-muted-foreground">Create and manage engaging stories for your Telegram channels</p>
+          </div>
           <Button onClick={() => setShowEditor(!showEditor)}>
             {showEditor ? (
               <>View Stories</>
@@ -339,7 +340,7 @@ export default function Stories() {
               </>
             )}
           </Button>
-        </PageHeader>
+        </div>
 
         {showEditor ? (
           <TelegramStoryEditor
