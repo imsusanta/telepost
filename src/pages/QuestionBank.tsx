@@ -392,14 +392,14 @@ export default function QuestionBank() {
           {/* AI Generate Tab */}
           <TabsContent value="ai-generate" className="space-y-6 mt-6">
             <AIQuestionGenerator
-              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+              onQuestionsGenerated={handleQuestionsGenerated}
             />
           </TabsContent>
 
           {/* PDF Generate Tab */}
           <TabsContent value="pdf-generate" className="space-y-6 mt-6">
             <PDFQuestionGenerator
-              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+              onQuestionsGenerated={handleQuestionsGenerated}
             />
           </TabsContent>
         </Tabs>

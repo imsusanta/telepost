@@ -123,10 +123,9 @@ export function QuestionSelectionDialog({
           topic: topic.trim(),
           difficulty: difficulty as "easy" | "medium" | "hard",
           language: language as "bn" | "en" | "hi",
-          source: "ai_generated",
+          source: "ai_generated" as const,
           is_public: makePublic,
           is_active: true,
-          user_id: user.id,
         };
       });
 
