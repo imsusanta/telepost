@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.unstable"]
+  },
+  "imports": {
+    "pdf-parse": "npm:pdf-parse@1.1.1"
+  }
+}

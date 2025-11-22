@@ -102,9 +102,11 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
       const processedDoc = await waitForDocumentProcessing(document.id);
 
-      if (!processedDoc.extracted_text) {
-        throw new Error("Could not extract text from PDF");
+      if (!processedDoc.extracted_text || processedDoc.extracted_text.length < 50) {
+        throw new Error("Could not extract enough text from PDF. The PDF might be image-based, encrypted, or empty. Please try a different PDF with selectable text.");
       }
+
+      console.log(`Extracted ${processedDoc.extracted_text.length} characters from PDF`);
 
       setIsProcessing(false);
 
@@ -152,9 +154,9 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
     }
   };
 
-  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 30): Promise<any> => {
+  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 60): Promise<any> => {
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
 
       const doc = await DocumentService.getDocument(documentId);
 
@@ -166,10 +168,18 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         throw new Error(doc.processing_error || "Document processing failed");
       }
 
+      // Update progress every 5 attempts (15 seconds)
+      if (i > 0 && i % 5 === 0) {
+        toast({
+          title: "Still Processing",
+          description: `Processing PDF... (${Math.round((i / maxAttempts) * 100)}% timeout)`,
+        });
+      }
+
       // Still processing, continue polling
     }
 
-    throw new Error("Document processing timed out");
+    throw new Error("Document processing timed out after 3 minutes. Please try a smaller PDF or try again later.");
   };
 
   const isLoading = isUploading || isProcessing || isGenerating;

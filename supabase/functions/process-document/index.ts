@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import pdfParse from "pdf-parse";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,20 +38,45 @@ serve(async (req) => {
       throw new Error(`Failed to download PDF: ${downloadError.message}`);
     }
 
-    // For PDF text extraction, we'll use AI to analyze the content
-    // This is a simplified version - in production you'd want proper PDF parsing
-    let extractedText = "PDF content requires external processing";
+    if (!fileData) {
+      throw new Error("No file data received");
+    }
+
+    // Convert blob to buffer for pdf-parse
+    const arrayBuffer = await fileData.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    // Extract text from PDF
+    let extractedText = "";
     let pageCount = 1;
-    
-    // Basic placeholder extraction
-    extractedText = "Document uploaded and ready for processing";
+
+    try {
+      const pdfData = await pdfParse(buffer);
+      extractedText = pdfData.text;
+      pageCount = pdfData.numpages;
+
+      // Clean up the extracted text
+      extractedText = extractedText.trim();
+
+      if (!extractedText || extractedText.length < 10) {
+        throw new Error("No text could be extracted from the PDF. The PDF might be image-based or encrypted.");
+      }
+
+      console.log(`Extracted ${extractedText.length} characters from ${pageCount} pages`);
+    } catch (error) {
+      console.error("PDF parsing error:", error);
+      throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
 
     // Use AI to generate summary and topics
     let aiSummary = "";
     let topics: string[] = [];
 
-    if (LOVABLE_API_KEY) {
+    if (LOVABLE_API_KEY && extractedText.length > 0) {
       try {
+        // Limit text for AI analysis to first 5000 characters
+        const textForAnalysis = extractedText.substring(0, 5000);
+
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -62,11 +88,11 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: "You are a document analyzer. Provide a brief summary and list of topics.",
+                content: "You are a document analyzer. Analyze the document and respond in JSON format with 'summary' (2-3 sentences) and 'topics' (array of 3-5 main topics).",
               },
               {
                 role: "user",
-                content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (JSON array)\n\nDocument content:\n${extractedText.substring(0, 1000)}`,
+                content: `Analyze this document content and provide a JSON response:\n\n${textForAnalysis}`,
               },
             ],
             temperature: 0.3,
@@ -77,15 +103,25 @@ serve(async (req) => {
           const aiData = await aiResponse.json();
           const content = aiData.choices?.[0]?.message?.content || "";
 
-          // Parse the response (simplified - would need better parsing in production)
-          aiSummary = content.split('\n').slice(0, 3).join(' ');
-          topics = ["General", "Document Analysis"]; // Simplified
+          // Try to parse JSON response
+          try {
+            const parsed = JSON.parse(content);
+            aiSummary = parsed.summary || content.substring(0, 200);
+            topics = Array.isArray(parsed.topics) ? parsed.topics : [];
+          } catch {
+            // If not JSON, use the content as summary
+            aiSummary = content.split('\n').slice(0, 3).join(' ').substring(0, 200);
+            topics = ["Document Analysis"];
+          }
         }
       } catch (error) {
         console.error("AI analysis failed:", error);
-        aiSummary = "AI analysis unavailable";
+        aiSummary = `Document contains ${pageCount} pages with ${extractedText.length} characters of text.`;
         topics = ["General"];
       }
+    } else {
+      aiSummary = `Document processed: ${pageCount} pages, ${extractedText.length} characters`;
+      topics = ["General"];
     }
 
     return new Response(
