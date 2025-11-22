@@ -23,11 +23,11 @@ const steps = [
 
 export const HowItWorks = () => {
   return (
-    <section id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
+    <section id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30" aria-labelledby="how-it-works-heading">
       <div className="max-w-5xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <h2 id="how-it-works-heading" className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             How it works
           </h2>
           <p className="text-lg text-muted-foreground">
@@ -36,10 +36,13 @@ export const HowItWorks = () => {
         </div>
 
         {/* Steps */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 list-none">
           {steps.map((step, idx) => (
-            <div key={idx} className="text-center">
-              <div className="w-12 h-12 bg-foreground text-background rounded-full flex items-center justify-center mx-auto mb-4 text-lg font-semibold">
+            <li key={idx} className="text-center">
+              <div
+                className="w-12 h-12 bg-foreground text-background rounded-full flex items-center justify-center mx-auto mb-4 text-lg font-semibold"
+                aria-label={`Step ${step.number}`}
+              >
                 {step.number}
               </div>
               <h3 className="text-base font-semibold mb-2 text-foreground">
@@ -48,9 +51,9 @@ export const HowItWorks = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {step.description}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

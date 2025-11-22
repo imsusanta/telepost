@@ -31,41 +31,58 @@ export const FAQ = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent, index: number) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleFAQ(index);
+    }
+  };
+
   return (
-    <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
+    <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30" aria-labelledby="faq-heading">
       <div className="max-w-2xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <h2 id="faq-heading" className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Frequently asked questions
           </h2>
         </div>
 
         {/* FAQ accordion */}
-        <div className="space-y-2">
+        <div className="space-y-2" role="list">
           {faqs.map((faq, idx) => (
             <div
               key={idx}
               className="border-b border-border"
+              role="listitem"
             >
-              <button
-                onClick={() => toggleFAQ(idx)}
-                className="w-full flex items-center justify-between py-4 text-left"
-                aria-expanded={openIndex === idx}
-              >
-                <span className="font-medium text-foreground pr-4">{faq.question}</span>
-                <ChevronDown
-                  className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
-                    openIndex === idx ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
+              <h3>
+                <button
+                  onClick={() => toggleFAQ(idx)}
+                  onKeyDown={(e) => handleKeyDown(e, idx)}
+                  className="w-full flex items-center justify-between py-4 text-left hover:bg-muted/50 transition-colors rounded-sm px-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-expanded={openIndex === idx}
+                  aria-controls={`faq-answer-${idx}`}
+                  id={`faq-question-${idx}`}
+                >
+                  <span className="font-medium text-foreground pr-4">{faq.question}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
+                      openIndex === idx ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </h3>
               <div
+                id={`faq-answer-${idx}`}
+                role="region"
+                aria-labelledby={`faq-question-${idx}`}
                 className={`overflow-hidden transition-all duration-200 ${
                   openIndex === idx ? 'max-h-48 pb-4' : 'max-h-0'
                 }`}
               >
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed px-2">
                   {faq.answer}
                 </p>
               </div>

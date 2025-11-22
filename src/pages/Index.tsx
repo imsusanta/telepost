@@ -121,18 +121,18 @@ const Index = () => {
       <Navigation onGetStarted={handleGetStarted} />
 
       {state === "landing" && (
-        <>
+        <main>
           <Hero onGetStarted={handleGetStarted} />
           <HowItWorks />
           <Features />
           <FAQ />
           <CTA onGetStarted={handleGetStarted} />
           <Footer />
-        </>
+        </main>
       )}
 
       {state === "config" && (
-        <div className="min-h-screen pt-24 pb-12 px-4">
+        <div className="min-h-screen pt-8 pb-12 px-4">
           <div className="max-w-4xl mx-auto">
             <div className="clay-card bg-card/50 backdrop-blur-sm p-8 animate-scale-in">
               <h2 className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent mb-2 text-center">
@@ -171,7 +171,7 @@ const Index = () => {
       )}
 
       {state === "quiz" && quiz && (
-        <div className="min-h-screen flex flex-col items-center gap-6 p-4 pt-24">
+        <div className="min-h-screen flex flex-col items-center gap-6 p-4 pt-8">
           <div className="w-full max-w-3xl flex justify-between items-center">
             <Button
               onClick={handleNewQuiz}
@@ -216,7 +216,7 @@ const Index = () => {
       )}
 
       {state === "results" && quiz && (
-        <div className="min-h-screen flex items-center justify-center p-4 pt-24">
+        <div className="min-h-screen flex items-center justify-center p-4 pt-8">
           <QuizResults
             score={score}
             totalQuestions={quiz.questions.length}
