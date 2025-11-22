@@ -35,11 +35,11 @@ const features = [
 
 export const Features = () => {
   return (
-    <section id="features" className="py-24 px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-24 px-4 sm:px-6 lg:px-8" aria-labelledby="features-heading">
       <div className="max-w-5xl mx-auto">
         {/* Section header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+          <h2 id="features-heading" className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Everything you need
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -48,13 +48,13 @@ export const Features = () => {
         </div>
 
         {/* Features grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 list-none">
           {features.map((feature, idx) => (
-            <div
+            <li
               key={idx}
               className="group"
             >
-              <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center mb-4 group-hover:bg-foreground transition-colors">
+              <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center mb-4 group-hover:bg-foreground transition-colors" aria-hidden="true">
                 <feature.icon className="w-5 h-5 text-foreground group-hover:text-background transition-colors" />
               </div>
               <h3 className="text-base font-semibold mb-2 text-foreground">
@@ -63,9 +63,9 @@ export const Features = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {feature.description}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );
