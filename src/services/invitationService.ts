@@ -193,6 +193,49 @@ export function generateRandomCode(length: number = 12): string {
 }
 
 /**
+ * Create a custom invitation code with a specific code string (admin only)
+ */
+export async function createCustomInvitationCode(
+  customCode: string,
+  maxUses: number = 1,
+  expiresInDays: number | null = null,
+  metadata: any = {}
+): Promise<{ code: string; code_id: string; success: boolean; message: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase.rpc('create_custom_invitation_code', {
+      p_code: customCode,
+      p_created_by: user.id,
+      p_max_uses: maxUses,
+      p_expires_in_days: expiresInDays,
+      p_metadata: metadata
+    });
+
+    if (error) throw error;
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      throw new Error('Failed to create custom invitation code');
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to create custom invitation code');
+    }
+
+    return {
+      code: result.code,
+      code_id: result.code_id,
+      success: result.success,
+      message: result.message
+    };
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to create custom invitation code');
+  }
+}
+
+/**
  * Create a batch of invitation codes
  */
 export async function createInvitationCodeBatch(
