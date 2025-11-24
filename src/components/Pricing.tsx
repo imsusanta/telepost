@@ -10,7 +10,7 @@ export const Pricing = ({ onGetStarted }: PricingProps) => {
   const plans = [
     {
       name: "Basic",
-      price: "$29",
+      price: "$499",
       period: "/month",
       description: "Perfect for small coaching classes",
       features: [
@@ -27,7 +27,7 @@ export const Pricing = ({ onGetStarted }: PricingProps) => {
     },
     {
       name: "Pro",
-      price: "$99",
+      price: "$999",
       period: "/month",
       description: "Best for coaching institutes",
       features: [
