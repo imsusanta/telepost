@@ -83,10 +83,10 @@ export default function Auth() {
   const passwordStrength = getPasswordStrength(password);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
-    // Invitation code is now optional - if empty, skip validation
+    // Invitation code is REQUIRED
     if (!code || code.trim().length === 0) {
-      setInvitationError("");
-      return true;
+      setInvitationError("Invitation code is required");
+      return false;
     }
 
     try {
@@ -378,16 +378,20 @@ export default function Auth() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-5">
                   <div className="space-y-2.5">
-                    <Label htmlFor="signup-invitation" className="text-foreground font-semibold">Invitation Code (Optional)</Label>
+                    <Label htmlFor="signup-invitation" className="text-foreground font-semibold flex items-center gap-2">
+                      Invitation Code <span className="text-destructive">*</span>
+                      <Shield className="w-4 h-4 text-primary" />
+                    </Label>
                     <Input
                       id="signup-invitation"
                       type="text"
-                      placeholder="Enter your invitation code (optional)"
+                      placeholder="Enter your invitation code"
                       value={invitationCode}
                       onChange={(e) => {
                         setInvitationCode(e.target.value.toUpperCase());
                         setInvitationError("");
                       }}
+                      required
                       aria-invalid={!!invitationError}
                       aria-describedby={invitationError ? "signup-invitation-error" : undefined}
                       className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${invitationError ? "border-destructive" : ""}`}
@@ -399,7 +403,7 @@ export default function Auth() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Enter an invitation code for special benefits, or sign up without one.
+                      This is an invitation-only platform. Contact an admin for access.
                     </p>
                   </div>
                   <div className="space-y-2.5">

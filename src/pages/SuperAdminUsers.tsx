@@ -389,8 +389,9 @@ export default function SuperAdminUsers() {
                             }
                             size="sm"
                             onClick={() =>
-                              handleToggleUserStatus(user.id, user.status)
+                              user.id && user.status && handleToggleUserStatus(user.id, user.status)
                             }
+                            disabled={!user.id || !user.status}
                           >
                             {user.status === 'active' ? (
                               <>

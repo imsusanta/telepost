@@ -133,7 +133,7 @@ export async function getPaginatedUsers(
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile,
+      ...profile as any, // Type assertion for telegram_bot_token removal
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -223,7 +223,7 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile,
+      ...profile as any, // Type assertion for telegram_bot_token removal
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -471,7 +471,7 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
   }
 
   return (data || []).map(profile => ({
-    ...profile,
+    ...profile as any, // Type assertion for telegram_bot_token removal
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
@@ -520,7 +520,7 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
     .single();
 
   return {
-    ...profile,
+    ...profile as any, // Type assertion for telegram_bot_token removal
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
