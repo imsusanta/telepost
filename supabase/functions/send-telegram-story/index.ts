@@ -46,8 +46,8 @@ serve(async (req) => {
       .select(`
         *,
         channels (
-          chat_id,
-          bot_token
+          telegram_channel_id,
+          telegram_bot_token
         )
       `)
       .eq('story_id', storyId)
@@ -67,14 +67,19 @@ serve(async (req) => {
     }
 
     // Get bot token (from channel or environment)
-    const botToken = story.channels?.bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+    const botToken = story.channels?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!botToken) {
-      throw new Error("Bot token not configured");
+      throw new Error("Bot token not configured. Please add a bot token to your channel settings.");
     }
 
-    const chatId = story.telegram_chat_id || story.channels?.chat_id;
+    const chatId = story.channels?.telegram_channel_id;
     if (!chatId) {
-      throw new Error("Chat ID not configured");
+      throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
+    }
+
+    // Validate chat ID format for private channels
+    if (!chatId.startsWith('@') && !chatId.startsWith('-')) {
+      throw new Error(`Invalid chat ID format: "${chatId}". For private channels use: -100xxxxxxxxxx, for public channels use: @channelname`);
     }
 
     const baseUrl = `https://api.telegram.org/bot${botToken}`;
@@ -294,9 +299,9 @@ function buildTextStory(story: any): string {
 // Helper function to handle Telegram API errors
 function handleTelegramError(errorData: any): string {
   if (errorData.error_code === 403) {
-    return `Bot Access Error: Your bot is not a member of this chat. Please add your bot as an Administrator with 'Post Messages' permission.`;
+    return `Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open your Telegram channel\n2. Add your bot as an Administrator\n3. Grant 'Post Messages' permission\n4. Try posting again`;
   } else if (errorData.error_code === 400 && errorData.description?.includes('chat not found')) {
-    return `Chat Not Found: The chat ID doesn't exist or is incorrect. Use the correct format: @channelname or -100xxxxxxxxxx`;
+    return `Chat Not Found: The chat ID is incorrect. For private channels:\n1. Forward a message from your channel to @userinfobot\n2. Copy the channel ID (starts with -100)\n3. Update your channel settings with the correct ID`;
   } else if (errorData.error_code === 400 && errorData.description?.includes('wrong file identifier')) {
     return `Invalid Media URL: The media file URL is invalid or expired. Please re-upload the media.`;
   }
