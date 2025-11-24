@@ -139,7 +139,7 @@ export class StoryService {
 
     const { data, error } = await supabase
       .from("telegram_stories")
-      .insert({
+      .insert([{
         user_id: userId,
         channel_id: storyData.channel_id,
         media_type: storyData.media_type,
@@ -149,12 +149,12 @@ export class StoryService {
         background_color: storyData.background_color,
         template_id: storyData.template_id,
         stickers: storyData.stickers as any || [],
-        duration_hours: storyData.duration_hours || 24,
+        duration_hours: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
         telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
         is_highlight: storyData.is_highlight || false,
         status: storyData.scheduled_time ? "scheduled" : "draft",
-      })
+      }])
       .select()
       .single();
 
@@ -332,9 +332,21 @@ export class StoryService {
 
     if (error) throw error;
     return (data || []).map(template => ({
-      ...template,
+      template_id: template.id,
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      media_type: template.media_type as "image" | "video" | "text",
+      background_color: template.background_color,
+      background_image_url: template.template_media_url,
       default_text_overlay: (template.default_text_overlay as any) || [],
-      default_stickers: (template.default_stickers as any) || []
+      default_stickers: (template.default_stickers as any) || [],
+      preview_url: template.template_media_url,
+      is_public: template.is_public ?? true,
+      created_by: template.created_by,
+      usage_count: template.usage_count ?? 0,
+      created_at: template.created_at ?? '',
+      updated_at: template.updated_at ?? ''
     })) as StoryTemplate[];
   }
 
@@ -363,7 +375,7 @@ export class StoryService {
 
     // Create story with template defaults
     return this.createStory(userId, {
-      media_type: template.media_type,
+      media_type: template.media_type as "image" | "video" | "text",
       background_color: template.background_color || undefined,
       text_overlay: (template.default_text_overlay as any) || [],
       stickers: (template.default_stickers as any) || [],

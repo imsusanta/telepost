@@ -9,20 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { Tables } from "@/integrations/supabase/types";
-
-type Profile = Tables<"profiles">;
-
-interface DashboardStats {
-  totalQuizzes: number;
-  scheduledPosts: number;
-  pendingPosts: number;
-  totalViews: number;
-  totalDocuments: number;
-  totalQuestions: number;
-  connectedBots: number;
-  totalChannels: number;
-}
 
 // Animated counter component for smooth number transitions
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {

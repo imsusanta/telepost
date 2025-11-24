@@ -18,7 +18,14 @@ export interface InvitationCode {
 export interface ValidationResult {
   is_valid: boolean;
   message: string;
-  code_id: string | null;
+  code_id?: string | null;
+}
+
+export interface CustomInvitationCodeResult {
+  success: boolean;
+  message: string;
+  code?: string;
+  code_id?: string;
 }
 
 /**
@@ -125,7 +132,7 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
     return {
       is_valid: result.is_valid || false,
       message: result.message || '',
-      code_id: result.code_id || null
+      code_id: (result as any).code_id || null
     };
   } catch (error: any) {
     throw new Error(error.message || 'Failed to validate invitation code');
@@ -205,7 +212,8 @@ export async function createCustomInvitationCode(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase.rpc('create_custom_invitation_code', {
+    // Type assertion needed as this RPC function may not be in generated types
+    const { data, error } = await (supabase.rpc as any)('create_custom_invitation_code', {
       p_code: customCode,
       p_created_by: user.id,
       p_max_uses: maxUses,
@@ -218,15 +226,15 @@ export async function createCustomInvitationCode(
       throw new Error('Failed to create custom invitation code');
     }
 
-    const result = Array.isArray(data) ? data[0] : data;
+    const result: CustomInvitationCodeResult = Array.isArray(data) ? data[0] : data;
 
     if (!result.success) {
       throw new Error(result.message || 'Failed to create custom invitation code');
     }
 
     return {
-      code: result.code,
-      code_id: result.code_id,
+      code: result.code || '',
+      code_id: result.code_id || '',
       success: result.success,
       message: result.message
     };
