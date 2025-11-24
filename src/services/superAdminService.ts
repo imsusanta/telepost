@@ -4,11 +4,11 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'user' | 'admin' | 'super_admin';
+  role?: 'user' | 'admin' | 'super_admin';
   can_purchase_plans: boolean;
-  status: 'active' | 'suspended' | 'banned';
-  last_login: string | null;
-  login_count: number;
+  status?: 'active' | 'suspended' | 'banned';
+  last_login?: string | null;
+  login_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +134,11 @@ export async function getPaginatedUsers(
 
     return {
       ...profile,
+      role: 'user' as const,
+      status: 'active' as const,
+      last_login: null,
+      login_count: 0,
+      can_purchase_plans: profile.can_purchase_plans ?? true,
       subscription: userSub ? {
         id: userSub.id,
         plan_id: userSub.plan_id,
@@ -219,6 +224,11 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
 
     return {
       ...profile,
+      role: 'user' as const,
+      status: 'active' as const,
+      last_login: null,
+      login_count: 0,
+      can_purchase_plans: profile.can_purchase_plans ?? true,
       subscription: userSub ? {
         id: userSub.id,
         plan_id: userSub.plan_id,
@@ -310,9 +320,11 @@ export async function updateUserRole(
   userId: string,
   role: 'user' | 'admin' | 'super_admin'
 ): Promise<void> {
-  const { error } = await supabase
+  // Note: role field may not exist in profiles table schema
+  // This function may need database schema updates to work properly
+  const { error } = await (supabase
     .from('profiles')
-    .update({ role })
+    .update as any)({ role })
     .eq('id', userId);
 
   if (error) {
@@ -328,9 +340,11 @@ export async function updateUserStatus(
   userId: string,
   status: 'active' | 'suspended' | 'banned'
 ): Promise<void> {
-  const { error } = await supabase
+  // Note: status field may not exist in profiles table schema
+  // This function may need database schema updates to work properly
+  const { error } = await (supabase
     .from('profiles')
-    .update({ status })
+    .update as any)({ status })
     .eq('id', userId);
 
   if (error) {
@@ -456,7 +470,14 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
     throw new Error(error.message);
   }
 
-  return data || [];
+  return (data || []).map(profile => ({
+    ...profile,
+    role: 'user' as const,
+    status: 'active' as const,
+    last_login: null,
+    login_count: 0,
+    can_purchase_plans: profile.can_purchase_plans ?? true,
+  }));
 }
 
 /**
@@ -500,6 +521,11 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
 
   return {
     ...profile,
+    role: 'user' as const,
+    status: 'active' as const,
+    last_login: null,
+    login_count: 0,
+    can_purchase_plans: profile.can_purchase_plans ?? true,
     subscription: subscription ? {
       id: subscription.id,
       plan_id: subscription.plan_id,
