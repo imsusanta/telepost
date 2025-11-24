@@ -37,7 +37,6 @@ export default function Channels() {
     name: "",
     description: "",
     telegram_channel_id: "",
-    telegram_bot_token: "",
   });
 
   const loadChannels = useCallback(async () => {
@@ -105,16 +104,15 @@ export default function Channels() {
       name: "",
       description: "",
       telegram_channel_id: "",
-      telegram_bot_token: "",
     });
     setConnectionTestResult(null);
   };
 
   const handleTestConnection = async () => {
-    if (!newChannel.telegram_bot_token || !newChannel.telegram_channel_id) {
+    if (!newChannel.telegram_channel_id) {
       toast({
-        title: "Missing credentials",
-        description: "Please enter both bot token and channel ID to test connection",
+        title: "Missing chat ID",
+        description: "Please enter the Telegram channel/chat ID to test connection",
         variant: "destructive",
       });
       return;
@@ -125,7 +123,6 @@ export default function Channels() {
 
     try {
       const result = await ChannelService.testTelegramConnection(
-        newChannel.telegram_bot_token,
         newChannel.telegram_channel_id
       );
       setConnectionTestResult(result);
@@ -156,10 +153,10 @@ export default function Channels() {
   };
 
   const handleTestConnectionForEdit = async () => {
-    if (!selectedChannel?.telegram_bot_token || !selectedChannel?.telegram_channel_id) {
+    if (!selectedChannel?.telegram_channel_id) {
       toast({
-        title: "Missing credentials",
-        description: "Please enter both bot token and channel ID to test connection",
+        title: "Missing chat ID",
+        description: "Please enter the Telegram channel/chat ID to test connection",
         variant: "destructive",
       });
       return;
@@ -169,7 +166,6 @@ export default function Channels() {
 
     try {
       const result = await ChannelService.testTelegramConnection(
-        selectedChannel.telegram_bot_token,
         selectedChannel.telegram_channel_id
       );
 
@@ -229,7 +225,6 @@ export default function Channels() {
 
       await ChannelService.updateChannel(channel.id, user.id, {
         telegram_channel_id: channel.telegram_channel_id || undefined,
-        telegram_bot_token: channel.telegram_bot_token || undefined,
         settings: channel.settings,
       });
 
@@ -264,7 +259,7 @@ export default function Channels() {
   }, []);
 
   const handleManualGeneration = async (channel: Channel) => {
-    if (!channel.telegram_channel_id || !channel.telegram_bot_token) {
+    if (!channel.telegram_channel_id) {
       toast({
         title: "Error",
         description: "Please configure Telegram credentials first",
@@ -442,25 +437,18 @@ export default function Channels() {
                   onChange={(e) => setNewChannel({ ...newChannel, telegram_channel_id: e.target.value })}
                   placeholder="@mychannel or -1001234567890"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  🔒 Bot token is configured server-side for security
+                </p>
               </div>
-              <div>
-                <Label htmlFor="telegram_bot_token">Telegram Bot Token (Optional)</Label>
-                <Input
-                  id="telegram_bot_token"
-                  type="password"
-                  value={newChannel.telegram_bot_token}
-                  onChange={(e) => setNewChannel({ ...newChannel, telegram_bot_token: e.target.value })}
-                  placeholder="123456:ABC-DEF..."
-                />
-              </div>
-              {(newChannel.telegram_channel_id || newChannel.telegram_bot_token) && (
+              {newChannel.telegram_channel_id && (
                 <div className="space-y-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleTestConnection}
-                    disabled={isTestingConnection || !newChannel.telegram_channel_id || !newChannel.telegram_bot_token}
+                    disabled={isTestingConnection || !newChannel.telegram_channel_id}
                     className="w-full"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
@@ -600,11 +588,11 @@ export default function Channels() {
                 )}
 
                 {/* Warning if missing configuration */}
-                {channel.settings.auto_generate_quizzes && (!channel.telegram_channel_id || !channel.telegram_bot_token) && (
+                {channel.settings.auto_generate_quizzes && !channel.telegram_channel_id && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Missing Telegram credentials
+                      Missing Telegram channel ID
                     </AlertDescription>
                   </Alert>
                 )}
@@ -652,28 +640,13 @@ export default function Channels() {
                       placeholder="@mychannel or -1001234567890"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="edit-telegram-bot-token">Telegram Bot Token</Label>
-                    <Input
-                      id="edit-telegram-bot-token"
-                      type="password"
-                      value={selectedChannel.telegram_bot_token || ""}
-                      onChange={(e) =>
-                        setSelectedChannel({
-                          ...selectedChannel,
-                          telegram_bot_token: e.target.value,
-                        })
-                      }
-                      placeholder="123456:ABC-DEF..."
-                    />
-                  </div>
-                  {(selectedChannel.telegram_channel_id || selectedChannel.telegram_bot_token) && (
+                  {selectedChannel.telegram_channel_id && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={handleTestConnectionForEdit}
-                      disabled={isTestingConnection || !selectedChannel.telegram_channel_id || !selectedChannel.telegram_bot_token}
+                      disabled={isTestingConnection || !selectedChannel.telegram_channel_id}
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
                       {isTestingConnection ? "Testing..." : "Test Connection"}
