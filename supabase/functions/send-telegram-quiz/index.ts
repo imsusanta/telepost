@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,29 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Always authenticate edge function calls
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { chatId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
     
     if (!chatId || !quiz || !quiz.questions) {
@@ -36,12 +60,19 @@ serve(async (req) => {
       );
     }
 
+    // Validate chatId format (prevent injection)
+    const chatIdRegex = /^(@[a-zA-Z0-9_]+|-?[0-9]+)$/;
+    if (!chatIdRegex.test(chatId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid chat ID format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // If scheduleInterval is provided, create recurring scheduled posts
     if (scheduleInterval) {
-      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.81.1');
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
       const now = new Date();
       const scheduledPosts = [];
@@ -56,10 +87,10 @@ serve(async (req) => {
       }
 
       // Create a scheduled post for each batch at the specified interval
-      // Start from interval 1 (not 0) so first post is also scheduled at interval time
       for (let i = 0; i < questionBatches.length; i++) {
         const scheduledTime = new Date(now.getTime() + ((i + 1) * scheduleInterval * 60 * 1000));
         scheduledPosts.push({
+          user_id: user.id, // SECURITY FIX: Always set user_id
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
@@ -67,10 +98,11 @@ serve(async (req) => {
           },
           scheduled_time: scheduledTime.toISOString(),
           min_questions_per_interval: questionsPerPost,
+          status: 'pending',
         });
       }
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await supabaseAdmin
         .from('scheduled_telegram_posts')
         .insert(scheduledPosts);
 
@@ -95,6 +127,7 @@ serve(async (req) => {
       );
     }
 
+    // Send immediately
     const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!TELEGRAM_BOT_TOKEN) {
       throw new Error("TELEGRAM_BOT_TOKEN is not configured");
@@ -108,7 +141,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the polls below:`,
+        text: `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the polls below:`,
         parse_mode: "Markdown",
       }),
     });
@@ -137,11 +170,10 @@ serve(async (req) => {
       if (!pollResponse.ok) {
         console.error(`Failed to send poll ${i + 1}:`, pollData);
         
-        // Provide specific error messages for common issues
         if (pollData.error_code === 403) {
-          throw new Error(`Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and go to @${chatId.replace('@', '')}\n2. Add your bot as an Administrator\n3. Grant it 'Post Messages' permission\n4. Try again`);
+          throw new Error(`Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and add your bot as an Administrator\n2. Grant it 'Post Messages' permission\n3. Try again`);
         } else if (pollData.error_code === 400 && pollData.description?.includes('chat not found')) {
-          throw new Error(`Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect. Make sure to use the correct format:\n- For channels: @channelname or -100xxxxxxxxxx\n- For groups: -xxxxxxxxx\n- For personal chats: positive number`);
+          throw new Error(`Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect.`);
         }
         
         throw new Error(`Failed to send poll: ${pollData.description || "Unknown error"}`);
@@ -149,7 +181,7 @@ serve(async (req) => {
       
       results.push(pollData);
       
-      // Small delay between polls to avoid rate limiting (skip if instant mode)
+      // Small delay between polls to avoid rate limiting
       if (!instantPoll && i < quiz.questions.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -171,7 +203,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Unknown error",
-        details: "Make sure your bot token is correct and the chat_id is valid. The bot must be added to the chat/channel."
+        details: "Make sure your bot token is correct and the chat_id is valid."
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

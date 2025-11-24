@@ -8,7 +8,7 @@ import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { FAQ } from "@/components/FAQ";
-import { Pricing } from "@/components/Pricing";
+// Pricing removed - invitation-only app
 import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
@@ -126,7 +126,6 @@ const Index = () => {
             <Hero onGetStarted={handleGetStarted} />
             <HowItWorks />
             <Features />
-            <Pricing onGetStarted={handleGetStarted} />
             <FAQ />
             <CTA onGetStarted={handleGetStarted} />
             <Footer />

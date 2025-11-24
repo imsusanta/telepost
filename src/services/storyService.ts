@@ -141,9 +141,9 @@ export class StoryService {
       .from("telegram_stories")
       .insert([{
         user_id: userId,
-        channel_id: storyData.channel_id,
+        channel_id: storyData.channel_id || null,
         media_type: storyData.media_type,
-        media_url: mediaUrl,
+        media_url: mediaUrl as string,
         caption: storyData.caption,
         text_overlay: storyData.text_overlay as any || [],
         background_color: storyData.background_color,
