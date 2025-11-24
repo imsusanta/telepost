@@ -137,13 +137,6 @@ export type Database = {
             referencedRelation: "coupons"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "coupon_usage_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "subscriptions"
-            referencedColumns: ["id"]
-          },
         ]
       }
       coupons: {
@@ -362,6 +355,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          can_purchase_plans: boolean | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -372,6 +367,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
+          can_purchase_plans?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -382,6 +379,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
+          can_purchase_plans?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -701,78 +700,130 @@ export type Database = {
       }
       subscription_plans: {
         Row: {
+          billing_period: string
           created_at: string
           description: string | null
-          features: Json | null
+          display_name: string
+          has_advanced_ai: boolean
+          has_analytics_dashboard: boolean
+          has_api_access: boolean
+          has_auto_pdf_explanations: boolean
+          has_auto_scheduling: boolean
+          has_custom_branding: boolean
+          has_multi_language: boolean
+          has_white_label: boolean
           id: string
-          is_active: boolean | null
-          limits: Json | null
+          is_active: boolean
+          max_batch_quiz_generation: number
+          max_pdf_storage_gb: number
+          max_question_bank_size: number
+          max_quizzes_per_month: number | null
+          max_telegram_channels: number
           name: string
-          price_monthly: number
-          price_yearly: number | null
+          price: number
           updated_at: string
         }
         Insert: {
+          billing_period?: string
           created_at?: string
           description?: string | null
-          features?: Json | null
+          display_name: string
+          has_advanced_ai?: boolean
+          has_analytics_dashboard?: boolean
+          has_api_access?: boolean
+          has_auto_pdf_explanations?: boolean
+          has_auto_scheduling?: boolean
+          has_custom_branding?: boolean
+          has_multi_language?: boolean
+          has_white_label?: boolean
           id?: string
-          is_active?: boolean | null
-          limits?: Json | null
+          is_active?: boolean
+          max_batch_quiz_generation?: number
+          max_pdf_storage_gb?: number
+          max_question_bank_size?: number
+          max_quizzes_per_month?: number | null
+          max_telegram_channels: number
           name: string
-          price_monthly: number
-          price_yearly?: number | null
+          price: number
           updated_at?: string
         }
         Update: {
+          billing_period?: string
           created_at?: string
           description?: string | null
-          features?: Json | null
+          display_name?: string
+          has_advanced_ai?: boolean
+          has_analytics_dashboard?: boolean
+          has_api_access?: boolean
+          has_auto_pdf_explanations?: boolean
+          has_auto_scheduling?: boolean
+          has_custom_branding?: boolean
+          has_multi_language?: boolean
+          has_white_label?: boolean
           id?: string
-          is_active?: boolean | null
-          limits?: Json | null
+          is_active?: boolean
+          max_batch_quiz_generation?: number
+          max_pdf_storage_gb?: number
+          max_question_bank_size?: number
+          max_quizzes_per_month?: number | null
+          max_telegram_channels?: number
           name?: string
-          price_monthly?: number
-          price_yearly?: number | null
+          price?: number
           updated_at?: string
         }
         Relationships: []
       }
       subscriptions: {
         Row: {
-          cancel_at_period_end: boolean | null
+          cancel_at_period_end: boolean
+          coupon_id: string | null
           created_at: string
           current_period_end: string
           current_period_start: string
+          discount_amount: number | null
           id: string
+          original_price: number | null
           plan_id: string
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          cancel_at_period_end?: boolean | null
+          cancel_at_period_end?: boolean
+          coupon_id?: string | null
           created_at?: string
           current_period_end: string
           current_period_start: string
+          discount_amount?: number | null
           id?: string
+          original_price?: number | null
           plan_id: string
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          cancel_at_period_end?: boolean | null
+          cancel_at_period_end?: boolean
+          coupon_id?: string | null
           created_at?: string
           current_period_end?: string
           current_period_start?: string
+          discount_amount?: number | null
           id?: string
+          original_price?: number | null
           plan_id?: string
           status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "subscriptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subscriptions_plan_id_fkey"
             columns: ["plan_id"]
@@ -957,32 +1008,35 @@ export type Database = {
       }
       usage_tracking: {
         Row: {
-          action_type: string
-          count: number
           created_at: string
           id: string
-          period_end: string
-          period_start: string
+          pdfs_uploaded_this_month: number
+          quizzes_generated_this_month: number
+          total_pdfs_uploaded: number
+          total_quizzes_generated: number
+          total_storage_used_bytes: number
           updated_at: string
           user_id: string
         }
         Insert: {
-          action_type: string
-          count?: number
           created_at?: string
           id?: string
-          period_end: string
-          period_start: string
+          pdfs_uploaded_this_month?: number
+          quizzes_generated_this_month?: number
+          total_pdfs_uploaded?: number
+          total_quizzes_generated?: number
+          total_storage_used_bytes?: number
           updated_at?: string
           user_id: string
         }
         Update: {
-          action_type?: string
-          count?: number
           created_at?: string
           id?: string
-          period_end?: string
-          period_start?: string
+          pdfs_uploaded_this_month?: number
+          quizzes_generated_this_month?: number
+          total_pdfs_uploaded?: number
+          total_quizzes_generated?: number
+          total_storage_used_bytes?: number
           updated_at?: string
           user_id?: string
         }
@@ -1072,6 +1126,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_quiz_count: { Args: { p_user_id: string }; Returns: undefined }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_super_admin: { Args: { p_user_id: string }; Returns: boolean }
       validate_coupon: {

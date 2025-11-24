@@ -32,7 +32,7 @@ export interface UserSubscription {
   status: string;
   current_period_start: string;
   current_period_end: string;
-  cancel_at_period_end: boolean;
+  cancel_at_period_end: boolean | null;
   plan?: SubscriptionPlan;
 }
 
@@ -56,7 +56,7 @@ export class SubscriptionService {
       .order("price", { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as unknown as SubscriptionPlan[];
   }
 
   /**
@@ -90,7 +90,7 @@ export class SubscriptionService {
   static async canPurchasePlans(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("can_purchase_plans")
       .eq("id", userId)
       .single();
 
@@ -101,7 +101,7 @@ export class SubscriptionService {
       };
     }
 
-    if (!profile.can_purchase_plans) {
+    if (!(profile as any).can_purchase_plans) {
       return {
         allowed: false,
         reason: "Your account does not have permission to purchase plans. Please contact support."
@@ -137,8 +137,8 @@ export class SubscriptionService {
     // Handle coupon if provided
     let couponId: string | null = null;
     let discountAmount: number = 0;
-    let originalPrice: number = plan.price;
-    let finalPrice: number = plan.price;
+    let originalPrice: number = (plan as any).price;
+    let finalPrice: number = (plan as any).price;
 
     if (couponCode) {
       const { data: validationResult, error: couponError } = await supabase
@@ -146,7 +146,7 @@ export class SubscriptionService {
           p_coupon_code: couponCode,
           p_user_id: userId,
           p_plan_name: planName,
-          p_purchase_amount: plan.price,
+          p_purchase_amount: (plan as any).price,
         });
 
       if (couponError) {
@@ -162,7 +162,7 @@ export class SubscriptionService {
       if (validation && validation.is_valid) {
         couponId = validation.coupon_id;
         discountAmount = validation.discount_amount || 0;
-        finalPrice = validation.final_amount || plan.price;
+        finalPrice = validation.final_amount || (plan as any).price;
       }
     }
 
@@ -365,7 +365,7 @@ export class SubscriptionService {
    * Track quiz generation
    */
   static async trackQuizGeneration(userId: string): Promise<void> {
-    const { error } = await supabase.rpc("increment_quiz_count", {
+    const { error } = await supabase.rpc("increment_quiz_count" as any, {
       p_user_id: userId,
     });
 
@@ -376,7 +376,7 @@ export class SubscriptionService {
       // Get current usage
       const { data: currentUsage } = await supabase
         .from("usage_tracking")
-        .select("quizzes_generated_this_month, total_quizzes_generated")
+        .select("*")
         .eq("user_id", userId)
         .single();
 
@@ -385,8 +385,8 @@ export class SubscriptionService {
         const { error: updateError } = await supabase
           .from("usage_tracking")
           .update({
-            quizzes_generated_this_month: currentUsage.quizzes_generated_this_month + 1,
-            total_quizzes_generated: currentUsage.total_quizzes_generated + 1,
+            quizzes_generated_this_month: (currentUsage as any).quizzes_generated_this_month + 1,
+            total_quizzes_generated: (currentUsage as any).total_quizzes_generated + 1,
           })
           .eq("user_id", userId);
 
@@ -397,7 +397,7 @@ export class SubscriptionService {
         // Recursive call after initialization
         const { data: newUsage } = await supabase
           .from("usage_tracking")
-          .select("quizzes_generated_this_month, total_quizzes_generated")
+          .select("*")
           .eq("user_id", userId)
           .single();
 
@@ -405,8 +405,8 @@ export class SubscriptionService {
           await supabase
             .from("usage_tracking")
             .update({
-              quizzes_generated_this_month: newUsage.quizzes_generated_this_month + 1,
-              total_quizzes_generated: newUsage.total_quizzes_generated + 1,
+              quizzes_generated_this_month: (newUsage as any).quizzes_generated_this_month + 1,
+              total_quizzes_generated: (newUsage as any).total_quizzes_generated + 1,
             })
             .eq("user_id", userId);
         }
@@ -421,7 +421,7 @@ export class SubscriptionService {
     // Get current usage first
     const { data: currentUsage } = await supabase
       .from("usage_tracking")
-      .select("pdfs_uploaded_this_month, total_pdfs_uploaded, total_storage_used_bytes")
+      .select("*")
       .eq("user_id", userId)
       .single();
 
@@ -436,9 +436,9 @@ export class SubscriptionService {
     const { error } = await supabase
       .from("usage_tracking")
       .update({
-        pdfs_uploaded_this_month: currentUsage.pdfs_uploaded_this_month + 1,
-        total_pdfs_uploaded: currentUsage.total_pdfs_uploaded + 1,
-        total_storage_used_bytes: currentUsage.total_storage_used_bytes + fileSize,
+        pdfs_uploaded_this_month: (currentUsage as any).pdfs_uploaded_this_month + 1,
+        total_pdfs_uploaded: (currentUsage as any).total_pdfs_uploaded + 1,
+        total_storage_used_bytes: (currentUsage as any).total_storage_used_bytes + fileSize,
       })
       .eq("user_id", userId);
 

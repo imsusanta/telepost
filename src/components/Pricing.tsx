@@ -10,16 +10,15 @@ export const Pricing = ({ onGetStarted }: PricingProps) => {
   const plans = [
     {
       name: "Basic",
-      price: "₹499",
+      price: "$5",
       period: "/month",
-      description: "Perfect for small coaching classes",
+      description: "Perfect for getting started",
       features: [
         "1 Telegram Channel",
         "Upload PDFs (Up to 10GB)",
         "AI Quiz Generation",
         "50 Quizzes/month",
         "Basic Scheduling",
-        "PDF Explanations",
         "Question Bank (10K questions)"
       ],
       gradient: "from-primary to-accent",
@@ -27,15 +26,15 @@ export const Pricing = ({ onGetStarted }: PricingProps) => {
     },
     {
       name: "Pro",
-      price: "₹999",
+      price: "$10",
       period: "/month",
-      description: "Best for coaching institutes",
+      description: "Best for power users",
       features: [
-        "3 Telegram Channels",
+        "Multiple Telegram Channels",
         "Unlimited PDF Uploads (50GB)",
         "Advanced AI from Documents",
         "Unlimited Quizzes",
-        "Auto-Post Scheduling (Set & Forget)",
+        "Auto-Post Scheduling",
         "Auto PDF Explanations",
         "Batch Generate 30 Quizzes at Once",
         "Question Bank (50K+ questions)",
@@ -50,15 +49,14 @@ export const Pricing = ({ onGetStarted }: PricingProps) => {
       name: "Enterprise",
       price: "Custom",
       period: "pricing",
-      description: "For large organizations",
+      description: "For agencies - Contact us",
       features: [
         "Unlimited Channels",
         "Everything in Pro",
-        "On-premise Deployment",
+        "Dedicated Support",
         "Custom Development",
         "SLA Guarantee",
         "Training & Onboarding",
-        "Dedicated Infrastructure",
         "Advanced Security & Compliance"
       ],
       gradient: "from-success to-primary",
