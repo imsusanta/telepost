@@ -8,7 +8,7 @@ export class ChannelService {
   static async getUserChannels(userId: string): Promise<Channel[]> {
     const { data, error } = await supabase
       .from("channels")
-      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
+      .select("id, user_id, name, telegram_channel_id, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -29,7 +29,7 @@ export class ChannelService {
   static async getChannel(channelId: string, userId: string): Promise<Channel> {
     const { data, error } = await supabase
       .from("channels")
-      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
+      .select("id, user_id, name, telegram_channel_id, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("id", channelId)
       .eq("user_id", userId)
       .single();
@@ -52,7 +52,7 @@ export class ChannelService {
     userId: string,
     request: CreateChannelRequest
   ): Promise<Channel> {
-    // Check user's channel limit (using generate_quiz as proxy for subscription check)
+    // Check user's channel limit
     const userChannels = await this.getUserChannels(userId);
     if (userChannels.length >= 10) {
       throw new Error("Channel limit reached");
@@ -77,7 +77,6 @@ export class ChannelService {
         user_id: userId,
         name: request.name,
         telegram_channel_id: request.telegram_channel_id,
-        telegram_bot_token: request.telegram_bot_token,
         description: request.description,
         settings,
       })
@@ -111,8 +110,6 @@ export class ChannelService {
     if (request.name !== undefined) updates.name = request.name;
     if (request.telegram_channel_id !== undefined)
       updates.telegram_channel_id = request.telegram_channel_id;
-    if (request.telegram_bot_token !== undefined)
-      updates.telegram_bot_token = request.telegram_bot_token;
     if (request.description !== undefined)
       updates.description = request.description;
     if (request.settings !== undefined) {
@@ -156,9 +153,9 @@ export class ChannelService {
 
   /**
    * Test Telegram connection for a channel
+   * SECURITY: Bot token is stored server-side only
    */
   static async testTelegramConnection(
-    botToken: string,
     chatId: string
   ): Promise<{ success: boolean; message: string }> {
     try {
@@ -166,7 +163,6 @@ export class ChannelService {
         "test-telegram-connection",
         {
           body: {
-            botToken,
             chatId,
           },
         }
@@ -250,7 +246,7 @@ export class ChannelService {
   static async getChannelsForAutoGeneration(): Promise<Channel[]> {
     const { data, error } = await supabase
       .from("channels")
-      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
+      .select("id, user_id, name, telegram_channel_id, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("settings->>auto_generate_quizzes", "true");
 
     if (error) {
@@ -329,9 +325,7 @@ export class ChannelService {
       isAutoGenerateEnabled: channel.settings.auto_generate_quizzes,
       generationFrequency: channel.settings.generation_frequency,
       systemPromptConfigured: !!channel.settings.system_prompt,
-      telegramConfigured: !!(
-        channel.telegram_channel_id && channel.telegram_bot_token
-      ),
+      telegramConfigured: !!channel.telegram_channel_id,
     };
   }
 }

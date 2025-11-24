@@ -15,7 +15,6 @@ export interface Channel {
   user_id: string;
   name: string;
   telegram_channel_id: string | null;
-  telegram_bot_token: string | null;
   description: string | null;
   settings: ChannelSettings;
   last_auto_generated_at: string | null;
@@ -26,7 +25,6 @@ export interface Channel {
 export interface CreateChannelRequest {
   name: string;
   telegram_channel_id?: string;
-  telegram_bot_token?: string;
   description?: string;
   settings?: Partial<ChannelSettings>;
 }
@@ -34,7 +32,6 @@ export interface CreateChannelRequest {
 export interface UpdateChannelRequest {
   name?: string;
   telegram_channel_id?: string;
-  telegram_bot_token?: string;
   description?: string;
   settings?: Partial<ChannelSettings>;
 }
