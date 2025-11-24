@@ -56,11 +56,11 @@ export function useProfile() {
     }
   }, [profile, toast]);
 
-  const saveTelegramConfig = useCallback(async (botToken: string, channelId: string) => {
+  const saveTelegramConfig = useCallback(async (channelId: string) => {
     if (!profile) return;
 
     try {
-      const updated = await ProfileService.saveTelegramConfig(profile.id, botToken, channelId);
+      const updated = await ProfileService.saveTelegramConfig(profile.id, channelId);
       setProfile(updated);
       toast({
         title: "Success",

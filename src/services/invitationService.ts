@@ -200,6 +200,42 @@ export function generateRandomCode(length: number = 12): string {
 }
 
 /**
+ * Generate invitation codes using the edge function (admin only)
+ */
+export async function generateInvitationCodeViaEdgeFunction(
+  count: number = 1,
+  maxUses: number = 1,
+  expiresInDays: number = 30
+): Promise<{ success: boolean; codes: InvitationCode[]; message: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-invitation-codes', {
+      body: {
+        count,
+        maxUses,
+        expiresInDays
+      }
+    });
+
+    if (error) {
+      console.error('Error calling generate-invitation-codes:', error);
+      throw new Error(error.message || 'Failed to generate invitation codes');
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || 'Failed to generate invitation codes');
+    }
+
+    return {
+      success: true,
+      codes: data.codes as InvitationCode[],
+      message: data.message
+    };
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to generate invitation codes');
+  }
+}
+
+/**
  * Create a custom invitation code with a specific code string (admin only)
  */
 export async function createCustomInvitationCode(

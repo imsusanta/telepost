@@ -21,7 +21,6 @@ interface Channel {
   user_id: string;
   name: string;
   telegram_channel_id: string;
-  telegram_bot_token: string;
   settings: ChannelSettings;
 }
 
@@ -40,6 +39,18 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get server-side Telegram bot token
+    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    if (!TELEGRAM_BOT_TOKEN) {
+      console.error("TELEGRAM_BOT_TOKEN not configured");
+      return new Response(
+        JSON.stringify({
+          error: "Bot token not configured. Please add TELEGRAM_BOT_TOKEN to secrets."
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get request body for optional parameters
     let specificChannelId: string | null = null;
     let forceGenerate = false;
@@ -57,8 +68,7 @@ serve(async (req) => {
       .from("channels")
       .select("*")
       .eq("settings->>auto_generate_quizzes", "true")
-      .not("telegram_channel_id", "is", null)
-      .not("telegram_bot_token", "is", null);
+      .not("telegram_channel_id", "is", null);
 
     if (specificChannelId) {
       query = query.eq("id", specificChannelId);
@@ -172,9 +182,9 @@ serve(async (req) => {
           throw new Error(quiz?.error || "Failed to generate quiz");
         }
 
-        // Send to Telegram
+        // Send to Telegram (using server-side bot token)
         await sendQuizToTelegram(
-          channel.telegram_bot_token,
+          TELEGRAM_BOT_TOKEN,
           channel.telegram_channel_id,
           quiz
         );

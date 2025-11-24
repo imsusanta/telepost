@@ -46,8 +46,7 @@ serve(async (req) => {
       .select(`
         *,
         channels (
-          telegram_channel_id,
-          telegram_bot_token
+          telegram_channel_id
         )
       `)
       .eq('story_id', storyId)
@@ -66,10 +65,10 @@ serve(async (req) => {
       throw new Error(`Can only instantly post stories with 'draft' or 'scheduled' status (current: ${story.status})`);
     }
 
-    // Get bot token (from channel or environment)
-    const botToken = story.channels?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+    // Get bot token from environment (server-side only)
+    const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!botToken) {
-      throw new Error("Bot token not configured. Please add a bot token to your channel settings.");
+      throw new Error("Bot token not configured. Please add TELEGRAM_BOT_TOKEN to secrets.");
     }
 
     const chatId = story.channels?.telegram_channel_id;

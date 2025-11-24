@@ -71,7 +71,7 @@ async function fetchDashboardData() {
       totalViews: responsesResult.count || 0,
       totalDocuments: documentsResult.count || 0,
       totalQuestions: questionsResult.count || 0,
-      connectedBots: profileResult.data?.telegram_bot_token ? 1 : 0,
+      connectedBots: 1, // Bot token now stored server-side
       totalChannels: channelsResult.count || 0
     }
   };
