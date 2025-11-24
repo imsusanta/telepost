@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   getAllInvitationCodes,
   generateInvitationCode,
+  generateInvitationCodeViaEdgeFunction,
   deactivateInvitationCode,
   reactivateInvitationCode,
   deleteInvitationCode,
@@ -122,24 +123,32 @@ export default function SuperAdminInvitations() {
     setIsCreating(true);
 
     try {
-      const newCodes: InvitationCode[] = [];
+      // Use edge function for bulk generation (more efficient)
+      if (batchCountNum >= 5) {
+        const result = await generateInvitationCodeViaEdgeFunction(
+          batchCountNum,
+          maxUsesNum,
+          expiresInDaysNum
+        );
 
-      for (let i = 0; i < batchCountNum; i++) {
-        const result = await generateInvitationCode(maxUsesNum, expiresInDaysNum, {
-          batch_index: i + 1,
-          batch_total: batchCountNum,
+        toast({
+          title: 'Success',
+          description: result.message,
         });
+      } else {
+        // Use direct method for small batches
+        for (let i = 0; i < batchCountNum; i++) {
+          await generateInvitationCode(maxUsesNum, expiresInDaysNum, {
+            batch_index: i + 1,
+            batch_total: batchCountNum,
+          });
+        }
 
-        // Fetch the full code details
-        const codes = await getAllInvitationCodes();
-        const newCode = codes.find(c => c.code === result.code);
-        if (newCode) newCodes.push(newCode);
+        toast({
+          title: 'Success',
+          description: `Created ${batchCountNum} invitation code${batchCountNum > 1 ? 's' : ''}`,
+        });
       }
-
-      toast({
-        title: 'Success',
-        description: `Created ${batchCountNum} invitation code${batchCountNum > 1 ? 's' : ''}`,
-      });
 
       await loadInvitationCodes();
       setIsCreateDialogOpen(false);

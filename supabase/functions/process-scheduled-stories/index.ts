@@ -24,8 +24,7 @@ serve(async (req) => {
       .from('telegram_stories')
       .select(`
         *,
-        channels!telegram_stories_channel_id_fkey (
-          telegram_bot_token,
+        channels (
           telegram_channel_id
         )
       `)
@@ -63,7 +62,7 @@ serve(async (req) => {
     for (const story of stories) {
       try {
         const channel = story.channels as any;
-        const botToken = channel?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+        const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
         if (!botToken) {
           throw new Error("Bot token not configured");
         }

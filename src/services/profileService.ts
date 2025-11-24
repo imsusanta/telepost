@@ -33,9 +33,8 @@ export class ProfileService {
     return data;
   }
 
-  static async saveTelegramConfig(userId: string, botToken: string, channelId: string): Promise<Profile> {
+  static async saveTelegramConfig(userId: string, channelId: string): Promise<Profile> {
     return this.updateProfile(userId, {
-      telegram_bot_token: botToken,
       telegram_channel_id: channelId,
     });
   }

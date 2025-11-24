@@ -67,7 +67,6 @@ export type Database = {
           last_auto_generated_at: string | null
           name: string
           settings: Json | null
-          telegram_bot_token: string | null
           telegram_channel_id: string | null
           updated_at: string
           user_id: string
@@ -79,7 +78,6 @@ export type Database = {
           last_auto_generated_at?: string | null
           name: string
           settings?: Json | null
-          telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
           user_id: string
@@ -91,7 +89,6 @@ export type Database = {
           last_auto_generated_at?: string | null
           name?: string
           settings?: Json | null
-          telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
           user_id?: string
@@ -362,7 +359,6 @@ export type Database = {
           full_name: string | null
           id: string
           invitation_code_used: string | null
-          telegram_bot_token: string | null
           telegram_channel_id: string | null
           updated_at: string
         }
@@ -374,7 +370,6 @@ export type Database = {
           full_name?: string | null
           id: string
           invitation_code_used?: string | null
-          telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
         }
@@ -386,7 +381,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           invitation_code_used?: string | null
-          telegram_bot_token?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
         }
