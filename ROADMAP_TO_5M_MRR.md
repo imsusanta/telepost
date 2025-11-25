@@ -1,7 +1,7 @@
-# 🎯 Roadmap to $5M MRR - QuizGenie Educational SaaS
+# 🎯 Roadmap to $5M MRR - TelePost Educational SaaS
 
 ## Executive Summary
-Transform QuizGenie into a premium educational SaaS platform targeting coaching institutes, tutoring centers, and schools. Target pricing: **$99/month per institute** with 4,200+ customers to reach $5M MRR.
+Transform TelePost into a premium educational SaaS platform targeting coaching institutes, tutoring centers, and schools. Target pricing: **$99/month per institute** with 4,200+ customers to reach $5M MRR.
 
 ---
 
@@ -302,7 +302,7 @@ interface StudentBatch {
 ### 10. White-Label Solution
 - Custom branding (logo, colors, fonts)
 - Custom domain (quiz.yourinstitute.com)
-- Remove QuizGenie branding completely
+- Remove TelePost branding completely
 - Custom email templates
 - Custom certificate designs
 - Branded mobile apps (iOS/Android)
@@ -648,7 +648,7 @@ interface StudentBatch {
 
 **Document Version**: 1.0
 **Last Updated**: November 18, 2025
-**Author**: QuizGenie Product Team
+**Author**: TelePost Product Team
 **Status**: Active Roadmap
 
 ---

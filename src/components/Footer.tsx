@@ -11,7 +11,7 @@ export const Footer = () => {
               <Sparkles className="w-4 h-4 text-background" />
             </div>
             <span className="text-lg font-semibold text-foreground">
-              QuizGenie
+              TelePost
             </span>
           </div>
 
@@ -65,7 +65,7 @@ export const Footer = () => {
         {/* Copyright */}
         <div className="mt-8 pt-8 border-t border-border/50 text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} QuizGenie. All rights reserved.
+            © {new Date().getFullYear()} TelePost. All rights reserved.
           </p>
         </div>
       </div>

@@ -1,5 +1,5 @@
 /**
- * Encryption Utilities for Quiz Genie
+ * Encryption Utilities for Tele Post
  *
  * Provides client-side encryption for sensitive data
  * Note: For production, consider using server-side encryption with proper key management
@@ -24,7 +24,7 @@ export const encryptData = async (data: string, masterKey: string): Promise<stri
     );
 
     // Use a fixed salt for consistency (in production, use unique salt per user)
-    const salt = encoder.encode('quiz-genie-salt-v1');
+    const salt = encoder.encode('tele-post-salt-v1');
 
     const key = await crypto.subtle.deriveKey(
       {
@@ -83,7 +83,7 @@ export const decryptData = async (encryptedData: string, masterKey: string): Pro
       ['deriveBits', 'deriveKey']
     );
 
-    const salt = encoder.encode('quiz-genie-salt-v1');
+    const salt = encoder.encode('tele-post-salt-v1');
 
     const key = await crypto.subtle.deriveKey(
       {

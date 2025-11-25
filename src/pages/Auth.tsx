@@ -292,7 +292,7 @@ export default function Auth() {
               <Sparkles className="w-8 h-8 text-primary-foreground" />
             </div>
             <span className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
-              QuizGenie
+              TelePost
             </span>
           </div>
           <p className="text-muted-foreground text-lg">AI-Powered Quiz Generation for Telegram</p>

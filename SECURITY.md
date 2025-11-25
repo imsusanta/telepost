@@ -1,8 +1,8 @@
-# Security Documentation - QuizGenie
+# Security Documentation - TelePost
 
 ## Overview
 
-This document outlines the security measures, best practices, and administrative features implemented in QuizGenie to protect user data and ensure system integrity.
+This document outlines the security measures, best practices, and administrative features implemented in TelePost to protect user data and ensure system integrity.
 
 ## Table of Contents
 
@@ -52,7 +52,7 @@ This document outlines the security measures, best practices, and administrative
 
 ### User Roles
 
-QuizGenie implements a three-tier role system:
+TelePost implements a three-tier role system:
 
 #### 1. User (Default)
 - Create and manage quizzes
@@ -500,6 +500,6 @@ In case of a security breach:
 
 ## License
 
-This security documentation is part of the QuizGenie project and is confidential. Unauthorized distribution is prohibited.
+This security documentation is part of the TelePost project and is confidential. Unauthorized distribution is prohibited.
 
 **Last Updated**: November 18, 2025

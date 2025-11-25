@@ -171,7 +171,7 @@ export default function Billing() {
       ],
       current: false,
       gradient: "from-gray-400 to-gray-600",
-      description: "Perfect for trying out QuizGenie"
+      description: "Perfect for trying out TelePost"
     },
     {
       name: "Starter",

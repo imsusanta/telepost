@@ -1,6 +1,6 @@
 # Super Admin Setup Guide
 
-This guide explains how to set up and use the super admin functionality in QuizGenie.
+This guide explains how to set up and use the super admin functionality in TelePost.
 
 ## Overview
 
