@@ -143,6 +143,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   const superAdminMenuItems = [
+    { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
     { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
     { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
     { icon: Mail, label: "Manage Invitations", path: "/dashboard/super-admin/invitations" },
