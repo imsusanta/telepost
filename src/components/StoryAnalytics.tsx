@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Eye, Forward, Heart, Loader2, MousePointer, Share2 } from "lucide-react";
+import { Eye, Forward, Heart, Loader2, Share2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoryService, Story } from "@/services/storyService";
 import { useToast } from "@/hooks/use-toast";
@@ -12,11 +12,14 @@ interface AnalyticsEvent {
 }
 
 interface AnalyticsData {
-  total_views: number;
-  total_shares: number;
-  total_reactions: number;
-  total_clicks: number;
-  total_forwards: number;
+  story: Story;
+  metrics: {
+    views: number;
+    reach: number;
+    engagement_rate: number;
+    completion_rate: number;
+  };
+  timeline: Array<{ timestamp: string; views: number; interactions: number }>;
   events?: AnalyticsEvent[];
 }
 
@@ -78,33 +81,27 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
   const stats = [
     {
       label: "Views",
-      value: analytics.total_views || 0,
+      value: analytics.metrics.views || 0,
       icon: Eye,
       color: "text-blue-500",
     },
     {
-      label: "Shares",
-      value: analytics.total_shares || 0,
+      label: "Reach",
+      value: analytics.metrics.reach || 0,
       icon: Share2,
       color: "text-green-500",
     },
     {
-      label: "Reactions",
-      value: analytics.total_reactions || 0,
+      label: "Engagement Rate",
+      value: `${(analytics.metrics.engagement_rate || 0).toFixed(1)}%`,
       icon: Heart,
       color: "text-red-500",
     },
     {
-      label: "Clicks",
-      value: analytics.total_clicks || 0,
-      icon: MousePointer,
-      color: "text-purple-500",
-    },
-    {
-      label: "Forwards",
-      value: analytics.total_forwards || 0,
+      label: "Completion Rate",
+      value: `${(analytics.metrics.completion_rate || 0).toFixed(1)}%`,
       icon: Forward,
-      color: "text-orange-500",
+      color: "text-purple-500",
     },
   ];
 
@@ -118,7 +115,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {stats.map((stat) => (
               <div
                 key={stat.label}

@@ -24,7 +24,7 @@ import {
 interface Channel {
   id: string;
   name: string;
-  telegram_channel_id?: string;
+  telegram_channel_id: string | null;
   user_id: string;
 }
 

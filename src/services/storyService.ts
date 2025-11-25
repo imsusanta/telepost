@@ -145,10 +145,10 @@ export class StoryService {
         media_type: storyData.media_type,
         media_url: mediaUrl as string,
         caption: storyData.caption,
-        text_overlay: (storyData.text_overlay as TextOverlay[]) || [],
+        text_overlay: (storyData.text_overlay || []) as unknown,
         background_color: storyData.background_color,
         template_id: storyData.template_id,
-        stickers: (storyData.stickers as Sticker[]) || [],
+        stickers: (storyData.stickers || []) as unknown,
         duration_hours: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
         telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
@@ -161,8 +161,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as TextOverlay[]) || [],
-      stickers: (data.stickers as Sticker[]) || []
+      text_overlay: (data.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (data.stickers as unknown as Sticker[]) || []
     } as Story;
   }
 
@@ -185,8 +185,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as TextOverlay[]) || [],
-      stickers: (data.stickers as Sticker[]) || []
+      text_overlay: (data.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (data.stickers as unknown as Sticker[]) || []
     } as Story;
   }
 
@@ -230,8 +230,8 @@ export class StoryService {
     if (error) throw error;
     return (data || []).map(story => ({
       ...story,
-      text_overlay: (story.text_overlay as TextOverlay[]) || [],
-      stickers: (story.stickers as Sticker[]) || []
+      text_overlay: (story.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (story.stickers as unknown as Sticker[]) || []
     })) as Story[];
   }
 
@@ -249,8 +249,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as TextOverlay[]) || [],
-      stickers: (data.stickers as Sticker[]) || []
+      text_overlay: (data.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (data.stickers as unknown as Sticker[]) || []
     } as Story;
   }
 
@@ -482,8 +482,8 @@ export class StoryService {
     if (error) throw error;
     return (data || []).map(story => ({
       ...story,
-      text_overlay: (story.text_overlay as TextOverlay[]) || [],
-      stickers: (story.stickers as Sticker[]) || []
+      text_overlay: (story.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (story.stickers as unknown as Sticker[]) || []
     })) as Story[];
   }
 

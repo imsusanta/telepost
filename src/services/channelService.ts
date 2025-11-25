@@ -109,7 +109,7 @@ export class ChannelService {
       name: string;
       telegram_channel_id: string;
       description: string;
-      settings: ChannelSettings;
+      settings: unknown;
     }> = {};
 
     if (request.name !== undefined) updates.name = request.name;
@@ -118,7 +118,7 @@ export class ChannelService {
     if (request.description !== undefined)
       updates.description = request.description;
     if (request.settings !== undefined) {
-      updates.settings = { ...existingChannel.settings, ...request.settings };
+      updates.settings = { ...existingChannel.settings, ...request.settings } as unknown;
     }
 
     const { data, error } = await supabase

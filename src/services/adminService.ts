@@ -203,7 +203,7 @@ export class AdminService {
       // Get user's channels (without sensitive tokens)
       const { data: channels } = await supabase
         .from('channels')
-        .select('id, name, telegram_channel_id, is_active, created_at')
+        .select('id, name, telegram_channel_id, created_at')
         .eq('user_id', userId);
 
       // Get user's quiz generations count
@@ -255,7 +255,7 @@ export class AdminService {
    */
   static async exportUserData(userId: string): Promise<{
     profile: UserProfile;
-    channels: Array<{ id: string; name: string; telegram_channel_id?: string; is_active?: boolean; created_at: string }>;
+    channels: Array<{ id: string; name: string; telegram_channel_id?: string; created_at: string }>;
     subscription: unknown;
     usage: unknown;
     quizzes: unknown[];

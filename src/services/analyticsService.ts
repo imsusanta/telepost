@@ -36,13 +36,13 @@ export class AnalyticsService {
       documentId?: string;
     }
   ): Promise<void> {
-    const { error } = await supabase.from("analytics_events").insert({
+    const { error } = await supabase.from("analytics_events").insert([{
       user_id: userId,
       event_type: eventType,
-      event_data: eventData,
-      quiz_generation_id: context?.quizGenerationId,
-      document_id: context?.documentId,
-    });
+      event_data: eventData || null,
+      quiz_generation_id: context?.quizGenerationId || null,
+      document_id: context?.documentId || null,
+    }]);
 
     if (error) throw error;
   }
@@ -145,7 +145,12 @@ export class AnalyticsService {
       quizzesByDifficulty,
       averageScore: Math.round(averageScore * 100) / 100,
       topTopics,
-      recentActivity: recentActivityResult.data || [],
+      recentActivity: (recentActivityResult.data || []).map(event => ({
+        ...event,
+        event_data: event.event_data && typeof event.event_data === 'object' && !Array.isArray(event.event_data)
+          ? event.event_data as Record<string, unknown>
+          : undefined
+      })),
     };
   }
 
@@ -188,7 +193,7 @@ export class AnalyticsService {
     const result: { [key: string]: number } = {};
 
     data.forEach((item) => {
-      const value = item[field] || "Unknown";
+      const value = String(item[field] || "Unknown");
       result[value] = (result[value] || 0) + 1;
     });
 

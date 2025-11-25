@@ -17,7 +17,7 @@ import { TextOverlayEditor } from "./TextOverlayEditor";
 interface Channel {
   id: string;
   name: string;
-  chat_id: string;
+  telegram_channel_id: string | null;
 }
 
 interface TelegramStoryEditorProps {
@@ -67,8 +67,8 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
   useEffect(() => {
     if (selectedChannel) {
       const channel = channels.find(c => c.id === selectedChannel);
-      if (channel) {
-        setChatId(channel.chat_id);
+      if (channel && channel.telegram_channel_id) {
+        setChatId(channel.telegram_channel_id);
       }
     }
   }, [selectedChannel, channels]);

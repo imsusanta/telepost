@@ -93,14 +93,14 @@ export class SchedulerService {
   ): Promise<ScheduledPost> {
     const { data, error } = await supabase
       .from("scheduled_telegram_posts")
-      .insert({
+      .insert([{
         user_id: userId,
         chat_id: post.chatId,
-        quiz_data: post.quizData,
+        quiz_data: post.quizData as unknown,
         scheduled_time: post.scheduledTime.toISOString(),
         min_questions_per_interval: post.minQuestionsPerInterval || 1,
         status: "pending",
-      })
+      }])
       .select()
       .single();
 

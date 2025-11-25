@@ -256,10 +256,10 @@ export default function Billing() {
   ];
 
   // Match current plan with UI plans
-  const currentPlanName = currentSubscription?.plan ? (currentSubscription.plan as Record<string, unknown>).name : null;
+  const currentPlanName = currentSubscription?.plan?.name || null;
   const plansWithCurrentStatus = plans.map((plan) => ({
     ...plan,
-    current: plan.name.toLowerCase() === currentPlanName?.toLowerCase(),
+    current: plan.name.toLowerCase() === (currentPlanName ? currentPlanName.toLowerCase() : null),
   }));
 
   return (
