@@ -28,6 +28,35 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     getUser();
   }, []);
 
+  const fetchScheduledPosts = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      setIsLoading(true);
+      const posts = await SchedulerService.fetchScheduledPosts(userId, filters);
+      setScheduledPosts(posts);
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch scheduled posts",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, filters, toast]);
+
+  const fetchStatistics = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const stats = await SchedulerService.getStatistics(userId);
+      setStatistics(stats);
+    } catch (error) {
+      console.error("Failed to fetch statistics:", error);
+    }
+  }, [userId]);
+
   // Fetch posts and set up subscription when userId is available
   useEffect(() => {
     if (!userId) return;
@@ -62,35 +91,6 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
       channel.unsubscribe();
     };
   }, [userId, fetchScheduledPosts, fetchStatistics]);
-
-  const fetchScheduledPosts = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      setIsLoading(true);
-      const posts = await SchedulerService.fetchScheduledPosts(userId, filters);
-      setScheduledPosts(posts);
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fetch scheduled posts",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId, filters, toast]);
-
-  const fetchStatistics = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      const stats = await SchedulerService.getStatistics(userId);
-      setStatistics(stats);
-    } catch (error) {
-      console.error("Failed to fetch statistics:", error);
-    }
-  }, [userId]);
 
   const cancelPost = useCallback(async (postId: string) => {
     if (!userId) return;

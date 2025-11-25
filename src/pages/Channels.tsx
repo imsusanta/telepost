@@ -722,7 +722,7 @@ export default function Channels() {
                     <Label htmlFor="default-difficulty">Difficulty</Label>
                     <Select
                       value={selectedChannel.settings.default_difficulty}
-                      onValueChange={(value: string) =>
+                      onValueChange={(value: "easy" | "medium" | "hard") =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, default_difficulty: value },
@@ -744,7 +744,7 @@ export default function Channels() {
                     <Label htmlFor="default-language">Language</Label>
                     <Select
                       value={selectedChannel.settings.default_language}
-                      onValueChange={(value: string) =>
+                      onValueChange={(value: "bn" | "en" | "hi") =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, default_language: value },
@@ -766,7 +766,7 @@ export default function Channels() {
                     <Label htmlFor="generation-frequency">Frequency</Label>
                     <Select
                       value={selectedChannel.settings.generation_frequency}
-                      onValueChange={(value: string) =>
+                      onValueChange={(value: "daily" | "weekly" | "bi-weekly" | "monthly" | "manual") =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, generation_frequency: value },

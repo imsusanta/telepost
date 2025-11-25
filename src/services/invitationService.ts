@@ -249,7 +249,7 @@ export async function createCustomInvitationCode(
     if (!user) throw new Error('User not authenticated');
 
     // Type assertion needed as this RPC function may not be in generated types
-    const { data, error } = await (supabase.rpc as (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)('create_custom_invitation_code', {
+    const { data, error } = await (supabase.rpc as unknown as (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)('create_custom_invitation_code', {
       p_code: customCode,
       p_created_by: user.id,
       p_max_uses: maxUses,

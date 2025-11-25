@@ -14,7 +14,7 @@ import {
   type UserWithSubscription,
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionService, type SubscriptionPlan } from '@/services/subscriptionService';
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,7 @@ export default function SuperAdminUsers() {
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,6 +69,28 @@ export default function SuperAdminUsers() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [paginatedData, plansData] = await Promise.all([
+        getPaginatedUsers(currentPage, pageSize, debouncedSearch),
+        SubscriptionService.getPlans(),
+      ]);
+      setUsers(paginatedData.users);
+      setTotalPages(paginatedData.totalPages);
+      setTotalCount(paginatedData.totalCount);
+      setPlans(plansData);
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, debouncedSearch, toast]);
 
   const checkAccessAndLoadData = useCallback(async () => {
     try {
@@ -99,28 +121,6 @@ export default function SuperAdminUsers() {
       loadData();
     }
   }, [currentPage, debouncedSearch, loadData, loading]);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [paginatedData, plansData] = await Promise.all([
-        getPaginatedUsers(currentPage, pageSize, debouncedSearch),
-        SubscriptionService.getPlans(),
-      ]);
-      setUsers(paginatedData.users);
-      setTotalPages(paginatedData.totalPages);
-      setTotalCount(paginatedData.totalCount);
-      setPlans(plansData);
-    } catch (error: unknown) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to load data',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, debouncedSearch, toast]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
