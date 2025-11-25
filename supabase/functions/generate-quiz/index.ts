@@ -21,6 +21,34 @@ serve(async (req) => {
       );
     }
 
+    // Validate the user's JWT token and get user information
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      supabaseUrl,
+      supabaseKey,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Authentication failed:", userError?.message || "No user returned");
+      return new Response(
+        JSON.stringify({ error: "Authentication failed. Please log in again." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const {
       topic,
       questionCount,
@@ -51,74 +79,54 @@ serve(async (req) => {
 
     if (channelId && useChannelKnowledgeBase) {
       try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-        if (supabaseUrl && supabaseKey) {
-          const supabase = createClient(supabaseUrl, supabaseKey);
+        // Verify channel ownership
+        const { data: channel, error: channelError } = await supabase
+          .from("channels")
+          .select("settings, user_id")
+          .eq("id", channelId)
+          .single();
 
-          // First, verify the channel belongs to the user by getting user from auth header
-          // Use service role client with auth header for reliable authentication
-          const supabaseClient = createClient(
-            supabaseUrl,
-            supabaseKey,
-            { global: { headers: { Authorization: authHeader } } }
-          );
+        if (channelError || !channel) {
+          console.error("Channel not found:", channelError);
+          throw new Error("Channel not found");
+        }
 
-          const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        // Security check: Verify the channel belongs to the authenticated user
+        if (channel.user_id !== user.id) {
+          console.error("Channel does not belong to user");
+          throw new Error("Unauthorized access to channel");
+        }
 
-          if (userError || !user) {
-            console.error("Failed to authenticate user:", userError?.message || "No user returned");
-            throw new Error(`Authentication failed: ${userError?.message || "Invalid or expired token"}`);
-          }
+        if (channel?.settings?.system_prompt) {
+          channelSystemPrompt = channel.settings.system_prompt;
+        }
 
-          // Verify channel ownership
-          const { data: channel, error: channelError } = await supabase
-            .from("channels")
-            .select("settings, user_id")
-            .eq("id", channelId)
-            .single();
+        // Get channel documents (now safe because we verified channel ownership)
+        const { data: documents, error: docsError } = await supabase
+          .from("documents")
+          .select("title, extracted_text, ai_summary")
+          .eq("channel_id", channelId)
+          .eq("user_id", user.id)
+          .eq("processing_status", "completed")
+          .not("extracted_text", "is", null)
+          .limit(10);
 
-          if (channelError || !channel) {
-            console.error("Channel not found:", channelError);
-            throw new Error("Channel not found");
-          }
+        if (docsError) {
+          console.error("Error fetching documents:", docsError);
+          throw docsError;
+        }
 
-          // Security check: Verify the channel belongs to the authenticated user
-          if (channel.user_id !== user.id) {
-            console.error("Channel does not belong to user");
-            throw new Error("Unauthorized access to channel");
-          }
+        if (documents && documents.length > 0) {
+          knowledgeBaseContext = documents
+            .map(doc => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
+            .join('\n\n---\n\n');
 
-          if (channel?.settings?.system_prompt) {
-            channelSystemPrompt = channel.settings.system_prompt;
-          }
-
-          // Get channel documents (now safe because we verified channel ownership)
-          const { data: documents, error: docsError } = await supabase
-            .from("documents")
-            .select("title, extracted_text, ai_summary")
-            .eq("channel_id", channelId)
-            .eq("user_id", user.id)
-            .eq("processing_status", "completed")
-            .not("extracted_text", "is", null)
-            .limit(10);
-
-          if (docsError) {
-            console.error("Error fetching documents:", docsError);
-            throw docsError;
-          }
-
-          if (documents && documents.length > 0) {
-            knowledgeBaseContext = documents
-              .map(doc => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
-              .join('\n\n---\n\n');
-
-            // Limit total knowledge base to 5000 characters
-            knowledgeBaseContext = knowledgeBaseContext.substring(0, 5000);
-          } else {
-            console.log("No completed documents found for channel");
-          }
+          // Limit total knowledge base to 5000 characters
+          knowledgeBaseContext = knowledgeBaseContext.substring(0, 5000);
+        } else {
+          console.log("No completed documents found for channel");
         }
       } catch (error) {
         console.error("Error fetching channel knowledge base:", error);
@@ -303,83 +311,76 @@ ADDITIONAL RULES:
       }
     }
 
-    // Save quiz to database if userId is provided
-    if (userId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // Save quiz to database (always save for authenticated users)
+    try {
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-        if (supabaseUrl && supabaseKey) {
-          const supabase = createClient(supabaseUrl, supabaseKey);
+      // Save quiz generation to database using the authenticated user's ID
+      const { error: insertError } = await supabase
+        .from("quiz_generations")
+        .insert({
+          user_id: user.id,
+          channel_id: channelId || null,
+          document_id: null,
+          request_id: requestId,
+          topic: topic,
+          difficulty: difficulty,
+          question_count: questionCount,
+          questions: quizData.questions,
+          metadata: {
+            ...quizData.metadata,
+            language: language,
+            used_knowledge_base: useChannelKnowledgeBase && !!knowledgeBaseContext,
+            has_custom_prompt: !!systemPrompt || !!channelSystemPrompt,
+          },
+          status: "completed",
+        });
 
-          // Save quiz generation to database
-          const { error: insertError } = await supabase
-            .from("quiz_generations")
-            .insert({
-              user_id: userId,
-              channel_id: channelId || null,
-              document_id: null,
-              request_id: requestId,
-              topic: topic,
-              difficulty: difficulty,
-              question_count: questionCount,
-              questions: quizData.questions,
-              metadata: {
-                ...quizData.metadata,
-                language: language,
-                used_knowledge_base: useChannelKnowledgeBase && !!knowledgeBaseContext,
-                has_custom_prompt: !!systemPrompt || !!channelSystemPrompt,
-              },
-              status: "completed",
-            });
+      if (insertError) {
+        console.error("Failed to save quiz to database:", insertError);
+        // Don't fail the request, just log the error
+      } else {
+        // Track quiz generation in usage statistics
+        const { error: usageError } = await supabase.rpc("increment_quiz_count", {
+          p_user_id: user.id,
+        });
 
-          if (insertError) {
-            console.error("Failed to save quiz to database:", insertError);
-            // Don't fail the request, just log the error
+        if (usageError) {
+          console.error("Failed to track quiz usage:", usageError);
+          // Fallback: manually check and update usage tracking
+          const { data: existingUsage } = await supabase
+            .from("usage_tracking")
+            .select("*")
+            .eq("user_id", user.id)
+            .single();
+
+          if (existingUsage) {
+            // Update existing usage
+            await supabase
+              .from("usage_tracking")
+              .update({
+                quizzes_generated_this_month: existingUsage.quizzes_generated_this_month + 1,
+                total_quizzes_generated: existingUsage.total_quizzes_generated + 1,
+              })
+              .eq("user_id", user.id);
           } else {
-            // Track quiz generation in usage statistics
-            const { error: usageError } = await supabase.rpc("increment_quiz_count", {
-              p_user_id: userId,
-            });
-
-            if (usageError) {
-              console.error("Failed to track quiz usage:", usageError);
-              // Fallback: manually check and update usage tracking
-              const { data: existingUsage } = await supabase
-                .from("usage_tracking")
-                .select("*")
-                .eq("user_id", userId)
-                .single();
-
-              if (existingUsage) {
-                // Update existing usage
-                await supabase
-                  .from("usage_tracking")
-                  .update({
-                    quizzes_generated_this_month: existingUsage.quizzes_generated_this_month + 1,
-                    total_quizzes_generated: existingUsage.total_quizzes_generated + 1,
-                  })
-                  .eq("user_id", userId);
-              } else {
-                // Create new usage tracking record
-                await supabase
-                  .from("usage_tracking")
-                  .insert({
-                    user_id: userId,
-                    quizzes_generated_this_month: 1,
-                    total_quizzes_generated: 1,
-                    pdfs_uploaded_this_month: 0,
-                    total_pdfs_uploaded: 0,
-                    total_storage_used_bytes: 0,
-                  });
-              }
-            }
+            // Create new usage tracking record
+            await supabase
+              .from("usage_tracking")
+              .insert({
+                user_id: user.id,
+                quizzes_generated_this_month: 1,
+                total_quizzes_generated: 1,
+                pdfs_uploaded_this_month: 0,
+                total_pdfs_uploaded: 0,
+                total_storage_used_bytes: 0,
+              });
           }
         }
-      } catch (dbError) {
-        console.error("Database operation failed:", dbError);
-        // Don't fail the request, quiz generation was successful
       }
+    } catch (dbError) {
+      console.error("Database operation failed:", dbError);
+      // Don't fail the request, quiz generation was successful
     }
 
     return new Response(JSON.stringify(quizData), {

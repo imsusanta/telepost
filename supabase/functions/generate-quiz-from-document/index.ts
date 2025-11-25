@@ -11,6 +11,44 @@ serve(async (req) => {
   }
 
   try {
+    // Get the authorization header to authenticate the user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate the user's JWT token and get user information
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.0");
+    const supabaseClient = createClient(
+      supabaseUrl,
+      supabaseKey,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Authentication failed:", userError?.message || "No user returned");
+      return new Response(
+        JSON.stringify({ error: "Authentication failed. Please log in again." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { documentText, topic, questionCount, difficulty, language } = await req.json();
 
     if (!documentText || !questionCount) {
