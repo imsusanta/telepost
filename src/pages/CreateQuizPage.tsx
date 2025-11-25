@@ -190,26 +190,42 @@ export default function CreateQuizPage() {
     // Load initial data in parallel on mount - optimized for faster startup
     // Note: loadDocuments and loadQuestions handle their own filtering based on state
     const initializeData = async () => {
-      await Promise.all([
-        loadChannels(),
-        loadStorageInfo(),
-        loadQuestions(),
-        loadStats(),
-        // Documents loaded with initial channel from URL (or empty)
-        (async () => {
-          if (channelFromUrl) {
-            // Temporarily set the channel for document loading
-            const docs = await DocumentService.getUserDocuments(
-              (await supabase.auth.getUser()).data.user?.id || '',
-              channelFromUrl
-            );
-            setDocuments(docs);
-            setDocumentsLoading(false);
-          } else {
-            await loadDocuments();
-          }
-        })()
-      ]);
+      try {
+        await Promise.all([
+          loadChannels(),
+          loadStorageInfo(),
+          loadQuestions(),
+          loadStats(),
+          // Documents loaded with initial channel from URL (or empty)
+          (async () => {
+            if (channelFromUrl) {
+              try {
+                // Temporarily set the channel for document loading
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) throw error;
+                if (!user?.id) {
+                  console.error('No user ID available for loading documents');
+                  setDocumentsLoading(false);
+                  return;
+                }
+                const docs = await DocumentService.getUserDocuments(
+                  user.id,
+                  channelFromUrl
+                );
+                setDocuments(docs);
+                setDocumentsLoading(false);
+              } catch (error) {
+                console.error('Failed to load documents:', error);
+                setDocumentsLoading(false);
+              }
+            } else {
+              await loadDocuments();
+            }
+          })()
+        ]);
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      }
     };
 
     initializeData();

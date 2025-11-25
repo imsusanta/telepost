@@ -54,6 +54,8 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
       setStatistics(stats);
     } catch (error) {
       console.error("Failed to fetch statistics:", error);
+      // Set statistics to null to indicate fetch failure
+      setStatistics(null);
     }
   }, [userId]);
 

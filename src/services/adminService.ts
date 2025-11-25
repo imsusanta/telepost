@@ -73,12 +73,17 @@ export class AdminService {
       // Merge profiles with subscriptions
       const users: UserWithSubscription[] = profiles.map(profile => {
         const subscription = subscriptions?.find(sub => sub.user_id === profile.id);
+        let planName = 'Unknown';
+        if (subscription) {
+          const plans = (subscription as Record<string, unknown>).subscription_plans;
+          if (plans && typeof plans === 'object' && 'name' in plans) {
+            planName = (plans as { name: string }).name || 'Unknown';
+          }
+        }
         return {
           ...profile,
           subscription: subscription ? {
-            plan_name: (subscription as Record<string, unknown>).subscription_plans as { name: string } | undefined
-              ? ((subscription as Record<string, unknown>).subscription_plans as { name: string }).name
-              : 'Unknown',
+            plan_name: planName,
             status: subscription.status,
             current_period_end: subscription.current_period_end
           } : null
