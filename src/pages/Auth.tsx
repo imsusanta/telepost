@@ -14,6 +14,8 @@ import {
   sanitizeInput,
   checkRateLimit
 } from "@/utils/security";
+import { EmailVerification } from "@/components/EmailVerification";
+import { checkEmailVerified, sendVerificationEmail } from "@/services/verificationService";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ export default function Auth() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [invitationError, setInvitationError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const validateEmail = (email: string): boolean => {
     if (!email) {
@@ -115,16 +118,26 @@ export default function Auth() {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate("/dashboard");
+        const isVerified = await checkEmailVerified();
+        if (!isVerified) {
+          setNeedsVerification(true);
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
 
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        navigate("/dashboard");
+        const isVerified = await checkEmailVerified();
+        if (!isVerified) {
+          setNeedsVerification(true);
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
 
@@ -207,16 +220,15 @@ export default function Auth() {
         }
       }
 
+      // Send verification email
+      await sendVerificationEmail();
+      
       toast({
         title: "Success!",
-        description: "Account created successfully. You can now sign in.",
+        description: "Account created! Please verify your email to continue.",
       });
 
-      // Clear form
-      setEmail("");
-      setPassword("");
-      setFullName("");
-      setInvitationCode("");
+      setNeedsVerification(true);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to create account";
       toast({
@@ -270,6 +282,18 @@ export default function Auth() {
 
       // Ensure session is fully established before navigation
       if (data.session) {
+        // Check email verification
+        const isVerified = await checkEmailVerified();
+        if (!isVerified) {
+          setNeedsVerification(true);
+          toast({
+            title: "Email Verification Required",
+            description: "Please verify your email to continue.",
+          });
+          setLoading(false);
+          return;
+        }
+        
         // Small delay to ensure session is persisted to storage and available in client
         await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -288,6 +312,19 @@ export default function Auth() {
     }
     // Don't set loading to false here - let the navigation handle it
   };
+
+  const handleVerified = () => {
+    setNeedsVerification(false);
+    navigate("/dashboard");
+  };
+
+  if (needsVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <EmailVerification onVerified={handleVerified} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
