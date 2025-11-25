@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { QuizConfigForm } from "@/components/QuizConfig";
 import { QuizQuestion } from "@/components/QuizQuestion";
@@ -21,6 +22,7 @@ import type { Quiz, QuizConfig } from "@/types/quiz";
 type AppState = "landing" | "config" | "quiz" | "results";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [state, setState] = useState<AppState>("landing");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -114,7 +116,7 @@ const Index = () => {
   };
 
   const handleGetStarted = () => {
-    setState("config");
+    navigate("/auth");
   };
 
   return (
