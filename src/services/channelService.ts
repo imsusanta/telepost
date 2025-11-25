@@ -267,45 +267,59 @@ export class ChannelService {
     channelId: string,
     forceGenerate: boolean = true
   ): Promise<{ success: boolean; message: string; quizId?: string }> {
-    const { data, error } = await supabase.functions.invoke(
-      "auto-generate-channel-quizzes",
-      {
-        body: {
-          channelId,
-          forceGenerate,
-        },
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "auto-generate-channel-quizzes",
+        {
+          body: {
+            channelId,
+            forceGenerate,
+          },
+        }
+      );
+
+      if (error) {
+        console.error("Error triggering auto-generation:", error);
+        throw new Error(error.message || "Failed to trigger auto-generation");
       }
-    );
 
-    if (error) {
-      console.error("Error triggering auto-generation:", error);
-      throw new Error(error.message || "Failed to trigger auto-generation");
-    }
+      // Check results for the specific channel
+      if (!data?.results || !Array.isArray(data.results)) {
+        console.error("Invalid response format:", data);
+        return {
+          success: false,
+          message: data?.message || "Generation failed - no results returned",
+        };
+      }
 
-    // Check results for the specific channel
-    if (!data?.results || !Array.isArray(data.results)) {
+      const channelResult = (data.results as Array<{ channelId: string; success: boolean; quizId?: string; error?: string }>).find(
+        (r) => r.channelId === channelId
+      );
+
+      if (!channelResult) {
+        console.error("Channel not found in results:", channelId);
+        return {
+          success: false,
+          message: "Channel not found in generation results",
+        };
+      }
+
+      if (channelResult.success) {
+        return {
+          success: true,
+          message: `Quiz generated successfully`,
+          quizId: channelResult.quizId,
+        };
+      }
+
       return {
         success: false,
-        message: data?.message || "Generation failed - no results returned",
+        message: channelResult.error || data?.message || "Quiz generation failed. Please check your channel settings and try again.",
       };
+    } catch (error) {
+      console.error("Exception during auto-generation:", error);
+      throw error;
     }
-
-    const channelResult = (data.results as Array<{ channelId: string; success: boolean; quizId?: string; error?: string }>).find(
-      (r) => r.channelId === channelId
-    );
-
-    if (channelResult?.success) {
-      return {
-        success: true,
-        message: `Quiz generated successfully`,
-        quizId: channelResult.quizId,
-      };
-    }
-
-    return {
-      success: false,
-      message: channelResult?.error || data?.message || "Generation failed",
-    };
   }
 
   /**
