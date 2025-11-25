@@ -20,6 +20,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const QuestionBank = lazy(() => import("./pages/QuestionBank"));
 const Channels = lazy(() => import("./pages/Channels"));
 const Stories = lazy(() => import("./pages/Stories"));
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
 const SuperAdminInvitations = lazy(() => import("./pages/SuperAdminInvitations"));
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
               <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/dashboard/super-admin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<ProtectedRoute><SuperAdminCoupons /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin/users" element={<ProtectedRoute><SuperAdminUsers /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin/invitations" element={<ProtectedRoute><SuperAdminInvitations /></ProtectedRoute>} />
