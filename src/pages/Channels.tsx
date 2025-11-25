@@ -280,14 +280,11 @@ export default function Channels() {
 
     setIsGenerating(true);
     try {
-      const { error } = await supabase.functions.invoke("auto-generate-channel-quizzes", {
-        body: {
-          channelId: channel.id,
-          forceGenerate: true,
-        },
-      });
+      const result = await ChannelService.triggerAutoGeneration(channel.id, true);
 
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.message);
+      }
 
       toast({
         title: "Success",
