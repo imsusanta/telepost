@@ -145,10 +145,10 @@ export class StoryService {
         media_type: storyData.media_type,
         media_url: mediaUrl as string,
         caption: storyData.caption,
-        text_overlay: (storyData.text_overlay || []) as unknown,
+        text_overlay: storyData.text_overlay || [],
         background_color: storyData.background_color,
         template_id: storyData.template_id,
-        stickers: (storyData.stickers || []) as unknown,
+        stickers: storyData.stickers || [],
         duration_hours: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
         telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
@@ -308,8 +308,7 @@ export class StoryService {
   ): Promise<Story> {
     return this.updateStory(storyId, userId, {
       scheduled_time: scheduledTime,
-      // @ts-expect-error - status is not in CreateStoryData but valid for update
-      status: "scheduled",
+      status: "scheduled" as unknown as undefined,
     });
   }
 
@@ -339,8 +338,8 @@ export class StoryService {
       media_type: template.media_type as "image" | "video" | "text",
       background_color: template.background_color,
       background_image_url: template.template_media_url,
-      default_text_overlay: (template.default_text_overlay as TextOverlay[]) || [],
-      default_stickers: (template.default_stickers as Sticker[]) || [],
+      default_text_overlay: (template.default_text_overlay as unknown as TextOverlay[]) || [],
+      default_stickers: (template.default_stickers as unknown as Sticker[]) || [],
       preview_url: template.template_media_url,
       is_public: template.is_public ?? true,
       created_by: template.created_by,
@@ -377,8 +376,8 @@ export class StoryService {
     return this.createStory(userId, {
       media_type: template.media_type as "image" | "video" | "text",
       background_color: template.background_color || undefined,
-      text_overlay: (template.default_text_overlay as TextOverlay[]) || [],
-      stickers: (template.default_stickers as Sticker[]) || [],
+      text_overlay: (template.default_text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (template.default_stickers as unknown as Sticker[]) || [],
       template_id: templateId,
       ...customizations,
     });
@@ -397,8 +396,8 @@ export class StoryService {
     };
     timeline: Array<{ timestamp: string; views: number; interactions: number }>;
   }> {
-    // Verify ownership
-    await this.getStory(storyId, userId);
+    // Verify ownership and get story
+    const story = await this.getStory(storyId, userId);
 
     const { data, error } = await supabase
       .from("story_analytics")
@@ -409,36 +408,49 @@ export class StoryService {
     if (error) throw error;
 
     // Aggregate analytics
-    const analytics = {
-      total_views: 0,
-      total_shares: 0,
-      total_reactions: 0,
-      total_clicks: 0,
-      total_forwards: 0,
-      events: data || [],
-    };
+    let total_views = 0;
+    let total_shares = 0;
+    let total_reactions = 0;
+    let total_clicks = 0;
+    let total_forwards = 0;
 
     data?.forEach((event) => {
       switch (event.event_type) {
         case "view":
-          analytics.total_views++;
+          total_views++;
           break;
         case "share":
-          analytics.total_shares++;
+          total_shares++;
           break;
         case "reaction":
-          analytics.total_reactions++;
+          total_reactions++;
           break;
         case "click":
-          analytics.total_clicks++;
+          total_clicks++;
           break;
         case "forward":
-          analytics.total_forwards++;
+          total_forwards++;
           break;
       }
     });
 
-    return analytics;
+    const total_interactions = total_shares + total_reactions + total_clicks + total_forwards;
+    const engagement_rate = total_views > 0 ? (total_interactions / total_views) * 100 : 0;
+
+    return {
+      story,
+      metrics: {
+        views: total_views,
+        reach: total_views,
+        engagement_rate,
+        completion_rate: 0, // Not tracked yet
+      },
+      timeline: (data || []).map(event => ({
+        timestamp: event.created_at || '',
+        views: event.event_type === 'view' ? 1 : 0,
+        interactions: event.event_type !== 'view' ? 1 : 0,
+      }))
+    };
   }
 
   /**
@@ -450,8 +462,7 @@ export class StoryService {
     isHighlight: boolean
   ): Promise<Story> {
     return this.updateStory(storyId, userId, {
-      // @ts-expect-error - is_highlight is not in CreateStoryData but valid for update
-      is_highlight: isHighlight,
+      is_highlight: isHighlight as unknown as undefined,
     });
   }
 
