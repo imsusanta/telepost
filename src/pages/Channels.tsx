@@ -25,7 +25,7 @@ export default function Channels() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [channelStats, setChannelStats] = useState<Record<string, { documentCount: number; quizCount: number }>>({});
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingChannelId, setGeneratingChannelId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -278,12 +278,12 @@ export default function Channels() {
       return;
     }
 
-    setIsGenerating(true);
+    setGeneratingChannelId(channel.id);
     try {
       const result = await ChannelService.triggerAutoGeneration(channel.id, true);
 
       if (!result.success) {
-        throw new Error(result.message);
+        throw new Error(result.message || "Failed to generate quiz");
       }
 
       toast({
@@ -293,13 +293,14 @@ export default function Channels() {
 
       loadChannels();
     } catch (error: unknown) {
+      console.error("Quiz generation error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate quiz",
+        description: error instanceof Error ? error.message : "Failed to generate quiz. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
+      setGeneratingChannelId(null);
     }
   };
 
@@ -555,10 +556,10 @@ export default function Channels() {
                     size="sm"
                     className="w-full"
                     onClick={() => handleManualGeneration(channel)}
-                    disabled={isGenerating}
+                    disabled={generatingChannelId === channel.id}
                   >
                     <Zap className="mr-2 h-4 w-4" />
-                    {isGenerating ? "Generating..." : "Generate Quiz Now"}
+                    {generatingChannelId === channel.id ? "Generating..." : "Generate Quiz Now"}
                   </Button>
                 )}
 
