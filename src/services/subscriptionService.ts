@@ -101,7 +101,7 @@ export class SubscriptionService {
       };
     }
 
-    if (!(profile as any).can_purchase_plans) {
+    if (!(profile as { can_purchase_plans?: boolean }).can_purchase_plans) {
       return {
         allowed: false,
         reason: "Your account does not have permission to purchase plans. Please contact support."
@@ -137,8 +137,8 @@ export class SubscriptionService {
     // Handle coupon if provided
     let couponId: string | null = null;
     let discountAmount: number = 0;
-    let originalPrice: number = (plan as any).price;
-    let finalPrice: number = (plan as any).price;
+    const originalPrice: number = (plan as { price: number }).price;
+    let finalPrice: number = (plan as { price: number }).price;
 
     if (couponCode) {
       const { data: validationResult, error: couponError } = await supabase
@@ -146,7 +146,7 @@ export class SubscriptionService {
           p_coupon_code: couponCode,
           p_user_id: userId,
           p_plan_name: planName,
-          p_purchase_amount: (plan as any).price,
+          p_purchase_amount: (plan as { price: number }).price,
         });
 
       if (couponError) {
@@ -162,7 +162,7 @@ export class SubscriptionService {
       if (validation && validation.is_valid) {
         couponId = validation.coupon_id;
         discountAmount = validation.discount_amount || 0;
-        finalPrice = validation.final_amount || (plan as any).price;
+        finalPrice = validation.final_amount || (plan as { price: number }).price;
       }
     }
 
@@ -285,7 +285,7 @@ export class SubscriptionService {
         case "generate_quiz":
           return { allowed: true }; // Unlimited quizzes for free tier
 
-        case "upload_pdf":
+        case "upload_pdf": {
           const storageUsedGB = usage.total_storage_used_bytes / (1024 * 1024 * 1024);
           if (storageUsedGB >= defaultLimits.max_pdf_storage_gb) {
             return {
@@ -300,6 +300,7 @@ export class SubscriptionService {
             limit: defaultLimits.max_pdf_storage_gb,
             current: Math.round(storageUsedGB * 100) / 100,
           };
+        }
 
         case "batch_quiz":
           return { allowed: true }; // Allow batch quiz generation
@@ -331,7 +332,7 @@ export class SubscriptionService {
           current: usage.quizzes_generated_this_month,
         };
 
-      case "upload_pdf":
+      case "upload_pdf": {
         const storageUsedGB = usage.total_storage_used_bytes / (1024 * 1024 * 1024);
         if (storageUsedGB >= plan.max_pdf_storage_gb) {
           return {
@@ -346,6 +347,7 @@ export class SubscriptionService {
           limit: plan.max_pdf_storage_gb,
           current: Math.round(storageUsedGB * 100) / 100,
         };
+      }
 
       case "batch_quiz":
         if (!plan.has_advanced_ai) {
@@ -365,7 +367,7 @@ export class SubscriptionService {
    * Track quiz generation
    */
   static async trackQuizGeneration(userId: string): Promise<void> {
-    const { error } = await supabase.rpc("increment_quiz_count" as any, {
+    const { error } = await supabase.rpc("increment_quiz_count" as unknown as string, {
       p_user_id: userId,
     });
 
@@ -385,8 +387,8 @@ export class SubscriptionService {
         const { error: updateError } = await supabase
           .from("usage_tracking")
           .update({
-            quizzes_generated_this_month: (currentUsage as any).quizzes_generated_this_month + 1,
-            total_quizzes_generated: (currentUsage as any).total_quizzes_generated + 1,
+            quizzes_generated_this_month: ((currentUsage as { quizzes_generated_this_month: number }).quizzes_generated_this_month || 0) + 1,
+            total_quizzes_generated: ((currentUsage as { total_quizzes_generated: number }).total_quizzes_generated || 0) + 1,
           })
           .eq("user_id", userId);
 
@@ -405,8 +407,8 @@ export class SubscriptionService {
           await supabase
             .from("usage_tracking")
             .update({
-              quizzes_generated_this_month: (newUsage as any).quizzes_generated_this_month + 1,
-              total_quizzes_generated: (newUsage as any).total_quizzes_generated + 1,
+              quizzes_generated_this_month: ((newUsage as { quizzes_generated_this_month: number }).quizzes_generated_this_month || 0) + 1,
+              total_quizzes_generated: ((newUsage as { total_quizzes_generated: number }).total_quizzes_generated || 0) + 1,
             })
             .eq("user_id", userId);
         }
@@ -436,9 +438,9 @@ export class SubscriptionService {
     const { error } = await supabase
       .from("usage_tracking")
       .update({
-        pdfs_uploaded_this_month: (currentUsage as any).pdfs_uploaded_this_month + 1,
-        total_pdfs_uploaded: (currentUsage as any).total_pdfs_uploaded + 1,
-        total_storage_used_bytes: (currentUsage as any).total_storage_used_bytes + fileSize,
+        pdfs_uploaded_this_month: ((currentUsage as { pdfs_uploaded_this_month: number }).pdfs_uploaded_this_month || 0) + 1,
+        total_pdfs_uploaded: ((currentUsage as { total_pdfs_uploaded: number }).total_pdfs_uploaded || 0) + 1,
+        total_storage_used_bytes: ((currentUsage as { total_storage_used_bytes: number }).total_storage_used_bytes || 0) + fileSize,
       })
       .eq("user_id", userId);
 

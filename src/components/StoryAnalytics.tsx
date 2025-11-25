@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Eye, Forward, Heart, Loader2, MousePointer, Share2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoryService, Story } from "@/services/storyService";
@@ -35,11 +35,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [storyId]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await StoryService.getStoryAnalytics(storyId, userId);
@@ -53,7 +49,11 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [storyId, userId, toast]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   if (isLoading) {
     return (

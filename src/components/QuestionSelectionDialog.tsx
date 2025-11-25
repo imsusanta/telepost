@@ -144,10 +144,10 @@ export function QuestionSelectionDialog({
 
       onOpenChange(false);
       onSaved?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save questions",
+        description: error instanceof Error ? error.message : "Failed to save questions",
         variant: "destructive",
       });
     } finally {

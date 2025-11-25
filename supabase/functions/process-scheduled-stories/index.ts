@@ -61,7 +61,7 @@ serve(async (req) => {
     // Process each scheduled story
     for (const story of stories) {
       try {
-        const channel = story.channels as any;
+        const channel = story.channels as { telegram_channel_id?: string } | null;
         const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
         if (!botToken) {
           throw new Error("Bot token not configured");
@@ -173,12 +173,12 @@ serve(async (req) => {
   }
 });
 
-function buildCaption(story: any): string {
+function buildCaption(story: { caption?: string; text_overlay?: Array<{ text?: string }> }): string {
   let caption = story.caption || "";
   
   if (story.text_overlay && Array.isArray(story.text_overlay)) {
     const overlayTexts = story.text_overlay
-      .map((overlay: any) => overlay.text)
+      .map((overlay) => overlay.text)
       .filter(Boolean)
       .join("\n");
     if (overlayTexts) {

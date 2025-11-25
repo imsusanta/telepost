@@ -355,7 +355,7 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
             {/* Media Type Selection */}
             <div className="space-y-2">
               <Label>Story Type</Label>
-              <Select value={mediaType} onValueChange={(value: any) => setMediaType(value)}>
+              <Select value={mediaType} onValueChange={(value) => setMediaType(value as "image" | "video" | "text")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

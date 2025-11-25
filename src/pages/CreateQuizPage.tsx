@@ -45,7 +45,11 @@ export default function CreateQuizPage() {
   const [isQuestionsRefreshing, setIsQuestionsRefreshing] = useState(false);
   const [questionSearchQuery, setQuestionSearchQuery] = useState("");
   const [filters, setFilters] = useState<QuestionBankFilters>({});
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    total: number;
+    byTopic: Record<string, number>;
+    byLanguage: Record<string, number>;
+  } | null>(null);
 
   // Data loading functions
   const loadChannels = useCallback(async () => {
@@ -209,7 +213,7 @@ export default function CreateQuizPage() {
     };
 
     initializeData();
-  }, []); // Empty dependency array - run once on mount
+  }, [loadChannels, loadStorageInfo, loadQuestions, loadStats, loadDocuments, searchParams]); // Run once on mount
 
   // Reload documents when selectedChannel changes (but not on initial mount)
   const [isInitialMount, setIsInitialMount] = useState(true);
@@ -219,7 +223,7 @@ export default function CreateQuizPage() {
       return;
     }
     loadDocuments();
-  }, [selectedChannel, loadDocuments]);
+  }, [selectedChannel, loadDocuments, isInitialMount]);
 
   // Reload questions when filters change (but not on initial mount)
   const [isFiltersInitialized, setIsFiltersInitialized] = useState(false);
@@ -230,7 +234,7 @@ export default function CreateQuizPage() {
     }
     loadQuestions();
     loadStats();
-  }, [filters, loadQuestions, loadStats]);
+  }, [filters, loadQuestions, loadStats, isFiltersInitialized]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -88,10 +88,10 @@ export default function Channels() {
       resetCreateForm();
 
       loadChannels();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to create channel",
         variant: "destructive",
       });
     } finally {
@@ -139,12 +139,13 @@ export default function Channels() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
-      const errorResult = { success: false, message: error.message || "Test failed" };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Test failed";
+      const errorResult = { success: false, message: errorMessage };
       setConnectionTestResult(errorResult);
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -181,10 +182,10 @@ export default function Channels() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Connection test failed",
         variant: "destructive",
       });
     } finally {
@@ -209,10 +210,10 @@ export default function Channels() {
       });
 
       loadChannels();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete channel",
         variant: "destructive",
       });
     }
@@ -234,10 +235,10 @@ export default function Channels() {
       });
 
       loadChannels();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update settings",
         variant: "destructive",
       });
     }
@@ -294,10 +295,10 @@ export default function Channels() {
       });
 
       loadChannels();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate quiz",
+        description: error instanceof Error ? error.message : "Failed to generate quiz",
         variant: "destructive",
       });
     } finally {
@@ -721,7 +722,7 @@ export default function Channels() {
                     <Label htmlFor="default-difficulty">Difficulty</Label>
                     <Select
                       value={selectedChannel.settings.default_difficulty}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value: string) =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, default_difficulty: value },
@@ -743,7 +744,7 @@ export default function Channels() {
                     <Label htmlFor="default-language">Language</Label>
                     <Select
                       value={selectedChannel.settings.default_language}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value: string) =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, default_language: value },
@@ -765,7 +766,7 @@ export default function Channels() {
                     <Label htmlFor="generation-frequency">Frequency</Label>
                     <Select
                       value={selectedChannel.settings.generation_frequency}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value: string) =>
                         setSelectedChannel({
                           ...selectedChannel,
                           settings: { ...selectedChannel.settings, generation_frequency: value },

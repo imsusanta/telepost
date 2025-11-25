@@ -9,7 +9,7 @@ export interface InvitationCode {
   current_uses: number;
   expires_at: string | null;
   is_active: boolean;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   created_at: string;
   used_at: string | null;
   updated_at: string;
@@ -62,8 +62,8 @@ export async function getAllInvitationCodes(): Promise<InvitationCode[]> {
 
     if (error) throw error;
     return (data || []) as InvitationCode[];
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to fetch invitation codes');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to fetch invitation codes');
   }
 }
 
@@ -73,7 +73,7 @@ export async function getAllInvitationCodes(): Promise<InvitationCode[]> {
 export async function generateInvitationCode(
   maxUses: number = 1,
   expiresInDays: number = 30,
-  metadata: any = {}
+  metadata: Record<string, unknown> = {}
 ): Promise<{ code: string; code_id: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -105,8 +105,8 @@ export async function generateInvitationCode(
       code: data.code,
       code_id: data.id
     };
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to generate invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to generate invitation code');
   }
 }
 
@@ -132,10 +132,10 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
     return {
       is_valid: result.is_valid || false,
       message: result.message || '',
-      code_id: (result as any).code_id || null
+      code_id: (result as { code_id?: string }).code_id || null
     };
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to validate invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to validate invitation code');
   }
 }
 
@@ -150,8 +150,8 @@ export async function deactivateInvitationCode(codeId: string): Promise<void> {
       .eq('id', codeId);
 
     if (error) throw error;
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to deactivate invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to deactivate invitation code');
   }
 }
 
@@ -166,8 +166,8 @@ export async function reactivateInvitationCode(codeId: string): Promise<void> {
       .eq('id', codeId);
 
     if (error) throw error;
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to reactivate invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to reactivate invitation code');
   }
 }
 
@@ -182,8 +182,8 @@ export async function deleteInvitationCode(codeId: string): Promise<void> {
       .eq('id', codeId);
 
     if (error) throw error;
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to delete invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to delete invitation code');
   }
 }
 
@@ -230,8 +230,8 @@ export async function generateInvitationCodeViaEdgeFunction(
       codes: data.codes as InvitationCode[],
       message: data.message
     };
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to generate invitation codes');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to generate invitation codes');
   }
 }
 
@@ -242,14 +242,14 @@ export async function createCustomInvitationCode(
   customCode: string,
   maxUses: number = 1,
   expiresInDays: number | null = null,
-  metadata: any = {}
+  metadata: Record<string, unknown> = {}
 ): Promise<{ code: string; code_id: string; success: boolean; message: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // Type assertion needed as this RPC function may not be in generated types
-    const { data, error } = await (supabase.rpc as any)('create_custom_invitation_code', {
+    const { data, error } = await (supabase.rpc as (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)('create_custom_invitation_code', {
       p_code: customCode,
       p_created_by: user.id,
       p_max_uses: maxUses,
@@ -274,8 +274,8 @@ export async function createCustomInvitationCode(
       success: result.success,
       message: result.message
     };
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to create custom invitation code');
+  } catch (error: unknown) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to create custom invitation code');
   }
 }
 
@@ -313,7 +313,8 @@ export async function createInvitationCodeBatch(
     }
 
     return codes;
-  } catch (error: any) {
-    throw new Error(error.message || 'Failed to create invitation code batch');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create invitation code batch';
+    throw new Error(message);
   }
 }

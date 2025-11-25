@@ -4,7 +4,7 @@ export interface AnalyticsEvent {
   id: string;
   user_id: string;
   event_type: string;
-  event_data?: any;
+  event_data?: Record<string, unknown>;
   quiz_generation_id: string | null;
   document_id: string | null;
   created_at: string;
@@ -30,7 +30,7 @@ export class AnalyticsService {
   static async trackEvent(
     userId: string,
     eventType: string,
-    eventData?: any,
+    eventData?: Record<string, unknown>,
     context?: {
       quizGenerationId?: string;
       documentId?: string;
@@ -100,7 +100,7 @@ export class AnalyticsService {
     const quizIds = quizzes.map((q) => q.id);
 
     // Fetch responses only if there are quizzes
-    let responses: any[] = [];
+    let responses: Array<{ is_correct: boolean }> = [];
     let totalResponses = 0;
 
     if (quizIds.length > 0) {
@@ -153,7 +153,7 @@ export class AnalyticsService {
    * Group data by day
    */
   private static groupByDay(
-    data: any[],
+    data: Array<{ created_at: string }>,
     days: number
   ): Array<{ date: string; count: number }> {
     const result: { [key: string]: number } = {};
@@ -182,7 +182,7 @@ export class AnalyticsService {
    * Group data by field
    */
   private static groupByField(
-    data: any[],
+    data: Array<Record<string, unknown>>,
     field: string
   ): Array<{ topic?: string; difficulty?: string; count: number }> {
     const result: { [key: string]: number } = {};
@@ -291,7 +291,7 @@ export class AnalyticsService {
     csv += `Average Score,${data.averageScore}%\n\n`;
 
     csv += "Topic,Count\n";
-    data.quizzesByTopic.forEach((item: any) => {
+    data.quizzesByTopic.forEach((item: { topic: string; count: number }) => {
       csv += `${item.topic},${item.count}\n`;
     });
 

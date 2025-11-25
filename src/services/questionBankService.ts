@@ -124,13 +124,13 @@ export class QuestionBankService {
    */
   static async importQuestionsFromQuiz(
     userId: string,
-    quizData: any,
+    quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: { difficulty?: string } },
     topic: string,
     options?: {
       channelId?: string;
     }
   ): Promise<QuestionBankItem[]> {
-    const questions = quizData.questions.map((q: any) => ({
+    const questions = quizData.questions.map((q) => ({
       user_id: userId,
       question: q.question,
       options: q.options,
@@ -157,7 +157,7 @@ export class QuestionBankService {
   static async importQuestionsFromDocument(
     userId: string,
     _documentId: string,
-    questions: any[],
+    questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string; difficulty?: string }>,
     options?: {
       topic?: string;
       channelId?: string;

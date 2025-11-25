@@ -260,7 +260,7 @@ serve(async (req) => {
  * Check if a channel is due for quiz generation based on frequency settings
  */
 async function checkGenerationFrequency(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   channelId: string,
   frequency: string
 ): Promise<boolean> {
@@ -302,7 +302,7 @@ async function checkGenerationFrequency(
 /**
  * Determine the topic for quiz generation based on channel settings and documents
  */
-function determineTopic(channel: Channel, documents: any[] | null): string {
+function determineTopic(channel: Channel, documents: Array<{ topics?: string[]; title?: string }> | null): string {
   // Use default subject if set
   if (channel.settings.default_subject) {
     return channel.settings.default_subject;
@@ -387,7 +387,7 @@ async function generateQuizForChannel(
   topic: string,
   systemPrompt: string,
   knowledgeBase: string
-): Promise<any> {
+): Promise<{ questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: Record<string, unknown>; topic?: string }> {
   const requestId = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -514,7 +514,7 @@ ADDITIONAL RULES:
 async function sendQuizToTelegram(
   botToken: string,
   chatId: string,
-  quiz: any
+  quiz: { topic: string; questions: Array<{ question: string; options: string[]; correct_option_index: number }>; metadata?: { difficulty?: string } }
 ): Promise<void> {
   const baseUrl = `https://api.telegram.org/bot${botToken}`;
 

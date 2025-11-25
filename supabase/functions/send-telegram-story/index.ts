@@ -238,7 +238,7 @@ serve(async (req) => {
 });
 
 // Helper function to build caption from story data
-function buildCaption(story: any): string {
+function buildCaption(story: { caption?: string; text_overlay?: TextOverlay[] }): string {
   let caption = story.caption || "";
 
   // Add text overlay information to caption if present
@@ -256,7 +256,7 @@ function buildCaption(story: any): string {
 }
 
 // Helper function to build text-only story content
-function buildTextStory(story: any): string {
+function buildTextStory(story: { text_overlay?: Array<{ text: string }>; caption?: string; stickers?: Array<{ emoji: string }> }): string {
   let content = "";
 
   // Build from text overlay
@@ -283,8 +283,8 @@ function buildTextStory(story: any): string {
   // Add stickers/emojis if present
   if (story.stickers && Array.isArray(story.stickers) && story.stickers.length > 0) {
     const emojiString = story.stickers
-      .filter((s: any) => s.emoji)
-      .map((s: any) => s.emoji)
+      .filter((s) => s.emoji)
+      .map((s) => s.emoji)
       .join(" ");
 
     if (emojiString) {
@@ -296,7 +296,7 @@ function buildTextStory(story: any): string {
 }
 
 // Helper function to handle Telegram API errors
-function handleTelegramError(errorData: any): string {
+function handleTelegramError(errorData: { error_code?: number; description?: string }): string {
   if (errorData.error_code === 403) {
     return `Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open your Telegram channel\n2. Add your bot as an Administrator\n3. Grant 'Post Messages' permission\n4. Try posting again`;
   } else if (errorData.error_code === 400 && errorData.description?.includes('chat not found')) {

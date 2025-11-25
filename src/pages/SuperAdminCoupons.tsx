@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Copy, DollarSign, Loader2, Plus, Tag, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -52,11 +52,23 @@ export default function SuperAdminCoupons() {
   const [validUntil, setValidUntil] = useState('');
   const [minPurchaseAmount, setMinPurchaseAmount] = useState('');
 
-  useEffect(() => {
-    checkAccessAndLoadCoupons();
-  }, []);
+  const loadCoupons = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getAllCoupons();
+      setCoupons(data);
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load coupons',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const checkAccessAndLoadCoupons = async () => {
+  const checkAccessAndLoadCoupons = useCallback(async () => {
     try {
       const hasAccess = await isSuperAdmin();
       if (!hasAccess) {
@@ -73,23 +85,11 @@ export default function SuperAdminCoupons() {
       console.error('Error checking access:', error);
       navigate('/dashboard');
     }
-  };
+  }, [toast, navigate, loadCoupons]);
 
-  const loadCoupons = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllCoupons();
-      setCoupons(data);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load coupons',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    checkAccessAndLoadCoupons();
+  }, [checkAccessAndLoadCoupons]);
 
   const handleGenerateCode = () => {
     const newCode = generateCouponCode('QUIZ', 6);
@@ -155,10 +155,10 @@ export default function SuperAdminCoupons() {
 
       // Reload coupons
       await loadCoupons();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create coupon',
+        description: error instanceof Error ? error.message : 'Failed to create coupon',
         variant: 'destructive',
       });
     } finally {
@@ -178,10 +178,10 @@ export default function SuperAdminCoupons() {
         description: 'Coupon deleted successfully',
       });
       await loadCoupons();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete coupon',
+        description: error instanceof Error ? error.message : 'Failed to delete coupon',
         variant: 'destructive',
       });
     }
@@ -195,10 +195,10 @@ export default function SuperAdminCoupons() {
         description: `Coupon ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
       });
       await loadCoupons();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update coupon status',
+        description: error instanceof Error ? error.message : 'Failed to update coupon status',
         variant: 'destructive',
       });
     }

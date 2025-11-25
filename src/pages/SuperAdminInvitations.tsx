@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Copy, Key, Loader2, Plus, Trash2, Users, Shield } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -49,11 +49,23 @@ export default function SuperAdminInvitations() {
   const [expiresInDays, setExpiresInDays] = useState('30');
   const [batchCount, setBatchCount] = useState('1');
 
-  useEffect(() => {
-    checkAccessAndLoadCodes();
-  }, []);
+  const loadInvitationCodes = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getAllInvitationCodes();
+      setInvitationCodes(data);
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load invitation codes',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const checkAccessAndLoadCodes = async () => {
+  const checkAccessAndLoadCodes = useCallback(async () => {
     try {
       const hasAccess = await isAdmin();
       if (!hasAccess) {
@@ -70,23 +82,11 @@ export default function SuperAdminInvitations() {
       console.error('Error checking access:', error);
       navigate('/dashboard');
     }
-  };
+  }, [toast, navigate, loadInvitationCodes]);
 
-  const loadInvitationCodes = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllInvitationCodes();
-      setInvitationCodes(data);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load invitation codes',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    checkAccessAndLoadCodes();
+  }, [checkAccessAndLoadCodes]);
 
   const handleCreateCodes = async () => {
     const maxUsesNum = parseInt(maxUses);
@@ -155,10 +155,10 @@ export default function SuperAdminInvitations() {
       setMaxUses('1');
       setExpiresInDays('30');
       setBatchCount('1');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create invitation codes',
+        description: error instanceof Error ? error.message : 'Failed to create invitation codes',
         variant: 'destructive',
       });
     } finally {
@@ -180,10 +180,10 @@ export default function SuperAdminInvitations() {
       });
 
       await loadInvitationCodes();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update invitation code',
+        description: error instanceof Error ? error.message : 'Failed to update invitation code',
         variant: 'destructive',
       });
     }
@@ -203,10 +203,10 @@ export default function SuperAdminInvitations() {
       });
 
       await loadInvitationCodes();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete invitation code',
+        description: error instanceof Error ? error.message : 'Failed to delete invitation code',
         variant: 'destructive',
       });
     }

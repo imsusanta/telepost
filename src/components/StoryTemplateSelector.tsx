@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { CheckCircle2, Image, Loader2, Type, Video } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,26 +19,26 @@ export const StoryTemplateSelector: React.FC<StoryTemplateSelectorProps> = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
-  // Load templates
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await StoryService.getTemplates();
       setTemplates(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to load templates",
-        description: error.message || "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Load templates
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const handleSelectTemplate = (template: StoryTemplate) => {
     setSelectedTemplateId(template.template_id);

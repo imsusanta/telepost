@@ -47,7 +47,7 @@ export default function SuperAdminUsers() {
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,18 +70,7 @@ export default function SuperAdminUsers() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    checkAccessAndLoadData();
-  }, []);
-
-  // Load data when page or search changes
-  useEffect(() => {
-    if (!loading) {
-      loadData();
-    }
-  }, [currentPage, debouncedSearch]);
-
-  const checkAccessAndLoadData = async () => {
+  const checkAccessAndLoadData = useCallback(async () => {
     try {
       const hasAccess = await isSuperAdmin();
       if (!hasAccess) {
@@ -98,7 +87,18 @@ export default function SuperAdminUsers() {
       console.error('Error checking access:', error);
       navigate('/dashboard');
     }
-  };
+  }, [toast, navigate, loadData]);
+
+  useEffect(() => {
+    checkAccessAndLoadData();
+  }, [checkAccessAndLoadData]);
+
+  // Load data when page or search changes
+  useEffect(() => {
+    if (!loading) {
+      loadData();
+    }
+  }, [currentPage, debouncedSearch, loadData, loading]);
 
   const loadData = useCallback(async () => {
     try {
@@ -111,10 +111,10 @@ export default function SuperAdminUsers() {
       setTotalPages(paginatedData.totalPages);
       setTotalCount(paginatedData.totalCount);
       setPlans(plansData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to load data',
+        description: error instanceof Error ? error.message : 'Failed to load data',
         variant: 'destructive',
       });
     } finally {
@@ -155,10 +155,10 @@ export default function SuperAdminUsers() {
 
       setIsEditDialogOpen(false);
       await loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update subscription',
+        description: error instanceof Error ? error.message : 'Failed to update subscription',
         variant: 'destructive',
       });
     } finally {
@@ -183,16 +183,16 @@ export default function SuperAdminUsers() {
     }
 
     try {
-      await updateUserStatus(userId, newStatus as any);
+      await updateUserStatus(userId, newStatus as 'active' | 'suspended');
       toast({
         title: 'Success',
         description: `User ${newStatus === 'active' ? 'activated' : 'suspended'} successfully`,
       });
       await loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update user status',
+        description: error instanceof Error ? error.message : 'Failed to update user status',
         variant: 'destructive',
       });
     }

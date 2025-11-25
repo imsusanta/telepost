@@ -145,10 +145,10 @@ export class StoryService {
         media_type: storyData.media_type,
         media_url: mediaUrl as string,
         caption: storyData.caption,
-        text_overlay: storyData.text_overlay as any || [],
+        text_overlay: (storyData.text_overlay as TextOverlay[]) || [],
         background_color: storyData.background_color,
         template_id: storyData.template_id,
-        stickers: storyData.stickers as any || [],
+        stickers: (storyData.stickers as Sticker[]) || [],
         duration_hours: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
         telegram_chat_id: storyData.telegram_chat_id,
         scheduled_time: storyData.scheduled_time,
@@ -161,8 +161,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as any) || [],
-      stickers: (data.stickers as any) || []
+      text_overlay: (data.text_overlay as TextOverlay[]) || [],
+      stickers: (data.stickers as Sticker[]) || []
     } as Story;
   }
 
@@ -176,7 +176,7 @@ export class StoryService {
   ): Promise<Story> {
     const { data, error } = await supabase
       .from("telegram_stories")
-      .update(updates as any)
+      .update(updates as Record<string, unknown>)
       .eq("story_id", storyId)
       .eq("user_id", userId)
       .select()
@@ -185,8 +185,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as any) || [],
-      stickers: (data.stickers as any) || []
+      text_overlay: (data.text_overlay as TextOverlay[]) || [],
+      stickers: (data.stickers as Sticker[]) || []
     } as Story;
   }
 
@@ -230,8 +230,8 @@ export class StoryService {
     if (error) throw error;
     return (data || []).map(story => ({
       ...story,
-      text_overlay: (story.text_overlay as any) || [],
-      stickers: (story.stickers as any) || []
+      text_overlay: (story.text_overlay as TextOverlay[]) || [],
+      stickers: (story.stickers as Sticker[]) || []
     })) as Story[];
   }
 
@@ -249,8 +249,8 @@ export class StoryService {
     if (error) throw error;
     return {
       ...data,
-      text_overlay: (data.text_overlay as any) || [],
-      stickers: (data.stickers as any) || []
+      text_overlay: (data.text_overlay as TextOverlay[]) || [],
+      stickers: (data.stickers as Sticker[]) || []
     } as Story;
   }
 
@@ -308,7 +308,7 @@ export class StoryService {
   ): Promise<Story> {
     return this.updateStory(storyId, userId, {
       scheduled_time: scheduledTime,
-      // @ts-ignore - status is not in CreateStoryData but valid for update
+      // @ts-expect-error - status is not in CreateStoryData but valid for update
       status: "scheduled",
     });
   }
@@ -339,8 +339,8 @@ export class StoryService {
       media_type: template.media_type as "image" | "video" | "text",
       background_color: template.background_color,
       background_image_url: template.template_media_url,
-      default_text_overlay: (template.default_text_overlay as any) || [],
-      default_stickers: (template.default_stickers as any) || [],
+      default_text_overlay: (template.default_text_overlay as TextOverlay[]) || [],
+      default_stickers: (template.default_stickers as Sticker[]) || [],
       preview_url: template.template_media_url,
       is_public: template.is_public ?? true,
       created_by: template.created_by,
@@ -377,8 +377,8 @@ export class StoryService {
     return this.createStory(userId, {
       media_type: template.media_type as "image" | "video" | "text",
       background_color: template.background_color || undefined,
-      text_overlay: (template.default_text_overlay as any) || [],
-      stickers: (template.default_stickers as any) || [],
+      text_overlay: (template.default_text_overlay as TextOverlay[]) || [],
+      stickers: (template.default_stickers as Sticker[]) || [],
       template_id: templateId,
       ...customizations,
     });
@@ -387,7 +387,16 @@ export class StoryService {
   /**
    * Get story analytics
    */
-  static async getStoryAnalytics(storyId: string, userId: string): Promise<any> {
+  static async getStoryAnalytics(storyId: string, userId: string): Promise<{
+    story: Story;
+    metrics: {
+      views: number;
+      reach: number;
+      engagement_rate: number;
+      completion_rate: number;
+    };
+    timeline: Array<{ timestamp: string; views: number; interactions: number }>;
+  }> {
     // Verify ownership
     await this.getStory(storyId, userId);
 
@@ -441,7 +450,7 @@ export class StoryService {
     isHighlight: boolean
   ): Promise<Story> {
     return this.updateStory(storyId, userId, {
-      // @ts-ignore
+      // @ts-expect-error - is_highlight is not in CreateStoryData but valid for update
       is_highlight: isHighlight,
     });
   }
@@ -473,8 +482,8 @@ export class StoryService {
     if (error) throw error;
     return (data || []).map(story => ({
       ...story,
-      text_overlay: (story.text_overlay as any) || [],
-      stickers: (story.stickers as any) || []
+      text_overlay: (story.text_overlay as TextOverlay[]) || [],
+      stickers: (story.stickers as Sticker[]) || []
     })) as Story[];
   }
 

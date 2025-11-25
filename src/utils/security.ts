@@ -109,7 +109,7 @@ export const validatePassword = (password: string): {
     strengthScore++;
   }
 
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   } else {
     strengthScore++;
@@ -368,7 +368,7 @@ export const isSuspiciousUserAgent = (userAgent: string): boolean => {
  * Validate integer input within bounds
  */
 export const validateInteger = (
-  value: any,
+  value: unknown,
   min?: number,
   max?: number
 ): { isValid: boolean; value: number | null; error?: string } => {
