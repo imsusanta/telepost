@@ -83,10 +83,10 @@ export default function Auth() {
   const passwordStrength = getPasswordStrength(password);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
-    // Invitation code is OPTIONAL - if empty, allow signup
+    // Invitation code is MANDATORY
     if (!code || code.trim().length === 0) {
-      setInvitationError("");
-      return true;
+      setInvitationError("Invitation code is required");
+      return false;
     }
 
     try {
@@ -174,8 +174,6 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const hasInvitationCode = invitationCode && invitationCode.trim().length > 0;
-
       const { data, error } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
@@ -183,15 +181,15 @@ export default function Auth() {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: sanitizedFullName,
-            invitation_code_used: hasInvitationCode ? invitationCode.trim().toUpperCase() : null,
+            invitation_code_used: invitationCode.trim().toUpperCase(),
           },
         },
       });
 
       if (error) throw error;
 
-      // Consume the invitation code after successful signup (only if code was provided)
-      if (data.user && hasInvitationCode) {
+      // Consume the invitation code after successful signup
+      if (data.user) {
         try {
           await supabase.rpc('consume_invitation_code', {
             p_code: invitationCode.trim().toUpperCase(),
@@ -375,18 +373,19 @@ export default function Auth() {
                 <form onSubmit={handleSignUp} className="space-y-5">
                   <div className="space-y-2.5">
                     <Label htmlFor="signup-invitation" className="text-foreground font-semibold flex items-center gap-2">
-                      Invitation Code <span className="text-muted-foreground text-xs">(Optional)</span>
+                      Invitation Code *
                       <Shield className="w-4 h-4 text-primary" />
                     </Label>
                     <Input
                       id="signup-invitation"
                       type="text"
-                      placeholder="Enter your invitation code (optional)"
+                      placeholder="Enter your invitation code"
                       value={invitationCode}
                       onChange={(e) => {
                         setInvitationCode(e.target.value.toUpperCase());
                         setInvitationError("");
                       }}
+                      required
                       aria-invalid={!!invitationError}
                       aria-describedby={invitationError ? "signup-invitation-error" : undefined}
                       className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${invitationError ? "border-destructive" : ""}`}
@@ -398,7 +397,7 @@ export default function Auth() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Enter an invitation code if you have one, or leave empty to sign up directly.
+                      A valid invitation code is required to create an account.
                     </p>
                   </div>
                   <div className="space-y-2.5">
