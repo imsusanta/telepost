@@ -264,6 +264,36 @@ export type Database = {
           },
         ]
       }
+      email_verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       invitation_codes: {
         Row: {
           code: string
@@ -356,6 +386,7 @@ export type Database = {
           can_purchase_plans: boolean | null
           created_at: string
           email: string | null
+          email_verified: boolean | null
           full_name: string | null
           id: string
           invitation_code_used: string | null
@@ -367,6 +398,7 @@ export type Database = {
           can_purchase_plans?: boolean | null
           created_at?: string
           email?: string | null
+          email_verified?: boolean | null
           full_name?: string | null
           id: string
           invitation_code_used?: string | null
@@ -378,6 +410,7 @@ export type Database = {
           can_purchase_plans?: boolean | null
           created_at?: string
           email?: string | null
+          email_verified?: boolean | null
           full_name?: string | null
           id?: string
           invitation_code_used?: string | null
@@ -1147,6 +1180,7 @@ export type Database = {
           message: string
         }[]
       }
+      verify_email_code: { Args: { p_code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "user"
