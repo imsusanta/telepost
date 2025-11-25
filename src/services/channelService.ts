@@ -283,7 +283,14 @@ export class ChannelService {
     }
 
     // Check results for the specific channel
-    const channelResult = (data?.results as Array<{ channelId: string; success: boolean; quizId?: string; error?: string }>)?.find(
+    if (!data?.results || !Array.isArray(data.results)) {
+      return {
+        success: false,
+        message: data?.message || "Generation failed - no results returned",
+      };
+    }
+
+    const channelResult = (data.results as Array<{ channelId: string; success: boolean; quizId?: string; error?: string }>).find(
       (r) => r.channelId === channelId
     );
 

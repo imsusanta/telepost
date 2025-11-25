@@ -101,7 +101,8 @@ export class SubscriptionService {
       };
     }
 
-    if (!(profile as { can_purchase_plans?: boolean }).can_purchase_plans) {
+    const canPurchase = (profile as { can_purchase_plans?: boolean }).can_purchase_plans;
+    if (canPurchase === false || canPurchase === undefined || canPurchase === null) {
       return {
         allowed: false,
         reason: "Your account does not have permission to purchase plans. Please contact support."
@@ -133,6 +134,9 @@ export class SubscriptionService {
       .single();
 
     if (planError) throw planError;
+    if (!plan || typeof (plan as { price?: number }).price !== 'number') {
+      throw new Error('Invalid plan data');
+    }
 
     // Handle coupon if provided
     let couponId: string | null = null;
@@ -146,7 +150,7 @@ export class SubscriptionService {
           p_coupon_code: couponCode,
           p_user_id: userId,
           p_plan_name: planName,
-          p_purchase_amount: (plan as { price: number }).price,
+          p_purchase_amount: originalPrice,
         });
 
       if (couponError) {
@@ -311,6 +315,9 @@ export class SubscriptionService {
     }
 
     const usage = await this.getUserUsage(userId);
+    if (!subscription.plan || typeof subscription.plan !== 'object') {
+      return { allowed: false, reason: 'Invalid subscription plan data' };
+    }
     const plan = subscription.plan as unknown as SubscriptionPlan;
 
     switch (action) {
@@ -471,6 +478,9 @@ export class SubscriptionService {
       return true; // Allow all features for development/testing
     }
 
+    if (typeof subscription.plan !== 'object') {
+      return false; // Invalid plan data
+    }
     const plan = subscription.plan as unknown as SubscriptionPlan;
     return plan[feature] === true;
   }

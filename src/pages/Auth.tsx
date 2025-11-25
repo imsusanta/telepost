@@ -119,6 +119,8 @@ export default function Auth() {
       if (session) {
         navigate("/dashboard");
       }
+    }).catch((error) => {
+      console.error("Failed to get session:", error);
     });
 
     // Set up auth state listener

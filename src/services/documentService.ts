@@ -71,7 +71,10 @@ export class DocumentService {
     if (error) throw error;
 
     // Trigger processing (in background)
-    this.processDocument(data.id).catch(console.error);
+    this.processDocument(data.id).catch((error) => {
+      console.error(`Failed to process document ${data.id}:`, error);
+      // Error is already handled in processDocument by setting status to 'failed'
+    });
 
     return data as Document;
   }

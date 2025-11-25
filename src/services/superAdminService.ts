@@ -134,7 +134,7 @@ export async function getPaginatedUsers(
 
     return {
       id: profile.id,
-      email: profile.email || '',
+      email: profile.email || 'no-email@unknown.local',
       full_name: profile.full_name,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
@@ -232,7 +232,7 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
 
     return {
       id: profile.id,
-      email: profile.email || '',
+      email: profile.email || 'no-email@unknown.local',
       full_name: profile.full_name,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
