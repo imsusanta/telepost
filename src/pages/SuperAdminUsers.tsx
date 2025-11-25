@@ -11,6 +11,8 @@ import {
   getPaginatedUsers,
   updateUserSubscription,
   updateUserStatus,
+  extendUserSubscription,
+  setCustomSubscriptionEndDate,
   type UserWithSubscription,
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
@@ -39,6 +41,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 
 export default function SuperAdminUsers() {
   const navigate = useNavigate();
@@ -59,6 +65,8 @@ export default function SuperAdminUsers() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithSubscription | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [customEndDate, setCustomEndDate] = useState<Date>();
+  const [daysToExtend, setDaysToExtend] = useState<number>(30);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Debounce search input
@@ -131,6 +139,12 @@ export default function SuperAdminUsers() {
   const handleEditSubscription = (user: UserWithSubscription) => {
     setSelectedUser(user);
     setSelectedPlanId(user.subscription?.plan_id || '');
+    setCustomEndDate(
+      user.subscription?.current_period_end 
+        ? new Date(user.subscription.current_period_end)
+        : undefined
+    );
+    setDaysToExtend(30);
     setIsEditDialogOpen(true);
   };
 
@@ -146,7 +160,13 @@ export default function SuperAdminUsers() {
 
     try {
       setIsUpdating(true);
-      await updateUserSubscription(selectedUser.id, selectedPlanId);
+      
+      // Update plan and optionally set custom end date
+      await updateUserSubscription(
+        selectedUser.id,
+        selectedPlanId,
+        customEndDate?.toISOString()
+      );
 
       toast({
         title: 'Success',
@@ -159,6 +179,63 @@ export default function SuperAdminUsers() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update subscription',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleExtendSubscription = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setIsUpdating(true);
+      await extendUserSubscription(selectedUser.id, daysToExtend);
+
+      toast({
+        title: 'Success',
+        description: `Subscription extended by ${daysToExtend} days`,
+      });
+
+      setIsEditDialogOpen(false);
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to extend subscription',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSetCustomEndDate = async () => {
+    if (!selectedUser || !customEndDate) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select an end date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      await setCustomSubscriptionEndDate(selectedUser.id, customEndDate.toISOString());
+
+      toast({
+        title: 'Success',
+        description: 'Custom end date set successfully',
+      });
+
+      setIsEditDialogOpen(false);
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to set custom end date',
         variant: 'destructive',
       });
     } finally {
@@ -353,6 +430,9 @@ export default function SuperAdminUsers() {
                             <p className="text-sm text-muted-foreground">
                               ${user.subscription.plan.price}/mo
                             </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Expires: {formatDate(user.subscription.current_period_end)}
+                            </p>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">Free</span>
@@ -459,17 +539,28 @@ export default function SuperAdminUsers() {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
+            {/* Current Plan Info */}
+            <div className="grid gap-2 p-4 bg-muted rounded-lg">
               <Label>Current Plan</Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm font-medium">
                 {selectedUser?.subscription
                   ? selectedUser.subscription.plan.display_name
                   : 'Free (No Subscription)'}
               </p>
+              {selectedUser?.subscription && (
+                <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                  <p>Started: {formatDate(selectedUser.subscription.current_period_start)}</p>
+                  <p>Expires: {formatDate(selectedUser.subscription.current_period_end)}</p>
+                  <p>Status: <Badge variant={selectedUser.subscription.status === 'active' ? 'default' : 'secondary'}>
+                    {selectedUser.subscription.status}
+                  </Badge></p>
+                </div>
+              )}
             </div>
 
+            {/* Change Plan */}
             <div className="grid gap-2">
-              <Label htmlFor="plan">New Plan *</Label>
+              <Label htmlFor="plan">Change Plan</Label>
               <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a plan" />
@@ -477,12 +568,75 @@ export default function SuperAdminUsers() {
                 <SelectContent>
                   {plans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {plan.display_name} - ${plan.price}/
-                      {plan.billing_period}
+                      {plan.display_name} - ${plan.price}/{plan.billing_period}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Extend Duration */}
+            <div className="grid gap-2">
+              <Label htmlFor="extend">Extend Duration</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="extend"
+                  type="number"
+                  min="1"
+                  value={daysToExtend}
+                  onChange={(e) => setDaysToExtend(Number(e.target.value))}
+                  placeholder="Days"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleExtendSubscription}
+                  disabled={isUpdating || !selectedUser?.subscription}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Add Days
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Extend current subscription by specified days
+              </p>
+            </div>
+
+            {/* Custom End Date */}
+            <div className="grid gap-2">
+              <Label>Set Custom End Date</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEndDate ? format(customEndDate, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customEndDate}
+                      onSelect={setCustomEndDate}
+                      initialFocus
+                      disabled={(date) => date < new Date()}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  variant="outline"
+                  onClick={handleSetCustomEndDate}
+                  disabled={isUpdating || !customEndDate || !selectedUser?.subscription}
+                >
+                  Set Date
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Override subscription end date
+              </p>
             </div>
           </div>
 
@@ -494,7 +648,10 @@ export default function SuperAdminUsers() {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateSubscription} disabled={isUpdating}>
+            <Button 
+              onClick={handleUpdateSubscription} 
+              disabled={isUpdating || !selectedPlanId}
+            >
               {isUpdating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
