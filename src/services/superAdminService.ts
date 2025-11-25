@@ -271,7 +271,7 @@ export async function updateUserSubscription(
   // Check if user already has a subscription
   const { data: existingSub } = await supabase
     .from('subscriptions')
-    .select('id')
+    .select('id, current_period_start')
     .eq('user_id', userId)
     .single();
 
@@ -279,13 +279,13 @@ export async function updateUserSubscription(
   const defaultPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
   if (existingSub) {
-    // Update existing subscription
+    // Update existing subscription, keep current_period_start if exists
     const { error } = await supabase
       .from('subscriptions')
       .update({
         plan_id: planId,
         status: 'active',
-        current_period_start: now.toISOString(),
+        current_period_start: existingSub.current_period_start || now.toISOString(),
         current_period_end: periodEnd || defaultPeriodEnd.toISOString(),
       })
       .eq('user_id', userId);
@@ -324,8 +324,65 @@ export async function updateUserSubscription(
       .from('usage_tracking')
       .insert({
         user_id: userId,
-        current_period_start: now.toISOString(),
       });
+  }
+}
+
+/**
+ * Extend user's subscription duration (super admin only)
+ */
+export async function extendUserSubscription(
+  userId: string,
+  daysToAdd: number
+): Promise<void> {
+  const { data: subscription, error: fetchError } = await supabase
+    .from('subscriptions')
+    .select('current_period_end')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (fetchError || !subscription) {
+    throw new Error('No active subscription found for this user');
+  }
+
+  const currentEnd = new Date(subscription.current_period_end);
+  const newEnd = new Date(currentEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      current_period_end: newEnd.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) {
+    console.error('Error extending subscription:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Set custom subscription end date (super admin only)
+ */
+export async function setCustomSubscriptionEndDate(
+  userId: string,
+  endDate: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      current_period_end: endDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) {
+    console.error('Error setting custom end date:', error);
+    throw new Error(error.message);
   }
 }
 

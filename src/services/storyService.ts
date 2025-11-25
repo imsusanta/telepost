@@ -145,12 +145,11 @@ export class StoryService {
         media_type: storyData.media_type,
         media_url: mediaUrl as string,
         caption: storyData.caption,
-        text_overlay: storyData.text_overlay || [],
+        text_overlay: JSON.parse(JSON.stringify(storyData.text_overlay || [])),
         background_color: storyData.background_color,
         template_id: storyData.template_id,
-        stickers: storyData.stickers || [],
-        duration_hours: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
-        telegram_chat_id: storyData.telegram_chat_id,
+        stickers: JSON.parse(JSON.stringify(storyData.stickers || [])),
+        duration_seconds: storyData.duration_hours ? storyData.duration_hours * 3600 : 86400,
         scheduled_time: storyData.scheduled_time,
         is_highlight: storyData.is_highlight || false,
         status: storyData.scheduled_time ? "scheduled" : "draft",
@@ -306,10 +305,23 @@ export class StoryService {
     userId: string,
     scheduledTime: string
   ): Promise<Story> {
-    return this.updateStory(storyId, userId, {
-      scheduled_time: scheduledTime,
-      status: "scheduled" as unknown as undefined,
-    });
+    const { data, error } = await supabase
+      .from("telegram_stories")
+      .update({
+        scheduled_time: scheduledTime,
+        status: "scheduled",
+      })
+      .eq("story_id", storyId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return {
+      ...data,
+      text_overlay: (data.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (data.stickers as unknown as Sticker[]) || []
+    } as Story;
   }
 
   /**
@@ -461,9 +473,20 @@ export class StoryService {
     userId: string,
     isHighlight: boolean
   ): Promise<Story> {
-    return this.updateStory(storyId, userId, {
-      is_highlight: isHighlight as unknown as undefined,
-    });
+    const { data, error } = await supabase
+      .from("telegram_stories")
+      .update({ is_highlight: isHighlight })
+      .eq("story_id", storyId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return {
+      ...data,
+      text_overlay: (data.text_overlay as unknown as TextOverlay[]) || [],
+      stickers: (data.stickers as unknown as Sticker[]) || []
+    } as Story;
   }
 
   /**

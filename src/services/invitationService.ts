@@ -241,39 +241,41 @@ export async function generateInvitationCodeViaEdgeFunction(
 export async function createCustomInvitationCode(
   customCode: string,
   maxUses: number = 1,
-  expiresInDays: number | null = null,
-  metadata: Record<string, unknown> = {}
+  expiresInDays: number | null = null
 ): Promise<{ code: string; code_id: string; success: boolean; message: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Type assertion needed as this RPC function may not be in generated types
-    const result = await supabase.rpc('create_custom_invitation_code', {
-      p_code: customCode,
-      p_created_by: user.id,
-      p_max_uses: maxUses,
-      p_expires_in_days: expiresInDays,
-      p_metadata: metadata
-    });
+    // Create custom invitation code directly
+    const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null;
+    
+    const { data, error } = await supabase
+      .from('invitation_codes')
+      .insert({
+        code: customCode.toUpperCase(),
+        created_by: user.id,
+        max_uses: maxUses,
+        expires_at: expiresAt?.toISOString(),
+        is_active: true
+      })
+      .select('id, code')
+      .single();
 
-    const { data, error } = result as { data: unknown; error: unknown };
-    if (error) throw error;
-    if (!data || (Array.isArray(data) && data.length === 0)) {
-      throw new Error('Failed to create custom invitation code');
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        throw new Error('This invitation code already exists');
+      }
+      throw error;
     }
 
-    const result: CustomInvitationCodeResult = Array.isArray(data) ? data[0] : data;
-
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to create custom invitation code');
-    }
+    if (!data) throw new Error('Failed to create custom invitation code');
 
     return {
-      code: result.code || '',
-      code_id: result.code_id || '',
-      success: result.success,
-      message: result.message
+      code: data.code,
+      code_id: data.id,
+      success: true,
+      message: 'Custom invitation code created successfully'
     };
   } catch (error: unknown) {
     throw new Error(error instanceof Error ? error.message : 'Failed to create custom invitation code');

@@ -39,7 +39,7 @@ export class AnalyticsService {
     const { error } = await supabase.from("analytics_events").insert([{
       user_id: userId,
       event_type: eventType,
-      event_data: (eventData || null) as unknown as Record<string, unknown>,
+      event_data: eventData ? JSON.parse(JSON.stringify(eventData)) : null,
       quiz_generation_id: context?.quizGenerationId || null,
       document_id: context?.documentId || null,
     }]);
