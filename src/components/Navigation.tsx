@@ -31,7 +31,7 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
                   <Sparkles className="w-4 h-4 text-background" />
                 </div>
                 <span className="text-lg font-semibold text-foreground">
-                  QuizGenie
+                  TelePost
                 </span>
               </div>
 

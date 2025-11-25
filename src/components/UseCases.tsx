@@ -51,7 +51,7 @@ export const UseCases = () => {
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            From competitive exam coaching to corporate training, QuizGenie powers learning for everyone
+            From competitive exam coaching to corporate training, TelePost powers learning for everyone
           </p>
         </div>
 

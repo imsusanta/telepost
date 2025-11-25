@@ -65,11 +65,11 @@ serve(async (req) => {
           'Authorization': `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: 'Quiz Genie <onboarding@quizgenie.app>',
+          from: 'Tele Post <onboarding@quizgenie.app>',
           to: [user.email],
-          subject: 'Verify your email - Quiz Genie',
+          subject: 'Verify your email - Tele Post',
           html: `
-            <h2>Welcome to Quiz Genie!</h2>
+            <h2>Welcome to Tele Post!</h2>
             <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>
             <p>This code will expire in 15 minutes.</p>
             <p>If you didn't request this code, please ignore this email.</p>

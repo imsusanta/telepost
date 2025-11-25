@@ -187,7 +187,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="text-xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-                  QuizGenie
+                  TelePost
                 </span>
                 <span className="text-[10px] text-muted-foreground font-medium">
                   AI Quiz Platform

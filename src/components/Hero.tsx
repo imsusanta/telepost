@@ -52,7 +52,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
             onClick={onGetStarted}
             size="lg"
             className="group px-8 py-6 bg-foreground hover:bg-foreground/90 text-background rounded-full font-medium text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all"
-            aria-label="Sign in to QuizGenie"
+            aria-label="Sign in to TelePost"
           >
             Sign in with invitation code
             <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
@@ -70,7 +70,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           aria-label="Platform statistics"
         >
           {[
-            { value: '50K+', label: 'Students', description: 'Over 50,000 students using QuizGenie' },
+            { value: '50K+', label: 'Students', description: 'Over 50,000 students using TelePost' },
             { value: '2M+', label: 'Quizzes', description: 'More than 2 million quizzes created' },
             { value: '500+', label: 'Institutes', description: 'Over 500 educational institutes partnered' },
           ].map((stat, idx) => (

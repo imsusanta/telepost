@@ -19,7 +19,7 @@ export const CTA = ({ onGetStarted }: CTAProps) => {
           onClick={onGetStarted}
           size="lg"
           className="group px-8 py-6 bg-foreground hover:bg-foreground/90 text-background rounded-full font-medium text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all"
-          aria-label="Start your free trial with QuizGenie"
+          aria-label="Start your free trial with TelePost"
         >
           Start free trial
           <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />

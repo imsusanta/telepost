@@ -3,15 +3,15 @@ import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
-    question: "How do I get access to QuizGenie?",
-    answer: "QuizGenie is an invitation-only SAAS platform. You'll need an invitation code to sign up. Contact our support team or your organization administrator to request an invitation code.",
+    question: "How do I get access to TelePost?",
+    answer: "TelePost is an invitation-only SAAS platform. You'll need an invitation code to sign up. Contact our support team or your organization administrator to request an invitation code.",
   },
   {
     question: "What's included in the free tier?",
     answer: "The free tier includes access to 1 Telegram channel and 10 quizzes per month. You also get 5GB of storage for your study materials and multi-language support. Perfect for individual educators or small groups!",
   },
   {
-    question: "How does QuizGenie generate quizzes?",
+    question: "How does TelePost generate quizzes?",
     answer: "Upload your PDFs, notes, or textbooks. Our AI analyzes the content, identifies key concepts, and generates relevant multiple-choice questions aligned with your curriculum.",
   },
   {
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: "What happens after a quiz ends?",
-    answer: "QuizGenie automatically generates a PDF with all questions, correct answers, and detailed explanations. This is posted to your channel within seconds.",
+    answer: "TelePost automatically generates a PDF with all questions, correct answers, and detailed explanations. This is posted to your channel within seconds.",
   },
   {
     question: "Is my data secure?",
