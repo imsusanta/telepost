@@ -61,7 +61,7 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     return () => {
       channel.unsubscribe();
     };
-  }, [userId]);
+  }, [userId, fetchScheduledPosts, fetchStatistics]);
 
   const fetchScheduledPosts = useCallback(async () => {
     if (!userId) return;
@@ -70,10 +70,10 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
       setIsLoading(true);
       const posts = await SchedulerService.fetchScheduledPosts(userId, filters);
       setScheduledPosts(posts);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch scheduled posts",
+        description: error instanceof Error ? error.message : "Failed to fetch scheduled posts",
         variant: "destructive",
       });
     } finally {
@@ -103,10 +103,10 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
         description: "Scheduled post cancelled",
       });
       fetchStatistics();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to cancel scheduled post",
+        description: error instanceof Error ? error.message : "Failed to cancel scheduled post",
         variant: "destructive",
       });
     }
@@ -125,10 +125,10 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
         description: "Failed post scheduled for retry",
       });
       fetchStatistics();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to retry scheduled post",
+        description: error instanceof Error ? error.message : "Failed to retry scheduled post",
         variant: "destructive",
       });
     }

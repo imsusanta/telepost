@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Calendar, CheckCircle2, Clock, Eye, ImageIcon, Loader2, Plus, Sparkles, Star, Trash2, Type, VideoIcon, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TelegramStoryEditor } from "@/components/TelegramStoryEditor";
@@ -21,10 +21,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface Channel {
+  id: string;
+  name: string;
+  telegram_channel_id?: string;
+  user_id: string;
+}
+
 export default function Stories() {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string>("");
-  const [channels, setChannels] = useState<any[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStories, setActiveStories] = useState<Story[]>([]);
   const [scheduledStories, setScheduledStories] = useState<Story[]>([]);
@@ -34,11 +41,33 @@ export default function Stories() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [deleteConfirmStory, setDeleteConfirmStory] = useState<Story | null>(null);
 
-  useEffect(() => {
-    initializePage();
-  }, []);
+  const loadStories = useCallback(async (uid: string) => {
+    try {
+      // Load all stories
+      const allStories = await StoryService.getUserStories(uid, { limit: 100 });
+      setStories(allStories);
 
-  const initializePage = async () => {
+      // Load active stories
+      const active = await StoryService.getActiveStories(uid);
+      setActiveStories(active);
+
+      // Load scheduled stories
+      const scheduled = await StoryService.getScheduledStories(uid);
+      setScheduledStories(scheduled);
+
+      // Load highlights
+      const highlightList = await StoryService.getHighlights(uid);
+      setHighlights(highlightList);
+    } catch (error) {
+      toast({
+        title: "Failed to load stories",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const initializePage = useCallback(async () => {
     try {
       // Get current user
       const {
@@ -68,33 +97,11 @@ export default function Stories() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast, loadStories]);
 
-  const loadStories = async (uid: string) => {
-    try {
-      // Load all stories
-      const allStories = await StoryService.getUserStories(uid, { limit: 100 });
-      setStories(allStories);
-
-      // Load active stories
-      const active = await StoryService.getActiveStories(uid);
-      setActiveStories(active);
-
-      // Load scheduled stories
-      const scheduled = await StoryService.getScheduledStories(uid);
-      setScheduledStories(scheduled);
-
-      // Load highlights
-      const highlightList = await StoryService.getHighlights(uid);
-      setHighlights(highlightList);
-    } catch (error) {
-      toast({
-        title: "Failed to load stories",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    initializePage();
+  }, [initializePage]);
 
   const handleStoryCreated = () => {
     setShowEditor(false);

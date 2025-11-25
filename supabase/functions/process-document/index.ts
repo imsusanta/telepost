@@ -40,7 +40,7 @@ serve(async (req) => {
     // For PDF text extraction, we'll use AI to analyze the content
     // This is a simplified version - in production you'd want proper PDF parsing
     let extractedText = "PDF content requires external processing";
-    let pageCount = 1;
+    const pageCount = 1;
     
     // Basic placeholder extraction
     extractedText = "Document uploaded and ready for processing";

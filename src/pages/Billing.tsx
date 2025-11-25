@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, CreditCard, Tag, X } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +28,7 @@ export default function Billing() {
   } | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadBillingInfo();
-  }, []);
-
-  const loadBillingInfo = async () => {
+  const loadBillingInfo = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -49,16 +45,20 @@ export default function Billing() {
       if (!purchasePermission.allowed) {
         setPurchaseRestrictionMessage(purchasePermission.reason || "Purchase restricted");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: "Failed to load billing information: " + error.message,
+        description: "Failed to load billing information: " + (error instanceof Error ? error.message : "Unknown error"),
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadBillingInfo();
+  }, [loadBillingInfo]);
 
   const handleApplyCoupon = async (planName: string, planPrice: number) => {
     if (!couponCode.trim()) {
@@ -94,10 +94,10 @@ export default function Billing() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to validate coupon",
+        description: error instanceof Error ? error.message : "Failed to validate coupon",
         variant: "destructive",
       });
     } finally {
@@ -139,10 +139,10 @@ export default function Billing() {
       setAppliedCoupon(null);
       setCouponCode("");
       loadBillingInfo();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to upgrade",
         variant: "destructive",
       });
     }
@@ -256,7 +256,7 @@ export default function Billing() {
   ];
 
   // Match current plan with UI plans
-  const currentPlanName = currentSubscription?.plan ? (currentSubscription.plan as any).name : null;
+  const currentPlanName = currentSubscription?.plan ? (currentSubscription.plan as Record<string, unknown>).name : null;
   const plansWithCurrentStatus = plans.map((plan) => ({
     ...plan,
     current: plan.name.toLowerCase() === currentPlanName?.toLowerCase(),

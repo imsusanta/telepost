@@ -86,7 +86,7 @@ export class SchedulerService {
     userId: string,
     post: {
       chatId: string;
-      quizData: any;
+      quizData: Record<string, unknown>;
       scheduledTime: Date;
       minQuestionsPerInterval?: number;
     }

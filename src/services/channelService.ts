@@ -105,7 +105,12 @@ export class ChannelService {
     // Get existing channel to merge settings
     const existingChannel = await this.getChannel(channelId, userId);
 
-    const updates: any = {};
+    const updates: Partial<{
+      name: string;
+      telegram_channel_id: string;
+      description: string;
+      settings: ChannelSettings;
+    }> = {};
 
     if (request.name !== undefined) updates.name = request.name;
     if (request.telegram_channel_id !== undefined)
@@ -283,8 +288,8 @@ export class ChannelService {
     }
 
     // Check results for the specific channel
-    const channelResult = data?.results?.find(
-      (r: any) => r.channelId === channelId
+    const channelResult = (data?.results as Array<{ channelId: string; success: boolean; quizId?: string; error?: string }>)?.find(
+      (r) => r.channelId === channelId
     );
 
     if (channelResult?.success) {

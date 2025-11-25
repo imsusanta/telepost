@@ -249,7 +249,7 @@ export const generateSessionToken = (): string => {
  * Obfuscate sensitive log data
  * Useful for logging without exposing secrets
  */
-export const obfuscateForLog = (data: any): any => {
+export const obfuscateForLog = (data: unknown): unknown => {
   if (typeof data === 'string') {
     // If it looks like a token or key, mask it
     if (data.length > 20) {
@@ -263,7 +263,7 @@ export const obfuscateForLog = (data: any): any => {
   }
 
   if (typeof data === 'object' && data !== null) {
-    const obfuscated: any = {};
+    const obfuscated: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       // Mask fields that commonly contain sensitive data
       const sensitiveFields = [

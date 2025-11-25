@@ -10,8 +10,15 @@ import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 
+interface Question {
+  question: string;
+  options: string[];
+  correct_option_index: number;
+  explanation?: string;
+}
+
 interface AIQuestionGeneratorProps {
-  onQuestionsGenerated: (questions: any[], topic?: string, difficulty?: string, language?: string) => void;
+  onQuestionsGenerated: (questions: Question[], topic?: string, difficulty?: string, language?: string) => void;
 }
 
 export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGeneratorProps) {
@@ -70,10 +77,10 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
         title: "Success",
         description: `Generated ${quiz.questions.length} questions!`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate questions",
+        description: error instanceof Error ? error.message : "Failed to generate questions",
         variant: "destructive",
       });
     } finally {
@@ -123,7 +130,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
               <Label htmlFor="difficulty">Difficulty</Label>
               <Select
                 value={difficulty}
-                onValueChange={(v) => setDifficulty(v as any)}
+                onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}
                 disabled={isGenerating}
               >
                 <SelectTrigger id="difficulty">
@@ -141,7 +148,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
               <Label htmlFor="language">Language</Label>
               <Select
                 value={language}
-                onValueChange={(v) => setLanguage(v as any)}
+                onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}
                 disabled={isGenerating}
               >
                 <SelectTrigger id="language">

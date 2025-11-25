@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Keyboard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,7 +19,7 @@ export function KeyboardShortcuts() {
   const [showDialog, setShowDialog] = useState(false);
   const navigate = useNavigate();
 
-  const shortcuts: Shortcut[] = [
+  const shortcuts: Shortcut[] = useMemo(() => [
     {
       key: "g d",
       description: "Go to Dashboard",
@@ -70,7 +70,7 @@ export function KeyboardShortcuts() {
       description: "Show keyboard shortcuts",
       action: () => setShowDialog(true),
     },
-  ];
+  ], [navigate]);
 
   useEffect(() => {
     let buffer = "";
@@ -124,7 +124,7 @@ export function KeyboardShortcuts() {
       window.removeEventListener("keydown", handleKeyPress);
       clearTimeout(bufferTimeout);
     };
-  }, [navigate]);
+  }, [navigate, shortcuts]);
 
   return (
     <Dialog open={showDialog} onOpenChange={setShowDialog}>

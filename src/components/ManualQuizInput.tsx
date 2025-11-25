@@ -26,27 +26,27 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
       const line = lines[i].trim();
       
       // Check if it's a question (starts with number or "Q")
-      if (/^(\d+[\.\)]\s*|Q\d+[\.\):\s]+)/i.test(line)) {
+      if (/^(\d+[.)]\s*|Q\d+[.):\s]+)/i.test(line)) {
         // Save previous question if exists
         if (currentQuestion && currentQuestion.question && currentQuestion.options) {
           questions.push(currentQuestion as QuizQuestion);
         }
-        
+
         // Start new question
         currentQuestion = {
           id: questionNumber++,
-          question: line.replace(/^(\d+[\.\)]\s*|Q\d+[\.\):\s]+)/i, '').trim(),
+          question: line.replace(/^(\d+[.)]\s*|Q\d+[.):\s]+)/i, '').trim(),
           options: [],
           correct_option_index: 0
         };
       }
       // Check if it's an option (starts with a), b), A), B), or 1), 2), etc.)
-      else if (/^[a-dA-D1-4][\.\)]\s*/i.test(line) && currentQuestion) {
-        const optionText = line.replace(/^[a-dA-D1-4][\.\)]\s*/i, '').trim();
-        
+      else if (/^[a-dA-D1-4][.)]\s*/i.test(line) && currentQuestion) {
+        const optionText = line.replace(/^[a-dA-D1-4][.)]\s*/i, '').trim();
+
         // Check if this option is marked as correct (contains *, ✓, or (correct))
-        const isCorrect = /\*|\✓|\(correct\)/i.test(optionText);
-        const cleanOption = optionText.replace(/\*|\✓|\(correct\)/gi, '').trim();
+        const isCorrect = /\*|✓|\(correct\)/i.test(optionText);
+        const cleanOption = optionText.replace(/\*|✓|\(correct\)/gi, '').trim();
         
         if (isCorrect && currentQuestion.options) {
           currentQuestion.correct_option_index = currentQuestion.options.length;

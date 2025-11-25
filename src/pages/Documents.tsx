@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileText, RefreshCw, Search, Sparkles, Trash2, Upload } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -28,11 +28,63 @@ export default function Documents() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const loadChannels = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userChannels = await ChannelService.getUserChannels(user.id);
+      setChannels(userChannels);
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: "Failed to load channels: " + (error instanceof Error ? error.message : "Unknown error"),
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const loadDocuments = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
+      setDocuments(docs);
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load documents",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedChannel, toast]);
+
+  const loadStorageInfo = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
+      if (canUpload.limit && canUpload.current !== undefined) {
+        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
+      }
+    } catch (error: unknown) {
+      toast({
+        title: "Warning",
+        description: "Failed to load storage info",
+        variant: "default",
+      });
+    }
+  }, [toast]);
+
   useEffect(() => {
     loadChannels();
     loadDocuments();
     loadStorageInfo();
-  }, []);
+  }, [loadChannels, loadDocuments, loadStorageInfo]);
 
   useEffect(() => {
     const channelFromUrl = searchParams.get("channel");
@@ -43,59 +95,7 @@ export default function Documents() {
 
   useEffect(() => {
     loadDocuments();
-  }, [selectedChannel]);
-
-  const loadChannels = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const userChannels = await ChannelService.getUserChannels(user.id);
-      setChannels(userChannels);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load channels: " + error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadDocuments = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
-      setDocuments(docs);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStorageInfo = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
-      if (canUpload.limit && canUpload.current !== undefined) {
-        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Warning",
-        description: "Failed to load storage info",
-        variant: "default",
-      });
-    }
-  };
+  }, [loadDocuments]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,10 +137,10 @@ export default function Documents() {
 
       loadDocuments();
       loadStorageInfo();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Upload Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to upload document",
         variant: "destructive",
       });
     } finally {
@@ -163,10 +163,10 @@ export default function Documents() {
 
       loadDocuments();
       loadStorageInfo();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete document",
         variant: "destructive",
       });
     }

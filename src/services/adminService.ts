@@ -76,7 +76,9 @@ export class AdminService {
         return {
           ...profile,
           subscription: subscription ? {
-            plan_name: (subscription as any).subscription_plans?.name || 'Unknown',
+            plan_name: (subscription as Record<string, unknown>).subscription_plans as { name: string } | undefined
+              ? ((subscription as Record<string, unknown>).subscription_plans as { name: string }).name
+              : 'Unknown',
             status: subscription.status,
             current_period_end: subscription.current_period_end
           } : null
@@ -162,7 +164,9 @@ export class AdminService {
         return {
           ...profile,
           subscription: subscription ? {
-            plan_name: (subscription as any).subscription_plans?.name || 'Unknown',
+            plan_name: (subscription as Record<string, unknown>).subscription_plans as { name: string } | undefined
+              ? ((subscription as Record<string, unknown>).subscription_plans as { name: string }).name
+              : 'Unknown',
             status: subscription.status,
             current_period_end: subscription.current_period_end
           } : null
@@ -179,7 +183,14 @@ export class AdminService {
   /**
    * Get detailed user information
    */
-  static async getUserDetails(userId: string): Promise<any> {
+  static async getUserDetails(userId: string): Promise<{
+    profile: UserProfile;
+    channels: Array<{ id: string; name: string; telegram_channel_id?: string; is_active?: boolean; created_at: string }>;
+    quizCount: number;
+    documentCount: number;
+    subscription: unknown;
+    usage: unknown;
+  }> {
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -242,7 +253,15 @@ export class AdminService {
   /**
    * Export user data (GDPR compliance)
    */
-  static async exportUserData(userId: string): Promise<any> {
+  static async exportUserData(userId: string): Promise<{
+    profile: UserProfile;
+    channels: Array<{ id: string; name: string; telegram_channel_id?: string; is_active?: boolean; created_at: string }>;
+    subscription: unknown;
+    usage: unknown;
+    quizzes: unknown[];
+    documents: unknown[];
+    questions: unknown[];
+  }> {
     try {
       const details = await this.getUserDetails(userId);
 

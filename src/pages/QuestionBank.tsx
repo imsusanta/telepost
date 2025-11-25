@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,54 +23,64 @@ export default function QuestionBank() {
   const [filters, setFilters] = useState<QuestionBankFilters>({
     includePublic: true,
   });
-  const [stats, setStats] = useState<any>(null);
-  const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([]);
+  const [stats, setStats] = useState<{
+    total: number;
+    byTopic: Record<string, number>;
+    byLanguage: Record<string, number>;
+  } | null>(null);
+  interface GeneratedQuestion {
+    question: string;
+    options: string[];
+    correct_option_index: number;
+    explanation?: string;
+  }
+  const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
   const [showSelectionDialog, setShowSelectionDialog] = useState(false);
   const [defaultTopic, setDefaultTopic] = useState("");
   const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
   const [defaultLanguage, setDefaultLanguage] = useState("en");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadQuestions();
-    loadStats();
-  }, [filters]);
-
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const data = await QuestionBankService.getQuestions(user.id, filters, 100);
       setQuestions(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to load questions",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, toast]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const statistics = await QuestionBankService.getStatistics(user.id);
       setStats(statistics);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Warning",
         description: "Failed to load statistics",
         variant: "default",
       });
     }
-  };
+  }, [toast]);
 
-  const handleFilterChange = (key: string, value: any) => {
+  useEffect(() => {
+    loadQuestions();
+    loadStats();
+  }, [loadQuestions, loadStats]);
+
+  const handleFilterChange = (key: string, value: string | null) => {
     setFilters({ ...filters, [key]: value || undefined });
   };
 
@@ -101,16 +111,16 @@ export default function QuestionBank() {
         description: "Question deleted successfully",
       });
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete question",
         variant: "destructive",
       });
     }
   };
 
-  const handleQuestionsGenerated = (generatedQs: any[], topic?: string, difficulty?: string, language?: string) => {
+  const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, difficulty?: string, language?: string) => {
     setGeneratedQuestions(generatedQs);
     setDefaultTopic(topic || "");
     setDefaultDifficulty(difficulty || "medium");

@@ -145,10 +145,10 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
       resetForm();
       setOpen(false);
       onQuestionAdded?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive",
       });
     } finally {
@@ -269,7 +269,7 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="difficulty">Difficulty</Label>
-              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as any)}>
+              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}>
                 <SelectTrigger id="difficulty">
                   <SelectValue />
                 </SelectTrigger>
@@ -283,7 +283,7 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
 
             <div className="space-y-2">
               <Label htmlFor="language">Language</Label>
-              <Select value={language} onValueChange={(v) => setLanguage(v as any)}>
+              <Select value={language} onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}>
                 <SelectTrigger id="language">
                   <SelectValue />
                 </SelectTrigger>

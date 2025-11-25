@@ -53,10 +53,10 @@ export default function Settings() {
         title: "Success!",
         description: "Settings updated successfully.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to save settings",
         variant: "destructive",
       });
     } finally {

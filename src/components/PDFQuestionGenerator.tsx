@@ -10,8 +10,15 @@ import { DocumentService } from "@/services/documentService";
 import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 
+interface Question {
+  question: string;
+  options: string[];
+  correct_option_index: number;
+  explanation?: string;
+}
+
 interface PDFQuestionGeneratorProps {
-  onQuestionsGenerated: (questions: any[], topic?: string, difficulty?: string, language?: string) => void;
+  onQuestionsGenerated: (questions: Question[], topic?: string, difficulty?: string, language?: string) => void;
 }
 
 export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGeneratorProps) {
@@ -139,10 +146,10 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
       // Reset form
       setFile(null);
       setTopic("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate questions from PDF",
+        description: error instanceof Error ? error.message : "Failed to generate questions from PDF",
         variant: "destructive",
       });
     } finally {
@@ -152,7 +159,12 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
     }
   };
 
-  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 30): Promise<any> => {
+  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 30): Promise<{
+    id: string;
+    processing_status: string;
+    processing_error?: string | null;
+    extracted_text?: string | null;
+  }> => {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
@@ -263,7 +275,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
               <Label htmlFor="difficulty">Difficulty</Label>
               <Select
                 value={difficulty}
-                onValueChange={(v) => setDifficulty(v as any)}
+                onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}
                 disabled={isLoading}
               >
                 <SelectTrigger id="difficulty">
@@ -281,7 +293,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
               <Label htmlFor="language">Language</Label>
               <Select
                 value={language}
-                onValueChange={(v) => setLanguage(v as any)}
+                onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}
                 disabled={isLoading}
               >
                 <SelectTrigger id="language">

@@ -133,7 +133,7 @@ export async function getPaginatedUsers(
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile as any, // Type assertion for telegram_bot_token removal
+      ...profile as Record<string, unknown>, // Type assertion for telegram_bot_token removal
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -145,7 +145,7 @@ export async function getPaginatedUsers(
         status: userSub.status,
         current_period_start: userSub.current_period_start,
         current_period_end: userSub.current_period_end,
-        plan: userSub.subscription_plans as any,
+        plan: userSub.subscription_plans as Record<string, unknown>,
       } : null,
       usage: userUsage || null,
     };
@@ -223,7 +223,7 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile as any, // Type assertion for telegram_bot_token removal
+      ...profile as Record<string, unknown>, // Type assertion for telegram_bot_token removal
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -235,7 +235,7 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
         status: userSub.status,
         current_period_start: userSub.current_period_start,
         current_period_end: userSub.current_period_end,
-        plan: userSub.subscription_plans as any,
+        plan: userSub.subscription_plans as Record<string, unknown>,
       } : null,
       usage: userUsage || null,
     };
@@ -324,7 +324,7 @@ export async function updateUserRole(
   // This function may need database schema updates to work properly
   const { error } = await (supabase
     .from('profiles')
-    .update as any)({ role })
+    .update as (data: { role: UserRole }) => unknown)({ role })
     .eq('id', userId);
 
   if (error) {
@@ -344,7 +344,7 @@ export async function updateUserStatus(
   // This function may need database schema updates to work properly
   const { error } = await (supabase
     .from('profiles')
-    .update as any)({ status })
+    .update as (data: { status: 'active' | 'suspended' }) => unknown)({ status })
     .eq('id', userId);
 
   if (error) {
@@ -471,7 +471,7 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
   }
 
   return (data || []).map(profile => ({
-    ...profile as any, // Type assertion for telegram_bot_token removal
+    ...(profile as Record<string, unknown>), // Type assertion for telegram_bot_token removal
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
@@ -520,7 +520,7 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
     .single();
 
   return {
-    ...profile as any, // Type assertion for telegram_bot_token removal
+    ...(profile as Record<string, unknown>), // Type assertion for telegram_bot_token removal
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
@@ -532,7 +532,7 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
       status: subscription.status,
       current_period_start: subscription.current_period_start,
       current_period_end: subscription.current_period_end,
-      plan: subscription.subscription_plans as any,
+      plan: subscription.subscription_plans as Record<string, unknown>,
     } : null,
     usage: usage || null,
   };

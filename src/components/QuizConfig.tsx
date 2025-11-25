@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Database, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,32 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
   const [channelsLoading, setChannelsLoading] = useState(true);
   const { toast } = useToast();
 
+  const loadChannels = useCallback(async () => {
+    setChannelsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setChannelsLoading(false);
+        return;
+      }
+
+      const userChannels = await ChannelService.getUserChannels(user.id);
+      setChannels(userChannels);
+    } catch (error) {
+      console.error("Failed to load channels:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load channels",
+        variant: "destructive",
+      });
+    } finally {
+      setChannelsLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     loadChannels();
-  }, []);
+  }, [loadChannels]);
 
   useEffect(() => {
     // Auto-fill settings from selected channel
@@ -56,29 +79,6 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
       }
     }
   }, [selectedChannel, channels]);
-
-  const loadChannels = async () => {
-    setChannelsLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setChannelsLoading(false);
-        return;
-      }
-
-      const userChannels = await ChannelService.getUserChannels(user.id);
-      setChannels(userChannels);
-    } catch (error) {
-      console.error("Failed to load channels:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load channels",
-        variant: "destructive",
-      });
-    } finally {
-      setChannelsLoading(false);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -16,7 +16,7 @@ export interface Document {
   processing_status: "pending" | "processing" | "completed" | "failed";
   processing_error?: string | null;
   ai_summary?: string | null;
-  topics?: any;
+  topics?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -123,13 +123,13 @@ export class DocumentService {
           topics: data.topics,
         })
         .eq("id", documentId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Update status to failed
       await supabase
         .from("documents")
         .update({
           processing_status: "failed",
-          processing_error: error.message,
+          processing_error: error instanceof Error ? error.message : "Unknown error",
         })
         .eq("id", documentId);
 

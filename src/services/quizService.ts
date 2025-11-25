@@ -25,7 +25,7 @@ export class QuizService {
 
     // Additional validation: check if data contains an error field
     if (data && typeof data === 'object' && 'error' in data) {
-      const errorMsg = (data as any).error || "Failed to generate quiz";
+      const errorMsg = (data as { error?: string }).error || "Failed to generate quiz";
 
       // Check for specific error messages from the edge function
       if (errorMsg.includes("authorization")) {
