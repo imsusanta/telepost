@@ -133,7 +133,11 @@ export async function getPaginatedUsers(
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile as Record<string, unknown>, // Type assertion for telegram_bot_token removal
+      id: profile.id,
+      email: profile.email || '',
+      full_name: profile.full_name,
+      created_at: profile.created_at || new Date().toISOString(),
+      updated_at: profile.updated_at || new Date().toISOString(),
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -145,7 +149,11 @@ export async function getPaginatedUsers(
         status: userSub.status,
         current_period_start: userSub.current_period_start,
         current_period_end: userSub.current_period_end,
-        plan: userSub.subscription_plans as Record<string, unknown>,
+        plan: {
+          name: (userSub.subscription_plans as { name: string }).name || '',
+          display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
+          price: (userSub.subscription_plans as { price: number }).price || 0,
+        },
       } : null,
       usage: userUsage || null,
     };
@@ -223,7 +231,11 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
     const userUsage = usageMap.get(profile.id);
 
     return {
-      ...profile as Record<string, unknown>, // Type assertion for telegram_bot_token removal
+      id: profile.id,
+      email: profile.email || '',
+      full_name: profile.full_name,
+      created_at: profile.created_at || new Date().toISOString(),
+      updated_at: profile.updated_at || new Date().toISOString(),
       role: 'user' as const,
       status: 'active' as const,
       last_login: null,
@@ -235,7 +247,11 @@ export async function getAllUsers(): Promise<UserWithSubscription[]> {
         status: userSub.status,
         current_period_start: userSub.current_period_start,
         current_period_end: userSub.current_period_end,
-        plan: userSub.subscription_plans as Record<string, unknown>,
+        plan: {
+          name: (userSub.subscription_plans as { name: string }).name || '',
+          display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
+          price: (userSub.subscription_plans as { price: number }).price || 0,
+        },
       } : null,
       usage: userUsage || null,
     };
@@ -322,14 +338,14 @@ export async function updateUserRole(
 ): Promise<void> {
   // Note: role field may not exist in profiles table schema
   // This function may need database schema updates to work properly
-  const { error } = await (supabase
+  const { error } = await supabase
     .from('profiles')
-    .update as (data: { role: UserRole }) => unknown)({ role })
+    .update({ role } as unknown as Record<string, unknown>)
     .eq('id', userId);
 
   if (error) {
     console.error('Error updating user role:', error);
-    throw new Error(error.message);
+    throw new Error((error as { message: string }).message);
   }
 }
 
@@ -342,14 +358,17 @@ export async function updateUserStatus(
 ): Promise<void> {
   // Note: status field may not exist in profiles table schema
   // This function may need database schema updates to work properly
-  const { error } = await (supabase
+  // Map 'banned' to 'suspended' if needed since schema only supports active/suspended
+  const mappedStatus: 'active' | 'suspended' = status === 'banned' ? 'suspended' : status;
+
+  const { error } = await supabase
     .from('profiles')
-    .update as (data: { status: 'active' | 'suspended' }) => unknown)({ status })
+    .update({ status: mappedStatus } as unknown as Record<string, unknown>)
     .eq('id', userId);
 
   if (error) {
     console.error('Error updating user status:', error);
-    throw new Error(error.message);
+    throw new Error((error as { message: string }).message);
   }
 }
 
@@ -471,7 +490,11 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
   }
 
   return (data || []).map(profile => ({
-    ...(profile as Record<string, unknown>), // Type assertion for telegram_bot_token removal
+    id: profile.id,
+    email: profile.email || '',
+    full_name: profile.full_name,
+    created_at: profile.created_at || new Date().toISOString(),
+    updated_at: profile.updated_at || new Date().toISOString(),
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
@@ -520,7 +543,11 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
     .single();
 
   return {
-    ...(profile as Record<string, unknown>), // Type assertion for telegram_bot_token removal
+    id: profile.id,
+    email: profile.email || '',
+    full_name: profile.full_name,
+    created_at: profile.created_at || new Date().toISOString(),
+    updated_at: profile.updated_at || new Date().toISOString(),
     role: 'user' as const,
     status: 'active' as const,
     last_login: null,
@@ -532,7 +559,11 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
       status: subscription.status,
       current_period_start: subscription.current_period_start,
       current_period_end: subscription.current_period_end,
-      plan: subscription.subscription_plans as Record<string, unknown>,
+      plan: {
+        name: (subscription.subscription_plans as { name: string }).name || '',
+        display_name: (subscription.subscription_plans as { display_name: string }).display_name || '',
+        price: (subscription.subscription_plans as { price: number }).price || 0,
+      },
     } : null,
     usage: usage || null,
   };

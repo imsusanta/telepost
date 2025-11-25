@@ -238,7 +238,10 @@ export class AdminService {
 
       return {
         profile,
-        channels: channels || [],
+        channels: (channels || []).map(ch => ({
+          ...ch,
+          telegram_channel_id: ch.telegram_channel_id ?? undefined
+        })),
         quizCount: quizCount || 0,
         documentCount: docCount || 0,
         subscription,

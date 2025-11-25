@@ -96,7 +96,7 @@ export class SchedulerService {
       .insert([{
         user_id: userId,
         chat_id: post.chatId,
-        quiz_data: post.quizData as unknown,
+        quiz_data: post.quizData,
         scheduled_time: post.scheduledTime.toISOString(),
         min_questions_per_interval: post.minQuestionsPerInterval || 1,
         status: "pending",

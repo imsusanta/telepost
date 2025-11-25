@@ -372,7 +372,7 @@ export const validateInteger = (
   min?: number,
   max?: number
 ): { isValid: boolean; value: number | null; error?: string } => {
-  const num = parseInt(value, 10);
+  const num = parseInt(String(value), 10);
 
   if (isNaN(num)) {
     return { isValid: false, value: null, error: 'Invalid integer' };

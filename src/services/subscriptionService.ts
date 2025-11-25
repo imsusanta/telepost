@@ -367,7 +367,7 @@ export class SubscriptionService {
    * Track quiz generation
    */
   static async trackQuizGeneration(userId: string): Promise<void> {
-    const { error } = await supabase.rpc("increment_quiz_count" as unknown as string, {
+    const { error } = await supabase.rpc("increment_quiz_count", {
       p_user_id: userId,
     });
 
