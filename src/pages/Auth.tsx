@@ -83,10 +83,10 @@ export default function Auth() {
   const passwordStrength = getPasswordStrength(password);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
-    // Invitation code is REQUIRED
+    // Invitation code is OPTIONAL - if empty, allow signup
     if (!code || code.trim().length === 0) {
-      setInvitationError("Invitation code is required");
-      return false;
+      setInvitationError("");
+      return true;
     }
 
     try {
@@ -375,19 +375,18 @@ export default function Auth() {
                 <form onSubmit={handleSignUp} className="space-y-5">
                   <div className="space-y-2.5">
                     <Label htmlFor="signup-invitation" className="text-foreground font-semibold flex items-center gap-2">
-                      Invitation Code <span className="text-destructive">*</span>
+                      Invitation Code <span className="text-muted-foreground text-xs">(Optional)</span>
                       <Shield className="w-4 h-4 text-primary" />
                     </Label>
                     <Input
                       id="signup-invitation"
                       type="text"
-                      placeholder="Enter your invitation code"
+                      placeholder="Enter your invitation code (optional)"
                       value={invitationCode}
                       onChange={(e) => {
                         setInvitationCode(e.target.value.toUpperCase());
                         setInvitationError("");
                       }}
-                      required
                       aria-invalid={!!invitationError}
                       aria-describedby={invitationError ? "signup-invitation-error" : undefined}
                       className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${invitationError ? "border-destructive" : ""}`}
@@ -399,7 +398,7 @@ export default function Auth() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      This is an invitation-only platform. Contact an admin for access.
+                      Enter an invitation code if you have one, or leave empty to sign up directly.
                     </p>
                   </div>
                   <div className="space-y-2.5">
