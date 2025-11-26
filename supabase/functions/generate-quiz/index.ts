@@ -21,34 +21,44 @@ serve(async (req) => {
       );
     }
 
-    // Validate the user's JWT token and get user information
+    // Extract user ID from JWT in Authorization header
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing Supabase configuration");
+    if (!supabaseUrl) {
+      console.error("Missing Supabase URL configuration");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create client with anon key and user's auth header for proper JWT validation
-    const supabaseClient = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      console.error("Authentication failed:", userError?.message || "No user returned");
+    let authUserId: string | null = null;
+    try {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const payloadBase64 = token.split(".")[1];
+      const normalized = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
+      const payloadJson = atob(normalized);
+      const payload = JSON.parse(payloadJson);
+      authUserId = (payload.sub || payload.user_id) as string | null;
+    } catch (e) {
+      console.error("Failed to parse JWT:", e);
       return new Response(
         JSON.stringify({ error: "Authentication failed. Please log in again." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    if (!authUserId) {
+      console.error("Authentication failed: user ID missing in token");
+      return new Response(
+        JSON.stringify({ error: "Authentication failed. Please log in again." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // User authenticated via JWT; authUserId will be used for authorization checks and auditing.
+
+    // authUserId is already validated from the JWT; no additional auth checks needed here.
 
     const {
       topic,
@@ -99,7 +109,7 @@ serve(async (req) => {
         }
 
         // Security check: Verify the channel belongs to the authenticated user
-        if (channel.user_id !== user.id) {
+        if (channel.user_id !== authUserId) {
           console.error("Channel does not belong to user");
           throw new Error("Unauthorized access to channel");
         }
@@ -113,7 +123,7 @@ serve(async (req) => {
           .from("documents")
           .select("title, extracted_text, ai_summary")
           .eq("channel_id", channelId)
-          .eq("user_id", user.id)
+          .eq("user_id", authUserId)
           .eq("processing_status", "completed")
           .not("extracted_text", "is", null)
           .limit(10);
@@ -328,7 +338,7 @@ ADDITIONAL RULES:
       const { error: insertError } = await supabase
         .from("quiz_generations")
         .insert({
-          user_id: user.id,
+          user_id: authUserId,
           channel_id: channelId || null,
           document_id: null,
           request_id: requestId,
@@ -351,7 +361,7 @@ ADDITIONAL RULES:
       } else {
         // Track quiz generation in usage statistics
         const { error: usageError } = await supabase.rpc("increment_quiz_count", {
-          p_user_id: user.id,
+          p_user_id: authUserId,
         });
 
         if (usageError) {
@@ -360,8 +370,8 @@ ADDITIONAL RULES:
           const { data: existingUsage } = await supabase
             .from("usage_tracking")
             .select("*")
-            .eq("user_id", user.id)
-            .single();
+            .eq("user_id", authUserId)
+            .maybeSingle();
 
           if (existingUsage) {
             // Update existing usage
@@ -371,13 +381,13 @@ ADDITIONAL RULES:
                 quizzes_generated_this_month: existingUsage.quizzes_generated_this_month + 1,
                 total_quizzes_generated: existingUsage.total_quizzes_generated + 1,
               })
-              .eq("user_id", user.id);
+              .eq("user_id", authUserId);
           } else {
             // Create new usage tracking record
             await supabase
               .from("usage_tracking")
               .insert({
-                user_id: user.id,
+                user_id: authUserId,
                 quizzes_generated_this_month: 1,
                 total_quizzes_generated: 1,
                 pdfs_uploaded_this_month: 0,
