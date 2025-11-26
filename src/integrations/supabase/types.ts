@@ -390,6 +390,7 @@ export type Database = {
           full_name: string | null
           id: string
           invitation_code_used: string | null
+          status: string | null
           telegram_channel_id: string | null
           updated_at: string
         }
@@ -402,6 +403,7 @@ export type Database = {
           full_name?: string | null
           id: string
           invitation_code_used?: string | null
+          status?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
         }
@@ -414,6 +416,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           invitation_code_used?: string | null
+          status?: string | null
           telegram_channel_id?: string | null
           updated_at?: string
         }

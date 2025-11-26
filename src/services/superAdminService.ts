@@ -1,14 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export type AppRole = 'user' | 'admin' | 'super_admin';
+
 export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
-  role?: 'user' | 'admin' | 'super_admin';
+  role: AppRole;
   can_purchase_plans: boolean;
-  status?: 'active' | 'suspended' | 'banned';
-  last_login?: string | null;
-  login_count?: number;
+  status: 'active' | 'suspended' | 'banned';
   created_at: string;
   updated_at: string;
 }
@@ -47,7 +47,9 @@ export interface PaginatedUsersResponse {
 export async function getPaginatedUsers(
   page: number = 1,
   pageSize: number = 20,
-  searchQuery?: string
+  searchQuery?: string,
+  roleFilter?: AppRole,
+  statusFilter?: 'active' | 'suspended' | 'banned'
 ): Promise<PaginatedUsersResponse> {
   const offset = (page - 1) * pageSize;
 
@@ -61,6 +63,11 @@ export async function getPaginatedUsers(
     profilesQuery = profilesQuery.or(
       `email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`
     );
+  }
+
+  // Add status filter if provided
+  if (statusFilter) {
+    profilesQuery = profilesQuery.eq('status', statusFilter);
   }
 
   // Get paginated profiles
@@ -86,8 +93,8 @@ export async function getPaginatedUsers(
   // Get user IDs for this page
   const userIds = profiles.map(p => p.id);
 
-  // Fetch subscriptions and usage for these users in parallel
-  const [subscriptionsResult, usageResult] = await Promise.all([
+  // Fetch subscriptions, usage, and user roles for these users in parallel
+  const [subscriptionsResult, usageResult, rolesResult] = await Promise.all([
     supabase
       .from('subscriptions')
       .select(`
@@ -108,6 +115,10 @@ export async function getPaginatedUsers(
     supabase
       .from('usage_tracking')
       .select('user_id, quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
+      .in('user_id', userIds),
+    supabase
+      .from('user_roles')
+      .select('user_id, role')
       .in('user_id', userIds)
   ]);
 
@@ -119,6 +130,10 @@ export async function getPaginatedUsers(
     console.error('Error fetching usage:', usageResult.error);
   }
 
+  if (rolesResult.error) {
+    console.error('Error fetching roles:', rolesResult.error);
+  }
+
   // Create lookup maps for O(1) access
   const subscriptionMap = new Map(
     (subscriptionsResult.data || []).map(s => [s.user_id, s])
@@ -126,11 +141,15 @@ export async function getPaginatedUsers(
   const usageMap = new Map(
     (usageResult.data || []).map(u => [u.user_id, u])
   );
+  const roleMap = new Map(
+    (rolesResult.data || []).map(r => [r.user_id, r.role as AppRole])
+  );
 
   // Combine the data
-  const users: UserWithSubscription[] = profiles.map(profile => {
+  let users: UserWithSubscription[] = profiles.map(profile => {
     const userSub = subscriptionMap.get(profile.id);
     const userUsage = usageMap.get(profile.id);
+    const userRole = roleMap.get(profile.id) || 'user';
 
     return {
       id: profile.id,
@@ -138,10 +157,8 @@ export async function getPaginatedUsers(
       full_name: profile.full_name,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
-      role: 'user' as const,
-      status: 'active' as const,
-      last_login: null,
-      login_count: 0,
+      role: userRole,
+      status: (profile.status as 'active' | 'suspended' | 'banned') || 'active',
       can_purchase_plans: profile.can_purchase_plans ?? true,
       subscription: userSub ? {
         id: userSub.id,
@@ -158,6 +175,11 @@ export async function getPaginatedUsers(
       usage: userUsage || null,
     };
   });
+
+  // Filter by role if provided (client-side since we can't join in supabase easily)
+  if (roleFilter) {
+    users = users.filter(u => u.role === roleFilter);
+  }
 
   return {
     users,
@@ -173,91 +195,8 @@ export async function getPaginatedUsers(
  * @deprecated Use getPaginatedUsers for better performance
  */
 export async function getAllUsers(): Promise<UserWithSubscription[]> {
-  // Fetch all data in parallel for better performance
-  const [profilesResult, subscriptionsResult, usageResult] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('subscriptions')
-      .select(`
-        id,
-        user_id,
-        plan_id,
-        status,
-        current_period_start,
-        current_period_end,
-        subscription_plans (
-          name,
-          display_name,
-          price
-        )
-      `)
-      .eq('status', 'active'),
-    supabase
-      .from('usage_tracking')
-      .select('user_id, quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
-  ]);
-
-  if (profilesResult.error) {
-    console.error('Error fetching profiles:', profilesResult.error);
-    throw new Error(profilesResult.error.message);
-  }
-
-  if (!profilesResult.data || profilesResult.data.length === 0) {
-    return [];
-  }
-
-  if (subscriptionsResult.error) {
-    console.error('Error fetching subscriptions:', subscriptionsResult.error);
-  }
-
-  if (usageResult.error) {
-    console.error('Error fetching usage:', usageResult.error);
-  }
-
-  // Create lookup maps for O(1) access instead of O(n) find operations
-  const subscriptionMap = new Map(
-    (subscriptionsResult.data || []).map(s => [s.user_id, s])
-  );
-  const usageMap = new Map(
-    (usageResult.data || []).map(u => [u.user_id, u])
-  );
-
-  // Combine the data using maps for O(n) instead of O(n²)
-  const users: UserWithSubscription[] = profilesResult.data.map(profile => {
-    const userSub = subscriptionMap.get(profile.id);
-    const userUsage = usageMap.get(profile.id);
-
-    return {
-      id: profile.id,
-      email: profile.email || 'no-email@unknown.local',
-      full_name: profile.full_name,
-      created_at: profile.created_at || new Date().toISOString(),
-      updated_at: profile.updated_at || new Date().toISOString(),
-      role: 'user' as const,
-      status: 'active' as const,
-      last_login: null,
-      login_count: 0,
-      can_purchase_plans: profile.can_purchase_plans ?? true,
-      subscription: userSub ? {
-        id: userSub.id,
-        plan_id: userSub.plan_id,
-        status: userSub.status,
-        current_period_start: userSub.current_period_start,
-        current_period_end: userSub.current_period_end,
-        plan: {
-          name: (userSub.subscription_plans as { name: string }).name || '',
-          display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
-          price: (userSub.subscription_plans as { price: number }).price || 0,
-        },
-      } : null,
-      usage: userUsage || null,
-    };
-  });
-
-  return users;
+  const result = await getPaginatedUsers(1, 1000);
+  return result.users;
 }
 
 /**
@@ -273,7 +212,7 @@ export async function updateUserSubscription(
     .from('subscriptions')
     .select('id, current_period_start')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   const now = new Date();
   const defaultPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
@@ -317,7 +256,7 @@ export async function updateUserSubscription(
     .from('usage_tracking')
     .select('id')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (!existingUsage) {
     await supabase
@@ -340,7 +279,7 @@ export async function extendUserSubscription(
     .select('current_period_end')
     .eq('user_id', userId)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
 
   if (fetchError || !subscription) {
     throw new Error('No active subscription found for this user');
@@ -388,21 +327,53 @@ export async function setCustomSubscriptionEndDate(
 
 /**
  * Update user role (super admin only)
+ * Uses the user_roles table for proper role management
  */
 export async function updateUserRole(
   userId: string,
-  role: 'user' | 'admin' | 'super_admin'
+  role: AppRole
 ): Promise<void> {
-  // Note: role field may not exist in profiles table schema
-  // This function may need database schema updates to work properly
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role } as unknown as Record<string, unknown>)
-    .eq('id', userId);
+  if (role === 'user') {
+    // Remove from user_roles table (default to user)
+    const { error } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
 
-  if (error) {
-    console.error('Error updating user role:', error);
-    throw new Error((error as { message: string }).message);
+    if (error) {
+      console.error('Error removing user role:', error);
+      throw new Error(error.message);
+    }
+  } else {
+    // Check if user already has a role
+    const { data: existingRole } = await supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existingRole) {
+      // Update existing role
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error updating user role:', error);
+        throw new Error(error.message);
+      }
+    } else {
+      // Insert new role
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+
+      if (error) {
+        console.error('Error inserting user role:', error);
+        throw new Error(error.message);
+      }
+    }
   }
 }
 
@@ -413,19 +384,14 @@ export async function updateUserStatus(
   userId: string,
   status: 'active' | 'suspended' | 'banned'
 ): Promise<void> {
-  // Note: status field may not exist in profiles table schema
-  // This function may need database schema updates to work properly
-  // Map 'banned' to 'suspended' if needed since schema only supports active/suspended
-  const mappedStatus: 'active' | 'suspended' = status === 'banned' ? 'suspended' : status;
-
   const { error } = await supabase
     .from('profiles')
-    .update({ status: mappedStatus } as unknown as Record<string, unknown>)
+    .update({ status })
     .eq('id', userId);
 
   if (error) {
     console.error('Error updating user status:', error);
-    throw new Error((error as { message: string }).message);
+    throw new Error(error.message);
   }
 }
 
@@ -500,7 +466,7 @@ export async function getCouponStats() {
     };
   }
 
-  const totalDiscount = usage.reduce((sum, u) => sum + Number(u.discount_amount), 0);
+  const totalDiscount = usage.reduce((sum, u) => sum + (u.discount_amount || 0), 0);
 
   return {
     totalCoupons: coupons.length,
@@ -511,26 +477,6 @@ export async function getCouponStats() {
 }
 
 /**
- * Cancel user subscription (super admin only)
- */
-export async function cancelUserSubscription(
-  userId: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('subscriptions')
-    .update({
-      status: 'canceled',
-      cancel_at_period_end: true,
-    })
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error canceling subscription:', error);
-    throw new Error(error.message);
-  }
-}
-
-/**
  * Search users by email or name (super admin only)
  */
 export async function searchUsers(query: string): Promise<UserProfile[]> {
@@ -538,25 +484,22 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
     .from('profiles')
     .select('*')
     .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
-    .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(10);
 
   if (error) {
     console.error('Error searching users:', error);
     throw new Error(error.message);
   }
 
-  return (data || []).map(profile => ({
-    id: profile.id,
-    email: profile.email || '',
-    full_name: profile.full_name,
-    created_at: profile.created_at || new Date().toISOString(),
-    updated_at: profile.updated_at || new Date().toISOString(),
-    role: 'user' as const,
-    status: 'active' as const,
-    last_login: null,
-    login_count: 0,
-    can_purchase_plans: profile.can_purchase_plans ?? true,
+  return (data || []).map(p => ({
+    id: p.id,
+    email: p.email || '',
+    full_name: p.full_name,
+    role: 'user' as AppRole,
+    status: (p.status as 'active' | 'suspended' | 'banned') || 'active',
+    can_purchase_plans: p.can_purchase_plans ?? true,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
   }));
 }
 
@@ -564,64 +507,91 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
  * Get user details by ID (super admin only)
  */
 export async function getUserDetails(userId: string): Promise<UserWithSubscription | null> {
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    console.error('Error fetching profile:', profileError);
+  if (error || !profile) {
     return null;
   }
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select(`
-      id,
-      plan_id,
-      status,
-      current_period_start,
-      current_period_end,
-      subscription_plans (
-        name,
-        display_name,
-        price
-      )
-    `)
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .single();
+  // Fetch additional data
+  const [subscriptionResult, usageResult, roleResult] = await Promise.all([
+    supabase
+      .from('subscriptions')
+      .select(`
+        id,
+        plan_id,
+        status,
+        current_period_start,
+        current_period_end,
+        subscription_plans (
+          name,
+          display_name,
+          price
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    supabase
+      .from('usage_tracking')
+      .select('quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle()
+  ]);
 
-  const { data: usage } = await supabase
-    .from('usage_tracking')
-    .select('quizzes_generated_this_month, pdfs_uploaded_this_month, total_storage_used_bytes')
-    .eq('user_id', userId)
-    .single();
+  const userSub = subscriptionResult.data;
+  const userRole = (roleResult.data?.role as AppRole) || 'user';
 
   return {
     id: profile.id,
     email: profile.email || '',
     full_name: profile.full_name,
-    created_at: profile.created_at || new Date().toISOString(),
-    updated_at: profile.updated_at || new Date().toISOString(),
-    role: 'user' as const,
-    status: 'active' as const,
-    last_login: null,
-    login_count: 0,
+    role: userRole,
+    status: (profile.status as 'active' | 'suspended' | 'banned') || 'active',
     can_purchase_plans: profile.can_purchase_plans ?? true,
-    subscription: subscription ? {
-      id: subscription.id,
-      plan_id: subscription.plan_id,
-      status: subscription.status,
-      current_period_start: subscription.current_period_start,
-      current_period_end: subscription.current_period_end,
+    created_at: profile.created_at,
+    updated_at: profile.updated_at,
+    subscription: userSub ? {
+      id: userSub.id,
+      plan_id: userSub.plan_id,
+      status: userSub.status,
+      current_period_start: userSub.current_period_start,
+      current_period_end: userSub.current_period_end,
       plan: {
-        name: (subscription.subscription_plans as { name: string }).name || '',
-        display_name: (subscription.subscription_plans as { display_name: string }).display_name || '',
-        price: (subscription.subscription_plans as { price: number }).price || 0,
+        name: (userSub.subscription_plans as { name: string }).name || '',
+        display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
+        price: (userSub.subscription_plans as { price: number }).price || 0,
       },
     } : null,
-    usage: usage || null,
+    usage: usageResult.data || null,
   };
+}
+
+/**
+ * Cancel user subscription (super admin only)
+ */
+export async function cancelUserSubscription(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      status: 'cancelled',
+      cancel_at_period_end: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) {
+    console.error('Error cancelling subscription:', error);
+    throw new Error(error.message);
+  }
 }
