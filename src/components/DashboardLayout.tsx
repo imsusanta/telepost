@@ -151,6 +151,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
     { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
     { icon: Mail, label: "Manage Invitations", path: "/dashboard/super-admin/invitations" },
+    { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
+    { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },
   ];
 
   const getUserInitials = () => {

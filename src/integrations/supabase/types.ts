@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+          target_resource_id: string | null
+          target_resource_type: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          target_resource_id?: string | null
+          target_resource_type?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          target_resource_id?: string | null
+          target_resource_type?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -943,6 +985,36 @@ export type Database = {
           subject?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }

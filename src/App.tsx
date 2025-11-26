@@ -25,6 +25,8 @@ const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
 const SuperAdminInvitations = lazy(() => import("./pages/SuperAdminInvitations"));
+const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
+const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
 const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
 
 // Loading fallback component
@@ -76,6 +78,8 @@ const App = () => (
               <Route path="/dashboard/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/users" element={<SuperAdminRoute><SuperAdminUsers /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/invitations" element={<SuperAdminRoute><SuperAdminInvitations /></SuperAdminRoute>} />
+              <Route path="/dashboard/super-admin/audit-logs" element={<SuperAdminRoute><SuperAdminAuditLogs /></SuperAdminRoute>} />
+              <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
