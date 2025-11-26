@@ -15,27 +15,53 @@ serve(async (req) => {
     const { documentId, storagePath, publicUrl } = await req.json();
 
     if (!documentId) {
+      console.error("Missing documentId in request");
       return new Response(
         JSON.stringify({ error: "Missing documentId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    if (!storagePath) {
+      console.error("Missing storagePath in request");
+      return new Response(
+        JSON.stringify({ error: "Missing storagePath" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Processing document ${documentId} from ${storagePath}`);
+
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase configuration");
+      throw new Error("Server configuration error");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     // Download PDF from storage
+    console.log(`Downloading file from storage: ${storagePath}`);
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("documents")
       .download(storagePath);
 
     if (downloadError) {
+      console.error(`Download error for ${storagePath}:`, downloadError);
       throw new Error(`Failed to download PDF: ${downloadError.message}`);
     }
+
+    if (!fileData) {
+      console.error(`No file data received for ${storagePath}`);
+      throw new Error("Failed to download PDF: No data received");
+    }
+
+    console.log(`File downloaded successfully, size: ${fileData.size} bytes`);
 
     // For PDF text extraction, we'll use AI to analyze the content
     // This is a simplified version - in production you'd want proper PDF parsing
@@ -51,6 +77,7 @@ serve(async (req) => {
 
     if (LOVABLE_API_KEY) {
       try {
+        console.log("Calling AI for document analysis");
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -80,21 +107,35 @@ serve(async (req) => {
           // Parse the response (simplified - would need better parsing in production)
           aiSummary = content.split('\n').slice(0, 3).join(' ');
           topics = ["General", "Document Analysis"]; // Simplified
+          console.log("AI analysis completed successfully");
+        } else {
+          const errorText = await aiResponse.text();
+          console.error(`AI API error (${aiResponse.status}):`, errorText);
+          aiSummary = "AI analysis unavailable";
+          topics = ["General"];
         }
       } catch (error) {
         console.error("AI analysis failed:", error);
         aiSummary = "AI analysis unavailable";
         topics = ["General"];
       }
+    } else {
+      console.log("LOVABLE_API_KEY not configured, skipping AI analysis");
+      aiSummary = "Document processed successfully";
+      topics = ["General"];
     }
 
+    const response = {
+      extractedText,
+      pageCount,
+      aiSummary: aiSummary || "Document processed successfully",
+      topics: topics.length > 0 ? topics : ["General"],
+    };
+
+    console.log(`Document ${documentId} processed successfully`);
+
     return new Response(
-      JSON.stringify({
-        extractedText,
-        pageCount,
-        aiSummary: aiSummary || "Document processed successfully",
-        topics: topics.length > 0 ? topics : ["General"],
-      }),
+      JSON.stringify(response),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
