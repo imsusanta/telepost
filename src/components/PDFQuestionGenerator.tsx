@@ -139,13 +139,12 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
       // Limit extracted text to 8000 characters for better API performance
       const textForGeneration = processedDoc.extracted_text.substring(0, 8000);
 
-      const quiz = await QuizService.generateQuiz({
-        topic: topic || `Document: ${file.name}`,
+      const quiz = await QuizService.generateQuizFromDocument({
+        documentText: textForGeneration,
+        topic: topic || file.name,
         questionCount,
         difficulty,
         language,
-        systemPrompt: `Generate ${questionCount} questions based on the following document content. The questions should be relevant to the main topics and concepts discussed in the document.\n\nDOCUMENT CONTENT:\n${textForGeneration}`,
-        userId: user.id,
       });
 
       if (!quiz || !quiz.questions || quiz.questions.length === 0) {
