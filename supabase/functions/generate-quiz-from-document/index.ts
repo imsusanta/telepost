@@ -11,9 +11,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log("=== Quiz Generation from Document Request Started ===");
+
     // Get the authorization header to authenticate the user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error("Missing authorization header in request");
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -43,25 +46,43 @@ serve(async (req) => {
 
     if (userError || !user) {
       console.error("Authentication failed:", userError?.message || "No user returned");
+      console.error("Auth error details:", userError);
       return new Response(
         JSON.stringify({ error: "Authentication failed. Please log in again." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`✓ User authenticated: ${user.id}`);
+
     const { documentText, topic, questionCount, difficulty, language } = await req.json();
 
+    console.log(`Request params: topic="${topic}", questions=${questionCount}, difficulty=${difficulty}, language=${language}`);
+    console.log(`Document text length: ${documentText?.length || 0} characters`);
+
     if (!documentText || !questionCount) {
+      console.error("Missing required fields:", { hasDocumentText: !!documentText, questionCount });
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing required fields: documentText and questionCount are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (questionCount < 1 || questionCount > 20) {
+      console.error(`Invalid question count: ${questionCount}`);
+      return new Response(
+        JSON.stringify({ error: "Question count must be between 1 and 20" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("CRITICAL: LOVABLE_API_KEY environment variable is not set");
+      throw new Error("AI configuration missing. Please contact administrator.");
     }
+
+    console.log("✓ LOVABLE_API_KEY configured");
 
     const requestId = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -114,6 +135,7 @@ OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
 
 Return EXACTLY ${questionCount} questions. Do NOT include markdown, comments, or any text outside the JSON.`;
 
+    console.log("Sending request to AI for quiz generation...");
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -135,38 +157,82 @@ Return EXACTLY ${questionCount} questions. Do NOT include markdown, comments, or
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error(`AI gateway error (${response.status}):`, errorText);
+
+      // Check for specific error types
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ error: "AI API authentication failed. Please check API key configuration." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "AI API rate limit exceeded. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI API quota exceeded. Please check your billing." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Failed to generate quiz from document" }),
+        JSON.stringify({ error: `Failed to generate quiz: ${errorText}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`✓ AI response received (status: ${response.status})`);
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
+      console.error("No content in AI response");
       throw new Error("No content in AI response");
     }
+
+    console.log(`AI response content length: ${content.length} characters`);
 
     let quizData;
     try {
       quizData = JSON.parse(content);
     } catch (e) {
-      console.error("Failed to parse AI response:", content);
+      console.error("Failed to parse AI response as JSON");
+      console.error("Parse error:", e);
+      console.error("Content preview:", content.substring(0, 500));
       return new Response(
-        JSON.stringify({ error: "Invalid quiz format received" }),
+        JSON.stringify({ error: "Invalid quiz format received from AI. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Validate quiz structure
+    if (!quizData.questions || !Array.isArray(quizData.questions)) {
+      console.error("Invalid quiz structure: missing questions array");
+      return new Response(
+        JSON.stringify({ error: "Invalid quiz structure received" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✓ Quiz generated successfully: ${quizData.questions.length} questions`);
+    console.log(`=== Quiz Generation Completed ===`);
 
     return new Response(JSON.stringify(quizData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error generating quiz from document:", error);
+    console.error("=== ERROR GENERATING QUIZ ===");
+    console.error("Error details:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error occurred while generating quiz",
+        details: error instanceof Error ? error.stack : undefined
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
