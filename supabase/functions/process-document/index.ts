@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import pdfParse from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,50 +63,22 @@ serve(async (req) => {
 
     console.log(`File downloaded successfully, size: ${fileData.size} bytes`);
 
-    // Extract text from PDF using pdf-parse
+    // Use AI to extract text from PDF
     let extractedText = "";
     let pageCount = 1;
-
-    try {
-      console.log("Extracting text from PDF...");
-
-      // Convert blob to ArrayBuffer
-      const arrayBuffer = await fileData.arrayBuffer();
-      const buffer = new Uint8Array(arrayBuffer);
-
-      // Parse PDF
-      const pdfData = await pdfParse(buffer);
-
-      extractedText = pdfData.text || "";
-      pageCount = pdfData.numpages || 1;
-
-      console.log(`PDF parsing successful: ${pageCount} pages, ${extractedText.length} characters extracted`);
-
-      // If no text extracted, provide helpful error
-      if (!extractedText || extractedText.trim().length === 0) {
-        console.warn("PDF parsed but no text extracted - might be image-based or encrypted");
-        extractedText = "No text could be extracted from this PDF. The PDF might contain only images or be encrypted. Please try a different PDF or use OCR-enabled PDF.";
-      }
-    } catch (error) {
-      console.error("PDF parsing error:", error);
-      // Fallback if PDF parsing fails
-      extractedText = `Error extracting text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure the PDF is not encrypted or corrupted.`;
-      pageCount = 1;
-    }
-
-    // Use AI to generate summary and topics
     let aiSummary = "";
     let topics: string[] = [];
 
-    // Generate AI summary and topics only if we have extracted text
-    if (LOVABLE_API_KEY && extractedText && extractedText.length > 50 && !extractedText.startsWith("Error") && !extractedText.startsWith("No text")) {
+    if (LOVABLE_API_KEY) {
       try {
-        console.log("Calling AI for document analysis");
+        console.log("Using AI to extract text and analyze document");
 
-        // Limit text sent to AI to avoid token limits (first 5000 chars)
-        const textForAnalysis = extractedText.substring(0, 5000);
+        // Convert blob to base64
+        const arrayBuffer = await fileData.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        // Use AI with vision to extract text from PDF
+        const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -118,50 +89,101 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
               },
               {
                 role: "user",
-                content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${textForAnalysis}`,
+                content: [
+                  {
+                    type: "text",
+                    text: "Extract all text from this PDF document. Return only the extracted text content."
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:application/pdf;base64,${base64}`
+                    }
+                  }
+                ]
               },
             ],
-            temperature: 0.3,
+            temperature: 0.1,
           }),
         });
 
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const content = aiData.choices?.[0]?.message?.content || "";
+        if (extractResponse.ok) {
+          const extractData = await extractResponse.json();
+          extractedText = extractData.choices?.[0]?.message?.content || "";
+          
+          if (extractedText && extractedText.length > 100) {
+            console.log(`Text extraction successful: ${extractedText.length} characters`);
+            
+            // Now analyze the extracted text for summary and topics
+            const analyzeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  {
+                    role: "system",
+                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                  },
+                  {
+                    role: "user",
+                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                  },
+                ],
+                temperature: 0.3,
+              }),
+            });
 
-          try {
-            // Try to parse JSON response
-            const parsed = JSON.parse(content);
-            aiSummary = parsed.summary || content.split('\n').slice(0, 3).join(' ');
-            topics = Array.isArray(parsed.topics) && parsed.topics.length > 0
-              ? parsed.topics
-              : ["General"];
-          } catch (e) {
-            // Fallback if not JSON
-            aiSummary = content.substring(0, 300);
+            if (analyzeResponse.ok) {
+              const analyzeData = await analyzeResponse.json();
+              const content = analyzeData.choices?.[0]?.message?.content || "";
+
+              try {
+                const parsed = JSON.parse(content);
+                aiSummary = parsed.summary || content.split('\n').slice(0, 3).join(' ');
+                topics = Array.isArray(parsed.topics) && parsed.topics.length > 0
+                  ? parsed.topics
+                  : ["General"];
+              } catch (e) {
+                aiSummary = content.substring(0, 300);
+                topics = ["General"];
+              }
+              console.log("AI analysis completed successfully");
+            } else {
+              console.error(`AI API error (${analyzeResponse.status})`);
+              aiSummary = `Document processed with ${extractedText.length} characters`;
+              topics = ["General"];
+            }
+          } else {
+            console.warn("Insufficient text extracted from PDF");
+            extractedText = "Document processed but text extraction was minimal. Please ensure the PDF is not encrypted or image-only.";
+            aiSummary = extractedText;
             topics = ["General"];
           }
-          console.log("AI analysis completed successfully");
         } else {
-          const errorText = await aiResponse.text();
-          console.error(`AI API error (${aiResponse.status}):`, errorText);
-          aiSummary = `Document contains ${pageCount} page(s) with ${extractedText.length} characters`;
+          const errorText = await extractResponse.text();
+          console.error(`AI extraction error (${extractResponse.status}):`, errorText);
+          extractedText = "Failed to extract text from PDF using AI. The document may be encrypted or corrupted.";
+          aiSummary = extractedText;
           topics = ["General"];
         }
       } catch (error) {
-        console.error("AI analysis failed:", error);
-        aiSummary = `Document contains ${pageCount} page(s) with ${extractedText.length} characters`;
+        console.error("AI extraction failed:", error);
+        extractedText = `Error processing PDF: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        aiSummary = extractedText;
         topics = ["General"];
       }
     } else {
-      console.log("Skipping AI analysis - no valid text extracted or API key not configured");
-      aiSummary = extractedText.startsWith("Error") || extractedText.startsWith("No text")
-        ? extractedText.substring(0, 200)
-        : `Document processed: ${pageCount} page(s), ${extractedText.length} characters extracted`;
+      console.log("LOVABLE_API_KEY not configured, skipping text extraction");
+      extractedText = "Text extraction requires AI configuration. Please contact administrator.";
+      aiSummary = extractedText;
       topics = ["General"];
     }
 
