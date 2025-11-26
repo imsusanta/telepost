@@ -8,52 +8,49 @@
 -- Enable pg_cron extension (if not already enabled)
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Create function to process scheduled posts
+-- Enable pg_net extension for making HTTP requests
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Create function to process scheduled posts by calling the edge function
 CREATE OR REPLACE FUNCTION process_scheduled_telegram_posts()
 RETURNS void AS $$
 DECLARE
   scheduled_post RECORD;
   function_url TEXT;
+  supabase_url TEXT;
+  service_role_key TEXT;
+  request_id BIGINT;
 BEGIN
-  -- Get Supabase project URL from environment or use default
-  function_url := current_setting('app.supabase_url', true) || '/functions/v1/send-telegram-quiz';
+  -- Get Supabase configuration
+  supabase_url := current_setting('app.supabase_url', true);
+  service_role_key := current_setting('app.supabase_service_role_key', true);
 
-  -- Process all pending posts that are due
-  FOR scheduled_post IN
-    SELECT *
-    FROM public.scheduled_telegram_posts
-    WHERE status = 'pending'
-    AND scheduled_time <= now()
-    ORDER BY scheduled_time ASC
-    LIMIT 50 -- Process max 50 posts per run
-  LOOP
-    BEGIN
-      -- Update status to prevent duplicate processing
-      UPDATE public.scheduled_telegram_posts
-      SET status = 'processing'
-      WHERE id = scheduled_post.id;
+  -- Build the edge function URL
+  function_url := supabase_url || '/functions/v1/process-scheduled-posts';
 
-      -- Call the edge function using http extension
-      -- Note: This requires the http extension and proper configuration
-      -- For production, consider using Supabase Edge Functions with webhooks
+  -- Log the cron execution
+  RAISE NOTICE 'Scheduler cron job started at %', now();
 
-      -- For now, we'll mark it as ready to send and let the edge function handle it
-      -- The actual sending will be done by the send-telegram-quiz edge function
+  -- Call the edge function via HTTP POST
+  -- The edge function will handle fetching and processing all pending posts
+  BEGIN
+    SELECT INTO request_id net.http_post(
+      url := function_url,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || service_role_key
+      ),
+      body := jsonb_build_object(
+        'triggered_by', 'cron',
+        'triggered_at', now()
+      )
+    );
 
-      -- Log the attempt
-      RAISE NOTICE 'Processing scheduled post: %', scheduled_post.id;
+    RAISE NOTICE 'Edge function called successfully, request_id: %', request_id;
 
-    EXCEPTION WHEN OTHERS THEN
-      -- If error, mark as failed
-      UPDATE public.scheduled_telegram_posts
-      SET
-        status = 'failed',
-        error_message = SQLERRM
-      WHERE id = scheduled_post.id;
-
-      RAISE WARNING 'Failed to process scheduled post %: %', scheduled_post.id, SQLERRM;
-    END;
-  END LOOP;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Failed to call edge function: %', SQLERRM;
+  END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

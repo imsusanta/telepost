@@ -21,12 +21,14 @@ serve(async (req) => {
       throw new Error("TELEGRAM_BOT_TOKEN is not configured");
     }
 
-    // Get all pending posts that are due
+    // Get all pending posts that are due (limit to 50 per run to avoid timeouts)
     const { data: pendingPosts, error: fetchError } = await supabase
       .from('scheduled_telegram_posts')
       .select('*')
       .eq('status', 'pending')
-      .lte('scheduled_time', new Date().toISOString());
+      .lte('scheduled_time', new Date().toISOString())
+      .order('scheduled_time', { ascending: true })
+      .limit(50);
 
     if (fetchError) {
       console.error("Error fetching scheduled posts:", fetchError);
@@ -35,12 +37,30 @@ serve(async (req) => {
 
     console.log(`Found ${pendingPosts?.length || 0} pending posts to process`);
 
+    if (!pendingPosts || pendingPosts.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          message: "No pending posts to process",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mark all posts as processing to prevent duplicate processing
+    const postIds = pendingPosts.map(p => p.id);
+    await supabase
+      .from('scheduled_telegram_posts')
+      .update({ status: 'processing' })
+      .in('id', postIds);
+
     const results = [];
-    
+
     for (const post of pendingPosts || []) {
       try {
         const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
-        
+
         // Send intro message
         await fetch(`${baseUrl}/sendMessage`, {
           method: "POST",
