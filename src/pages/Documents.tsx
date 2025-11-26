@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
@@ -14,6 +15,16 @@ import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -24,6 +35,8 @@ export default function Documents() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [storageUsed, setStorageUsed] = useState({ current: 0, limit: 50 });
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -193,6 +206,50 @@ export default function Documents() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const documentIds = Array.from(selectedDocuments);
+      await DocumentService.deleteMultipleDocuments(documentIds, user.id);
+
+      toast({
+        title: "Deleted",
+        description: `${documentIds.length} document${documentIds.length > 1 ? 's' : ''} deleted successfully`,
+      });
+
+      setSelectedDocuments(new Set());
+      setShowDeleteDialog(false);
+      loadDocuments();
+      loadStorageInfo();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete documents",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleDocumentSelection = (documentId: string) => {
+    const newSelected = new Set(selectedDocuments);
+    if (newSelected.has(documentId)) {
+      newSelected.delete(documentId);
+    } else {
+      newSelected.add(documentId);
+    }
+    setSelectedDocuments(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDocuments.size === filteredDocuments.length) {
+      setSelectedDocuments(new Set());
+    } else {
+      setSelectedDocuments(new Set(filteredDocuments.map(doc => doc.id)));
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
@@ -316,6 +373,32 @@ export default function Documents() {
           </CardContent>
         </Card>
 
+        {!loading && filteredDocuments.length > 0 && (
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={selectedDocuments.size === filteredDocuments.length && filteredDocuments.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                Select All ({selectedDocuments.size} selected)
+              </Label>
+            </div>
+            {selectedDocuments.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Selected ({selectedDocuments.size})
+              </Button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="grid gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -352,20 +435,41 @@ export default function Documents() {
         ) : (
           <div className="grid gap-4">
             {filteredDocuments.map((doc) => (
-              <Card key={doc.id}>
+              <Card key={doc.id} className={selectedDocuments.has(doc.id) ? "border-primary" : ""}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-3">
-                      <FileText className="w-10 h-10 text-primary" />
-                      <div>
-                        <CardTitle className="text-lg">{doc.title || doc.file_name}</CardTitle>
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <Checkbox
+                        id={`doc-${doc.id}`}
+                        checked={selectedDocuments.has(doc.id)}
+                        onCheckedChange={() => toggleDocumentSelection(doc.id)}
+                        className="mt-1"
+                      />
+                      <FileText className="w-10 h-10 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg break-words">{doc.title || doc.file_name}</CardTitle>
                         <CardDescription>
                           {formatFileSize(doc.file_size_bytes)} • {doc.page_count || "?"} pages •{" "}
                           {new Date(doc.created_at).toLocaleDateString()}
                         </CardDescription>
+                        {doc.processing_status !== "completed" && (
+                          <div className="mt-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              doc.processing_status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                              doc.processing_status === "processing" ? "bg-blue-100 text-blue-800" :
+                              doc.processing_status === "failed" ? "bg-red-100 text-red-800" :
+                              "bg-gray-100 text-gray-800"
+                            }`}>
+                              Status: {doc.processing_status}
+                            </span>
+                            {doc.processing_error && (
+                              <p className="text-xs text-red-600 mt-1">{doc.processing_error}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
@@ -386,14 +490,6 @@ export default function Documents() {
                     </div>
                   </div>
                 </CardHeader>
-                {doc.processing_status !== "completed" && (
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      Status: {doc.processing_status}
-                      {doc.processing_error && ` - ${doc.processing_error}`}
-                    </div>
-                  </CardContent>
-                )}
                 {doc.ai_summary && (
                   <CardContent>
                     <p className="text-sm text-muted-foreground">{doc.ai_summary}</p>
@@ -404,6 +500,25 @@ export default function Documents() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Documents?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''}?
+              This action cannot be undone. The document{selectedDocuments.size > 1 ? 's' : ''} will be permanently removed
+              from your storage and all associated data will be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete {selectedDocuments.size} Document{selectedDocuments.size > 1 ? 's' : ''}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

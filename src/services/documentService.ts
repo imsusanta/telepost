@@ -230,6 +230,41 @@ export class DocumentService {
   }
 
   /**
+   * Delete multiple documents
+   */
+  static async deleteMultipleDocuments(documentIds: string[], userId: string): Promise<void> {
+    // Get all documents
+    const { data: docs, error: fetchError } = await supabase
+      .from("documents")
+      .select("id, storage_path")
+      .in("id", documentIds)
+      .eq("user_id", userId);
+
+    if (fetchError) throw fetchError;
+    if (!docs || docs.length === 0) throw new Error("No documents found");
+
+    // Delete from storage
+    const storagePaths = docs.map((doc) => doc.storage_path);
+    const { error: storageError } = await supabase.storage
+      .from("documents")
+      .remove(storagePaths);
+
+    if (storageError) {
+      console.error("Storage deletion error:", storageError);
+      // Continue with database deletion even if storage fails
+    }
+
+    // Delete from database
+    const { error } = await supabase
+      .from("documents")
+      .delete()
+      .in("id", documentIds)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+  }
+
+  /**
    * Get document download URL
    */
   static async getDocumentUrl(storagePath: string): Promise<string> {

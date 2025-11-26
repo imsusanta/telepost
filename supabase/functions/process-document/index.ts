@@ -11,8 +11,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let documentId: string | undefined;
+  let supabase: any;
+
   try {
-    const { documentId, storagePath, publicUrl } = await req.json();
+    const requestData = await req.json();
+    documentId = requestData.documentId;
+    const storagePath = requestData.storagePath;
+    const publicUrl = requestData.publicUrl;
 
     if (!documentId) {
       console.error("Missing documentId in request");
@@ -41,7 +47,7 @@ serve(async (req) => {
       throw new Error("Server configuration error");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -202,6 +208,25 @@ serve(async (req) => {
       topics: (topics && topics.length > 0) ? topics : ["General"],
     };
 
+    // Update document status in database
+    console.log(`Updating document ${documentId} status to completed`);
+    const { error: updateError } = await supabase
+      .from("documents")
+      .update({
+        processing_status: "completed",
+        extracted_text: response.extractedText,
+        page_count: response.pageCount,
+        ai_summary: response.aiSummary,
+        topics: response.topics,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", documentId);
+
+    if (updateError) {
+      console.error(`Failed to update document ${documentId}:`, updateError);
+      throw new Error(`Database update failed: ${updateError.message}`);
+    }
+
     console.log(`Document ${documentId} processed successfully`);
 
     return new Response(
@@ -212,6 +237,24 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error processing document:", error);
+
+    // Try to update document status to failed
+    if (documentId && supabase) {
+      try {
+        await supabase
+          .from("documents")
+          .update({
+            processing_status: "failed",
+            processing_error: error instanceof Error ? error.message : "Unknown error",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", documentId);
+        console.log(`Document ${documentId} marked as failed`);
+      } catch (updateError) {
+        console.error("Failed to update document status to failed:", updateError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
