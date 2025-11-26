@@ -16,6 +16,8 @@ import { PDFQuestionGenerator } from "@/components/PDFQuestionGenerator";
 import { QuestionSelectionDialog } from "@/components/QuestionSelectionDialog";
 import { AIGeneratedQuestionsList } from "@/components/AIGeneratedQuestionsList";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TelegramShareQuestionBank } from "@/components/TelegramShareQuestionBank";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
@@ -41,6 +43,7 @@ export default function QuestionBank() {
   const [defaultTopic, setDefaultTopic] = useState("");
   const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
   const [defaultLanguage, setDefaultLanguage] = useState("en");
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const loadQuestions = useCallback(async () => {
@@ -136,6 +139,35 @@ export default function QuestionBank() {
     await loadStats();
   };
 
+  // Question selection handlers
+  const handleToggleQuestion = (questionId: string) => {
+    const newSelection = new Set(selectedQuestionIds);
+    if (newSelection.has(questionId)) {
+      newSelection.delete(questionId);
+    } else {
+      newSelection.add(questionId);
+    }
+    setSelectedQuestionIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedQuestionIds.size === filteredQuestions.length) {
+      // Deselect all
+      setSelectedQuestionIds(new Set());
+    } else {
+      // Select all filtered questions
+      setSelectedQuestionIds(new Set(filteredQuestions.map(q => q.id)));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedQuestionIds(new Set());
+  };
+
+  const getSelectedQuestions = () => {
+    return questions.filter(q => selectedQuestionIds.has(q.id));
+  };
+
   // Filter questions by search query
   const filteredQuestions = questions.filter(q =>
     searchQuery === "" ||
@@ -188,7 +220,7 @@ export default function QuestionBank() {
 
           {/* My Questions Tab */}
           <TabsContent value="questions" className="space-y-6 mt-6">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -198,8 +230,39 @@ export default function QuestionBank() {
                   className="pl-10"
                 />
               </div>
-              <AddQuestionDialog onQuestionAdded={handleRefresh} />
+              <div className="flex gap-2">
+                <AddQuestionDialog onQuestionAdded={handleRefresh} />
+                <TelegramShareQuestionBank
+                  selectedQuestions={getSelectedQuestions()}
+                  onClearSelection={handleClearSelection}
+                />
+              </div>
             </div>
+
+            {/* Selection Controls */}
+            {filteredQuestions.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="select-all"
+                    checked={selectedQuestionIds.size === filteredQuestions.length && filteredQuestions.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                    Select All
+                  </label>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {selectedQuestionIds.size > 0 ? (
+                    <span className="font-medium text-primary">
+                      {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                  ) : (
+                    <span>No questions selected</span>
+                  )}
+                </div>
+              </div>
+            )}
 
         {/* Filters */}
         <Card>
@@ -370,22 +433,30 @@ export default function QuestionBank() {
         ) : (
           <div className="grid gap-4">
             {filteredQuestions.map((q) => (
-              <Card key={q.id}>
+              <Card key={q.id} className={selectedQuestionIds.has(q.id) ? "ring-2 ring-primary" : ""}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{q.question}</CardTitle>
-                      <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
-                        <span>{q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times</span>
-                        {q.source && (
-                          <Badge variant="outline" className="text-xs">
-                            {q.source === 'ai_generated' ? 'AI Generated' :
-                             q.source === 'manual' ? 'Manual' :
-                             q.source === 'document' ? 'Document' :
-                             q.source === 'quiz_import' ? 'Quiz Import' : q.source}
-                          </Badge>
-                        )}
-                      </CardDescription>
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <Checkbox
+                        id={`question-${q.id}`}
+                        checked={selectedQuestionIds.has(q.id)}
+                        onCheckedChange={() => handleToggleQuestion(q.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{q.question}</CardTitle>
+                        <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
+                          <span>{q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times</span>
+                          {q.source && (
+                            <Badge variant="outline" className="text-xs">
+                              {q.source === 'ai_generated' ? 'AI Generated' :
+                               q.source === 'manual' ? 'Manual' :
+                               q.source === 'document' ? 'Document' :
+                               q.source === 'quiz_import' ? 'Quiz Import' : q.source}
+                            </Badge>
+                          )}
+                        </CardDescription>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {q.is_public && (
