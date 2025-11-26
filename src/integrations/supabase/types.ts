@@ -617,7 +617,7 @@ export type Database = {
           scheduled_time: string
           sent_at: string | null
           status: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           chat_id: string
@@ -629,7 +629,7 @@ export type Database = {
           scheduled_time: string
           sent_at?: string | null
           status?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           chat_id?: string
@@ -641,7 +641,7 @@ export type Database = {
           scheduled_time?: string
           sent_at?: string | null
           status?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -60,6 +60,9 @@ serve(async (req) => {
 
     // authUserId is already validated from the JWT; no additional auth checks needed here.
 
+    const requestData = await req.json();
+    
+    // Input validation
     const {
       topic,
       questionCount,
@@ -70,14 +73,71 @@ serve(async (req) => {
       channelId,
       useChannelKnowledgeBase = false,
       userId
-    } = await req.json();
+    } = requestData;
 
-    if (!topic || !questionCount || !difficulty) {
+    // Validate required fields
+    if (!topic || typeof topic !== 'string') {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Topic is required and must be a string" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Validate topic length to prevent abuse
+    const trimmedTopic = topic.trim();
+    if (trimmedTopic.length < 1 || trimmedTopic.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "Topic must be between 1 and 200 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate questionCount
+    const parsedQuestionCount = Number(questionCount);
+    if (!Number.isInteger(parsedQuestionCount) || parsedQuestionCount < 1 || parsedQuestionCount > 50) {
+      return new Response(
+        JSON.stringify({ error: "Question count must be an integer between 1 and 50" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate difficulty
+    const validDifficulties = ['easy', 'medium', 'hard'];
+    if (!difficulty || !validDifficulties.includes(difficulty)) {
+      return new Response(
+        JSON.stringify({ error: "Difficulty must be 'easy', 'medium', or 'hard'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate language
+    const validLanguages = ['bn', 'en', 'hi'];
+    if (language && !validLanguages.includes(language)) {
+      return new Response(
+        JSON.stringify({ error: "Language must be 'bn', 'en', or 'hi'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate systemPrompt length if provided
+    if (systemPrompt && (typeof systemPrompt !== 'string' || systemPrompt.length > 2000)) {
+      return new Response(
+        JSON.stringify({ error: "System prompt must be a string under 2000 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate channelId format if provided
+    if (channelId && typeof channelId !== 'string') {
+      return new Response(
+        JSON.stringify({ error: "Channel ID must be a string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use validated values
+    const validatedTopic = trimmedTopic;
+    const validatedQuestionCount = parsedQuestionCount;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -186,10 +246,10 @@ If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
       ? `\n\nKNOWLEDGE BASE CONTEXT:\nUse the following documents to create quiz questions. Base your questions on the content in these documents:\n\n${knowledgeBaseContext}\n\n`
       : '';
 
-    const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
+    const userPrompt = `Create a multiple-choice quiz for the topic "${validatedTopic}".
 ${knowledgeBaseSection}
 REQUIREMENTS:
-1. Number of questions: ${questionCount}.
+1. Number of questions: ${validatedQuestionCount}.
 2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
 3. ${langInstruction}
 4. Each question must have 3–5 options.
@@ -204,7 +264,7 @@ OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
 
 {
   "request_id": "${requestId}",
-  "topic": "${topic}",
+  "topic": "${validatedTopic}",
   "questions": [
     {
       "id": 0,                    
@@ -221,7 +281,7 @@ OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
 }
 
 ADDITIONAL RULES:
-- Return EXACTLY ${questionCount} questions.
+- Return EXACTLY ${validatedQuestionCount} questions.
 - Ensure correct_option_index is inside the options array bounds.
 - Do NOT add extra fields.
 - Do NOT include markdown, comments, or human-readable text.
@@ -346,9 +406,9 @@ ADDITIONAL RULES:
           channel_id: channelId || null,
           document_id: null,
           request_id: requestId,
-          topic: topic,
+          topic: validatedTopic,
           difficulty: difficulty,
-          question_count: questionCount,
+          question_count: validatedQuestionCount,
           questions: quizData.questions,
           metadata: {
             ...quizData.metadata,
