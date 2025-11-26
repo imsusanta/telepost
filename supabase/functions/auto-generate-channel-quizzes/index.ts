@@ -428,6 +428,13 @@ QUESTION QUALITY:
 IMPORTANT: Base ALL questions on the Knowledge Base Content provided. Do not generate questions about topics not covered in the documents.`;
   }
 
+  // Global content guidelines
+  prompt += `
+
+CONTENT GUIDELINES:
+- Don't generate Bangladesh related topics
+- If it's related to India then Generate`;
+
   return prompt;
 }
 

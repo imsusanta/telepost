@@ -818,6 +818,17 @@ export default function Channels() {
                   </AlertDescription>
                 </Alert>
 
+                <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                  <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    <strong>Global Content Guidelines (Applied Automatically):</strong>
+                    <ul className="list-disc list-inside mt-1 text-sm">
+                      <li>Don't generate Bangladesh related topics</li>
+                      <li>If the topic is related to India, then generate the content</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+
                 <Textarea
                   id="system-prompt"
                   value={selectedChannel.settings.system_prompt}
