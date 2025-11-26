@@ -335,7 +335,7 @@ export function generateChannelSystemPrompt(
   prompt += languageInstructions[language] || languageInstructions['en'];
 
   // Global content guidelines
-  prompt += `\n\nCONTENT GUIDELINES:\n- Don't generate Bangladesh related topics\n- If it's related to India then Generate`;
+  prompt += `\n\nCONTENT GUIDELINES:\n- Don't generate Bangladesh related topics. If the topic is related to India, then generate the content.`;
 
   if (additionalInstructions) {
     prompt += `\n\nADDITIONAL INSTRUCTIONS:\n${additionalInstructions}`;
