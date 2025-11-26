@@ -73,9 +73,16 @@ serve(async (req) => {
       try {
         console.log("Using AI to extract text and analyze document");
 
-        // Convert blob to base64
+        // Convert blob to base64 in chunks to avoid stack overflow
         const arrayBuffer = await fileData.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let base64 = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+          const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+          base64 += String.fromCharCode(...chunk);
+        }
+        base64 = btoa(base64);
 
         // Use AI with vision to extract text from PDF
         const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
