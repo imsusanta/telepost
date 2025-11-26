@@ -587,7 +587,47 @@ export default function CreateQuizPage() {
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <Button variant="outline" size="sm" className="gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                  onClick={async () => {
+                                    if (doc.processing_status !== "completed") {
+                                      toast({
+                                        title: "Document Not Ready",
+                                        description: "Please wait for document processing to complete",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    try {
+                                      const { data: { user } } = await supabase.auth.getUser();
+                                      if (!user) {
+                                        toast({
+                                          title: "Authentication Required",
+                                          description: "Please log in to generate quizzes",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+
+                                      // Generate quiz from document
+                                      const config: QuizConfigType = {
+                                        topic: doc.title || doc.file_name,
+                                        questionCount: 5,
+                                        difficulty: "medium",
+                                        language: (doc.language as "bn" | "en" | "hi") || "en",
+                                        channelId: doc.channel_id || undefined,
+                                        useChannelKnowledgeBase: false,
+                                      };
+
+                                      await generateQuiz(config);
+                                    } catch (error) {
+                                      console.error("Failed to generate quiz from document:", error);
+                                    }
+                                  }}
+                                  disabled={doc.processing_status !== "completed" || isGenerating}
+                                >
                                   <Sparkles className="w-4 h-4" />
                                   Generate Quiz
                                 </Button>
