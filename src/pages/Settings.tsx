@@ -68,7 +68,7 @@ export default function Settings() {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-3">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+          <h1 className="text-5xl font-bold text-black mb-2">
             Settings
           </h1>
           <p className="text-gray-300 text-lg">Manage your account settings and preferences</p>
