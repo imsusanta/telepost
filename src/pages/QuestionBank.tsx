@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List } from "lucide-react";
+import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { AddQuestionDialog } from "@/components/AddQuestionDialog";
 import { AIQuestionGenerator } from "@/components/AIQuestionGenerator";
 import { PDFQuestionGenerator } from "@/components/PDFQuestionGenerator";
 import { QuestionSelectionDialog } from "@/components/QuestionSelectionDialog";
+import { AIGeneratedQuestionsList } from "@/components/AIGeneratedQuestionsList";
+import { Badge } from "@/components/ui/badge";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
@@ -165,10 +167,14 @@ export default function QuestionBank() {
         </div>
 
         <Tabs defaultValue="questions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="questions" className="gap-2">
               <List className="w-4 h-4" />
               My Questions
+            </TabsTrigger>
+            <TabsTrigger value="ai-questions" className="gap-2">
+              <Zap className="w-4 h-4" />
+              AI Generated
             </TabsTrigger>
             <TabsTrigger value="ai-generate" className="gap-2">
               <Sparkles className="w-4 h-4" />
@@ -204,7 +210,26 @@ export default function QuestionBank() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Source</label>
+                <Select
+                  value={filters.source || "all"}
+                  onValueChange={(value) => handleFilterChange("source", value === "all" ? null : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Sources" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="ai_generated">AI Generated</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="document">Document</SelectItem>
+                    <SelectItem value="quiz_import">Quiz Import</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <label className="text-sm font-medium mb-2 block">Difficulty</label>
                 <Select
@@ -350,8 +375,16 @@ export default function QuestionBank() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <CardTitle className="text-lg">{q.question}</CardTitle>
-                      <CardDescription>
-                        {q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times
+                      <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
+                        <span>{q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times</span>
+                        {q.source && (
+                          <Badge variant="outline" className="text-xs">
+                            {q.source === 'ai_generated' ? 'AI Generated' :
+                             q.source === 'manual' ? 'Manual' :
+                             q.source === 'document' ? 'Document' :
+                             q.source === 'quiz_import' ? 'Quiz Import' : q.source}
+                          </Badge>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -397,6 +430,11 @@ export default function QuestionBank() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          {/* AI Generated Questions Tab */}
+          <TabsContent value="ai-questions" className="space-y-6 mt-6">
+            <AIGeneratedQuestionsList onQuestionsAdded={handleRefresh} />
           </TabsContent>
 
           {/* AI Generate Tab */}

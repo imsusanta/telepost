@@ -29,6 +29,7 @@ export interface QuestionBankFilters {
   difficulty?: string;
   language?: string;
   subject?: string;
+  source?: string;
   tags?: string[];
   channelId?: string;
   includePublic?: boolean;
@@ -87,6 +88,9 @@ export class QuestionBankService {
     }
     if (filters?.subject) {
       query = query.ilike("topic", `%${filters.subject}%`);
+    }
+    if (filters?.source) {
+      query = query.eq("source", filters.source);
     }
     if (filters?.channelId) {
       query = query.eq("channel_id", filters.channelId);
