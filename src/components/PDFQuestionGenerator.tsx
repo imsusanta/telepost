@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DocumentService } from "@/services/documentService";
 import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
+import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
 
 interface Question {
   question: string;
@@ -135,12 +136,20 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         throw new Error("No questions generated");
       }
 
-      // Pass generated questions to parent with metadata
+      // Store questions temporarily
+      TempQuestionStorageService.addQuestions(quiz.questions, {
+        topic: topic || file.name,
+        difficulty,
+        language,
+        source_type: 'pdf_generator',
+      });
+
+      // Pass generated questions to parent with metadata (for backward compatibility)
       onQuestionsGenerated(quiz.questions, topic || file.name, difficulty, language);
 
       toast({
         title: "Success",
-        description: `Generated ${quiz.questions.length} questions from PDF!`,
+        description: `Generated ${quiz.questions.length} questions from PDF! View them in the "AI Generated" tab.`,
       });
 
       // Reset form

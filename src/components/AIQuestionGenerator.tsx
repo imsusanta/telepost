@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
 
 interface Question {
   question: string;
@@ -70,12 +71,20 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
         throw new Error("No questions generated");
       }
 
-      // Pass generated questions to parent with metadata
+      // Store questions temporarily
+      TempQuestionStorageService.addQuestions(quiz.questions, {
+        topic: topic.trim(),
+        difficulty,
+        language,
+        source_type: 'ai_generator',
+      });
+
+      // Pass generated questions to parent with metadata (for backward compatibility)
       onQuestionsGenerated(quiz.questions, topic.trim(), difficulty, language);
 
       toast({
         title: "Success",
-        description: `Generated ${quiz.questions.length} questions!`,
+        description: `Generated ${quiz.questions.length} questions! View them in the "AI Generated" tab.`,
       });
     } catch (error: unknown) {
       toast({
