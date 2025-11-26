@@ -1,5 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Ban, Check, ChevronLeft, ChevronRight, Edit, Loader2, Search, Users } from "lucide-react";
+import { 
+  Ban, 
+  Check, 
+  ChevronLeft, 
+  ChevronRight, 
+  Crown,
+  Download,
+  Edit, 
+  Loader2, 
+  MoreHorizontal,
+  Search, 
+  Shield,
+  ShieldCheck,
+  User,
+  UserCog,
+  Users,
+  X
+} from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -11,9 +28,11 @@ import {
   getPaginatedUsers,
   updateUserSubscription,
   updateUserStatus,
+  updateUserRole,
   extendUserSubscription,
   setCustomSubscriptionEndDate,
   type UserWithSubscription,
+  type AppRole,
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
 import { SubscriptionService, type SubscriptionPlan } from '@/services/subscriptionService';
@@ -41,10 +60,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function SuperAdminUsers() {
   const navigate = useNavigate();
@@ -54,6 +82,10 @@ export default function SuperAdminUsers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  
+  // Filter state
+  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'suspended' | 'banned' | 'all'>('all');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,6 +101,10 @@ export default function SuperAdminUsers() {
   const [daysToExtend, setDaysToExtend] = useState<number>(30);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Role change dialog
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<AppRole>('user');
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -82,7 +118,13 @@ export default function SuperAdminUsers() {
     try {
       setLoading(true);
       const [paginatedData, plansData] = await Promise.all([
-        getPaginatedUsers(currentPage, pageSize, debouncedSearch),
+        getPaginatedUsers(
+          currentPage, 
+          pageSize, 
+          debouncedSearch,
+          roleFilter === 'all' ? undefined : roleFilter,
+          statusFilter === 'all' ? undefined : statusFilter
+        ),
         SubscriptionService.getPlans(),
       ]);
       setUsers(paginatedData.users);
@@ -98,7 +140,7 @@ export default function SuperAdminUsers() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, toast]);
+  }, [currentPage, debouncedSearch, roleFilter, statusFilter, toast]);
 
   const checkAccessAndLoadData = useCallback(async () => {
     try {
@@ -123,13 +165,6 @@ export default function SuperAdminUsers() {
     checkAccessAndLoadData();
   }, [checkAccessAndLoadData]);
 
-  // Load data when page or search changes
-  useEffect(() => {
-    if (!loading) {
-      loadData();
-    }
-  }, [currentPage, debouncedSearch, loadData, loading]);
-
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -148,6 +183,12 @@ export default function SuperAdminUsers() {
     setIsEditDialogOpen(true);
   };
 
+  const handleEditRole = (user: UserWithSubscription) => {
+    setSelectedUser(user);
+    setSelectedRole(user.role);
+    setIsRoleDialogOpen(true);
+  };
+
   const handleUpdateSubscription = async () => {
     if (!selectedUser || !selectedPlanId) {
       toast({
@@ -161,7 +202,6 @@ export default function SuperAdminUsers() {
     try {
       setIsUpdating(true);
       
-      // Update plan and optionally set custom end date
       await updateUserSubscription(
         selectedUser.id,
         selectedPlanId,
@@ -179,6 +219,31 @@ export default function SuperAdminUsers() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update subscription',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setIsUpdating(true);
+      await updateUserRole(selectedUser.id, selectedRole);
+
+      toast({
+        title: 'Success',
+        description: `User role updated to ${selectedRole}`,
+      });
+
+      setIsRoleDialogOpen(false);
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update role',
         variant: 'destructive',
       });
     } finally {
@@ -275,6 +340,33 @@ export default function SuperAdminUsers() {
     }
   };
 
+  const handleExportUsers = () => {
+    const csvContent = [
+      ['Email', 'Name', 'Role', 'Status', 'Plan', 'Joined'].join(','),
+      ...users.map(u => [
+        u.email,
+        u.full_name || '',
+        u.role,
+        u.status,
+        u.subscription?.plan.display_name || 'Free',
+        formatDate(u.created_at)
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Export Complete',
+      description: `Exported ${users.length} users to CSV`,
+    });
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -291,11 +383,77 @@ export default function SuperAdminUsers() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const getRoleBadge = (role: AppRole) => {
+    switch (role) {
+      case 'super_admin':
+        return (
+          <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 gap-1">
+            <Crown className="w-3 h-3" />
+            Super Admin
+          </Badge>
+        );
+      case 'admin':
+        return (
+          <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 gap-1">
+            <ShieldCheck className="w-3 h-3" />
+            Admin
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <User className="w-3 h-3" />
+            User
+          </Badge>
+        );
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return (
+          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
+            <Check className="w-3 h-3" />
+            Active
+          </Badge>
+        );
+      case 'suspended':
+        return (
+          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
+            <Ban className="w-3 h-3" />
+            Suspended
+          </Badge>
+        );
+      case 'banned':
+        return (
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/20 gap-1">
+            <X className="w-3 h-3" />
+            Banned
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = searchQuery || roleFilter !== 'all' || statusFilter !== 'all';
+
   if (loading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading users...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -304,188 +462,262 @@ export default function SuperAdminUsers() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage user subscriptions and account status
-          </p>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              User Management
+            </h1>
+            <p className="text-muted-foreground">
+              Manage users, roles, subscriptions and account status
+            </p>
+          </div>
+          <Button onClick={handleExportUsers} variant="outline" className="gap-2">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
         </div>
 
         {/* Statistics */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-card to-muted/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalCount}</div>
+              <div className="text-3xl font-bold">{totalCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Registered accounts</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-card to-emerald-500/5">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active</CardTitle>
-              <Check className="h-4 w-4 text-green-600" />
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <Check className="h-4 w-4 text-emerald-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl font-bold text-emerald-600">
                 {users.filter((u) => u.status === 'active').length}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Active accounts</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-card to-blue-500/5">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Subscribed</CardTitle>
-              <Users className="h-4 w-4 text-blue-600" />
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Shield className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl font-bold text-blue-600">
                 {users.filter((u) => u.subscription).length}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Paid subscriptions</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-0 shadow-md bg-gradient-to-br from-card to-amber-500/5">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Suspended</CardTitle>
-              <Ban className="h-4 w-4 text-red-600" />
+              <div className="p-2 bg-amber-500/10 rounded-lg">
+                <Ban className="h-4 w-4 text-amber-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl font-bold text-amber-600">
                 {users.filter((u) => u.status === 'suspended').length}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Suspended accounts</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users by email or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
+        {/* Search and Filters */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users by email or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select 
+                  value={roleFilter} 
+                  onValueChange={(v) => {
+                    setRoleFilter(v as AppRole | 'all');
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={statusFilter} 
+                  onValueChange={(v) => {
+                    setStatusFilter(v as 'active' | 'suspended' | 'banned' | 'all');
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="banned">Banned</SelectItem>
+                  </SelectContent>
+                </Select>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="icon" onClick={clearFilters}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Users Table */}
-        <Card>
+        <Card className="border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="font-semibold">User</TableHead>
+                  <TableHead className="font-semibold">Role</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Plan</TableHead>
+                  <TableHead className="font-semibold">Usage</TableHead>
+                  <TableHead className="font-semibold">Joined</TableHead>
+                  <TableHead className="text-right font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {searchQuery ? 'No users found' : 'No users yet'}
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <Users className="w-12 h-12 text-muted-foreground/30" />
+                        <p className="text-muted-foreground">
+                          {hasActiveFilters ? 'No users match your filters' : 'No users yet'}
+                        </p>
+                        {hasActiveFilters && (
+                          <Button variant="link" onClick={clearFilters} className="text-sm">
+                            Clear filters
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   users.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className="group hover:bg-muted/30">
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{user.email}</p>
-                          {user.full_name && (
-                            <p className="text-sm text-muted-foreground">
-                              {user.full_name}
-                            </p>
-                          )}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center font-semibold text-sm">
+                            {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{user.email}</p>
+                            {user.full_name && (
+                              <p className="text-sm text-muted-foreground">
+                                {user.full_name}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            user.status === 'active'
-                              ? 'default'
-                              : user.status === 'suspended'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{user.role}</Badge>
-                      </TableCell>
+                      <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell>
                         {user.subscription ? (
                           <div>
                             <p className="font-medium">
                               {user.subscription.plan.display_name}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              ${user.subscription.plan.price}/mo
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-muted-foreground">
                               Expires: {formatDate(user.subscription.current_period_end)}
                             </p>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Free</span>
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Free
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         {user.usage ? (
                           <div className="text-sm">
-                            <p>{user.usage.quizzes_generated_this_month} quizzes</p>
-                            <p className="text-muted-foreground">
-                              {formatBytes(user.usage.total_storage_used_bytes)}
+                            <p className="font-medium">{user.usage.quizzes_generated_this_month} quizzes</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatBytes(user.usage.total_storage_used_bytes)} used
                             </p>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm text-muted-foreground">
                         {formatDate(user.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditSubscription(user)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Plan
-                          </Button>
-                          <Button
-                            variant={
-                              user.status === 'active' ? 'destructive' : 'default'
-                            }
-                            size="sm"
-                            onClick={() =>
-                              user.id && user.status && handleToggleUserStatus(user.id, user.status)
-                            }
-                            disabled={!user.id || !user.status}
-                          >
-                            {user.status === 'active' ? (
-                              <>
-                                <Ban className="h-4 w-4 mr-1" />
-                                Suspend
-                              </>
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                Activate
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEditSubscription(user)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit Plan
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditRole(user)}>
+                              <UserCog className="w-4 h-4 mr-2" />
+                              Change Role
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleToggleUserStatus(user.id, user.status)}
+                              className={user.status === 'active' ? 'text-amber-600' : 'text-emerald-600'}
+                            >
+                              {user.status === 'active' ? (
+                                <>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  Suspend User
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Activate User
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -499,26 +731,48 @@ export default function SuperAdminUsers() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} users
+              Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalCount)} of {totalCount} users
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || loading}
+                disabled={currentPage === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </Button>
-              <span className="text-sm">
-                Page {currentPage} of {totalPages}
-              </span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      className="w-9"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages || loading}
+                disabled={currentPage === totalPages}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
@@ -526,144 +780,188 @@ export default function SuperAdminUsers() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Edit Subscription Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update User Subscription</DialogTitle>
-            <DialogDescription>
-              Change the subscription plan for {selectedUser?.email}
-            </DialogDescription>
-          </DialogHeader>
+        {/* Edit Subscription Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="w-5 h-5" />
+                Edit Subscription
+              </DialogTitle>
+              <DialogDescription>
+                Manage subscription for {selectedUser?.email}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Current Plan Info */}
-            <div className="grid gap-2 p-4 bg-muted rounded-lg">
-              <Label>Current Plan</Label>
-              <p className="text-sm font-medium">
-                {selectedUser?.subscription
-                  ? selectedUser.subscription.plan.display_name
-                  : 'Free (No Subscription)'}
-              </p>
-              {selectedUser?.subscription && (
-                <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                  <p>Started: {formatDate(selectedUser.subscription.current_period_start)}</p>
-                  <p>Expires: {formatDate(selectedUser.subscription.current_period_end)}</p>
-                  <p>Status: <Badge variant={selectedUser.subscription.status === 'active' ? 'default' : 'secondary'}>
-                    {selectedUser.subscription.status}
-                  </Badge></p>
+            <Tabs defaultValue="plan" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="plan">Plan</TabsTrigger>
+                <TabsTrigger value="extend">Extend</TabsTrigger>
+                <TabsTrigger value="custom">Custom Date</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="plan" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Subscription Plan</Label>
+                  <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.display_name} - ${plan.price}/mo
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
+                <Button 
+                  onClick={handleUpdateSubscription} 
+                  disabled={isUpdating || !selectedPlanId}
+                  className="w-full"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Plan'
+                  )}
+                </Button>
+              </TabsContent>
 
-            {/* Change Plan */}
-            <div className="grid gap-2">
-              <Label htmlFor="plan">Change Plan</Label>
-              <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.display_name} - ${plan.price}/{plan.billing_period}
+              <TabsContent value="extend" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Days to Extend</Label>
+                  <Input
+                    type="number"
+                    value={daysToExtend}
+                    onChange={(e) => setDaysToExtend(parseInt(e.target.value) || 0)}
+                    min={1}
+                    max={365}
+                  />
+                </div>
+                <Button 
+                  onClick={handleExtendSubscription} 
+                  disabled={isUpdating || daysToExtend < 1}
+                  className="w-full"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Extending...
+                    </>
+                  ) : (
+                    `Extend by ${daysToExtend} days`
+                  )}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="custom" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Custom End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customEndDate ? format(customEndDate, 'PPP') : 'Pick a date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customEndDate}
+                        onSelect={setCustomEndDate}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <Button 
+                  onClick={handleSetCustomEndDate} 
+                  disabled={isUpdating || !customEndDate}
+                  className="w-full"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Setting...
+                    </>
+                  ) : (
+                    'Set End Date'
+                  )}
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Role Dialog */}
+        <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserCog className="w-5 h-5" />
+                Change User Role
+              </DialogTitle>
+              <DialogDescription>
+                Update role for {selectedUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Select Role</Label>
+                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as AppRole)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        User
+                      </div>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Extend Duration */}
-            <div className="grid gap-2">
-              <Label htmlFor="extend">Extend Duration</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="extend"
-                  type="number"
-                  min="1"
-                  value={daysToExtend}
-                  onChange={(e) => setDaysToExtend(Number(e.target.value))}
-                  placeholder="Days"
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleExtendSubscription}
-                  disabled={isUpdating || !selectedUser?.subscription}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Add Days
-                </Button>
+                    <SelectItem value="admin">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4" />
+                        Admin
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="super_admin">
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4" />
+                        Super Admin
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Extend current subscription by specified days
-              </p>
             </div>
 
-            {/* Custom End Date */}
-            <div className="grid gap-2">
-              <Label>Set Custom End Date</Label>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customEndDate ? format(customEndDate, 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={customEndDate}
-                      onSelect={setCustomEndDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  variant="outline"
-                  onClick={handleSetCustomEndDate}
-                  disabled={isUpdating || !customEndDate || !selectedUser?.subscription}
-                >
-                  Set Date
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Override subscription end date
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-              disabled={isUpdating}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUpdateSubscription} 
-              disabled={isUpdating || !selectedPlanId}
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Plan'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateRole} disabled={isUpdating}>
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Role'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </DashboardLayout>
   );
 }
