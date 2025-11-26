@@ -612,6 +612,7 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          min_questions_per_interval: number | null
           quiz_data: Json
           scheduled_time: string
           sent_at: string | null
@@ -623,6 +624,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          min_questions_per_interval?: number | null
           quiz_data: Json
           scheduled_time: string
           sent_at?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          min_questions_per_interval?: number | null
           quiz_data?: Json
           scheduled_time?: string
           sent_at?: string | null

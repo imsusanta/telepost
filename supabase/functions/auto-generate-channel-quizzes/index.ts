@@ -113,7 +113,6 @@ serve(async (req) => {
         // Check if we should generate based on frequency
         if (!forceGenerate) {
           const shouldGenerate = await checkGenerationFrequency(
-            supabase,
             channel.id,
             channel.settings.generation_frequency
           );
@@ -209,11 +208,16 @@ serve(async (req) => {
           }
         }
 
+        // Ensure quiz has valid questions array
+        if (!quiz.questions || quiz.questions.length === 0) {
+          throw new Error("Quiz generation failed: No valid questions");
+        }
+
         // Send to Telegram (using server-side bot token)
         await sendQuizToTelegram(
           TELEGRAM_BOT_TOKEN,
           channel.telegram_channel_id,
-          quiz
+          { ...quiz, questions: quiz.questions }
         );
 
         // Record the generation
@@ -302,10 +306,13 @@ serve(async (req) => {
  * Check if a channel is due for quiz generation based on frequency settings
  */
 async function checkGenerationFrequency(
-  supabase: ReturnType<typeof createClient>,
   channelId: string,
   frequency: string
 ): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
   // Get last generation time for this channel
   const { data: lastGeneration } = await supabase
     .from("quiz_generations")
@@ -320,7 +327,7 @@ async function checkGenerationFrequency(
     return true;
   }
 
-  const lastGeneratedAt = new Date(lastGeneration.created_at);
+  const lastGeneratedAt = new Date((lastGeneration as any).created_at);
   const now = new Date();
   const hoursSinceLastGeneration = (now.getTime() - lastGeneratedAt.getTime()) / (1000 * 60 * 60);
 
