@@ -5,3 +5,11 @@ verify_jwt = true
 
 [functions.generate-invitation-codes]
 verify_jwt = true
+
+[functions.process-document]
+verify_jwt = false
+import_map = "./import_map.json"
+
+[functions.generate-quiz-from-document]
+verify_jwt = true
+import_map = "./import_map.json"
