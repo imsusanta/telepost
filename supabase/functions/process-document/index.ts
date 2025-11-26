@@ -13,6 +13,45 @@ serve(async (req) => {
 
   try {
     console.log("=== PDF Processing Request Started ===");
+    
+    // SECURITY: Require authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Initialize Supabase client with user's auth
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY");
+    
+    if (!supabaseUrl || !supabaseAnon) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.0");
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✓ User authenticated: ${user.id}`);
+
     const { documentId, storagePath, publicUrl } = await req.json();
 
     if (!documentId) {
@@ -33,16 +72,39 @@ serve(async (req) => {
 
     console.log(`Processing document ${documentId} from ${storagePath}`);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Missing Supabase configuration");
+    // Verify document ownership before processing
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseServiceKey) {
+      console.error("Missing service role key");
       throw new Error("Server configuration error");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // SECURITY: Verify the document belongs to the authenticated user
+    const { data: document, error: docError } = await supabase
+      .from('documents')
+      .select('user_id')
+      .eq('id', documentId)
+      .single();
+    
+    if (docError || !document) {
+      console.error("Document not found:", docError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Document not found' }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    if (document.user_id !== user.id) {
+      console.error(`Unauthorized: User ${user.id} attempted to access document owned by ${document.user_id}`);
+      return new Response(
+        JSON.stringify({ error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log(`✓ Document ownership verified for user ${user.id}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 

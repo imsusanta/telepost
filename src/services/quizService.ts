@@ -60,9 +60,9 @@ export class QuizService {
     return data;
   }
 
-  static async testTelegramConnection(botToken: string, chatId: string) {
+  static async testTelegramConnection(chatId: string) {
     const { data, error } = await supabase.functions.invoke("test-telegram-connection", {
-      body: { botToken, chatId },
+      body: { chatId },
     });
 
     if (error) {
