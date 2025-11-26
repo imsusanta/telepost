@@ -229,11 +229,15 @@ serve(async (req) => {
             topic: topic,
             question_count: quiz.questions.length,
             difficulty: channel.settings.default_difficulty,
-            language: channel.settings.default_language,
-            source_type: knowledgeBaseContext ? "document" : "ai",
-            quiz_data: quiz,
-            delivery_method: "telegram",
-            telegram_chat_id: channel.telegram_channel_id,
+            questions: quiz.questions,
+            metadata: {
+              ...quiz.metadata,
+              language: channel.settings.default_language,
+              source_type: knowledgeBaseContext ? "document" : "ai",
+              delivery_method: "telegram",
+              telegram_chat_id: channel.telegram_channel_id,
+            },
+            status: "completed",
           })
           .select()
           .single();
