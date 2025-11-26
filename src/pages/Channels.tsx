@@ -818,13 +818,6 @@ export default function Channels() {
                   </AlertDescription>
                 </Alert>
 
-                <Alert className="border-primary/50 bg-primary/5">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Content Guideline:</strong> Don't generate Bangladesh related topics. If the topic is related to India, then generate the content.
-                  </AlertDescription>
-                </Alert>
-
                 <Textarea
                   id="system-prompt"
                   value={selectedChannel.settings.system_prompt}
