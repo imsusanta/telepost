@@ -114,6 +114,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleSignOut = useCallback(async () => {
     try {
+      // Clear cached super admin status
+      sessionStorage.removeItem('isUserSuperAdmin');
+      sessionStorage.removeItem('superAdminCheckTime');
+      
       await supabase.auth.signOut();
       navigate("/");
       toast({
@@ -296,9 +300,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden">
-                        <span className="text-sm font-semibold truncate max-w-[140px]">
-                          {profile?.full_name || 'User'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold truncate max-w-[120px]">
+                            {profile?.full_name || 'User'}
+                          </span>
+                          {isUserSuperAdmin && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-md shadow-sm">
+                              <Shield className="w-2.5 h-2.5" />
+                              Admin
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-muted-foreground truncate max-w-[140px]">
                           {profile?.email || ''}
                         </span>
