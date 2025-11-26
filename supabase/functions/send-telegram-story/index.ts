@@ -261,8 +261,8 @@ function buildTextStory(story: { text_overlay?: Array<{ text: string }>; caption
 
   // Build from text overlay
   if (story.text_overlay && Array.isArray(story.text_overlay) && story.text_overlay.length > 0) {
-    const overlayTexts = story.text_overlay.map((overlay: TextOverlay) => {
-      let formattedText = overlay.text;
+    const overlayTexts = story.text_overlay.map((overlay: any) => {
+      let formattedText = overlay.text || '';
 
       // Apply formatting based on font weight
       if (overlay.fontWeight === 'bold') {
