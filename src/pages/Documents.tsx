@@ -97,6 +97,27 @@ export default function Documents() {
     loadDocuments();
   }, [loadDocuments]);
 
+  // Poll for document processing status updates
+  useEffect(() => {
+    // Check if there are any documents being processed
+    const hasProcessingDocs = documents.some(
+      doc => doc.processing_status === "pending" || doc.processing_status === "processing"
+    );
+
+    if (!hasProcessingDocs) {
+      return; // No polling needed
+    }
+
+    // Poll every 3 seconds
+    const pollInterval = setInterval(() => {
+      loadDocuments();
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [documents, loadDocuments]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

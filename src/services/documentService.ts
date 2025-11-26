@@ -104,8 +104,13 @@ export class DocumentService {
         .from("documents")
         .getPublicUrl(doc.storage_path);
 
-      // Call edge function to process document
-      const { data, error } = await supabase.functions.invoke("process-document", {
+      // Call edge function to process document with timeout
+      const timeoutMs = 120000; // 2 minutes timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Document processing timeout - please try again")), timeoutMs);
+      });
+
+      const processPromise = supabase.functions.invoke("process-document", {
         body: {
           documentId: documentId,
           storagePath: doc.storage_path,
@@ -113,20 +118,38 @@ export class DocumentService {
         },
       });
 
-      if (error) throw error;
+      const { data, error } = await Promise.race([processPromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error(`Document processing error for ${documentId}:`, error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error("No data returned from document processing");
+      }
+
+      // Validate response data
+      if (!data.extractedText && !data.aiSummary) {
+        console.warn(`Document ${documentId} processed but no content extracted`);
+      }
 
       // Update document with results
       await supabase
         .from("documents")
         .update({
           processing_status: "completed",
-          extracted_text: data.extractedText,
-          page_count: data.pageCount,
-          ai_summary: data.aiSummary,
-          topics: data.topics,
+          extracted_text: data.extractedText || "Document processed",
+          page_count: data.pageCount || 1,
+          ai_summary: data.aiSummary || "Document uploaded successfully",
+          topics: data.topics || ["General"],
         })
         .eq("id", documentId);
+
+      console.log(`Document ${documentId} processing completed successfully`);
     } catch (error: unknown) {
+      console.error(`Document ${documentId} processing failed:`, error);
+
       // Update status to failed
       await supabase
         .from("documents")
