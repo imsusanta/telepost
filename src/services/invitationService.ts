@@ -200,6 +200,29 @@ export function generateRandomCode(length: number = 12): string {
 }
 
 /**
+ * Check if a custom code is available (not already in use)
+ */
+export async function checkCodeAvailability(code: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('invitation_codes')
+      .select('id')
+      .eq('code', code.toUpperCase())
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking code availability:', error);
+      return false;
+    }
+    
+    return data === null; // Available if no match found
+  } catch (error) {
+    console.error('Error in checkCodeAvailability:', error);
+    return false;
+  }
+}
+
+/**
  * Generate invitation codes using the edge function (admin only)
  */
 export async function generateInvitationCodeViaEdgeFunction(
