@@ -419,7 +419,10 @@ QUESTION QUALITY:
 - Ensure correct answers are verifiable from the knowledge base
 - Make wrong options plausible but clearly incorrect
 - Provide helpful explanations that reference the source material
-- Maintain appropriate difficulty level: ${channel.settings.default_difficulty}`;
+- Maintain appropriate difficulty level: ${channel.settings.default_difficulty}
+
+CONTENT GUIDELINES:
+- Don't generate Bangladesh related topics. If the topic is related to India, then generate the content.`;
 
   // Add knowledge base context reminder if documents exist
   if (knowledgeBase) {

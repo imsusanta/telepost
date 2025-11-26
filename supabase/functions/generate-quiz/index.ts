@@ -166,7 +166,11 @@ If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.`;
     // Priority: channelSystemPrompt > systemPrompt parameter
     const effectiveSystemPrompt = channelSystemPrompt || systemPrompt || '';
     const customInstructions = effectiveSystemPrompt ? `\n\nADDITIONAL CUSTOM INSTRUCTIONS:\n${effectiveSystemPrompt}` : "";
-    const finalSystemPrompt = baseSystemPrompt + customInstructions;
+
+    // Global content guidelines
+    const contentGuidelines = `\n\nCONTENT GUIDELINES:\n- Don't generate Bangladesh related topics. If the topic is related to India, then generate the content.`;
+
+    const finalSystemPrompt = baseSystemPrompt + customInstructions + contentGuidelines;
 
     // Language-specific instructions
     const languageInstructions = {
