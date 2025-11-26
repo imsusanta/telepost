@@ -111,7 +111,18 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
       const processedDoc = await waitForDocumentProcessing(document.id);
 
       if (!processedDoc.extracted_text) {
-        throw new Error("Could not extract text from PDF");
+        throw new Error("Could not extract text from PDF. The PDF might be empty or corrupted.");
+      }
+
+      // Check if the extracted text indicates an error
+      if (processedDoc.extracted_text.startsWith("Error:") ||
+          processedDoc.extracted_text.startsWith("No text could be extracted")) {
+        throw new Error(processedDoc.extracted_text);
+      }
+
+      // Check if we have meaningful text (at least 50 characters)
+      if (processedDoc.extracted_text.trim().length < 50) {
+        throw new Error("The PDF does not contain enough text to generate questions. Please upload a PDF with more content.");
       }
 
       setIsProcessing(false);
@@ -123,12 +134,17 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         description: "Creating questions from PDF content...",
       });
 
+      console.log(`Generating questions from PDF with ${processedDoc.extracted_text.length} characters of text`);
+
+      // Limit extracted text to 8000 characters for better API performance
+      const textForGeneration = processedDoc.extracted_text.substring(0, 8000);
+
       const quiz = await QuizService.generateQuiz({
         topic: topic || `Document: ${file.name}`,
         questionCount,
         difficulty,
         language,
-        systemPrompt: `Generate questions based on the following document content:\n\n${processedDoc.extracted_text.substring(0, 8000)}`,
+        systemPrompt: `Generate ${questionCount} questions based on the following document content. The questions should be relevant to the main topics and concepts discussed in the document.\n\nDOCUMENT CONTENT:\n${textForGeneration}`,
         userId: user.id,
       });
 
