@@ -178,8 +178,35 @@ serve(async (req) => {
           knowledgeBaseContext
         );
 
-        if (!quiz || quiz.error) {
-          throw new Error(quiz?.error || "Failed to generate quiz");
+        // Validate quiz response
+        if (!quiz) {
+          throw new Error("Quiz generation returned null or undefined");
+        }
+
+        if (quiz.error) {
+          throw new Error(`Quiz generation failed: ${quiz.error}`);
+        }
+
+        if (!quiz.questions || !Array.isArray(quiz.questions)) {
+          throw new Error("Quiz generation failed: No questions array in response");
+        }
+
+        if (quiz.questions.length === 0) {
+          throw new Error("Quiz generation failed: Questions array is empty");
+        }
+
+        // Validate each question has required fields
+        for (let i = 0; i < quiz.questions.length; i++) {
+          const q = quiz.questions[i];
+          if (!q.question || !q.options || !Array.isArray(q.options)) {
+            throw new Error(`Invalid question at index ${i}: Missing question or options`);
+          }
+          if (q.options.length < 2) {
+            throw new Error(`Invalid question at index ${i}: Must have at least 2 options`);
+          }
+          if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index >= q.options.length) {
+            throw new Error(`Invalid question at index ${i}: Invalid correct_option_index`);
+          }
         }
 
         // Send to Telegram (using server-side bot token)
@@ -220,12 +247,27 @@ serve(async (req) => {
 
         console.log(`Successfully generated and sent quiz for channel: ${channel.name}`);
       } catch (error) {
-        console.error(`Error processing channel ${channel.id}:`, error);
+        console.error(`Error processing channel ${channel.id} (${channel.name}):`, error);
+        console.error('Error type:', typeof error);
+        console.error('Error instanceof Error:', error instanceof Error);
+
+        // Ensure we always have a string error message
+        let errorMessage: string;
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+          errorMessage = String((error as { message: unknown }).message);
+        } else {
+          errorMessage = `Unknown error: ${JSON.stringify(error)}`;
+        }
+
         results.push({
           channelId: channel.id,
           channelName: channel.name,
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: errorMessage,
         });
       }
     }
@@ -387,7 +429,7 @@ async function generateQuizForChannel(
   topic: string,
   systemPrompt: string,
   knowledgeBase: string
-): Promise<{ questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: Record<string, unknown>; topic?: string }> {
+): Promise<{ questions?: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: Record<string, unknown>; topic?: string; error?: string }> {
   const requestId = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -502,7 +544,14 @@ ADDITIONAL RULES:
     quizData = JSON.parse(content);
   } catch (e) {
     console.error("Failed to parse AI response:", content);
-    throw new Error("Invalid quiz format received from AI");
+    console.error("Parse error:", e);
+    throw new Error(`Invalid JSON format received from AI: ${e instanceof Error ? e.message : 'Parse failed'}`);
+  }
+
+  // Ensure we return a valid object
+  if (typeof quizData !== 'object' || quizData === null) {
+    console.error("AI returned non-object:", quizData);
+    throw new Error("AI response is not a valid object");
   }
 
   return quizData;
@@ -514,7 +563,7 @@ ADDITIONAL RULES:
 async function sendQuizToTelegram(
   botToken: string,
   chatId: string,
-  quiz: { topic: string; questions: Array<{ question: string; options: string[]; correct_option_index: number }>; metadata?: { difficulty?: string } }
+  quiz: { topic?: string; questions: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: { difficulty?: string } }
 ): Promise<void> {
   const baseUrl = `https://api.telegram.org/bot${botToken}`;
 
@@ -531,7 +580,8 @@ async function sendQuizToTelegram(
   });
 
   // Send each question as a poll
-  for (const question of quiz.questions) {
+  for (let i = 0; i < quiz.questions.length; i++) {
+    const question = quiz.questions[i];
     const pollData = {
       chat_id: chatId,
       question: question.question,
@@ -551,7 +601,7 @@ async function sendQuizToTelegram(
     if (!pollResponse.ok) {
       const errorText = await pollResponse.text();
       console.error("Failed to send poll:", errorText);
-      throw new Error(`Failed to send question to Telegram: ${question.id}`);
+      throw new Error(`Failed to send question ${i + 1} to Telegram: ${errorText}`);
     }
 
     // Small delay between questions
