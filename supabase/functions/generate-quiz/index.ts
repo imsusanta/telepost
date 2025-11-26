@@ -23,9 +23,9 @@ serve(async (req) => {
 
     // Validate the user's JWT token and get user information
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseAnonKey) {
       console.error("Missing Supabase configuration");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
@@ -33,9 +33,10 @@ serve(async (req) => {
       );
     }
 
+    // Create client with anon key and user's auth header for proper JWT validation
     const supabaseClient = createClient(
       supabaseUrl,
-      supabaseKey,
+      supabaseAnonKey,
       { global: { headers: { Authorization: authHeader } } }
     );
 
@@ -79,7 +80,11 @@ serve(async (req) => {
 
     if (channelId && useChannelKnowledgeBase) {
       try {
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (!supabaseServiceKey) {
+          throw new Error("Service role key not configured");
+        }
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
         // Verify channel ownership
         const { data: channel, error: channelError } = await supabase
@@ -313,7 +318,11 @@ ADDITIONAL RULES:
 
     // Save quiz to database (always save for authenticated users)
     try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseServiceKey) {
+        throw new Error("Service role key not configured");
+      }
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       // Save quiz generation to database using the authenticated user's ID
       const { error: insertError } = await supabase
