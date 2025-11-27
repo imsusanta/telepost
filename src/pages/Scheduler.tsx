@@ -69,10 +69,10 @@ export default function Scheduler() {
       <div className="space-y-8">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Quiz Scheduler</h1>
-            <p className="text-gray-400">View and manage scheduled quiz posts to your Telegram channel</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Quiz Scheduler</h1>
+            <p className="text-muted-foreground">View and manage scheduled quiz posts to your Telegram channel</p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2 clay-button">
             <RefreshCw className="w-4 h-4" />
             Refresh
           </Button>
@@ -81,45 +81,45 @@ export default function Scheduler() {
         {/* Statistics Cards */}
         {statistics && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-slate-900/50 border-white/10">
+            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Total Posts</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{statistics.total}</div>
+                <div className="text-2xl font-bold text-foreground">{statistics.total}</div>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/50 border-white/10">
+            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Pending</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-500">{statistics.pending}</div>
+                <div className="text-2xl font-bold text-yellow-600">{statistics.pending}</div>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/50 border-white/10">
+            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Sent</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-500">{statistics.sent}</div>
+                <div className="text-2xl font-bold text-success">{statistics.sent}</div>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/50 border-white/10">
+            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Failed</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-500">{statistics.failed}</div>
+                <div className="text-2xl font-bold text-destructive">{statistics.failed}</div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        <Card className="bg-slate-900/50 border-white/10">
+        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
+              <Calendar className="w-5 h-5 text-primary" />
               <span>Scheduled Posts</span>
             </CardTitle>
             <CardDescription>
@@ -128,10 +128,10 @@ export default function Scheduler() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-gray-400">Loading scheduled posts...</div>
+              <div className="text-center py-8 text-muted-foreground">Loading scheduled posts...</div>
             ) : scheduledPosts.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <div className="text-center py-8 text-muted-foreground">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted" />
                 <p>No scheduled posts yet. Create a quiz and schedule it to see it here!</p>
               </div>
             ) : (
