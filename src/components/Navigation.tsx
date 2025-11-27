@@ -5,11 +5,16 @@ interface NavigationProps {
   onGetStarted?: () => void;
 }
 
-export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => {
+export const Navigation = ({ onGetStarted }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
+  };
+
+  const handleGetStarted = () => {
+    onGetStarted?.();
+    closeMobileMenu();
   };
 
   return (
@@ -54,18 +59,18 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
                 >
                   FAQ
                 </a>
-                <a
-                  href="/auth"
+                <button
+                  onClick={handleGetStarted}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
                 >
                   Sign in
-                </a>
-                <a
-                  href="/auth"
+                </button>
+                <button
+                  onClick={handleGetStarted}
                   className="text-sm px-4 py-2 bg-foreground text-background rounded-full font-medium hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
                   Get started
-                </a>
+                </button>
               </div>
 
               <button
@@ -104,20 +109,18 @@ export const Navigation = ({ onGetStarted: _onGetStarted }: NavigationProps) => 
                 >
                   FAQ
                 </a>
-                <a
-                  href="/auth"
+                <button
+                  onClick={handleGetStarted}
                   className="block text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-2 py-1"
-                  onClick={closeMobileMenu}
                 >
                   Sign in
-                </a>
-                <a
-                  href="/auth"
+                </button>
+                <button
+                  onClick={handleGetStarted}
                   className="block w-full text-sm px-4 py-3 bg-foreground text-background rounded-full font-medium text-center mt-4 hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onClick={closeMobileMenu}
                 >
                   Get started
-                </a>
+                </button>
               </div>
             </div>
           )}
