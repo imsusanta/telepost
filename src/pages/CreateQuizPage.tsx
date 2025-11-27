@@ -908,7 +908,14 @@ export default function CreateQuizPage() {
                 <ArrowLeft className="w-4 h-4" />
                 Create New Quiz
               </Button>
-              <TelegramShare quiz={quiz} />
+              <TelegramShare
+                quiz={quiz}
+                selectedChannelId={
+                  selectedChannel && selectedChannel !== "all"
+                    ? channels.find(ch => ch.id === selectedChannel)?.telegram_channel_id || undefined
+                    : undefined
+                }
+              />
             </div>
             <QuizOverview quiz={quiz} />
           </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, HelpCircle, Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface TelegramShareProps {
   quiz: Quiz;
+  selectedChannelId?: string;
 }
 
-export const TelegramShare = ({ quiz }: TelegramShareProps) => {
+export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) => {
   const [chatId, setChatId] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -25,6 +26,19 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
   const [instantPoll, setInstantPoll] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+
+  // Auto-fill chat ID when dialog opens if a channel is selected
+  useEffect(() => {
+    if (isOpen && selectedChannelId && !hasAutoFilled) {
+      setChatId(selectedChannelId);
+      setHasAutoFilled(true);
+    }
+    // Reset when dialog closes
+    if (!isOpen) {
+      setHasAutoFilled(false);
+    }
+  }, [isOpen, selectedChannelId, hasAutoFilled]);
 
   const handleTestConnection = async () => {
     if (!chatId.trim()) {
@@ -166,12 +180,19 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="chatId">Telegram Chat ID</Label>
+            {selectedChannelId && (
+              <p className="text-xs text-green-600 dark:text-green-400 mb-1">
+                ✓ Auto-filled from selected channel
+              </p>
+            )}
             <Input
               id="chatId"
               placeholder="e.g., -1001234567890 or @channelname"
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
               disabled={isSending}
+              readOnly={!!selectedChannelId}
+              className={selectedChannelId ? "bg-muted" : ""}
             />
             <div className="flex items-center gap-2 mt-2">
               <Button
@@ -189,9 +210,23 @@ export const TelegramShare = ({ quiz }: TelegramShareProps) => {
                   {testResult.success ? "✓ Connected" : "✗ Failed"}
                 </span>
               )}
+              {selectedChannelId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setChatId("")}
+                  disabled={isSending}
+                  className="text-xs"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              For channels: Use -100xxxxxxxxxx format (with minus sign)
+              {selectedChannelId
+                ? "Using the selected channel's Telegram ID"
+                : "For channels: Use -100xxxxxxxxxx format (with minus sign)"}
             </p>
           </div>
 
