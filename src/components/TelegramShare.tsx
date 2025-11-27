@@ -180,7 +180,7 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="chatId">Telegram Chat ID</Label>
-            {selectedChannelId && (
+            {selectedChannelId && hasAutoFilled && (
               <p className="text-xs text-green-600 dark:text-green-400 mb-1">
                 ✓ Auto-filled from selected channel
               </p>
@@ -191,8 +191,8 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
               disabled={isSending}
-              readOnly={!!selectedChannelId}
-              className={selectedChannelId ? "bg-muted" : ""}
+              readOnly={!!selectedChannelId && hasAutoFilled}
+              className={selectedChannelId && hasAutoFilled ? "bg-muted" : ""}
             />
             <div className="flex items-center gap-2 mt-2">
               <Button
@@ -210,12 +210,15 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
                   {testResult.success ? "✓ Connected" : "✗ Failed"}
                 </span>
               )}
-              {selectedChannelId && (
+              {selectedChannelId && hasAutoFilled && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setChatId("")}
+                  onClick={() => {
+                    setChatId("");
+                    setHasAutoFilled(false);
+                  }}
                   disabled={isSending}
                   className="text-xs"
                 >
@@ -224,7 +227,7 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {selectedChannelId
+              {selectedChannelId && hasAutoFilled
                 ? "Using the selected channel's Telegram ID"
                 : "For channels: Use -100xxxxxxxxxx format (with minus sign)"}
             </p>
