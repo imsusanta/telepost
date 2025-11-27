@@ -68,30 +68,30 @@ export default function Settings() {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-3">
-          <h1 className="text-5xl font-bold text-black mb-2">
+          <h1 className="text-5xl font-bold text-foreground mb-2">
             Settings
           </h1>
-          <p className="text-gray-300 text-lg">Manage your account settings and preferences</p>
+          <p className="text-muted-foreground text-lg">Manage your account settings and preferences</p>
         </div>
 
-        <Card className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 border-purple-500/20 shadow-2xl backdrop-blur-sm">
+        <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
           <CardHeader className="space-y-3 pb-6">
             <CardTitle className="flex items-center space-x-3 text-2xl">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-                <SettingsIcon className="w-6 h-6 text-white" />
+              <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-xl shadow-clay-sm">
+                <SettingsIcon className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Profile Settings
               </span>
             </CardTitle>
-            <CardDescription className="text-gray-300 text-base">
+            <CardDescription className="text-muted-foreground text-base">
               Update your personal information and account details
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSave} className="space-y-6">
               <div className="space-y-3">
-                <Label htmlFor="fullName" className="text-base font-medium text-gray-200">
+                <Label htmlFor="fullName" className="text-base font-medium text-foreground">
                   Full Name
                 </Label>
                 <Input
@@ -100,13 +100,13 @@ export default function Settings() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="h-12 bg-slate-800/50 border-purple-500/30 focus:border-purple-500 focus:ring-purple-500/20 text-white placeholder:text-gray-500"
+                  className="h-12 clay-input"
                   placeholder="Enter your full name"
                 />
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="email" className="text-base font-medium text-gray-200">
+                <Label htmlFor="email" className="text-base font-medium text-foreground">
                   Email Address
                 </Label>
                 <Input
@@ -114,10 +114,10 @@ export default function Settings() {
                   type="email"
                   value={email}
                   disabled
-                  className="h-12 bg-slate-800/30 border-slate-700 text-gray-400 cursor-not-allowed"
+                  className="h-12"
                 />
-                <p className="text-sm text-gray-400 flex items-center space-x-1">
-                  <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                <p className="text-sm text-muted-foreground flex items-center space-x-1">
+                  <span className="inline-block w-1.5 h-1.5 bg-muted rounded-full"></span>
                   <span>Email address is managed by your authentication provider</span>
                 </p>
               </div>
@@ -126,7 +126,7 @@ export default function Settings() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="h-12 px-8 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-200"
+                  className="h-12 px-8 clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold"
                 >
                   {loading ? (
                     <span className="flex items-center space-x-2">
