@@ -20,6 +20,7 @@ interface QuizConfigProps {
 export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) => {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
+  const [customQuestionCount, setCustomQuestionCount] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -74,7 +75,14 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
           setSystemPrompt(channel.settings.system_prompt);
         }
         if (channel.settings.questions_per_quiz) {
-          setQuestionCount(channel.settings.questions_per_quiz.toString());
+          const count = channel.settings.questions_per_quiz.toString();
+          // Set to custom if the count is not one of the preset values
+          if (["3", "5", "10", "15"].includes(count)) {
+            setQuestionCount(count);
+          } else {
+            setQuestionCount("custom");
+            setCustomQuestionCount(count);
+          }
         }
       }
     }
@@ -82,17 +90,44 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (topic.trim()) {
-      onStartQuiz({
-        topic: topic.trim(),
-        questionCount: parseInt(questionCount),
-        difficulty,
-        language,
-        systemPrompt: systemPrompt.trim() || undefined,
-        channelId: selectedChannel || undefined,
-        useChannelKnowledgeBase: useChannelKnowledgeBase && !!selectedChannel,
-      });
+    if (!topic.trim()) {
+      return;
     }
+
+    // Determine the actual question count
+    const actualQuestionCount = questionCount === "custom"
+      ? parseInt(customQuestionCount)
+      : parseInt(questionCount);
+
+    // Validate custom question count
+    if (questionCount === "custom") {
+      if (!customQuestionCount || isNaN(actualQuestionCount)) {
+        toast({
+          title: "Invalid Input",
+          description: "Please enter a valid number of questions",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (actualQuestionCount < 1 || actualQuestionCount > 50) {
+        toast({
+          title: "Invalid Range",
+          description: "Number of questions must be between 1 and 50",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    onStartQuiz({
+      topic: topic.trim(),
+      questionCount: actualQuestionCount,
+      difficulty,
+      language,
+      systemPrompt: systemPrompt.trim() || undefined,
+      channelId: selectedChannel || undefined,
+      useChannelKnowledgeBase: useChannelKnowledgeBase && !!selectedChannel,
+    });
   };
 
   return (
@@ -215,8 +250,20 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
                 <SelectItem value="5">5 Questions</SelectItem>
                 <SelectItem value="10">10 Questions</SelectItem>
                 <SelectItem value="15">15 Questions</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
+            {questionCount === "custom" && (
+              <Input
+                type="number"
+                placeholder="Enter number (1-50)"
+                value={customQuestionCount}
+                onChange={(e) => setCustomQuestionCount(e.target.value)}
+                min="1"
+                max="50"
+                className="h-12 mt-2"
+              />
+            )}
           </div>
 
           <div className="space-y-2">

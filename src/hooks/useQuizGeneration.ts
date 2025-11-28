@@ -47,8 +47,8 @@ export function useQuizGeneration() {
       return "Topic is too long (maximum 200 characters)";
     }
 
-    if (!config.questionCount || config.questionCount < 1 || config.questionCount > 20) {
-      return "Number of questions must be between 1 and 20";
+    if (!config.questionCount || config.questionCount < 1 || config.questionCount > 50) {
+      return "Number of questions must be between 1 and 50";
     }
 
     if (!config.difficulty || !['easy', 'medium', 'hard'].includes(config.difficulty)) {
