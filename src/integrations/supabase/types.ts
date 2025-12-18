@@ -101,6 +101,62 @@ export type Database = {
           },
         ]
       }
+      batches: {
+        Row: {
+          capacity: number | null
+          course_id: string | null
+          created_at: string | null
+          created_by: string
+          current_strength: number | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string
+          status: string | null
+          timing: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by: string
+          current_strength?: number | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date: string
+          status?: string | null
+          timing?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          current_strength?: number | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string
+          status?: string | null
+          timing?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batches_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           created_at: string
@@ -136,6 +192,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      chapters: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_free: boolean | null
+          order_index: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_free?: boolean | null
+          order_index?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_free?: boolean | null
+          order_index?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coupon_usage: {
         Row: {
@@ -232,6 +332,157 @@ export type Database = {
           updated_at?: string
           valid_from?: string
           valid_until?: string | null
+        }
+        Relationships: []
+      }
+      course_content: {
+        Row: {
+          batch_ids: string[] | null
+          chapter_id: string | null
+          course_id: string | null
+          created_at: string | null
+          description: string | null
+          download_count: number | null
+          file_size_bytes: number | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_downloadable: boolean | null
+          lesson_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          uploaded_by: string
+          version: number | null
+          visibility: string | null
+        }
+        Insert: {
+          batch_ids?: string[] | null
+          chapter_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          download_count?: number | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_downloadable?: boolean | null
+          lesson_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          uploaded_by: string
+          version?: number | null
+          visibility?: string | null
+        }
+        Update: {
+          batch_ids?: string[] | null
+          chapter_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          download_count?: number | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_downloadable?: boolean | null
+          lesson_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          uploaded_by?: string
+          version?: number | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_content_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string
+          currency: string | null
+          description: string | null
+          difficulty_level: string | null
+          duration_hours: number | null
+          end_date: string | null
+          enrollment_limit: number | null
+          id: string
+          is_featured: boolean | null
+          is_published: boolean | null
+          metadata: Json | null
+          price: number | null
+          slug: string
+          start_date: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by: string
+          currency?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_hours?: number | null
+          end_date?: string | null
+          enrollment_limit?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          metadata?: Json | null
+          price?: number | null
+          slug: string
+          start_date?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string
+          currency?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_hours?: number | null
+          end_date?: string | null
+          enrollment_limit?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          metadata?: Json | null
+          price?: number | null
+          slug?: string
+          start_date?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -336,6 +587,93 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollments: {
+        Row: {
+          amount_paid: number | null
+          batch_id: string | null
+          certificate_issued: boolean | null
+          certificate_url: string | null
+          completed_lessons: string[] | null
+          completion_date: string | null
+          coupon_code: string | null
+          course_id: string
+          created_at: string | null
+          discount_amount: number | null
+          enrolled_by: string | null
+          enrollment_date: string | null
+          id: string
+          last_accessed_at: string | null
+          notes: string | null
+          payment_status: string | null
+          progress_percentage: number | null
+          roll_number: string | null
+          status: string | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          batch_id?: string | null
+          certificate_issued?: boolean | null
+          certificate_url?: string | null
+          completed_lessons?: string[] | null
+          completion_date?: string | null
+          coupon_code?: string | null
+          course_id: string
+          created_at?: string | null
+          discount_amount?: number | null
+          enrolled_by?: string | null
+          enrollment_date?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          notes?: string | null
+          payment_status?: string | null
+          progress_percentage?: number | null
+          roll_number?: string | null
+          status?: string | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          batch_id?: string | null
+          certificate_issued?: boolean | null
+          certificate_url?: string | null
+          completed_lessons?: string[] | null
+          completion_date?: string | null
+          coupon_code?: string | null
+          course_id?: string
+          created_at?: string | null
+          discount_amount?: number | null
+          enrolled_by?: string | null
+          enrollment_date?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          notes?: string | null
+          payment_status?: string | null
+          progress_percentage?: number | null
+          roll_number?: string | null
+          status?: string | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation_codes: {
         Row: {
           code: string
@@ -421,6 +759,254 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lesson_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          enrollment_id: string
+          id: string
+          last_position_seconds: number | null
+          lesson_id: string
+          progress_percentage: number | null
+          status: string | null
+          student_id: string
+          time_spent_seconds: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          enrollment_id: string
+          id?: string
+          last_position_seconds?: number | null
+          lesson_id: string
+          progress_percentage?: number | null
+          status?: string | null
+          student_id: string
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          enrollment_id?: string
+          id?: string
+          last_position_seconds?: number | null
+          lesson_id?: string
+          progress_percentage?: number | null
+          status?: string | null
+          student_id?: string
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_progress_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          chapter_id: string
+          content_html: string | null
+          content_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_downloadable: boolean | null
+          is_free: boolean | null
+          order_index: number | null
+          title: string
+          updated_at: string | null
+          video_duration_seconds: number | null
+          video_url: string | null
+        }
+        Insert: {
+          chapter_id: string
+          content_html?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_downloadable?: boolean | null
+          is_free?: boolean | null
+          order_index?: number | null
+          title: string
+          updated_at?: string | null
+          video_duration_seconds?: number | null
+          video_url?: string | null
+        }
+        Update: {
+          chapter_id?: string
+          content_html?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_downloadable?: boolean | null
+          is_free?: boolean | null
+          order_index?: number | null
+          title?: string
+          updated_at?: string | null
+          video_duration_seconds?: number | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_classes: {
+        Row: {
+          attendee_count: number | null
+          batch_id: string | null
+          course_id: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          meeting_id: string | null
+          meeting_password: string | null
+          meeting_url: string | null
+          platform: string | null
+          recording_url: string | null
+          scheduled_at: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          attendee_count?: number | null
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_id?: string | null
+          meeting_password?: string | null
+          meeting_url?: string | null
+          platform?: string | null
+          recording_url?: string | null
+          scheduled_at: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          attendee_count?: number | null
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_id?: string | null
+          meeting_password?: string | null
+          meeting_url?: string | null
+          platform?: string | null
+          recording_url?: string | null
+          scheduled_at?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_classes_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_classes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          attachment_url: string | null
+          content: string
+          content_html: string | null
+          created_at: string | null
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_published: boolean | null
+          priority: string | null
+          publish_at: string | null
+          read_by: string[] | null
+          target_audience: string | null
+          target_batch_ids: string[] | null
+          target_course_ids: string[] | null
+          target_user_ids: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          content: string
+          content_html?: string | null
+          created_at?: string | null
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          priority?: string | null
+          publish_at?: string | null
+          read_by?: string[] | null
+          target_audience?: string | null
+          target_batch_ids?: string[] | null
+          target_course_ids?: string[] | null
+          target_user_ids?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          content?: string
+          content_html?: string | null
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          priority?: string | null
+          publish_at?: string | null
+          read_by?: string[] | null
+          target_audience?: string | null
+          target_batch_ids?: string[] | null
+          target_course_ids?: string[] | null
+          target_user_ids?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1233,7 +1819,9 @@ export type Database = {
       }
       increment_quiz_count: { Args: { p_user_id: string }; Returns: undefined }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
+      is_student: { Args: { p_user_id: string }; Returns: boolean }
       is_super_admin: { Args: { p_user_id: string }; Returns: boolean }
+      is_teacher: { Args: { p_user_id: string }; Returns: boolean }
       validate_coupon: {
         Args: {
           p_coupon_code: string
@@ -1261,7 +1849,13 @@ export type Database = {
       verify_email_code: { Args: { p_code: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "user"
+      app_role:
+        | "super_admin"
+        | "admin"
+        | "user"
+        | "teacher"
+        | "student"
+        | "parent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1389,7 +1983,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "user"],
+      app_role: [
+        "super_admin",
+        "admin",
+        "user",
+        "teacher",
+        "student",
+        "parent",
+      ],
     },
   },
 } as const
