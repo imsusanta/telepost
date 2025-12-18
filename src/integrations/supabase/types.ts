@@ -101,6 +101,125 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          check_in_method: string | null
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string | null
+          id: string
+          late_minutes: number | null
+          marked_by: string
+          reason: string | null
+          session_id: string
+          status: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          check_in_method?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          id?: string
+          late_minutes?: number | null
+          marked_by: string
+          reason?: string | null
+          session_id: string
+          status: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          check_in_method?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          id?: string
+          late_minutes?: number | null
+          marked_by?: string
+          reason?: string | null
+          session_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_sessions: {
+        Row: {
+          batch_id: string
+          course_id: string | null
+          created_at: string | null
+          created_by: string
+          end_time: string | null
+          id: string
+          notes: string | null
+          qr_code: string | null
+          qr_expires_at: string | null
+          session_date: string
+          session_type: string | null
+          start_time: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_id: string
+          course_id?: string | null
+          created_at?: string | null
+          created_by: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          qr_code?: string | null
+          qr_expires_at?: string | null
+          session_date: string
+          session_type?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_id?: string
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          qr_code?: string | null
+          qr_expires_at?: string | null
+          session_date?: string
+          session_type?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_sessions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batches: {
         Row: {
           capacity: number | null
@@ -674,6 +793,201 @@ export type Database = {
           },
         ]
       }
+      fee_assignments: {
+        Row: {
+          coupon_code: string | null
+          created_at: string | null
+          created_by: string | null
+          discount_amount: number | null
+          due_date: string | null
+          enrollment_id: string | null
+          fee_plan_id: string | null
+          final_amount: number
+          id: string
+          notes: string | null
+          scholarship_amount: number | null
+          status: string | null
+          student_id: string
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          coupon_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          enrollment_id?: string | null
+          fee_plan_id?: string | null
+          final_amount: number
+          id?: string
+          notes?: string | null
+          scholarship_amount?: number | null
+          status?: string | null
+          student_id: string
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          coupon_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          enrollment_id?: string | null
+          fee_plan_id?: string | null
+          final_amount?: number
+          id?: string
+          notes?: string | null
+          scholarship_amount?: number | null
+          status?: string | null
+          student_id?: string
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_assignments_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_assignments_fee_plan_id_fkey"
+            columns: ["fee_plan_id"]
+            isOneToOne: false
+            referencedRelation: "fee_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_plans: {
+        Row: {
+          amount: number
+          batch_id: string | null
+          course_id: string | null
+          created_at: string | null
+          created_by: string
+          currency: string | null
+          description: string | null
+          grace_period_days: number | null
+          id: string
+          installments_allowed: boolean | null
+          is_active: boolean | null
+          late_fee_percentage: number | null
+          max_installments: number | null
+          name: string
+          plan_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by: string
+          currency?: string | null
+          description?: string | null
+          grace_period_days?: number | null
+          id?: string
+          installments_allowed?: boolean | null
+          is_active?: boolean | null
+          late_fee_percentage?: number | null
+          max_installments?: number | null
+          name: string
+          plan_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          currency?: string | null
+          description?: string | null
+          grace_period_days?: number | null
+          id?: string
+          installments_allowed?: boolean | null
+          is_active?: boolean | null
+          late_fee_percentage?: number | null
+          max_installments?: number | null
+          name?: string
+          plan_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_plans_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_plans_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_schedules: {
+        Row: {
+          amount: number
+          created_at: string | null
+          due_date: string
+          fee_assignment_id: string
+          id: string
+          installment_number: number
+          late_fee: number | null
+          paid_amount: number | null
+          payment_id: string | null
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          due_date: string
+          fee_assignment_id: string
+          id?: string
+          installment_number: number
+          late_fee?: number | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          due_date?: string
+          fee_assignment_id?: string
+          id?: string
+          installment_number?: number
+          late_fee?: number | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_schedules_fee_assignment_id_fkey"
+            columns: ["fee_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "fee_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_schedules_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation_codes: {
         Row: {
           code: string
@@ -706,6 +1020,78 @@ export type Database = {
           max_uses?: number | null
         }
         Relationships: []
+      }
+      invoices: {
+        Row: {
+          created_at: string | null
+          discount_amount: number | null
+          due_date: string | null
+          fee_assignment_id: string | null
+          id: string
+          invoice_number: string
+          notes: string | null
+          paid_date: string | null
+          payment_id: string | null
+          pdf_url: string | null
+          status: string | null
+          student_id: string
+          subtotal: number
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          fee_assignment_id?: string | null
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          paid_date?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          status?: string | null
+          student_id: string
+          subtotal: number
+          tax_amount?: number | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          fee_assignment_id?: string | null
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_date?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          status?: string | null
+          student_id?: string
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_fee_assignment_id_fkey"
+            columns: ["fee_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "fee_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leaderboards: {
         Row: {
@@ -756,6 +1142,65 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string | null
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string
+          rejection_reason: string | null
+          start_date: string
+          status: string | null
+          student_id: string
+          supporting_doc_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          end_date: string
+          id?: string
+          leave_type: string
+          reason: string
+          rejection_reason?: string | null
+          start_date: string
+          status?: string | null
+          student_id: string
+          supporting_doc_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string
+          rejection_reason?: string | null
+          start_date?: string
+          status?: string | null
+          student_id?: string
+          supporting_doc_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
             referencedColumns: ["id"]
           },
         ]
@@ -1007,6 +1452,62 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          fee_assignment_id: string | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          payment_date: string | null
+          payment_gateway_id: string | null
+          payment_method: string
+          payment_status: string
+          receipt_number: string | null
+          received_by: string | null
+          student_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          fee_assignment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_gateway_id?: string | null
+          payment_method: string
+          payment_status?: string
+          receipt_number?: string | null
+          received_by?: string | null
+          student_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          fee_assignment_id?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_gateway_id?: string | null
+          payment_method?: string
+          payment_status?: string
+          receipt_number?: string | null
+          received_by?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_fee_assignment_id_fkey"
+            columns: ["fee_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "fee_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -2105,10 +2606,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      calculate_attendance_percentage: {
+        Args: { p_batch_id: string; p_student_id: string }
+        Returns: number
+      }
       consume_invitation_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: boolean
       }
+      generate_invoice_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
