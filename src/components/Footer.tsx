@@ -1,71 +1,110 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles, Twitter, Github, Linkedin } from "lucide-react";
 
 export const Footer = () => {
+  const footerLinks = {
+    product: [
+      { label: "Features", href: "#features" },
+      { label: "How it Works", href: "#how-it-works" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
+    ],
+    company: [
+      { label: "About", href: "#" },
+      { label: "Blog", href: "#" },
+      { label: "Careers", href: "#" },
+      { label: "Contact", href: "#" },
+    ],
+    legal: [
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+      { label: "Security", href: "#" },
+    ],
+  };
+
   return (
-    <footer className="py-12 px-4 border-t border-border/50" role="contentinfo">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+    <footer className="relative py-20 px-4 border-t border-white/10" role="contentinfo">
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[150px]" />
+      </div>
+
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           {/* Brand */}
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center" aria-hidden="true">
-              <Sparkles className="w-4 h-4 text-background" />
+          <div className="col-span-2">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-display font-bold text-foreground">TelePost</span>
             </div>
-            <span className="text-lg font-semibold text-foreground">
-              TelePost
-            </span>
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mb-6">
+              Transform your teaching with AI-powered quizzes and automated Telegram delivery.
+            </p>
+            {/* Social Links */}
+            <div className="flex items-center gap-4">
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all">
+                <Twitter className="w-5 h-5" />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all">
+                <Github className="w-5 h-5" />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all">
+                <Linkedin className="w-5 h-5" />
+              </a>
+            </div>
           </div>
 
-          {/* Links */}
-          <nav aria-label="Footer navigation">
-            <ul className="flex items-center gap-8 list-none">
-              <li>
-                <a
-                  href="#features"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  Features
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#how-it-works"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  How it works
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#faq"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  Privacy
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  Terms
-                </a>
-              </li>
+          {/* Product Links */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Product</h4>
+            <ul className="space-y-3">
+              {footerLinks.product.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
             </ul>
-          </nav>
+          </div>
+
+          {/* Company Links */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Company</h4>
+            <ul className="space-y-3">
+              {footerLinks.company.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal Links */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Legal</h4>
+            <ul className="space-y-3">
+              {footerLinks.legal.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        {/* Copyright */}
-        <div className="mt-8 pt-8 border-t border-border/50 text-center">
+        {/* Bottom */}
+        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} TelePost. All rights reserved.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Made with ❤️ for educators worldwide
           </p>
         </div>
       </div>

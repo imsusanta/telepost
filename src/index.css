@@ -1,295 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .animate-in {
-    animation-fill-mode: both;
-  }
-
-  .fade-in {
-    animation: fade-in 0.5s ease-out;
-  }
-
-  .slide-in-from-bottom {
-    animation: slide-in-from-bottom 0.5s ease-out;
-  }
-
-  .slide-in-from-top {
-    animation: slide-in-from-top 0.5s ease-out;
-  }
-
-  /* Claymorphism utility classes */
-  .clay-card {
-    @apply rounded-3xl shadow-clay transition-all duration-300;
-  }
-
-  .clay-card-hover {
-    @apply clay-card hover:shadow-clay-hover hover:-translate-y-1;
-  }
-
-  .clay-button {
-    @apply rounded-2xl shadow-clay transition-all duration-300 hover:shadow-clay-hover active:shadow-clay-inner active:scale-95;
-  }
-
-  .clay-input {
-    @apply rounded-2xl shadow-clay-inner transition-all duration-300 focus:shadow-clay focus:scale-[1.02];
-  }
-
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r;
-  }
-
-  /* Glassmorphism utility */
-  .glass {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20;
-  }
-
-  /* Premium gradient text */
-  .gradient-text-primary {
-    @apply bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent;
-  }
-
-  /* Animated gradient border */
-  .gradient-border {
-    position: relative;
-    background: linear-gradient(var(--background), var(--background)) padding-box,
-                linear-gradient(135deg, hsl(150 70% 65%), hsl(165 65% 78%), hsl(170 60% 75%)) border-box;
-    border: 2px solid transparent;
-  }
-
-  /* Shimmer effect */
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.4),
-      transparent
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-
-  /* Glow effect */
-  .glow {
-    box-shadow: 0 0 40px rgba(100, 180, 140, 0.3);
-  }
-
-  .glow-accent {
-    box-shadow: 0 0 40px rgba(120, 200, 160, 0.3);
-  }
-
-  /* Sidebar specific animations */
-  .sidebar-item-enter {
-    animation: sidebar-item-enter 0.3s ease-out;
-  }
-
-  /* Pulse animation for active items */
-  @keyframes sidebar-pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slide-in-from-bottom {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-from-top {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes sidebar-item-enter {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Premium Claymorphism Design System
-   Soft, puffy UI with pastel colors and gentle shadows
-   All colors are HSL for easy theming
-*/
-
+/* Premium $80B Startup Design System */
 @layer base {
   :root {
-    /* Beautiful Pastel Green Color Palette */
-    --background: 145 60% 97%;
-    --foreground: 145 20% 20%;
+    /* Ultra Dark Premium Background */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
 
-    /* Mint Green - Primary color */
-    --primary: 150 70% 65%;
-    --primary-foreground: 150 30% 15%;
+    /* Electric Violet - Primary Brand Color */
+    --primary: 265 100% 65%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Teal - Secondary color */
-    --secondary: 170 60% 75%;
-    --secondary-foreground: 170 40% 20%;
+    /* Cyan Accent */
+    --secondary: 185 100% 50%;
+    --secondary-foreground: 240 10% 4%;
 
-    /* Seafoam - Accent color */
-    --accent: 165 65% 78%;
-    --accent-foreground: 165 40% 18%;
+    /* Warm Coral Accent */
+    --accent: 340 95% 65%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Sage Green - Success color */
-    --success: 130 60% 70%;
-    --success-foreground: 130 40% 20%;
+    /* Success - Emerald */
+    --success: 160 84% 50%;
+    --success-foreground: 240 10% 4%;
 
-    /* Coral Peach - Destructive/Warning color */
-    --destructive: 15 85% 75%;
-    --destructive-foreground: 15 40% 25%;
+    /* Destructive - Coral Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Card with subtle green tint */
-    --card: 145 70% 95%;
-    --card-foreground: 145 20% 20%;
+    /* Cards - Elevated dark surfaces */
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 98%;
 
-    /* Popover with soft background */
-    --popover: 145 80% 96%;
-    --popover-foreground: 145 20% 20%;
+    /* Popover */
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Muted with gentle gray-green */
-    --muted: 145 35% 92%;
-    --muted-foreground: 145 15% 45%;
+    /* Muted */
+    --muted: 240 10% 15%;
+    --muted-foreground: 240 5% 55%;
 
     /* Input and borders */
-    --border: 145 35% 85%;
-    --input: 145 45% 94%;
-    --ring: 150 70% 65%;
+    --border: 240 10% 18%;
+    --input: 240 10% 12%;
+    --ring: 265 100% 65%;
 
-    /* Large, soft border radius for clay effect */
-    --radius: 1.25rem;
+    /* Premium radius */
+    --radius: 0.75rem;
 
-    /* Sidebar colors */
-    --sidebar-background: 145 70% 96%;
-    --sidebar-foreground: 145 20% 25%;
-    --sidebar-primary: 150 70% 65%;
-    --sidebar-primary-foreground: 150 30% 15%;
-    --sidebar-accent: 145 55% 90%;
-    --sidebar-accent-foreground: 145 30% 22%;
-    --sidebar-border: 145 35% 88%;
-    --sidebar-ring: 150 70% 65%;
+    /* Sidebar */
+    --sidebar-background: 240 10% 6%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 265 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 10% 15%;
+    --sidebar-ring: 265 100% 65%;
 
-    /* Beautiful gradients with pastel green colors */
-    --gradient-primary: linear-gradient(135deg, hsl(150 70% 65%) 0%, hsl(165 65% 70%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(170 60% 75%) 0%, hsl(180 55% 70%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(165 65% 78%) 0%, hsl(175 60% 80%) 100%);
-    --gradient-warm: linear-gradient(135deg, hsl(130 60% 70%) 0%, hsl(145 55% 75%) 100%);
-    --gradient-bg: linear-gradient(180deg, hsl(145 60% 97%) 0%, hsl(150 55% 95%) 50%, hsl(165 50% 96%) 100%);
-    --gradient-mesh: radial-gradient(at 0% 0%, hsl(150 70% 85%) 0px, transparent 50%),
-                     radial-gradient(at 100% 0%, hsl(165 65% 85%) 0px, transparent 50%),
-                     radial-gradient(at 100% 100%, hsl(170 60% 85%) 0px, transparent 50%),
-                     radial-gradient(at 0% 100%, hsl(130 60% 85%) 0px, transparent 50%);
-
-    /* Claymorphism Shadows - soft, layered, and dimensional */
-    --shadow-clay-sm:
-      2px 2px 6px rgba(100, 180, 140, 0.15),
-      -2px -2px 6px rgba(255, 255, 255, 0.95),
-      inset 0 0 0 rgba(100, 180, 140, 0.05);
-
-    --shadow-clay:
-      6px 6px 16px rgba(100, 180, 140, 0.2),
-      -6px -6px 16px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(100, 180, 140, 0.05);
-
-    --shadow-clay-lg:
-      10px 10px 24px rgba(100, 180, 140, 0.25),
-      -10px -10px 24px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(100, 180, 140, 0.05);
-
-    --shadow-clay-inner:
-      inset 4px 4px 12px rgba(100, 180, 140, 0.15),
-      inset -4px -4px 12px rgba(255, 255, 255, 0.9);
-
-    --shadow-clay-hover:
-      8px 8px 20px rgba(100, 180, 140, 0.3),
-      -8px -8px 20px rgba(255, 255, 255, 1),
-      inset 0 0 0 rgba(100, 180, 140, 0.08);
-
-    /* Smooth transitions */
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Chart colors */
+    --chart-1: 265 100% 65%;
+    --chart-2: 185 100% 50%;
+    --chart-3: 340 95% 65%;
+    --chart-4: 160 84% 50%;
+    --chart-5: 45 100% 60%;
   }
 
   .dark {
-    /* Dark mode is intentionally removed for this design
-       Claymorphism works best with light, pastel backgrounds */
-    --background: 145 60% 97%;
-    --foreground: 145 20% 20%;
-
-    --primary: 150 70% 65%;
-    --primary-foreground: 150 30% 15%;
-
-    --secondary: 170 60% 75%;
-    --secondary-foreground: 170 40% 20%;
-
-    --accent: 165 65% 78%;
-    --accent-foreground: 165 40% 18%;
-
-    --success: 130 60% 70%;
-    --success-foreground: 130 40% 20%;
-
-    --destructive: 15 85% 75%;
-    --destructive-foreground: 15 40% 25%;
-
-    --card: 145 70% 95%;
-    --card-foreground: 145 20% 20%;
-
-    --popover: 145 80% 96%;
-    --popover-foreground: 145 20% 20%;
-
-    --muted: 145 35% 92%;
-    --muted-foreground: 145 15% 45%;
-
-    --border: 145 35% 85%;
-    --input: 145 45% 94%;
-    --ring: 150 70% 65%;
-
-    --sidebar-background: 145 70% 96%;
-    --sidebar-foreground: 145 20% 25%;
-    --sidebar-primary: 150 70% 65%;
-    --sidebar-primary-foreground: 150 30% 15%;
-    --sidebar-accent: 145 55% 90%;
-    --sidebar-accent-foreground: 145 30% 22%;
-    --sidebar-border: 145 35% 88%;
-    --sidebar-ring: 150 70% 65%;
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --primary: 265 100% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 185 100% 50%;
+    --secondary-foreground: 240 10% 4%;
+    --accent: 340 95% 65%;
+    --accent-foreground: 0 0% 100%;
+    --success: 160 84% 50%;
+    --success-foreground: 240 10% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --muted: 240 10% 15%;
+    --muted-foreground: 240 5% 55%;
+    --border: 240 10% 18%;
+    --input: 240 10% 12%;
+    --ring: 265 100% 65%;
+    --sidebar-background: 240 10% 6%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 265 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 10% 15%;
+    --sidebar-ring: 265 100% 65%;
   }
 }
 
@@ -300,24 +109,313 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: var(--gradient-bg);
-    background-attachment: fixed;
-    font-feature-settings: "liga" 1, "calt" 1;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "liga" 1, "calt" 1, "ss01" 1, "ss02" 1;
   }
 
-  /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
   }
 
-  /* Remove spinner buttons from number inputs */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  input[type="number"] {
-    -moz-appearance: textfield;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   }
 }
+
+@layer utilities {
+  /* Premium Text Gradients */
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(265 100% 65%) 0%, hsl(340 95% 65%) 50%, hsl(45 100% 60%) 100%);
+  }
+
+  .text-gradient-secondary {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(185 100% 50%) 0%, hsl(265 100% 65%) 100%);
+  }
+
+  .text-gradient-white {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.7) 100%);
+  }
+
+  /* Glassmorphism */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  .glass-button {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all duration-300;
+  }
+
+  /* Premium Glow Effects */
+  .glow-primary {
+    box-shadow: 0 0 60px -12px hsl(265 100% 65% / 0.5);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 60px -12px hsl(185 100% 50% / 0.5);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 60px -12px hsl(340 95% 65% / 0.5);
+  }
+
+  /* Gradient Borders */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(hsl(240 10% 8%), hsl(240 10% 8%)) padding-box,
+                linear-gradient(135deg, hsl(265 100% 65%), hsl(185 100% 50%), hsl(340 95% 65%)) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Premium Button Styles */
+  .btn-primary-gradient {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, hsl(265 100% 65%) 0%, hsl(340 95% 65%) 100%);
+  }
+
+  .btn-primary-gradient::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, hsl(265 100% 70%) 0%, hsl(340 95% 70%) 100%);
+  }
+
+  .btn-primary-gradient:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Noise texture overlay */
+  .noise {
+    position: relative;
+  }
+
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Animated gradient background */
+  .animated-gradient {
+    background: linear-gradient(-45deg, 
+      hsl(240 10% 4%) 0%, 
+      hsl(265 30% 8%) 25%, 
+      hsl(240 10% 4%) 50%, 
+      hsl(185 30% 6%) 75%, 
+      hsl(240 10% 4%) 100%
+    );
+    background-size: 400% 400%;
+    animation: gradient-shift 15s ease infinite;
+  }
+
+  /* Grid pattern */
+  .grid-pattern {
+    background-image: 
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Radial gradient spotlight */
+  .spotlight {
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(265 100% 65% / 0.15), transparent);
+  }
+
+  /* Premium card hover */
+  .card-hover {
+    @apply transition-all duration-500;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 25px 50px -12px hsl(265 100% 65% / 0.15),
+      0 0 0 1px hsl(265 100% 65% / 0.1);
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  /* Pulse ring */
+  .pulse-ring {
+    @apply relative;
+  }
+
+  .pulse-ring::after {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    border: 2px solid hsl(265 100% 65%);
+  }
+
+  /* Stats counter animation */
+  .counter {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Premium input */
+  .input-premium {
+    @apply bg-white/5 border-white/10 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(240 10% 8%);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(240 10% 20%);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(240 10% 30%);
+  }
+}
+
+/* Keyframe Animations */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -30px) scale(1.1); }
+  50% { transform: translate(-20px, 20px) scale(0.9); }
+  75% { transform: translate(30px, 20px) scale(1.05); }
+}
+
+/* Animation utilities */
+.animate-fade-up {
+  animation: fade-up 0.8s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.6s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.6s ease-out forwards;
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+/* Stagger delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }

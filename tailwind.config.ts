@@ -14,6 +14,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -62,6 +66,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -73,82 +84,83 @@ export default {
         "4xl": "2rem",
       },
       boxShadow: {
-        'clay-sm': 'var(--shadow-clay-sm)',
-        'clay': 'var(--shadow-clay)',
-        'clay-lg': 'var(--shadow-clay-lg)',
-        'clay-inner': 'var(--shadow-clay-inner)',
-        'clay-hover': 'var(--shadow-clay-hover)',
+        'glow-sm': '0 0 20px -5px hsl(var(--primary) / 0.3)',
+        'glow': '0 0 40px -10px hsl(var(--primary) / 0.4)',
+        'glow-lg': '0 0 60px -15px hsl(var(--primary) / 0.5)',
+        'glow-xl': '0 0 80px -20px hsl(var(--primary) / 0.6)',
+        'inner-glow': 'inset 0 0 20px hsl(var(--primary) / 0.1)',
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
         "float": {
-          "0%, 100%": {
-            transform: "translateY(0px)",
-          },
-          "50%": {
-            transform: "translateY(-10px)",
-          },
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-20px)" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
         },
         "pulse-soft": {
-          "0%, 100%": {
-            opacity: "1",
-          },
-          "50%": {
-            opacity: "0.8",
-          },
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
         },
-        "scale-in": {
-          "0%": {
-            transform: "scale(0.95)",
-            opacity: "0",
-          },
-          "100%": {
-            transform: "scale(1)",
-            opacity: "1",
-          },
-        },
-        "slide-up": {
-          "0%": {
-            transform: "translateY(20px)",
-            opacity: "0",
-          },
-          "100%": {
-            transform: "translateY(0)",
-            opacity: "1",
-          },
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
         },
         "bounce-soft": {
-          "0%, 100%": {
-            transform: "translateY(0)",
-          },
-          "50%": {
-            transform: "translateY(-5px)",
-          },
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-5px)" },
+        },
+        "scale-pulse": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.05)" },
+        },
+        "gradient-x": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        "gradient-xy": {
+          "0%, 100%": { backgroundPosition: "0% 0%" },
+          "25%": { backgroundPosition: "100% 0%" },
+          "50%": { backgroundPosition: "100% 100%" },
+          "75%": { backgroundPosition: "0% 100%" },
+        },
+        "shimmer": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" },
+          "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.6)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "float": "float 3s ease-in-out infinite",
+        "float": "float 6s ease-in-out infinite",
+        "float-slow": "float-slow 8s ease-in-out infinite",
         "pulse-soft": "pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "scale-in": "scale-in 0.3s ease-out",
-        "slide-up": "slide-up 0.4s ease-out",
-        "bounce-soft": "bounce-soft 1s ease-in-out infinite",
+        "spin-slow": "spin-slow 20s linear infinite",
+        "bounce-soft": "bounce-soft 2s ease-in-out infinite",
+        "scale-pulse": "scale-pulse 2s ease-in-out infinite",
+        "gradient-x": "gradient-x 15s ease infinite",
+        "gradient-xy": "gradient-xy 15s ease infinite",
+        "shimmer": "shimmer 2s infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'hero-glow': 'radial-gradient(ellipse 50% 80% at 50% 0%, hsl(265 100% 65% / 0.15), transparent)',
+        'card-glow': 'radial-gradient(ellipse at center, hsl(265 100% 65% / 0.1), transparent)',
       },
     },
   },

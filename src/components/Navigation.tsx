@@ -1,131 +1,141 @@
 import { useState } from "react";
-import { Menu, Sparkles, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Menu, X, Sparkles } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface NavigationProps {
   onGetStarted?: () => void;
 }
 
 export const Navigation = ({ onGetStarted }: NavigationProps) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const closeMobileMenu = () => {
-    setMobileMenuOpen(false);
-  };
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    onGetStarted?.();
-    closeMobileMenu();
+    if (onGetStarted) {
+      onGetStarted();
+    }
+    setIsMenuOpen(false);
   };
 
+  const navLinks = [
+    { href: "#features", label: "Features" },
+    { href: "#how-it-works", label: "How it Works" },
+    { href: "#faq", label: "FAQ" },
+  ];
+
   return (
-    <>
-      {/* Skip to main content link for accessibility */}
+    <header className="fixed top-0 left-0 right-0 z-50">
+      {/* Skip to main content for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-foreground focus:text-background focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg z-50"
       >
         Skip to main content
       </a>
 
-      <header role="banner">
-        <nav className="relative w-full bg-background/80 backdrop-blur-xl" aria-label="Main navigation">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center" aria-hidden="true">
-                  <Sparkles className="w-4 h-4 text-background" />
+      <div className="mx-4 mt-4">
+        <nav className="glass-card max-w-6xl mx-auto px-6 py-4" role="navigation" aria-label="Main navigation">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <a
+              href="/"
+              className="flex items-center gap-3 group"
+              aria-label="TelePost - Home"
+            >
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center shadow-glow-sm group-hover:shadow-glow transition-all duration-300">
+                  <Sparkles className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-lg font-semibold text-foreground">
-                  TelePost
-                </span>
+                <div className="absolute inset-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-accent to-secondary blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
               </div>
+              <span className="text-xl font-display font-bold text-foreground">
+                TelePost
+              </span>
+            </a>
 
-              <div className="hidden md:flex items-center space-x-8">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
                 <a
-                  href="#features"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
+                  key={link.href}
+                  href={link.href}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-white/5"
                 >
-                  Features
+                  {link.label}
                 </a>
-                <a
-                  href="#how-it-works"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  How it works
-                </a>
-                <a
-                  href="#faq"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  FAQ
-                </a>
-                <button
-                  onClick={handleGetStarted}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-1 py-0.5"
-                >
-                  Sign in
-                </button>
-                <button
-                  onClick={handleGetStarted}
-                  className="text-sm px-4 py-2 bg-foreground text-background rounded-full font-medium hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  Get started
-                </button>
-              </div>
-
-              <button
-                className="md:hidden text-foreground p-2 hover:bg-muted rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-                aria-expanded={mobileMenuOpen}
-                aria-controls="mobile-menu"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+              ))}
             </div>
+
+            {/* CTA Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/auth")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Sign in
+              </Button>
+              <Button
+                onClick={handleGetStarted}
+                className="btn-primary-gradient text-white font-semibold px-6 rounded-full shadow-glow-sm hover:shadow-glow transition-all duration-300"
+              >
+                <span className="relative z-10">Get Started</span>
+              </Button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={isMenuOpen}
+            >
+              {isMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
           </div>
 
-          {mobileMenuOpen && (
-            <div id="mobile-menu" className="md:hidden bg-background">
-              <div className="px-4 py-6 space-y-4">
-                <a
-                  href="#features"
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-2 py-1"
-                  onClick={closeMobileMenu}
-                >
-                  Features
-                </a>
-                <a
-                  href="#how-it-works"
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-2 py-1"
-                  onClick={closeMobileMenu}
-                >
-                  How it works
-                </a>
-                <a
-                  href="#faq"
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-2 py-1"
-                  onClick={closeMobileMenu}
-                >
-                  FAQ
-                </a>
-                <button
-                  onClick={handleGetStarted}
-                  className="block text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm px-2 py-1"
-                >
-                  Sign in
-                </button>
-                <button
-                  onClick={handleGetStarted}
-                  className="block w-full text-sm px-4 py-3 bg-foreground text-background rounded-full font-medium text-center mt-4 hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  Get started
-                </button>
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div className="md:hidden pt-6 pb-4 border-t border-white/10 mt-4 animate-fade-in">
+              <div className="flex flex-col gap-2">
+                {navLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="px-4 py-3 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+                <div className="pt-4 mt-2 border-t border-white/10 flex flex-col gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      navigate("/auth");
+                      setIsMenuOpen(false);
+                    }}
+                    className="justify-center text-muted-foreground"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    onClick={handleGetStarted}
+                    className="btn-primary-gradient text-white font-semibold rounded-full"
+                  >
+                    <span className="relative z-10">Get Started</span>
+                  </Button>
+                </div>
               </div>
             </div>
           )}
         </nav>
-      </header>
-    </>
+      </div>
+    </header>
   );
 };
