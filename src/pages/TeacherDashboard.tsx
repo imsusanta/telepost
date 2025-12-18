@@ -288,10 +288,17 @@ export default function TeacherDashboard() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Students</span>
-                        <span>{(batch.enrollments as { count: number }[])?.[0]?.count || 0} / {batch.capacity || '∞'}</span>
+                        <span>
+                          {(() => {
+                            const enrollments = batch.enrollments as unknown as { count: number }[] | null;
+                            const count = enrollments?.[0]?.count ?? 0;
+                            const capacity = batch.capacity as number | null;
+                            return `${count} / ${capacity ?? '∞'}`;
+                          })()}
+                        </span>
                       </div>
                       <Progress 
-                        value={batch.capacity ? ((batch.enrollments as { count: number }[])?.[0]?.count || 0) / (batch.capacity as number) * 100 : 0} 
+                        value={batch.capacity ? (((batch.enrollments as unknown as { count: number }[])?.[0]?.count ?? 0) / (batch.capacity as number) * 100) : 0}
                         className="h-2"
                       />
                       <Badge variant={batch.status === 'active' ? "default" : "secondary"} className="mt-2">

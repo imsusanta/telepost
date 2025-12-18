@@ -4,6 +4,8 @@ import {
   Bell,
   BookOpen,
   Calendar,
+  CalendarCheck,
+  CreditCard,
   Database,
   FileText,
   GraduationCap,
@@ -12,10 +14,12 @@ import {
   LayoutDashboard,
   LogOut,
   Radio,
+  Receipt,
   Settings,
   Shield,
   Sparkles,
   Tag,
+  UserCheck,
   Users,
   UsersRound,
   Video,
@@ -155,6 +159,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Video, label: "Live Classes", path: "/dashboard/live-classes" },
     { icon: Bell, label: "Notices", path: "/dashboard/notices" },
     { icon: GraduationCap, label: "Student Portal", path: "/dashboard/student" },
+    { icon: UserCheck, label: "Teacher Portal", path: "/dashboard/teacher" },
+  ];
+
+  const financeMenuItems = [
+    { icon: CreditCard, label: "Fee Plans", path: "/dashboard/fee-plans" },
+    { icon: Receipt, label: "Payments", path: "/dashboard/payments" },
+  ];
+
+  const attendanceMenuItems = [
+    { icon: CalendarCheck, label: "Attendance", path: "/dashboard/attendance" },
+    { icon: Calendar, label: "Leave Requests", path: "/dashboard/leaves" },
   ];
 
   const settingsMenuItems = [
@@ -280,6 +295,88 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           className={`transition-all duration-200 ${
                             isActive
                               ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                              : "hover:bg-sidebar-accent/50"
+                          }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
+                            <Icon className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
+                            <span className="font-medium">{item.label}</span>
+                            {isActive && (
+                              <ChevronRight className="w-4 h-4 ml-auto group-data-[collapsible=icon]:hidden" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Finance Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Finance</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {financeMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-200 ${
+                            isActive
+                              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                              : "hover:bg-sidebar-accent/50"
+                          }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
+                            <Icon className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
+                            <span className="font-medium">{item.label}</span>
+                            {isActive && (
+                              <ChevronRight className="w-4 h-4 ml-auto group-data-[collapsible=icon]:hidden" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Attendance Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <CalendarCheck className="w-3.5 h-3.5" />
+                <span>Attendance</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {attendanceMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-200 ${
+                            isActive
+                              ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
                               : "hover:bg-sidebar-accent/50"
                           }`}
                         >
