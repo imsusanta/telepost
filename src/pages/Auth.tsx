@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Shield, Sparkles, XCircle } from "lucide-react";
+import { Shield, Sparkles, XCircle, ArrowLeft, Eye, EyeOff, Zap, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   validatePassword as validatePasswordSecurity,
@@ -26,6 +24,8 @@ export default function Auth() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [invitationError, setInvitationError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
 
   const validateEmail = (email: string): boolean => {
     if (!email) {
@@ -53,7 +53,6 @@ export default function Auth() {
         return false;
       }
     } else {
-      // For signin, just check it's not empty
       if (password.length < 1) {
         setPasswordError("Password is required");
         return false;
@@ -64,8 +63,8 @@ export default function Auth() {
     return true;
   };
 
-  const getPasswordStrength = (password: string): { strength: string; color: string } => {
-    if (password.length === 0) return { strength: "", color: "" };
+  const getPasswordStrength = (password: string): { strength: string; color: string; width: string } => {
+    if (password.length === 0) return { strength: "", color: "", width: "0%" };
 
     let score = 0;
     if (password.length >= 8) score++;
@@ -75,15 +74,14 @@ export default function Auth() {
     if (/(?=.*\d)/.test(password)) score++;
     if (/(?=.*[@$!%*?&#])/.test(password)) score++;
 
-    if (score <= 2) return { strength: "Weak", color: "text-destructive" };
-    if (score <= 4) return { strength: "Medium", color: "text-yellow-600" };
-    return { strength: "Strong", color: "text-green-600" };
+    if (score <= 2) return { strength: "Weak", color: "bg-destructive", width: "33%" };
+    if (score <= 4) return { strength: "Medium", color: "bg-accent", width: "66%" };
+    return { strength: "Strong", color: "bg-success", width: "100%" };
   };
 
   const passwordStrength = getPasswordStrength(password);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
-    // Invitation code is MANDATORY
     if (!code || code.trim().length === 0) {
       setInvitationError("Invitation code is required");
       return false;
@@ -114,7 +112,6 @@ export default function Auth() {
   };
 
   useEffect(() => {
-    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard");
@@ -123,7 +120,6 @@ export default function Auth() {
       console.error("Failed to get session:", error);
     });
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         navigate("/dashboard");
@@ -136,8 +132,7 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Rate limiting for signup
-    const rateLimit = checkRateLimit('signup', 3, 60 * 60 * 1000); // 3 attempts per hour
+    const rateLimit = checkRateLimit('signup', 3, 60 * 60 * 1000);
     if (!rateLimit.allowed) {
       const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
       toast({
@@ -165,7 +160,6 @@ export default function Auth() {
       return;
     }
 
-    // Validate invitation code
     const isInvitationValid = await validateInvitationCode(invitationCode);
     if (!isInvitationValid) {
       return;
@@ -188,7 +182,6 @@ export default function Auth() {
 
       if (error) throw error;
 
-      // Consume the invitation code after successful signup
       if (data.user) {
         try {
           await supabase.rpc('consume_invitation_code', {
@@ -196,14 +189,12 @@ export default function Auth() {
             p_user_id: data.user.id
           });
 
-          // Update user profile with invitation code
           await supabase
             .from('profiles')
             .update({ invitation_code_used: invitationCode.trim().toUpperCase() })
             .eq('id', data.user.id);
         } catch (consumeError) {
           console.error('Error consuming invitation code:', consumeError);
-          // Don't fail signup if consuming code fails, as user is already created
         }
       }
 
@@ -226,7 +217,6 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Rate limiting for login attempts (5 attempts per 15 minutes)
     const rateLimit = checkRateLimit('login', 5, 15 * 60 * 1000);
     if (!rateLimit.allowed) {
       const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
@@ -235,7 +225,6 @@ export default function Auth() {
         description: `Account temporarily locked. Please wait ${resetMinutes} minutes before trying again.`,
         variant: "destructive",
       });
-
       return;
     }
 
@@ -259,17 +248,11 @@ export default function Auth() {
         throw error;
       }
 
-      // Clear rate limit on successful login
       localStorage.removeItem('ratelimit_login');
 
-      // Ensure session is fully established before navigation
       if (data.session) {
-        // Small delay to ensure session is persisted to storage and available in client
         await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Verify session is actually available in the client
         await supabase.auth.getSession();
-        // Navigation will be handled by the auth state change listener
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign in";
@@ -280,214 +263,341 @@ export default function Auth() {
       });
       setLoading(false);
     }
-    // Don't set loading to false here - let the navigation handle it
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <div className="w-full max-w-md animate-scale-in">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-clay animate-float">
-              <Sparkles className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <span className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent">
-              TelePost
-            </span>
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[150px] animate-blob" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/15 rounded-full blur-[150px] animate-blob delay-200" />
+        <div className="absolute inset-0 grid-pattern opacity-20" />
+      </div>
+
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative p-12 flex-col justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center shadow-glow">
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <p className="text-muted-foreground text-lg">AI-Powered Quiz Generation for Telegram</p>
+          <span className="text-2xl font-display font-bold text-foreground">TelePost</span>
         </div>
 
-        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-bold text-foreground">Welcome</CardTitle>
-            <CardDescription className="text-muted-foreground">Sign in to your account or create a new one</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 clay-card bg-muted/50 p-1.5 h-auto">
-                <TabsTrigger value="signin" className="rounded-2xl py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all font-semibold">
-                  Sign In
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="rounded-2xl py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all font-semibold">
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
+        {/* Main Content */}
+        <div className="max-w-lg">
+          <h1 className="text-5xl font-display font-bold leading-tight mb-6">
+            <span className="text-gradient-primary">Transform</span>
+            <br />
+            <span className="text-foreground">your teaching</span>
+            <br />
+            <span className="text-foreground">experience</span>
+          </h1>
+          <p className="text-xl text-muted-foreground leading-relaxed">
+            Join 500+ coaching institutes using AI-powered quizzes and automated Telegram delivery.
+          </p>
 
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-5">
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signin-email" className="text-foreground font-semibold">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setEmailError("");
-                      }}
-                      onBlur={() => validateEmail(email)}
-                      required
-                      aria-invalid={!!emailError}
-                      aria-describedby={emailError ? "signin-email-error" : undefined}
-                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${emailError ? "border-destructive" : ""}`}
-                    />
-                    {emailError && (
-                      <p id="signin-email-error" className="text-sm text-destructive flex items-center gap-1">
-                        <XCircle className="w-4 h-4" />
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signin-password" className="text-foreground font-semibold">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setPasswordError("");
-                      }}
-                      required
-                      aria-invalid={!!passwordError}
-                      aria-describedby={passwordError ? "signin-password-error" : undefined}
-                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${passwordError ? "border-destructive" : ""}`}
-                    />
-                    {passwordError && (
-                      <p id="signin-password-error" className="text-sm text-destructive flex items-center gap-1">
-                        <XCircle className="w-4 h-4" />
-                        {passwordError}
-                      </p>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
-                    {loading ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </TabsContent>
+          {/* Feature List */}
+          <div className="mt-12 space-y-6">
+            {[
+              { icon: Zap, label: "AI-Generated Quizzes", desc: "Create quizzes in seconds" },
+              { icon: Users, label: "Student Management", desc: "Track progress effortlessly" },
+              { icon: BookOpen, label: "Smart Analytics", desc: "Data-driven insights" },
+            ].map((feature, idx) => (
+              <div key={idx} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <feature.icon className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">{feature.label}</div>
+                  <div className="text-sm text-muted-foreground">{feature.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-5">
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signup-invitation" className="text-foreground font-semibold flex items-center gap-2">
-                      Invitation Code *
-                      <Shield className="w-4 h-4 text-primary" />
-                    </Label>
-                    <Input
-                      id="signup-invitation"
-                      type="text"
-                      placeholder="Enter your invitation code"
-                      value={invitationCode}
-                      onChange={(e) => {
-                        setInvitationCode(e.target.value.toUpperCase());
-                        setInvitationError("");
-                      }}
-                      required
-                      aria-invalid={!!invitationError}
-                      aria-describedby={invitationError ? "signup-invitation-error" : undefined}
-                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${invitationError ? "border-destructive" : ""}`}
-                    />
-                    {invitationError && (
-                      <p id="signup-invitation-error" className="text-sm text-destructive flex items-center gap-1">
-                        <XCircle className="w-4 h-4" />
-                        {invitationError}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      A valid invitation code is required to create an account.
-                    </p>
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signup-name" className="text-foreground font-semibold">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="John Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="clay-input bg-input/50 border-border rounded-2xl py-6"
-                    />
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signup-email" className="text-foreground font-semibold">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setEmailError("");
-                      }}
-                      onBlur={() => validateEmail(email)}
-                      required
-                      aria-invalid={!!emailError}
-                      aria-describedby={emailError ? "signup-email-error" : undefined}
-                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${emailError ? "border-destructive" : ""}`}
-                    />
-                    {emailError && (
-                      <p id="signup-email-error" className="text-sm text-destructive flex items-center gap-1">
-                        <XCircle className="w-4 h-4" />
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label htmlFor="signup-password" className="text-foreground font-semibold">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setPasswordError("");
-                      }}
-                      onBlur={() => validatePassword(password, true)}
-                      required
-                      minLength={8}
-                      aria-invalid={!!passwordError}
-                      aria-describedby={passwordError ? "signup-password-error" : "signup-password-strength"}
-                      className={`clay-input bg-input/50 border-border rounded-2xl py-6 ${passwordError ? "border-destructive" : ""}`}
-                    />
-                    {passwordError && (
-                      <p id="signup-password-error" className="text-sm text-destructive flex items-center gap-1">
-                        <XCircle className="w-4 h-4" />
-                        {passwordError}
-                      </p>
-                    )}
-                    {!passwordError && password && (
-                      <p id="signup-password-strength" className={`text-sm flex items-center gap-1 ${passwordStrength.color}`}>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Password strength: {passwordStrength.strength}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Shield className="w-3 h-3" />
-                      <span>Must be 8+ characters with uppercase, lowercase, numbers, and special characters</span>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground rounded-2xl py-6 font-semibold" disabled={loading}>
-                    {loading ? "Creating account..." : "Sign Up"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+        {/* Footer */}
+        <div className="text-sm text-muted-foreground">
+          Trusted by 50,000+ students worldwide
+        </div>
+      </div>
 
-        <div className="text-center mt-6">
+      {/* Right Panel - Auth Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-md relative z-10">
+          {/* Back Button */}
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
-            className="text-muted-foreground hover:text-foreground clay-card-hover rounded-2xl px-6 py-3"
+            className="mb-8 text-muted-foreground hover:text-foreground -ml-4"
           >
-            Back to Home
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to home
           </Button>
+
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-accent to-secondary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-display font-bold text-foreground">TelePost</span>
+          </div>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-display font-bold text-foreground mb-2">
+              {activeTab === "signin" ? "Welcome back" : "Create account"}
+            </h2>
+            <p className="text-muted-foreground">
+              {activeTab === "signin" 
+                ? "Enter your credentials to access your dashboard" 
+                : "Join us with an invitation code"}
+            </p>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="glass-card p-1.5 mb-8">
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                onClick={() => setActiveTab("signin")}
+                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                  activeTab === "signin"
+                    ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => setActiveTab("signup")}
+                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                  activeTab === "signup"
+                    ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+
+          {/* Sign In Form */}
+          {activeTab === "signin" && (
+            <form onSubmit={handleSignIn} className="space-y-6 animate-fade-in">
+              <div className="space-y-2">
+                <Label htmlFor="signin-email" className="text-foreground font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError("");
+                  }}
+                  onBlur={() => validateEmail(email)}
+                  required
+                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
+                    emailError ? "border-destructive" : ""
+                  }`}
+                />
+                {emailError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <XCircle className="w-4 h-4" />
+                    {emailError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signin-password" className="text-foreground font-medium">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="signin-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
+                    required
+                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
+                      passwordError ? "border-destructive" : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <XCircle className="w-4 h-4" />
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 btn-primary-gradient text-white font-semibold rounded-xl shadow-glow hover:shadow-glow-lg transition-all duration-300"
+              >
+                <span className="relative z-10">
+                  {loading ? "Signing in..." : "Sign In"}
+                </span>
+              </Button>
+            </form>
+          )}
+
+          {/* Sign Up Form */}
+          {activeTab === "signup" && (
+            <form onSubmit={handleSignUp} className="space-y-5 animate-fade-in">
+              <div className="space-y-2">
+                <Label htmlFor="signup-invitation" className="text-foreground font-medium flex items-center gap-2">
+                  Invitation Code
+                  <Shield className="w-4 h-4 text-primary" />
+                </Label>
+                <Input
+                  id="signup-invitation"
+                  type="text"
+                  placeholder="XXXX-XXXX"
+                  value={invitationCode}
+                  onChange={(e) => {
+                    setInvitationCode(e.target.value.toUpperCase());
+                    setInvitationError("");
+                  }}
+                  required
+                  className={`h-12 bg-white/5 border-white/10 rounded-xl font-mono tracking-wider focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
+                    invitationError ? "border-destructive" : ""
+                  }`}
+                />
+                {invitationError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <XCircle className="w-4 h-4" />
+                    {invitationError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-name" className="text-foreground font-medium">
+                  Full Name
+                </Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-email" className="text-foreground font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError("");
+                  }}
+                  onBlur={() => validateEmail(email)}
+                  required
+                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
+                    emailError ? "border-destructive" : ""
+                  }`}
+                />
+                {emailError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <XCircle className="w-4 h-4" />
+                    {emailError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-password" className="text-foreground font-medium">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="signup-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
+                    onBlur={() => validatePassword(password, true)}
+                    required
+                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
+                      passwordError ? "border-destructive" : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {password && (
+                  <div className="space-y-2">
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                        style={{ width: passwordStrength.width }}
+                      />
+                    </div>
+                    <p className={`text-xs ${
+                      passwordStrength.strength === "Strong" ? "text-success" :
+                      passwordStrength.strength === "Medium" ? "text-accent" : "text-destructive"
+                    }`}>
+                      {passwordStrength.strength} password
+                    </p>
+                  </div>
+                )}
+                {passwordError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <XCircle className="w-4 h-4" />
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 btn-primary-gradient text-white font-semibold rounded-xl shadow-glow hover:shadow-glow-lg transition-all duration-300"
+              >
+                <span className="relative z-10">
+                  {loading ? "Creating account..." : "Create Account"}
+                </span>
+              </Button>
+
+              <p className="text-center text-xs text-muted-foreground">
+                By signing up, you agree to our Terms of Service and Privacy Policy
+              </p>
+            </form>
+          )}
         </div>
       </div>
     </div>

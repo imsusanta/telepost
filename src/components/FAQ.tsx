@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, HelpCircle } from "lucide-react";
 
 const faqs = [
   {
     question: "How do I get access to TelePost?",
-    answer: "TelePost is an invitation-only SAAS platform. You'll need an invitation code to sign up. Contact our support team or your organization administrator to request an invitation code.",
+    answer: "TelePost is an invitation-only platform. You'll need an invitation code to sign up. Contact our support team or your organization administrator to request an invitation code.",
   },
   {
     question: "What's included in the free tier?",
-    answer: "The free tier includes access to 1 Telegram channel and 10 quizzes per month. You also get 5GB of storage for your study materials and multi-language support. Perfect for individual educators or small groups!",
+    answer: "The free tier includes access to 1 Telegram channel and 10 quizzes per month. You also get 5GB of storage for your study materials and multi-language support. Perfect for individual educators!",
   },
   {
     question: "How does TelePost generate quizzes?",
@@ -35,58 +35,56 @@ export const FAQ = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent, index: number) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggleFAQ(index);
-    }
-  };
-
   return (
-    <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30" aria-labelledby="faq-heading">
-      <div className="max-w-2xl mx-auto">
+    <section id="faq" className="relative py-32 px-4 sm:px-6 lg:px-8 overflow-hidden" aria-labelledby="faq-heading">
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 grid-pattern opacity-20" />
+      </div>
+
+      <div className="max-w-3xl mx-auto relative z-10">
         {/* Section header */}
-        <div className="text-center mb-12">
-          <h2 id="faq-heading" className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Frequently asked questions
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 glass-card px-4 py-2 text-sm mb-6">
+            <HelpCircle className="w-4 h-4 text-primary" />
+            <span className="text-muted-foreground">FAQ</span>
+          </div>
+          <h2 id="faq-heading" className="text-4xl sm:text-5xl font-display font-bold text-foreground mb-4">
+            Questions & Answers
           </h2>
+          <p className="text-lg text-muted-foreground">
+            Everything you need to know about TelePost
+          </p>
         </div>
 
         {/* FAQ accordion */}
-        <div className="space-y-2" role="list">
+        <div className="space-y-4" role="list">
           {faqs.map((faq, idx) => (
             <div
               key={idx}
-              className="border-b border-border"
+              className={`glass-card overflow-hidden transition-all duration-300 ${
+                openIndex === idx ? 'shadow-glow-sm' : ''
+              }`}
               role="listitem"
             >
-              <h3>
-                <button
-                  onClick={() => toggleFAQ(idx)}
-                  onKeyDown={(e) => handleKeyDown(e, idx)}
-                  className="w-full flex items-center justify-between py-4 text-left hover:bg-muted/50 transition-colors rounded-sm px-2 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  aria-expanded={openIndex === idx}
-                  aria-controls={`faq-answer-${idx}`}
-                  id={`faq-question-${idx}`}
-                >
-                  <span className="font-medium text-foreground pr-4">{faq.question}</span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
-                      openIndex === idx ? 'rotate-180' : ''
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
-              </h3>
+              <button
+                onClick={() => toggleFAQ(idx)}
+                className="w-full flex items-center justify-between p-6 text-left focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset"
+                aria-expanded={openIndex === idx}
+              >
+                <span className="font-semibold text-foreground pr-4">{faq.question}</span>
+                <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                  openIndex === idx ? 'bg-primary/20 rotate-180' : ''
+                }`}>
+                  <ChevronDown className={`w-5 h-5 ${openIndex === idx ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+              </button>
               <div
-                id={`faq-answer-${idx}`}
-                role="region"
-                aria-labelledby={`faq-question-${idx}`}
-                className={`overflow-hidden transition-all duration-200 ${
-                  openIndex === idx ? 'max-h-48 pb-4' : 'max-h-0'
+                className={`overflow-hidden transition-all duration-300 ${
+                  openIndex === idx ? 'max-h-48' : 'max-h-0'
                 }`}
               >
-                <p className="text-sm text-muted-foreground leading-relaxed px-2">
+                <p className="px-6 pb-6 text-muted-foreground leading-relaxed">
                   {faq.answer}
                 </p>
               </div>
