@@ -1,9 +1,12 @@
 import { ReactNode, useState, useCallback, useEffect } from "react";
 import {
   BarChart3,
+  Bell,
+  BookOpen,
   Calendar,
   Database,
   FileText,
+  GraduationCap,
   Image,
   Keyboard,
   LayoutDashboard,
@@ -14,6 +17,8 @@ import {
   Sparkles,
   Tag,
   Users,
+  UsersRound,
+  Video,
   Mail,
   ChevronRight,
   User
@@ -134,14 +139,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [navigate, toast]);
 
-  const baseMenuItems = [
+  const telegramMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
     { icon: Image, label: "Stories", path: "/dashboard/stories" },
-    { icon: FileText, label: "Documents", path: "/dashboard/documents" },
     { icon: Database, label: "Question Bank", path: "/dashboard/question-bank" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
+  ];
+
+  const lmsMenuItems = [
+    { icon: BookOpen, label: "Courses", path: "/dashboard/courses" },
+    { icon: UsersRound, label: "Batches", path: "/dashboard/batches" },
+    { icon: Video, label: "Live Classes", path: "/dashboard/live-classes" },
+    { icon: Bell, label: "Notices", path: "/dashboard/notices" },
+    { icon: FileText, label: "Documents", path: "/dashboard/documents" },
+    { icon: GraduationCap, label: "Student Portal", path: "/dashboard/student" },
+  ];
+
+  const settingsMenuItems = [
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
@@ -203,14 +219,95 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </SidebarHeader>
 
           <SidebarContent className="px-2">
-            {/* Main Navigation */}
+            {/* Telegram Quiz Section */}
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
-                Main Menu
+                Telegram Quizzes
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-1">
-                  {baseMenuItems.map((item) => {
+                  {telegramMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-200 ${
+                            isActive
+                              ? "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                              : "hover:bg-sidebar-accent/50"
+                          }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
+                            <Icon className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
+                            <span className="font-medium">{item.label}</span>
+                            {isActive && (
+                              <ChevronRight className="w-4 h-4 ml-auto group-data-[collapsible=icon]:hidden" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* LMS Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Learning Management</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {lmsMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-200 ${
+                            isActive
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                              : "hover:bg-sidebar-accent/50"
+                          }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
+                            <Icon className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
+                            <span className="font-medium">{item.label}</span>
+                            {isActive && (
+                              <ChevronRight className="w-4 h-4 ml-auto group-data-[collapsible=icon]:hidden" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Settings Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
+                Settings & Analytics
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {settingsMenuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path;
 
