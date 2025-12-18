@@ -1697,6 +1697,305 @@ export type Database = {
           },
         ]
       }
+      test_analytics: {
+        Row: {
+          avg_time_seconds: number | null
+          correct_attempts: number | null
+          difficulty_rating: number | null
+          id: string
+          question_id: string | null
+          skipped_count: number | null
+          test_id: string
+          topic_wise_stats: Json | null
+          total_attempts: number | null
+          updated_at: string | null
+          wrong_attempts: number | null
+        }
+        Insert: {
+          avg_time_seconds?: number | null
+          correct_attempts?: number | null
+          difficulty_rating?: number | null
+          id?: string
+          question_id?: string | null
+          skipped_count?: number | null
+          test_id: string
+          topic_wise_stats?: Json | null
+          total_attempts?: number | null
+          updated_at?: string | null
+          wrong_attempts?: number | null
+        }
+        Update: {
+          avg_time_seconds?: number | null
+          correct_attempts?: number | null
+          difficulty_rating?: number | null
+          id?: string
+          question_id?: string | null
+          skipped_count?: number | null
+          test_id?: string
+          topic_wise_stats?: Json | null
+          total_attempts?: number | null
+          updated_at?: string | null
+          wrong_attempts?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_analytics_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "test_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_analytics_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_attempts: {
+        Row: {
+          answers: Json | null
+          attempted_questions: number | null
+          correct_answers: number | null
+          created_at: string | null
+          device_info: Json | null
+          id: string
+          ip_address: string | null
+          passed: boolean | null
+          percentage: number | null
+          rank: number | null
+          score: number | null
+          skipped_questions: number | null
+          started_at: string | null
+          status: string | null
+          student_id: string
+          submitted_at: string | null
+          test_id: string
+          time_taken_seconds: number | null
+          total_questions: number | null
+          wrong_answers: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          attempted_questions?: number | null
+          correct_answers?: number | null
+          created_at?: string | null
+          device_info?: Json | null
+          id?: string
+          ip_address?: string | null
+          passed?: boolean | null
+          percentage?: number | null
+          rank?: number | null
+          score?: number | null
+          skipped_questions?: number | null
+          started_at?: string | null
+          status?: string | null
+          student_id: string
+          submitted_at?: string | null
+          test_id: string
+          time_taken_seconds?: number | null
+          total_questions?: number | null
+          wrong_answers?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          attempted_questions?: number | null
+          correct_answers?: number | null
+          created_at?: string | null
+          device_info?: Json | null
+          id?: string
+          ip_address?: string | null
+          passed?: boolean | null
+          percentage?: number | null
+          rank?: number | null
+          score?: number | null
+          skipped_questions?: number | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string
+          submitted_at?: string | null
+          test_id?: string
+          time_taken_seconds?: number | null
+          total_questions?: number | null
+          wrong_answers?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_attempts_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_questions: {
+        Row: {
+          created_at: string | null
+          custom_correct_index: number | null
+          custom_explanation: string | null
+          custom_options: Json | null
+          custom_question: string | null
+          id: string
+          is_required: boolean | null
+          marks: number | null
+          order_index: number | null
+          question_bank_id: string | null
+          test_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          custom_correct_index?: number | null
+          custom_explanation?: string | null
+          custom_options?: Json | null
+          custom_question?: string | null
+          id?: string
+          is_required?: boolean | null
+          marks?: number | null
+          order_index?: number | null
+          question_bank_id?: string | null
+          test_id: string
+        }
+        Update: {
+          created_at?: string | null
+          custom_correct_index?: number | null
+          custom_explanation?: string | null
+          custom_options?: Json | null
+          custom_question?: string | null
+          id?: string
+          is_required?: boolean | null
+          marks?: number | null
+          order_index?: number | null
+          question_bank_id?: string | null
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_questions_question_bank_id_fkey"
+            columns: ["question_bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_questions_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tests: {
+        Row: {
+          batch_id: string | null
+          course_id: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          difficulty: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          id: string
+          instructions: string | null
+          is_published: boolean | null
+          is_telegram_enabled: boolean | null
+          max_attempts: number | null
+          metadata: Json | null
+          negative_marking: boolean | null
+          negative_marks_per_question: number | null
+          passing_marks: number | null
+          show_correct_answers: boolean | null
+          show_result_immediately: boolean | null
+          shuffle_options: boolean | null
+          shuffle_questions: boolean | null
+          start_time: string | null
+          status: string | null
+          telegram_channel_id: string | null
+          test_type: string | null
+          title: string
+          total_marks: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          difficulty?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          is_telegram_enabled?: boolean | null
+          max_attempts?: number | null
+          metadata?: Json | null
+          negative_marking?: boolean | null
+          negative_marks_per_question?: number | null
+          passing_marks?: number | null
+          show_correct_answers?: boolean | null
+          show_result_immediately?: boolean | null
+          shuffle_options?: boolean | null
+          shuffle_questions?: boolean | null
+          start_time?: string | null
+          status?: string | null
+          telegram_channel_id?: string | null
+          test_type?: string | null
+          title: string
+          total_marks?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          difficulty?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          is_telegram_enabled?: boolean | null
+          max_attempts?: number | null
+          metadata?: Json | null
+          negative_marking?: boolean | null
+          negative_marks_per_question?: number | null
+          passing_marks?: number | null
+          show_correct_answers?: boolean | null
+          show_result_immediately?: boolean | null
+          shuffle_options?: boolean | null
+          shuffle_questions?: boolean | null
+          start_time?: string | null
+          status?: string | null
+          telegram_channel_id?: string | null
+          test_type?: string | null
+          title?: string
+          total_marks?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tests_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_tracking: {
         Row: {
           created_at: string

@@ -27,6 +27,8 @@ const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const Batches = lazy(() => import("./pages/Batches"));
 const LiveClasses = lazy(() => import("./pages/LiveClasses"));
 const Notices = lazy(() => import("./pages/Notices"));
+const Tests = lazy(() => import("./pages/Tests"));
+const TestEditor = lazy(() => import("./pages/TestEditor"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
@@ -85,6 +87,8 @@ const App = () => (
               <Route path="/dashboard/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
               <Route path="/dashboard/live-classes" element={<ProtectedRoute><LiveClasses /></ProtectedRoute>} />
               <Route path="/dashboard/notices" element={<ProtectedRoute><Notices /></ProtectedRoute>} />
+              <Route path="/dashboard/tests" element={<ProtectedRoute><Tests /></ProtectedRoute>} />
+              <Route path="/dashboard/tests/:testId" element={<ProtectedRoute><TestEditor /></ProtectedRoute>} />
               <Route path="/dashboard/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />

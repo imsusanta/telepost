@@ -151,9 +151,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const lmsMenuItems = [
     { icon: BookOpen, label: "Courses", path: "/dashboard/courses" },
     { icon: UsersRound, label: "Batches", path: "/dashboard/batches" },
+    { icon: FileText, label: "Tests & Exams", path: "/dashboard/tests" },
     { icon: Video, label: "Live Classes", path: "/dashboard/live-classes" },
     { icon: Bell, label: "Notices", path: "/dashboard/notices" },
-    { icon: FileText, label: "Documents", path: "/dashboard/documents" },
     { icon: GraduationCap, label: "Student Portal", path: "/dashboard/student" },
   ];
 
