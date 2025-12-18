@@ -61,12 +61,23 @@ export default function Attendance() {
     queryKey: ['batch-students', selectedSession?.batch_id],
     queryFn: async () => {
       if (!selectedSession?.batch_id) return [];
-      const { data } = await supabase
+      // First get enrollments
+      const { data: enrollments } = await supabase
         .from('enrollments')
-        .select('student_id, profiles!enrollments_student_id_fkey(id, full_name, email)')
+        .select('student_id')
         .eq('batch_id', selectedSession.batch_id)
         .eq('status', 'active');
-      return data?.map(e => e.profiles) || [];
+      
+      if (!enrollments || enrollments.length === 0) return [];
+      
+      // Then fetch profile data for each student
+      const studentIds = enrollments.map(e => e.student_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', studentIds);
+      
+      return profiles || [];
     },
     enabled: !!selectedSession?.batch_id,
   });
@@ -362,7 +373,7 @@ export default function Attendance() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(students as Array<{ id: string; full_name: string | null; email: string | null }>)?.map((student) => {
+                      {students?.map((student) => {
                         const status = getStudentStatus(student.id);
                         return (
                           <TableRow key={student.id}>
