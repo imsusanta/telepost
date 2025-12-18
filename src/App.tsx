@@ -21,6 +21,12 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const QuestionBank = lazy(() => import("./pages/QuestionBank"));
 const Channels = lazy(() => import("./pages/Channels"));
 const Stories = lazy(() => import("./pages/Stories"));
+const Courses = lazy(() => import("./pages/Courses"));
+const CourseEditor = lazy(() => import("./pages/CourseEditor"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const Batches = lazy(() => import("./pages/Batches"));
+const LiveClasses = lazy(() => import("./pages/LiveClasses"));
+const Notices = lazy(() => import("./pages/Notices"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
@@ -74,6 +80,12 @@ const App = () => (
               <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
               <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/dashboard/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+              <Route path="/dashboard/courses/:courseId" element={<ProtectedRoute><CourseEditor /></ProtectedRoute>} />
+              <Route path="/dashboard/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
+              <Route path="/dashboard/live-classes" element={<ProtectedRoute><LiveClasses /></ProtectedRoute>} />
+              <Route path="/dashboard/notices" element={<ProtectedRoute><Notices /></ProtectedRoute>} />
+              <Route path="/dashboard/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/users" element={<SuperAdminRoute><SuperAdminUsers /></SuperAdminRoute>} />
