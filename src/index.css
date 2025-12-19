@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Premium $80B Startup Design System - Light & Dark Themes */
+/* Premium $100B Startup Design System - Light & Dark Themes */
 @layer base {
   /* Light Theme - Clean, Professional, Premium */
   :root {
@@ -498,32 +498,117 @@
   75% { transform: translate(30px, 20px) scale(1.05); }
 }
 
-/* Animation utilities */
+/* New Premium Animations */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes draw-line {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 100%;
+    opacity: 1;
+  }
+}
+
+@keyframes particle-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  25% { transform: translate(10px, -20px) scale(1.2); opacity: 0.6; }
+  50% { transform: translate(-5px, -40px) scale(0.8); opacity: 0.4; }
+  75% { transform: translate(15px, -20px) scale(1.1); opacity: 0.5; }
+}
+
+@keyframes particle-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  33% { transform: translate(-15px, -30px) scale(1.3); opacity: 0.7; }
+  66% { transform: translate(10px, -50px) scale(0.9); opacity: 0.3; }
+}
+
+@keyframes particle-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  50% { transform: translate(20px, -35px) scale(1.4); opacity: 0.6; }
+}
+
+@keyframes particle-float-4 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+  40% { transform: translate(-10px, -25px) scale(1.2); opacity: 0.5; }
+  80% { transform: translate(5px, -45px) scale(0.8); opacity: 0.3; }
+}
+
+@keyframes particle-float-5 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  25% { transform: translate(15px, -15px) scale(1.1); opacity: 0.6; }
+  75% { transform: translate(-10px, -35px) scale(0.9); opacity: 0.3; }
+}
+
+@keyframes glow-pulse-animation {
+  0%, 100% { 
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2), 0 0 40px hsl(var(--primary) / 0.1);
+  }
+  50% { 
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2);
+  }
+}
+
+/* Animation utility classes */
 .animate-fade-up {
-  animation: fade-up 0.8s ease-out forwards;
+  animation: fade-up 0.6s ease-out forwards;
 }
 
 .animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
+  animation: fade-in 0.4s ease-out;
 }
 
 .animate-scale-in {
-  animation: scale-in 0.5s ease-out forwards;
+  animation: scale-in 0.4s ease-out;
 }
 
 .animate-slide-in-left {
-  animation: slide-in-left 0.6s ease-out forwards;
+  animation: slide-in-left 0.5s ease-out;
 }
 
 .animate-slide-in-right {
-  animation: slide-in-right 0.6s ease-out forwards;
+  animation: slide-in-right 0.5s ease-out;
 }
 
-.animate-blob {
-  animation: blob 7s infinite;
+.animate-marquee {
+  animation: marquee 30s linear infinite;
 }
 
-/* Stagger delays */
+.animate-draw-line {
+  animation: draw-line 1s ease-out 0.5s forwards;
+  width: 0;
+}
+
+.animate-particle-1 {
+  animation: particle-float-1 8s ease-in-out infinite;
+}
+
+.animate-particle-2 {
+  animation: particle-float-2 10s ease-in-out infinite;
+}
+
+.animate-particle-3 {
+  animation: particle-float-3 7s ease-in-out infinite;
+}
+
+.animate-particle-4 {
+  animation: particle-float-4 9s ease-in-out infinite;
+}
+
+.animate-particle-5 {
+  animation: particle-float-5 11s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse-animation 3s ease-in-out infinite;
+}
+
+/* Stagger delay utilities */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
