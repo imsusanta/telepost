@@ -4,20 +4,36 @@ import { useInView } from "@/hooks/useInView";
 
 const faqs = [
   {
-    question: "How do I get access?",
-    answer: "TelePost is invitation-only. Contact our support team or your organization administrator to request an invitation code.",
+    question: "How do I get access to TelePost?",
+    answer: "TelePost is currently invitation-only to ensure quality support for our users. Contact our support team or your organization administrator to request an invitation code. Once approved, you can start your free trial immediately.",
   },
   {
-    question: "How does quiz generation work?",
-    answer: "Upload your PDFs or notes. Our AI analyzes the content and creates relevant multiple-choice questions aligned with your curriculum.",
+    question: "How does the AI quiz generation work?",
+    answer: "Upload your PDFs, notes, or any text content. Our AI analyzes the material and creates relevant multiple-choice questions aligned with your curriculum. You can adjust difficulty levels, question count, and topics. The entire process takes just seconds.",
   },
   {
-    question: "How does Telegram integration work?",
-    answer: "Connect your channel with a bot token (2-minute setup). Quizzes auto-post at scheduled times, and students answer directly in Telegram.",
+    question: "How does the Telegram integration work?",
+    answer: "Simply connect your channel with a bot token (2-minute setup). You can then schedule quizzes to auto-post at specific times. Students answer directly in Telegram and get instant feedback. All responses are tracked for your analytics dashboard.",
+  },
+  {
+    question: "What file formats are supported?",
+    answer: "We support PDF, DOCX, TXT, and plain text. You can also paste content directly. Our AI handles various formats including scanned documents with OCR support for clear text extraction.",
+  },
+  {
+    question: "Can I customize the difficulty levels?",
+    answer: "Absolutely! You can set difficulty levels (Easy, Medium, Hard) for each quiz. Our AI also suggests appropriate difficulty based on the source material. You can mix difficulties within a single quiz for comprehensive testing.",
   },
   {
     question: "Is my data secure?",
-    answer: "Yes. We use AES-256 encryption and are SOC 2 compliant. Your content is never shared or used for training.",
+    answer: "Yes, security is our top priority. We use AES-256 encryption for all data at rest and in transit. We're SOC 2 compliant and GDPR ready. Your content is never shared or used for training AI models without explicit consent.",
+  },
+  {
+    question: "What's included in the free trial?",
+    answer: "The free trial includes full access to all features for 14 days. You can create unlimited quizzes, connect one Telegram channel, and access analytics. No credit card required to start.",
+  },
+  {
+    question: "How can I migrate my existing content?",
+    answer: "We offer bulk import tools and can help you migrate existing question banks. Contact our support team for assisted migration of large content libraries. We also integrate with Google Drive for seamless imports.",
   },
 ];
 
@@ -29,53 +45,57 @@ export const FAQ = () => {
     <section 
       id="faq" 
       ref={ref as React.RefObject<HTMLElement>}
-      className="py-24 px-4 sm:px-6 lg:px-8 border-t border-border/50" 
+      className="py-32 px-4 sm:px-6 lg:px-8 border-t border-border/50" 
       aria-labelledby="faq-heading"
     >
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Section header */}
-        <div className={`text-center mb-12 transition-all duration-700 ${
+        <div className={`text-center mb-16 transition-all duration-700 ${
           isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
         }`}>
           <h2 
             id="faq-heading" 
-            className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-foreground mb-4"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6"
           >
-            Questions
+            Frequently asked
+            <span className="text-gradient-primary"> questions</span>
           </h2>
+          <p className="text-lg text-muted-foreground">
+            Everything you need to know about TelePost
+          </p>
         </div>
 
-        {/* FAQ accordion */}
-        <div className="divide-y divide-border">
+        {/* FAQ accordion - Two columns on desktop */}
+        <div className="grid md:grid-cols-2 gap-4">
           {faqs.map((faq, idx) => (
             <div 
               key={idx}
-              className={`transition-all duration-500 ${
-                isInView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-              }`}
-              style={{ transitionDelay: `${idx * 100 + 200}ms` }}
+              className={`rounded-2xl border border-border/50 bg-card/30 overflow-hidden transition-all duration-500 ${
+                isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+              } ${openIndex === idx ? "border-primary/30" : ""}`}
+              style={{ transitionDelay: `${idx * 50 + 200}ms` }}
             >
               <button
                 onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
-                className="group w-full flex items-center justify-between py-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg transition-colors"
+                className="group w-full flex items-start justify-between p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
                 aria-expanded={openIndex === idx}
               >
-                <span className="font-medium text-foreground group-hover:text-primary transition-colors">
+                <span className="font-medium text-foreground group-hover:text-primary transition-colors pr-4">
                   {faq.question}
                 </span>
                 <ChevronDown 
-                  className={`w-4 h-4 text-muted-foreground transition-all duration-300 ${
+                  className={`w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5 transition-all duration-300 ${
                     openIndex === idx ? "rotate-180 text-primary" : ""
                   }`} 
                 />
               </button>
               <div
                 className={`grid transition-all duration-300 ease-out ${
-                  openIndex === idx ? "grid-rows-[1fr] opacity-100 pb-5" : "grid-rows-[0fr] opacity-0"
+                  openIndex === idx ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                 }`}
               >
                 <div className="overflow-hidden">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="px-6 pb-6 text-sm text-muted-foreground leading-relaxed">
                     {faq.answer}
                   </p>
                 </div>

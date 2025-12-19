@@ -12,6 +12,11 @@ import { FAQ } from "@/components/FAQ";
 import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 import { LogoCloud } from "@/components/LogoCloud";
+import { StatsSection } from "@/components/StatsSection";
+import { ProductShowcase } from "@/components/ProductShowcase";
+import { UseCases } from "@/components/UseCases";
+import { Testimonials } from "@/components/Testimonials";
+import { Integrations } from "@/components/Integrations";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -131,13 +136,17 @@ const Index = () => {
     <div className="min-h-screen w-full relative bg-background">
       {state === "landing" && (
         <>
-          {/* Hide navigation in PWA standalone mode */}
           {!isStandalone && <Navigation onGetStarted={handleGetStarted} />}
           <main>
             <Hero onGetStarted={handleGetStarted} />
             <LogoCloud />
-            <HowItWorks />
+            <StatsSection />
+            <ProductShowcase />
             <Features />
+            <HowItWorks />
+            <UseCases />
+            <Testimonials />
+            <Integrations />
             <FAQ />
             <CTA onGetStarted={handleGetStarted} />
             <Footer />
@@ -148,19 +157,19 @@ const Index = () => {
       {state === "config" && (
         <div className="min-h-screen pt-8 pb-12 px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="clay-card bg-card/50 backdrop-blur-sm p-8 animate-scale-in">
-              <h2 className="text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent mb-2 text-center">
+            <div className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm p-8">
+              <h2 className="text-3xl font-bold text-gradient-primary mb-2 text-center">
                 Create Your Quiz
               </h2>
               <p className="text-muted-foreground text-center mb-8">
                 Choose how you'd like to create your quiz
               </p>
               <Tabs defaultValue="ai" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-8 clay-card bg-muted/50 p-1.5 h-auto">
-                  <TabsTrigger value="ai" className="rounded-2xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/50 p-1.5 h-auto rounded-2xl">
+                  <TabsTrigger value="ai" className="rounded-xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                     AI Generated
                   </TabsTrigger>
-                  <TabsTrigger value="manual" className="rounded-2xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-clay transition-all">
+                  <TabsTrigger value="manual" className="rounded-xl py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                     Manual Input
                   </TabsTrigger>
                 </TabsList>
@@ -191,7 +200,7 @@ const Index = () => {
               onClick={handleNewQuiz}
               variant="outline"
               size="sm"
-              className="clay-button bg-card/50 border-border hover:bg-card"
+              className="rounded-full"
             >
               ← Back to Home
             </Button>
@@ -206,13 +215,13 @@ const Index = () => {
             onSelectAnswer={handleSelectAnswer}
           />
           {isAnswered && (
-            <div className="flex gap-4 animate-slide-up">
+            <div className="flex gap-4 animate-fade-up">
               {currentQuestionIndex > 0 && (
                 <Button
                   onClick={handlePreviousQuestion}
                   size="lg"
                   variant="outline"
-                  className="min-w-[200px] clay-button bg-card/50 border-border"
+                  className="min-w-[200px] rounded-full"
                 >
                   Previous Question
                 </Button>
@@ -220,7 +229,7 @@ const Index = () => {
               <Button
                 onClick={handleNextQuestion}
                 size="lg"
-                className="min-w-[200px] clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold"
+                className="min-w-[200px] rounded-full bg-foreground text-background hover:bg-foreground/90"
               >
                 {currentQuestionIndex < quiz.questions.length - 1 ? "Next Question" : "See Results"}
               </Button>

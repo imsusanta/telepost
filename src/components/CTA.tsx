@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Shield, Check, Star } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 
 interface CTAProps {
@@ -12,50 +12,90 @@ export const CTA = ({ onGetStarted }: CTAProps) => {
   return (
     <section 
       ref={ref as React.RefObject<HTMLElement>}
-      className="relative py-32 px-4 sm:px-6 lg:px-8 overflow-hidden" 
+      className="relative py-40 px-4 sm:px-6 lg:px-8 overflow-hidden" 
       aria-labelledby="cta-heading"
     >
       {/* Animated background gradient */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] transition-all duration-1000 ${
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] transition-all duration-1000 ${
           isInView ? "opacity-100 scale-100" : "opacity-0 scale-50"
+        }`} />
+        <div className={`absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px] transition-all duration-1000 delay-200 ${
+          isInView ? "opacity-100" : "opacity-0"
+        }`} />
+        <div className={`absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] transition-all duration-1000 delay-300 ${
+          isInView ? "opacity-100" : "opacity-0"
         }`} />
       </div>
 
-      <div className={`max-w-2xl mx-auto text-center relative z-10 transition-all duration-700 ${
-        isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      }`}>
-        <h2 
-          id="cta-heading" 
-          className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-foreground mb-4"
-        >
-          Ready to get started?
-        </h2>
-        
-        <p className={`text-muted-foreground mb-10 transition-all duration-700 delay-100 ${
-          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      <div className="max-w-4xl mx-auto relative z-10">
+        {/* Testimonial quote */}
+        <div className={`text-center mb-12 transition-all duration-700 ${
+          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
         }`}>
-          Join thousands of educators saving hours every week.
-        </p>
-
-        <div className={`transition-all duration-700 delay-200 ${
-          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}>
-          <Button
-            onClick={onGetStarted}
-            size="lg"
-            className="group h-14 px-10 text-base font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-glow animate-glow-pulse"
-          >
-            Start for free
-            <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-          </Button>
+          <div className="inline-flex items-center gap-1 mb-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+            ))}
+          </div>
+          <blockquote className="text-xl sm:text-2xl text-foreground/80 italic mb-4">
+            "TelePost saved us 20+ hours every week. Our engagement rate tripled."
+          </blockquote>
+          <cite className="text-muted-foreground not-italic">
+            — Dr. Priya Sharma, Director at Elite IIT Academy
+          </cite>
         </div>
 
-        <p className={`text-xs text-muted-foreground mt-8 transition-all duration-700 delay-300 ${
-          isInView ? "opacity-100" : "opacity-0"
+        {/* Main CTA */}
+        <div className={`text-center transition-all duration-700 delay-100 ${
+          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
         }`}>
-          No credit card required
-        </p>
+          <h2 
+            id="cta-heading" 
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6"
+          >
+            Ready to transform
+            <span className="text-gradient-primary"> your teaching?</span>
+          </h2>
+          
+          <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+            Join thousands of educators who save hours every week and engage millions of students
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+            <Button
+              onClick={onGetStarted}
+              size="lg"
+              className="group h-16 px-12 text-lg font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-glow animate-glow-pulse"
+            >
+              Start your free trial
+              <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <button
+              className="text-base text-muted-foreground hover:text-foreground transition-colors relative group"
+            >
+              Schedule a demo
+              <span className="inline-block ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+              <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground transition-all group-hover:w-full" />
+            </button>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-success" />
+              <span>No credit card required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-success" />
+              <span>14-day free trial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-success" />
+              <span>SOC 2 Compliant</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
