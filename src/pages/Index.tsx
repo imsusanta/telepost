@@ -9,20 +9,22 @@ import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { FAQ } from "@/components/FAQ";
-// Pricing removed - invitation-only app
 import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
+import { LogoCloud } from "@/components/LogoCloud";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { usePWAStandalone } from "@/hooks/usePWAStandalone";
 import type { Quiz, QuizConfig } from "@/types/quiz";
 
 type AppState = "landing" | "config" | "quiz" | "results";
 
 const Index = () => {
   const navigate = useNavigate();
+  const isStandalone = usePWAStandalone();
   const [state, setState] = useState<AppState>("landing");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -116,25 +118,24 @@ const Index = () => {
   };
 
   const handleGetStarted = async () => {
-    // Check if user is already authenticated
     const { data: { session } } = await supabase.auth.getSession();
 
     if (session) {
-      // User is logged in, redirect to dashboard
       navigate("/dashboard");
     } else {
-      // User is not logged in, go to auth page
       navigate("/auth");
     }
   };
 
   return (
-    <div className="min-h-screen w-full relative">
+    <div className="min-h-screen w-full relative bg-background">
       {state === "landing" && (
         <>
-          <Navigation onGetStarted={handleGetStarted} />
+          {/* Hide navigation in PWA standalone mode */}
+          {!isStandalone && <Navigation onGetStarted={handleGetStarted} />}
           <main>
             <Hero onGetStarted={handleGetStarted} />
+            <LogoCloud />
             <HowItWorks />
             <Features />
             <FAQ />
