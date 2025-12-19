@@ -41,6 +41,7 @@ const SuperAdminInvitations = lazy(() => import("./pages/SuperAdminInvitations")
 const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
 const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
 const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
+const Install = lazy(() => import("./pages/Install"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -76,6 +77,7 @@ const App = () => (
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/super-admin/login" element={<SuperAdminLogin />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
