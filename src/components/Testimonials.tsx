@@ -1,4 +1,5 @@
 import { Quote, Star } from "lucide-react";
+import { useInView } from "@/hooks/useInView";
 
 const testimonials = [
   {
@@ -58,8 +59,14 @@ const testimonials = [
 ];
 
 export const Testimonials = () => {
+  const { ref, isInView } = useInView({ threshold: 0.1 });
+
   return (
-    <section id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <section 
+      id="testimonials" 
+      ref={ref as React.RefObject<HTMLElement>}
+      className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden border-t border-border/50"
+    >
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-gradient-to-l from-primary/5 to-transparent rounded-full blur-3xl" />
@@ -68,17 +75,19 @@ export const Testimonials = () => {
 
       <div className="max-w-7xl mx-auto relative">
         {/* Section header */}
-        <div className="text-center mb-16 animate-slide-up">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-card/60 backdrop-blur-sm clay-card mb-6">
+        <div className={`text-center mb-16 transition-all duration-700 ${
+          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        }`}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border/50 bg-background/50 backdrop-blur-sm text-sm text-muted-foreground mb-6">
             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm font-medium text-primary">Loved by Educators</span>
+            <span>Loved by 500+ educators</span>
           </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
-            What Our
-            <span className="text-gradient bg-gradient-to-r from-primary via-accent to-secondary"> Customers Say</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
+            What our customers
+            <span className="text-gradient-primary"> are saying</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Join 500+ coaching institutes who have transformed their Telegram presence
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+            Join the community of educators transforming their teaching with TelePost
           </p>
         </div>
 
@@ -87,14 +96,16 @@ export const Testimonials = () => {
           {testimonials.map((testimonial, idx) => (
             <div
               key={idx}
-              className="group clay-card-hover bg-card/50 backdrop-blur-sm p-6 animate-scale-in flex flex-col"
-              style={{ animationDelay: `${idx * 0.1}s` }}
+              className={`group relative p-8 rounded-3xl border border-border/50 bg-card/30 backdrop-blur-sm transition-all duration-500 hover:border-primary/30 hover:shadow-glow-sm ${
+                isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+              }`}
+              style={{ transitionDelay: `${idx * 100}ms` }}
             >
               {/* Quote icon */}
-              <Quote className="w-8 h-8 text-primary/20 mb-4" />
+              <Quote className="w-10 h-10 text-primary/20 mb-6" />
 
               {/* Content */}
-              <p className="text-foreground leading-relaxed mb-6 flex-grow">
+              <p className="text-foreground leading-relaxed mb-6">
                 "{testimonial.content}"
               </p>
 
@@ -106,13 +117,13 @@ export const Testimonials = () => {
               </div>
 
               {/* Metric badge */}
-              <div className={`inline-flex self-start items-center px-3 py-1.5 rounded-full bg-gradient-to-r ${testimonial.gradient} text-white text-xs font-semibold mb-4`}>
+              <div className={`inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r ${testimonial.gradient} text-white text-xs font-semibold mb-6`}>
                 {testimonial.metric}
               </div>
 
               {/* Author */}
-              <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${testimonial.gradient} flex items-center justify-center text-white font-bold shadow-clay`}>
+              <div className="flex items-center gap-4 pt-6 border-t border-border/50">
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${testimonial.gradient} flex items-center justify-center text-white font-bold`}>
                   {testimonial.avatar}
                 </div>
                 <div>
@@ -122,23 +133,6 @@ export const Testimonials = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Trust indicators */}
-        <div className="mt-16 text-center animate-slide-up" style={{ animationDelay: '0.6s' }}>
-          <div className="inline-flex flex-wrap items-center justify-center gap-8 px-8 py-4 clay-card bg-card/50 backdrop-blur-sm">
-            {[
-              { value: '500+', label: 'Institutes' },
-              { value: '50K+', label: 'Students' },
-              { value: '4.9/5', label: 'Rating' },
-              { value: '99%', label: 'Uptime' },
-            ].map((stat, idx) => (
-              <div key={idx} className="text-center px-4">
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                <div className="text-xs text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </section>
