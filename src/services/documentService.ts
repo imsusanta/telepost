@@ -21,7 +21,54 @@ export interface Document {
   updated_at: string;
 }
 
+// PDF magic bytes signature
+const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46]; // %PDF
+
+// Maximum file size: 50MB
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 export class DocumentService {
+  /**
+   * Validate that a file is a valid PDF
+   */
+  private static async validatePDFFile(file: File): Promise<{ valid: boolean; error?: string }> {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return { valid: false, error: `File size exceeds maximum limit of 50MB` };
+    }
+
+    if (file.size === 0) {
+      return { valid: false, error: 'File is empty' };
+    }
+
+    // Check MIME type
+    const validMimeTypes = ['application/pdf'];
+    if (!validMimeTypes.includes(file.type)) {
+      return { valid: false, error: `Invalid file type: ${file.type}. Only PDF files are allowed.` };
+    }
+
+    // Check file extension
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.pdf')) {
+      return { valid: false, error: 'File must have a .pdf extension' };
+    }
+
+    // Validate PDF magic bytes (file signature)
+    try {
+      const headerBytes = await file.slice(0, 4).arrayBuffer();
+      const header = new Uint8Array(headerBytes);
+      
+      const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
+      if (!isPDF) {
+        return { valid: false, error: 'File does not appear to be a valid PDF (invalid file signature)' };
+      }
+    } catch {
+      return { valid: false, error: 'Failed to read file header' };
+    }
+
+    return { valid: true };
+  }
+
   /**
    * Upload a PDF document
    */
@@ -35,7 +82,13 @@ export class DocumentService {
       channelId?: string;
     }
   ): Promise<Document> {
-    // Create storage path
+    // Server-side file validation
+    const validation = await this.validatePDFFile(file);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Invalid file');
+    }
+
+    // Create storage path with sanitized filename
     const timestamp = Date.now();
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${userId}/${timestamp}_${fileName}`;
@@ -46,6 +99,7 @@ export class DocumentService {
       .upload(storagePath, file, {
         cacheControl: "3600",
         upsert: false,
+        contentType: 'application/pdf', // Explicitly set content type
       });
 
     if (uploadError) throw uploadError;
@@ -58,7 +112,7 @@ export class DocumentService {
         channel_id: metadata?.channelId,
         file_name: file.name,
         file_size_bytes: file.size,
-        file_type: file.type,
+        file_type: 'application/pdf', // Always store as PDF since we validated
         storage_path: storagePath,
         title: metadata?.title || file.name,
         description: metadata?.description,
