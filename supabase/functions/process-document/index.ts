@@ -133,6 +133,32 @@ serve(async (req) => {
 
     console.log(`✓ File downloaded successfully, size: ${fileData.size} bytes (${(fileData.size / 1024 / 1024).toFixed(2)} MB)`);
 
+    // Server-side PDF validation: Check magic bytes
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (fileData.size > MAX_FILE_SIZE) {
+      console.error(`File too large: ${fileData.size} bytes (max: ${MAX_FILE_SIZE})`);
+      return new Response(
+        JSON.stringify({ error: 'File size exceeds maximum limit of 50MB' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate PDF magic bytes (%PDF)
+    const headerBuffer = await fileData.slice(0, 4).arrayBuffer();
+    const header = new Uint8Array(headerBuffer);
+    const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46]; // %PDF
+    const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
+    
+    if (!isPDF) {
+      console.error(`Invalid PDF: File does not have valid PDF signature. Got: ${Array.from(header).map(b => b.toString(16)).join(' ')}`);
+      return new Response(
+        JSON.stringify({ error: 'Invalid file format. Only PDF files are supported.' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`✓ PDF file validation passed`);
+
     // Use AI to extract text from PDF
     let extractedText = "";
     let pageCount = 1;
