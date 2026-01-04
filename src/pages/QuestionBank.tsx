@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap } from "lucide-react";
+import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -219,6 +219,44 @@ export default function QuestionBank() {
     q.options.some(opt => opt.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Export questions as formatted text
+  const handleExportQuestions = () => {
+    if (filteredQuestions.length === 0) {
+      toast({ title: "No questions to export", variant: "destructive" });
+      return;
+    }
+
+    let exportText = `Question Bank Export\nTotal Questions: ${filteredQuestions.length}\n${"=".repeat(50)}\n\n`;
+
+    filteredQuestions.forEach((q, idx) => {
+      const questionNumber = idx + 1;
+      exportText += `${questionNumber}. ${q.question}\n`;
+      q.options.forEach((opt, optIdx) => {
+        const optionLetter = String.fromCharCode(97 + optIdx);
+        exportText += `   ${optionLetter}) ${opt}\n`;
+      });
+      const correctLetter = String.fromCharCode(97 + q.correct_option_index);
+      exportText += `   Correct Answer: ${correctLetter}) ${q.options[q.correct_option_index]}\n`;
+      if (q.explanation) {
+        exportText += `   Explanation: ${q.explanation}\n`;
+      }
+      exportText += `\n`;
+    });
+
+    const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `question_bank_export_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Exported!", description: `${filteredQuestions.length} questions exported to file.` });
+  };
+
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -228,12 +266,16 @@ export default function QuestionBank() {
               <Database className="w-10 h-10" />
               Question Bank
             </h1>
-            <p className="text-muted-foreground">
-              {stats?.total || 0} questions available
-              {searchQuery && ` (${filteredQuestions.length} matching)`}
+            <p className="text-muted-foreground font-medium">
+              Total Questions: <span className="text-foreground font-bold">{stats?.total || 0}</span>
+              {searchQuery && <span className="ml-2">({filteredQuestions.length} matching search)</span>}
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportQuestions} disabled={filteredQuestions.length === 0} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export
+            </Button>
             <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -475,10 +517,17 @@ export default function QuestionBank() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {filteredQuestions.map((q) => (
-                  <Card key={q.id} className={selectedQuestionIds.has(q.id) ? "ring-2 ring-primary" : ""}>
-                    <CardHeader>
+              <div className="space-y-6">
+                {filteredQuestions.map((q, questionIndex) => (
+                  <Card key={q.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${selectedQuestionIds.has(q.id) ? "ring-2 ring-primary" : ""}`}>
+                    {/* Question Number Badge */}
+                    <div className="absolute -left-1 -top-1 w-14 h-14 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center font-black text-lg shadow-lg">
+                        {questionIndex + 1}
+                      </div>
+                    </div>
+
+                    <CardHeader className="pl-16">
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex items-start gap-3 flex-1">
                           <Checkbox
@@ -488,55 +537,77 @@ export default function QuestionBank() {
                             className="mt-1"
                           />
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{q.question}</CardTitle>
-                            <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
-                              <span>{q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times</span>
+                            <CardTitle className="text-lg leading-relaxed">{q.question}</CardTitle>
+                            <CardDescription className="flex flex-wrap items-center gap-2 mt-2">
+                              <Badge variant="secondary" className="text-xs">{q.topic}</Badge>
+                              <Badge variant="outline" className="text-xs capitalize">{q.difficulty}</Badge>
+                              <Badge variant="outline" className="text-xs">{q.language === 'bn' ? 'Bengali' : q.language === 'en' ? 'English' : q.language}</Badge>
                               {q.source && (
                                 <Badge variant="outline" className="text-xs">
-                                  {q.source === 'ai_generated' ? 'AI Generated' :
-                                    q.source === 'manual' ? 'Manual' :
-                                      q.source === 'document' ? 'Document' :
-                                        q.source === 'quiz_import' ? 'Quiz Import' : q.source}
+                                  {q.source === 'ai_generated' ? 'AI' :
+                                    q.source === 'bulk_upload' ? 'Bulk' :
+                                      q.source === 'manual' ? 'Manual' :
+                                        q.source === 'document' ? 'Doc' :
+                                          q.source === 'quiz_import' ? 'Import' : q.source}
                                 </Badge>
                               )}
                             </CardDescription>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           {q.is_public && (
-                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded font-semibold">
                               Public
                             </span>
                           )}
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleDelete(q.id)}
-                            className="text-red-500 hover:text-red-600"
+                            className="text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {q.options.map((option, idx) => (
-                          <div
-                            key={idx}
-                            className={`p-2 rounded border ${idx === q.correct_option_index
-                              ? "bg-green-50 border-green-300 dark:bg-green-950/20"
-                              : ""
-                              }`}
-                          >
-                            {idx === q.correct_option_index && "✓ "}
-                            {option}
-                          </div>
-                        ))}
+                    <CardContent className="pl-16 space-y-3">
+                      {/* Options with letter labels */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {q.options.map((option, idx) => {
+                          const isCorrect = idx === q.correct_option_index;
+                          const optionLetter = String.fromCharCode(97 + idx); // a, b, c, d
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-lg border-2 flex items-start gap-2 transition-all ${isCorrect
+                                ? "bg-success/10 border-success/50 dark:bg-success/20"
+                                : "border-border/50 hover:border-border"
+                                }`}
+                            >
+                              <span className={`font-black text-sm ${isCorrect ? 'text-success' : 'text-muted-foreground'}`}>
+                                {optionLetter})
+                              </span>
+                              <span className={`flex-1 ${isCorrect ? 'font-semibold' : ''}`}>{option}</span>
+                              {isCorrect && <span className="text-success font-bold text-xs uppercase tracking-wider">✓</span>}
+                            </div>
+                          );
+                        })}
                       </div>
+
+                      {/* Correct Answer Summary */}
+                      <div className="pt-2 border-t border-border/30">
+                        <p className="text-sm font-bold text-success flex items-center gap-2">
+                          Correct Answer:
+                          <span className="bg-success/20 px-2 py-0.5 rounded">
+                            {String.fromCharCode(97 + q.correct_option_index)}) {q.options[q.correct_option_index]}
+                          </span>
+                        </p>
+                      </div>
+
                       {q.explanation && (
-                        <p className="mt-3 text-sm text-muted-foreground italic">
-                          Explanation: {q.explanation}
+                        <p className="text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3 mt-2">
+                          {q.explanation}
                         </p>
                       )}
                     </CardContent>

@@ -125,8 +125,11 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
                         <Upload className="w-8 h-8 text-primary" />
                         Bulk Question Upload
                     </DialogTitle>
-                    <DialogDescription className="text-base font-medium">
-                        Paste your questions in the format: <span className="font-bold text-foreground">1. Quest a) Opt1 b) Opt2 Ans: a</span>
+                    <DialogDescription className="text-base">
+                        <span className="font-medium">Format:</span>{" "}
+                        <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">1. Question text</code>{" "}
+                        <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">a) Option A ... d) Option D</code>{" "}
+                        <code className="bg-success/20 text-success px-2 py-0.5 rounded text-sm font-mono font-bold">Ans: b) Paris</code>
                     </DialogDescription>
                 </DialogHeader>
 
