@@ -371,9 +371,18 @@ ADDITIONAL RULES:
     }
 
     // Parse the JSON response from AI
+    // Strip markdown code fences if present (e.g., ```json ... ```)
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith("```")) {
+      // Remove opening fence (```json or ```)
+      cleanedContent = cleanedContent.replace(/^```(?:json)?\s*\n?/, "");
+      // Remove closing fence
+      cleanedContent = cleanedContent.replace(/\n?```\s*$/, "");
+    }
+
     let quizData;
     try {
-      quizData = JSON.parse(content);
+      quizData = JSON.parse(cleanedContent);
     } catch (e) {
       console.error("Failed to parse AI response:", content);
       return new Response(
