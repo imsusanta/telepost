@@ -6,38 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface AISettings {
-  provider: 'openrouter';
-  model: string;
-  temperature: number;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getAISettings(supabase: any): Promise<AISettings> {
-  try {
-    const { data, error } = await supabase
-      .from('system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'ai_settings')
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching AI settings:", error);
-    }
-
-    if (data?.setting_value) {
-      return data.setting_value as AISettings;
-    }
-  } catch (error) {
-    console.error("Failed to fetch AI settings:", error);
-  }
-
-  return {
-    provider: 'openrouter',
-    model: 'z-ai/glm-4.5-air:free',
-    temperature: 0.7,
-  };
-}
+// Lovable AI Gateway configuration
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -172,18 +143,17 @@ serve(async (req) => {
     const validatedTopic = trimmedTopic;
     const validatedQuestionCount = parsedQuestionCount;
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured. Please add it in admin settings.");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Get AI settings from database
+    // Create Supabase client for database operations
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseServiceKey) {
       throw new Error("Service role key not configured");
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const aiSettings = await getAISettings(supabase);
 
     // Fetch channel knowledge base if requested
     let knowledgeBaseContext = '';
@@ -322,47 +292,41 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-    console.log(`Generating quiz with OpenRouter model: ${aiSettings.model}`);
+    console.log(`Generating quiz with Lovable AI model: ${DEFAULT_MODEL}`);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": supabaseUrl,
-        "X-Title": "QuizMaker",
       },
       body: JSON.stringify({
-        model: aiSettings.model,
+        model: DEFAULT_MODEL,
         messages: [
           { role: "system", content: finalSystemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: aiSettings.temperature,
       }),
     });
 
     if (!response.ok) {
-      const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
-      const rateLimitReset = response.headers.get("x-ratelimit-reset");
-      console.error(`OpenRouter error: status=${response.status}, rateLimit remaining=${rateLimitRemaining}, reset=${rateLimitReset}`);
+      console.error(`Lovable AI error: status=${response.status}`);
       
       if (response.status === 429) {
-        const retryAfter = response.headers.get("retry-after") || "30";
-        console.error(`Rate limited. Retry after: ${retryAfter}s`);
+        console.error("Rate limited by Lovable AI");
         return new Response(
-          JSON.stringify({ error: `Rate limit exceeded. Please wait ${retryAfter} seconds and try again.` }),
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "AI quota exceeded. Please contact admin to check billing." }),
+          JSON.stringify({ error: "AI usage credits depleted. Please add funds to your Lovable workspace." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
-      console.error("OpenRouter error body:", errorText);
+      console.error("Lovable AI error body:", errorText);
       return new Response(
         JSON.stringify({ error: "Failed to generate quiz. The AI service is temporarily unavailable." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
