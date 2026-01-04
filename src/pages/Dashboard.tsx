@@ -3,11 +3,8 @@ import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Tren
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Animated counter component for smooth number transitions
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {

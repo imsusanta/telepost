@@ -1,4 +1,4 @@
-import { Trophy, Target } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 interface DashboardStatsProps {
     overallScore: number;
