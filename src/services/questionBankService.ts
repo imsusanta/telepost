@@ -37,6 +37,31 @@ export interface QuestionBankFilters {
 
 export class QuestionBankService {
   /**
+   * Bulk add questions to bank
+   */
+  static async bulkAddQuestions(
+    userId: string,
+    questions: Array<Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">>
+  ): Promise<QuestionBankItem[]> {
+    const formattedQuestions = questions.map(q => ({
+      ...q,
+      user_id: userId,
+      topic: q.topic || "Bulk Upload",
+      difficulty: q.difficulty || "medium",
+      language: q.language || "bn", // Default to bn as requested support for both
+      source: "bulk_upload"
+    }));
+
+    const { data, error } = await supabase
+      .from("question_banks")
+      .insert(formattedQuestions)
+      .select();
+
+    if (error) throw error;
+    return (data || []) as QuestionBankItem[];
+  }
+
+  /**
    * Add question to bank
    */
   static async addQuestion(
