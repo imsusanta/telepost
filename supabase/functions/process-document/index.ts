@@ -1,10 +1,43 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface AISettings {
+  provider: 'openrouter';
+  model: string;
+  temperature: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getAISettings(supabase: any): Promise<AISettings> {
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'ai_settings')
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching AI settings:", error);
+    }
+
+    if (data?.setting_value) {
+      return data.setting_value as AISettings;
+    }
+  } catch (error) {
+    console.error("Failed to fetch AI settings:", error);
+  }
+
+  return {
+    provider: 'openrouter',
+    model: 'z-ai/glm-4.5-air:free',
+    temperature: 0.7,
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,7 +69,6 @@ serve(async (req) => {
       );
     }
 
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.0");
     const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -106,14 +138,16 @@ serve(async (req) => {
     
     console.log(`✓ Document ownership verified for user ${user.id}`);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      console.error("CRITICAL: LOVABLE_API_KEY environment variable is not set");
-      throw new Error("AI configuration missing. Please contact administrator.");
+    if (!OPENROUTER_API_KEY) {
+      console.error("CRITICAL: OPENROUTER_API_KEY environment variable is not set");
+      throw new Error("AI configuration missing. Please add OpenRouter API key in admin settings.");
     }
 
-    console.log("Environment: LOVABLE_API_KEY configured ✓");
+    // Get AI settings from database
+    const aiSettings = await getAISettings(supabase);
+    console.log(`Environment: Using OpenRouter model: ${aiSettings.model}`);
 
     // Download PDF from storage
     console.log(`Downloading file from storage: ${storagePath}`);
@@ -182,15 +216,17 @@ serve(async (req) => {
       console.log(`✓ PDF converted to base64 (${base64.length} characters)`);
 
       // Use AI with vision to extract text from PDF
-      console.log("Sending PDF to AI for text extraction...");
-      const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      console.log("Sending PDF to OpenRouter for text extraction...");
+      const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
+            "HTTP-Referer": supabaseUrl,
+            "X-Title": "QuizMaker Document Processing",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: aiSettings.model,
             messages: [
               {
                 role: "system",
@@ -226,14 +262,16 @@ serve(async (req) => {
 
           // Now analyze the extracted text for summary and topics
           console.log("Analyzing extracted text for summary and topics...");
-          const analyzeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
+                "HTTP-Referer": supabaseUrl,
+                "X-Title": "QuizMaker Document Analysis",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: aiSettings.model,
                 messages: [
                   {
                     role: "system",

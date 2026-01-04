@@ -6,6 +6,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface AISettings {
+  provider: 'openrouter';
+  model: string;
+  temperature: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getAISettings(supabase: any): Promise<AISettings> {
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'ai_settings')
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching AI settings:", error);
+    }
+
+    if (data?.setting_value) {
+      return data.setting_value as AISettings;
+    }
+  } catch (error) {
+    console.error("Failed to fetch AI settings:", error);
+  }
+
+  return {
+    provider: 'openrouter',
+    model: 'z-ai/glm-4.5-air:free',
+    temperature: 0.7,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -139,10 +172,18 @@ serve(async (req) => {
     const validatedTopic = trimmedTopic;
     const validatedQuestionCount = parsedQuestionCount;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured. Please add it in admin settings.");
     }
+
+    // Get AI settings from database
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseServiceKey) {
+      throw new Error("Service role key not configured");
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const aiSettings = await getAISettings(supabase);
 
     // Fetch channel knowledge base if requested
     let knowledgeBaseContext = '';
@@ -150,12 +191,6 @@ serve(async (req) => {
 
     if (channelId && useChannelKnowledgeBase) {
       try {
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        if (!supabaseServiceKey) {
-          throw new Error("Service role key not configured");
-        }
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
         // Verify channel ownership
         const { data: channel, error: channelError } = await supabase
           .from("channels")
@@ -287,19 +322,23 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log(`Generating quiz with OpenRouter model: ${aiSettings.model}`);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": supabaseUrl,
+        "X-Title": "QuizMaker",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: aiSettings.model,
         messages: [
           { role: "system", content: finalSystemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.7,
+        temperature: aiSettings.temperature,
       }),
     });
 
@@ -312,12 +351,12 @@ ADDITIONAL RULES:
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits to your workspace." }),
+          JSON.stringify({ error: "OpenRouter quota exceeded. Please check your billing." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("OpenRouter error:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "Failed to generate quiz" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -392,12 +431,6 @@ ADDITIONAL RULES:
 
     // Save quiz to database (always save for authenticated users)
     try {
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!supabaseServiceKey) {
-        throw new Error("Service role key not configured");
-      }
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
       // Save quiz generation to database using the authenticated user's ID
       const { error: insertError } = await supabase
         .from("quiz_generations")

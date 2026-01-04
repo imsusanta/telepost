@@ -25,11 +25,18 @@ export interface SystemMaintenance {
   maintenance_message: string;
 }
 
+export interface AISettings {
+  provider: 'openrouter';
+  model: string;
+  temperature: number;
+}
+
 export interface SystemSettings {
   invitation_defaults: InvitationDefaults;
   user_defaults: UserDefaults;
   subscription_defaults: SubscriptionDefaults;
   system_maintenance: SystemMaintenance;
+  ai_settings: AISettings;
 }
 
 type SettingKey = keyof SystemSettings;
@@ -74,6 +81,11 @@ export async function getAllSettings(): Promise<SystemSettings> {
     system_maintenance: (settings.system_maintenance as SystemMaintenance) || {
       maintenance_mode: false,
       maintenance_message: 'System is under maintenance. Please try again later.',
+    },
+    ai_settings: (settings.ai_settings as AISettings) || {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.5-air:free',
+      temperature: 0.7,
     },
   };
 }
@@ -171,4 +183,23 @@ export async function toggleMaintenanceMode(enabled: boolean): Promise<void> {
       maintenance_mode: enabled,
     });
   }
+}
+
+/**
+ * Get AI settings
+ */
+export async function getAISettings(): Promise<AISettings> {
+  const settings = await getSetting('ai_settings');
+  return settings || {
+    provider: 'openrouter',
+    model: 'z-ai/glm-4.5-air:free',
+    temperature: 0.7,
+  };
+}
+
+/**
+ * Update AI settings
+ */
+export async function updateAISettings(settings: AISettings): Promise<void> {
+  return updateSetting('ai_settings', settings);
 }
