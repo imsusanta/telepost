@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, Sparkles, XCircle, ArrowLeft, Eye, EyeOff, Zap, Users, BookOpen } from "lucide-react";
+import { Sparkles, XCircle, ArrowLeft, Eye, EyeOff, Zap, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,8 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [invitationCode, setInvitationCode] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [invitationError, setInvitationError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
 
@@ -81,35 +79,6 @@ export default function Auth() {
 
   const passwordStrength = getPasswordStrength(password);
 
-  const validateInvitationCode = async (code: string): Promise<boolean> => {
-    if (!code || code.trim().length === 0) {
-      setInvitationError("Invitation code is required");
-      return false;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('validate_invitation_code', {
-        p_code: code.trim().toUpperCase()
-      });
-
-      if (error) {
-        setInvitationError("Failed to validate invitation code");
-        return false;
-      }
-
-      if (!data || data.length === 0 || !data[0].is_valid) {
-        const message = data && data[0] ? data[0].message : "Invalid invitation code";
-        setInvitationError(message);
-        return false;
-      }
-
-      setInvitationError("");
-      return true;
-    } catch (error) {
-      setInvitationError("Failed to validate invitation code");
-      return false;
-    }
-  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -160,43 +129,21 @@ export default function Auth() {
       return;
     }
 
-    const isInvitationValid = await validateInvitationCode(invitationCode);
-    if (!isInvitationValid) {
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: sanitizedFullName,
-            invitation_code_used: invitationCode.trim().toUpperCase(),
           },
         },
       });
 
       if (error) throw error;
-
-      if (data.user) {
-        try {
-          await supabase.rpc('consume_invitation_code', {
-            p_code: invitationCode.trim().toUpperCase(),
-            p_user_id: data.user.id
-          });
-
-          await supabase
-            .from('profiles')
-            .update({ invitation_code_used: invitationCode.trim().toUpperCase() })
-            .eq('id', data.user.id);
-        } catch (consumeError) {
-          console.error('Error consuming invitation code:', consumeError);
-        }
-      }
 
       toast({
         title: "Success!",
@@ -352,7 +299,7 @@ export default function Auth() {
             <p className="text-muted-foreground">
               {activeTab === "signin" 
                 ? "Enter your credentials to access your dashboard" 
-                : "Join us with an invitation code"}
+                : "Create your account to get started"}
             </p>
           </div>
 
@@ -462,32 +409,6 @@ export default function Auth() {
           {/* Sign Up Form */}
           {activeTab === "signup" && (
             <form onSubmit={handleSignUp} className="space-y-5 animate-fade-in">
-              <div className="space-y-2">
-                <Label htmlFor="signup-invitation" className="text-foreground font-medium flex items-center gap-2">
-                  Invitation Code
-                  <Shield className="w-4 h-4 text-primary" />
-                </Label>
-                <Input
-                  id="signup-invitation"
-                  type="text"
-                  placeholder="XXXX-XXXX"
-                  value={invitationCode}
-                  onChange={(e) => {
-                    setInvitationCode(e.target.value.toUpperCase());
-                    setInvitationError("");
-                  }}
-                  required
-                  className={`h-12 bg-white/5 border-white/10 rounded-xl font-mono tracking-wider focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
-                    invitationError ? "border-destructive" : ""
-                  }`}
-                />
-                {invitationError && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <XCircle className="w-4 h-4" />
-                    {invitationError}
-                  </p>
-                )}
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="signup-name" className="text-foreground font-medium">
