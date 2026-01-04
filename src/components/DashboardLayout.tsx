@@ -31,16 +31,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Breadcrumb } from "@/components/Breadcrumb";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { isSuperAdmin } from "@/services/couponService";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -123,10 +119,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleSignOut = useCallback(async () => {
     try {
-      // Clear cached super admin status
       sessionStorage.removeItem('isUserSuperAdmin');
       sessionStorage.removeItem('superAdminCheckTime');
-
       await supabase.auth.signOut();
       navigate("/");
       toast({
@@ -188,12 +182,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const getUserInitials = () => {
     if (profile?.full_name) {
-      return profile.full_name
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
+      return profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
     return profile?.email?.slice(0, 2).toUpperCase() || 'U';
   };
@@ -202,21 +191,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return items.map((item) => {
       const Icon = item.icon;
       const isActive = location.pathname === item.path;
-
       return (
         <SidebarMenuItem key={item.path}>
           <SidebarMenuButton
             asChild
             isActive={isActive}
             tooltip={item.label}
-            className={`transition-all duration-300 rounded-2xl h-12 mb-1 ${isActive
+            className={`transition-all duration-300 rounded-xl h-10 mb-0.5 ${isActive
               ? "nav-item-active"
-              : "hover:bg-primary/10 hover:translate-x-1"
+              : "hover:bg-primary/5 hover:translate-x-1"
               }`}
           >
-            <Link to={item.path} className="flex items-center gap-4 px-4">
-              <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110 text-primary' : 'group-hover:scale-110'}`} />
-              <span className={`text-base tracking-tight ${isActive ? 'font-black' : 'font-bold text-muted-foreground'}`}>{item.label}</span>
+            <Link to={item.path} className="flex items-center gap-3 px-3">
+              <Icon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'scale-110 text-primary' : 'group-hover:scale-110'}`} />
+              <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-semibold text-muted-foreground/80'}`}>{item.label}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -226,167 +214,95 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full relative">
+      <div className="flex min-h-screen w-full relative bg-background">
         <KeyboardShortcuts />
 
-        {/* Keyboard Shortcut Indicator */}
         <Button
           variant="outline"
           size="icon"
-          className="fixed bottom-6 right-6 z-50 clay-button shadow-clay-lg rounded-full w-12 h-12"
+          className="fixed bottom-6 right-6 z-50 glass-card shadow-xl rounded-full w-12 h-12 hover:scale-110 transition-transform"
           onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))}
-          title="Keyboard shortcuts (?)"
-          aria-label="Show keyboard shortcuts"
         >
           <Keyboard className="w-5 h-5" />
         </Button>
 
-        {/* Sidebar */}
-        <Sidebar collapsible="icon" className="border-r-0 z-50">
+        <Sidebar collapsible="icon" className="border-r-0 z-50 overflow-hidden">
           <div className="absolute inset-0 sidebar-glass -z-10" />
-          <SidebarHeader className="border-b border-white/10 dark:border-white/5 py-4">
-            <div className="flex items-center gap-3 px-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary via-accent to-secondary rounded-2xl flex items-center justify-center shadow-xl ring-2 ring-white/20 transition-all duration-500 hover:scale-110 hover:rotate-3 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10">
-                <Sparkles className="w-7 h-7 text-white animate-pulse" />
+          <SidebarHeader className="border-b border-white/5 py-4">
+            <div className="flex items-center justify-between px-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary via-accent to-secondary rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                  <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent italic">
+                    TelePost
+                  </span>
+                  <span className="text-[8px] text-muted-foreground/60 font-black uppercase tracking-[0.2em] -mt-1">
+                    AI ENGINE
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col group-data-[collapsible=icon]:hidden animate-in fade-in slide-in-from-left-4 duration-500">
-                <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent italic">
-                  TelePost
-                </span>
-                <span className="text-[10px] text-muted-foreground/80 font-black uppercase tracking-[0.2em]">
-                  AI ENGINE v2.0
-                </span>
+              <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative hover:bg-primary/5 transition-all">
+                  <Bell className="w-4 h-4 text-muted-foreground" />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
+                </Button>
+                <SidebarTrigger className="h-8 w-8 hover:bg-primary/5 rounded-lg" />
               </div>
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="px-3 py-4">
-            {/* Telegram Quiz Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] px-4 mb-2">
-                Telegram Quizzes
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderMenuItems(telegramMenuItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarSeparator className="my-6 opacity-20" />
-
-            {/* LMS Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] px-4 mb-2">
-                Learning Management
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderMenuItems(lmsMenuItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarSeparator className="my-6 opacity-20" />
-
-            {/* Finance Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] px-4 mb-2">
-                Finance
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderMenuItems(financeMenuItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarSeparator className="my-6 opacity-20" />
-
-            {/* Attendance Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] px-4 mb-2">
-                Attendance
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderMenuItems(attendanceMenuItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarSeparator className="my-6 opacity-20" />
-
-            {/* Settings Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] px-4 mb-2">
-                Settings & Analytics
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderMenuItems(settingsMenuItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* Super Admin Section */}
-            {isUserSuperAdmin && (
-              <>
-                <SidebarSeparator className="my-6 opacity-20" />
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] px-4 mb-2">
-                    Super Admin
-                  </SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu className="gap-1">
-                      {renderMenuItems(superAdminMenuItems)}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </>
-            )}
+          <SidebarContent className="px-2 py-4">
+            <SidebarMenu className="gap-0.5">
+              {renderMenuItems(telegramMenuItems)}
+              <SidebarSeparator className="my-4 opacity-5 mx-4" />
+              {renderMenuItems(lmsMenuItems)}
+              <SidebarSeparator className="my-4 opacity-5 mx-4" />
+              {renderMenuItems(financeMenuItems)}
+              <SidebarSeparator className="my-4 opacity-5 mx-4" />
+              {renderMenuItems(attendanceMenuItems)}
+              <SidebarSeparator className="my-4 opacity-5 mx-4" />
+              {renderMenuItems(settingsMenuItems)}
+              {isUserSuperAdmin && (
+                <>
+                  <SidebarSeparator className="my-4 opacity-5 mx-4" />
+                  {renderMenuItems(superAdminMenuItems)}
+                </>
+              )}
+            </SidebarMenu>
           </SidebarContent>
 
           <SidebarFooter className="p-0 border-t-0 pb-6">
-            <div className="group-data-[collapsible=icon]:p-2 group-data-[collapsible=expanded]:px-4">
+            <div className="group-data-[collapsible=icon]:p-1 group-data-[collapsible=expanded]:px-3">
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
                         size="lg"
-                        className="floating-profile-card h-16 px-3 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:m-0"
+                        className="floating-profile-card h-14 px-2 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:m-0"
                       >
-                        <Avatar className="h-10 w-10 ring-2 ring-primary/30 shadow-lg">
+                        <Avatar className="h-8 w-8 ring-1 ring-primary/20 shadow-md">
                           <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black">
+                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black text-xs">
                             {getUserInitials()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-black tracking-tight truncate max-w-[110px]">
-                              {profile?.full_name || 'User'}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-muted-foreground/70 truncate max-w-[130px] uppercase tracking-wider">
+                        <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
+                          <span className="text-xs font-black tracking-tight truncate max-w-[100px]">
+                            {profile?.full_name || 'User'}
+                          </span>
+                          <span className="text-[9px] font-bold text-muted-foreground/60 truncate max-w-[100px] uppercase tracking-wider">
                             {profile?.email?.split('@')[0] || ''}
                           </span>
                         </div>
-                        <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-                          {isUserSuperAdmin && (
-                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                          )}
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                        <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden opacity-40">
+                          <ChevronRight className="h-3 w-3" />
                         </div>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-64 clay-card p-2"
-                      align="end"
-                      side="top"
-                      sideOffset={12}
-                    >
+                    <DropdownMenuContent className="w-64 glass-card p-2" align="end" side="top" sideOffset={12}>
                       <DropdownMenuLabel className="font-normal p-4">
                         <div className="flex flex-col space-y-1">
                           <p className="text-base font-black tracking-tight">{profile?.full_name || 'User'}</p>
@@ -421,22 +337,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarRail />
         </Sidebar>
 
-        {/* Main Content */}
-        <SidebarInset className="flex-1 bg-transparent transition-colors duration-500 overflow-visible">
+        <SidebarInset className="flex-1 bg-transparent overflow-visible">
           <div className="mesh-gradient" />
-          <header className="sticky top-0 z-40 flex h-24 shrink-0 items-center gap-4 border-b border-white/10 bg-background/20 backdrop-blur-3xl px-12 transition-all">
-            <SidebarTrigger className="clay-button rounded-2xl w-12 h-12 shadow-xl hover:scale-110 transition-transform" />
-            <div className="flex-1">
-              <Breadcrumb />
-            </div>
-            <div className="flex items-center gap-6">
-              <Button variant="ghost" size="icon" className="rounded-2xl w-12 h-12 relative hover:bg-primary/10 transition-all duration-300 glass-card">
-                <Bell className="w-6 h-6 text-muted-foreground" />
-                <span className="absolute top-3 right-3 w-3 h-3 bg-accent rounded-full border-2 border-background animate-pulse shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]" />
-              </Button>
-            </div>
-          </header>
-          <main className="p-8 md:p-12 lg:p-20 max-w-[1800px] mx-auto w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out relative pb-32" id="main-content">
+
+          <main className="p-6 md:p-8 lg:p-10 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out relative pb-20">
             {children}
           </main>
         </SidebarInset>

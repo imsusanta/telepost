@@ -17,19 +17,19 @@ export function PageHeader({
   className = "",
 }: PageHeaderProps) {
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-12 overflow-visible ${className}`}>
-      <div className="flex items-start gap-4">
+    <div className={`flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-4 overflow-visible ${className}`}>
+      <div className="flex items-end gap-3">
         {Icon && (
-          <div className="p-4 rounded-3xl bg-white dark:bg-card border border-border/40 soft-shadow-lg transition-transform duration-500 hover:scale-110 hover:rotate-3">
-            <Icon className="h-8 w-8 text-primary" />
+          <div className="p-2 rounded-xl bg-white/50 dark:bg-card/50 border border-white/20 backdrop-blur-xl soft-shadow-lg transition-all duration-500 hover:scale-110 hover:-rotate-3">
+            <Icon className="h-5 w-5 text-primary" />
           </div>
         )}
-        <div className="flex-1 space-y-1">
-          <h1 className="text-5xl font-black text-foreground tracking-tight leading-tight animate-in fade-in slide-in-from-left-4 duration-700">
+        <div className="flex-1 space-y-0">
+          <h1 className="text-2xl font-black text-foreground tracking-tight leading-none animate-in fade-in slide-in-from-left-4 duration-700">
             {title}
           </h1>
           {description && (
-            <p className="text-xl text-muted-foreground font-medium max-w-2xl animate-in fade-in slide-in-from-left-4 duration-700 delay-100">
+            <p className="text-sm text-muted-foreground font-bold max-w-2xl animate-in fade-in slide-in-from-left-4 duration-700 delay-100 uppercase tracking-wide opacity-80">
               {description}
             </p>
           )}

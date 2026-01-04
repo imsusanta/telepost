@@ -197,22 +197,23 @@
   }
 
   .sidebar-glass {
-    @apply bg-background/40 backdrop-blur-2xl border-r border-border/20;
+    @apply bg-background/30 backdrop-blur-3xl border-r border-white/5;
   }
 
   .nav-item-active {
-    @apply bg-gradient-to-r from-primary/20 to-accent/20 text-primary font-bold;
-    box-shadow: 0 0 20px rgba(var(--primary-rgb), 0.2);
+    @apply bg-gradient-to-r from-primary/15 to-accent/15 text-primary font-bold;
+    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.1);
     position: relative;
   }
 
   .nav-item-active::before {
     content: '';
-    @apply absolute left-0 w-1 h-2/3 bg-primary rounded-r-full my-auto inset-y-0;
+    @apply absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-full;
+    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.5);
   }
 
   .floating-profile-card {
-    @apply m-4 rounded-3xl bg-white/50 dark:bg-card/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98];
+    @apply m-3 rounded-2xl bg-white/5 dark:bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl transition-all duration-300 hover:bg-white/10;
   }
 
   /* Radical Visual Marker */
