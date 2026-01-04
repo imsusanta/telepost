@@ -80,19 +80,17 @@ async function fetchDashboardData() {
 export default function Dashboard() {
   const { toast } = useToast();
 
-  // Use React Query for data fetching with caching and auto-refetch
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["dashboard-data"],
     queryFn: fetchDashboardData,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchOnWindowFocus: true, // Auto-refetch when user returns to tab
+    staleTime: 30000,
+    refetchOnWindowFocus: true,
     retry: 2,
   });
 
   const profile = data?.profile;
   const stats = data?.stats;
 
-  // Handle errors with toast
   useEffect(() => {
     if (error) {
       const message = error instanceof Error ? error.message : "Failed to load dashboard data";
@@ -117,7 +115,8 @@ export default function Dashboard() {
       title: "Total Quizzes",
       value: stats?.totalQuizzes || 0,
       icon: Sparkles,
-      gradient: "from-primary to-accent",
+      color: "playful-green",
+      gradient: "from-[hsl(var(--playful-green))] to-[hsl(var(--playful-green)/0.7)]",
       description: "Quizzes created",
       trend: stats?.totalQuizzes ? "+12%" : null
     },
@@ -125,7 +124,8 @@ export default function Dashboard() {
       title: "Scheduled Posts",
       value: stats?.scheduledPosts || 0,
       icon: Calendar,
-      gradient: "from-accent to-secondary",
+      color: "playful-yellow",
+      gradient: "from-[hsl(var(--playful-yellow))] to-[hsl(var(--playful-yellow)/0.7)]",
       description: `${stats?.pendingPosts || 0} pending`,
       trend: null
     },
@@ -133,7 +133,8 @@ export default function Dashboard() {
       title: "Total Responses",
       value: stats?.totalViews || 0,
       icon: BarChart3,
-      gradient: "from-secondary to-success",
+      color: "playful-coral",
+      gradient: "from-[hsl(var(--playful-coral))] to-[hsl(var(--playful-coral)/0.7)]",
       description: "Quiz responses",
       trend: stats?.totalViews ? "+24%" : null
     },
@@ -141,7 +142,8 @@ export default function Dashboard() {
       title: "Connected Bots",
       value: stats?.connectedBots || 0,
       icon: Bot,
-      gradient: "from-success to-primary",
+      color: "primary",
+      gradient: "from-primary to-accent",
       description: `${stats?.totalChannels || 0} channels`,
       trend: null
     },
@@ -149,7 +151,8 @@ export default function Dashboard() {
       title: "Documents",
       value: stats?.totalDocuments || 0,
       icon: FileText,
-      gradient: "from-primary to-secondary",
+      color: "secondary",
+      gradient: "from-secondary to-primary",
       description: "PDFs uploaded",
       trend: null
     },
@@ -157,142 +160,111 @@ export default function Dashboard() {
       title: "Question Bank",
       value: stats?.totalQuestions || 0,
       icon: Database,
-      gradient: "from-accent to-success",
+      color: "accent",
+      gradient: "from-accent to-secondary",
       description: "Questions saved",
       trend: stats?.totalQuestions ? "+8%" : null
     }
   ], [stats]);
 
-  // Only show Quick Start Guide if user has no quizzes
   const showQuickStart = (stats?.totalQuizzes || 0) === 0;
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-start">
-          <PageHeader
-            title={`Welcome back, ${profile?.full_name || "User"}!`}
-            description="Manage your Telegram quizzes from here"
-            icon={LayoutDashboard}
-          />
+      <div className="space-y-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
+          <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-700">
+            <h1 className="text-6xl font-black text-foreground tracking-tight leading-tight">
+              Welcome back, <br />
+              <span className="text-primary italic">{profile?.full_name?.split(' ')[0] || "User"}!</span>
+            </h1>
+            <p className="text-xl text-muted-foreground font-medium max-w-lg">
+              Here's a quick look at how your Telegram quizzes are performing today.
+            </p>
+          </div>
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={handleRefresh}
             disabled={isLoading || isFetching}
-            className="gap-2 clay-button"
+            className="gap-2 rounded-2xl border-2 px-8 py-8 font-bold text-lg hover:bg-muted/50 transition-all shadow-sm group"
           >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-5 h-5 transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh Data
           </Button>
         </div>
 
-        {/* Error State */}
-        {error && !isLoading && (
-          <Alert variant="destructive" className="animate-in fade-in duration-300">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Unable to load dashboard data. Please try refreshing the page.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 overflow-visible">
           {isLoading ? (
-            // Loading Skeletons with staggered animation
             Array.from({ length: 6 }).map((_, idx) => (
-              <Card
-                key={idx}
-                className="bg-card/50 backdrop-blur-sm border-border animate-in fade-in duration-300"
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                <CardHeader className="pb-3">
-                  <Skeleton className="h-4 w-24" />
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-8 w-16" />
-                    <Skeleton className="w-12 h-12 rounded-2xl" />
-                  </div>
-                  <Skeleton className="h-3 w-20 mt-2" />
-                </CardContent>
-              </Card>
+              <div key={idx} className="h-48 rounded-4xl bg-card/50 backdrop-blur-sm border-2 border-border/40 animate-pulse" />
             ))
           ) : (
-            // Stats Cards with enhanced animations
             statsCards.map((stat, idx) => (
-              <Card
+              <div
                 key={idx}
-                className="group clay-card-hover bg-card/50 backdrop-blur-sm border-border transition-all duration-300 hover:scale-[1.02] hover:shadow-xl animate-in fade-in duration-300"
-                style={{ animationDelay: `${idx * 50}ms` }}
+                className={`group relative overflow-hidden rounded-4xl p-8 transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-700 hover:z-10 bg-white dark:bg-card border border-border/40 soft-shadow-lg`}
+                style={{ animationDelay: `${idx * 100}ms` }}
               >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center justify-between">
-                    {stat.title}
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">{stat.title}</p>
+                      <div className="text-5xl font-black text-foreground">
+                        <AnimatedCounter value={stat.value} />
+                      </div>
+                    </div>
+                    <div className={`w-16 h-16 bg-gradient-to-br ${stat.gradient} rounded-3xl flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
+                      <stat.icon className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-border/10">
+                    <p className="text-base font-bold text-muted-foreground">{stat.description}</p>
                     {stat.trend && (
-                      <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 font-normal">
+                      <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-xs font-black flex items-center gap-1">
                         <TrendingUp className="w-3 h-3" />
                         {stat.trend}
                       </span>
                     )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="text-3xl font-bold text-foreground">
-                      {isLoading ? "0" : <AnimatedCounter value={stat.value} />}
-                    </div>
-                    <div className={`w-12 h-12 bg-gradient-to-br ${stat.gradient} rounded-2xl flex items-center justify-center shadow-clay transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">{stat.description}</p>
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Decorative background circle */}
+                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.03] transition-all duration-700 group-hover:scale-150 ${stat.color === 'playful-green' ? 'bg-[hsl(var(--playful-green))]' :
+                    stat.color === 'playful-yellow' ? 'bg-[hsl(var(--playful-yellow))]' :
+                      stat.color === 'playful-coral' ? 'bg-[hsl(var(--playful-coral))]' : 'bg-primary'
+                  }`} />
+              </div>
             ))
           )}
         </div>
 
-        {/* Quick Start Guide - Only show if no quizzes */}
+        {/* Quick Start Guide */}
         {showQuickStart && !isLoading && (
-          <Card className="clay-card bg-card/50 backdrop-blur-sm border-border animate-in fade-in duration-500">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-foreground">Quick Start Guide</CardTitle>
-              <CardDescription className="text-muted-foreground">Get started with creating your first quiz</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm rounded-xl transition-all duration-300 hover:bg-muted/30 hover:scale-[1.01]">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
-                  <span className="text-white font-bold text-lg">1</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-foreground mb-1.5">Connect Your Telegram Bot</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Link your Telegram bot to start posting quizzes to your channel</p>
-                </div>
-              </div>
+          <div className="bg-white dark:bg-card rounded-5xl p-10 border border-border/40 soft-shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+            <div className="mb-10 text-center max-w-2xl mx-auto space-y-2">
+              <h2 className="text-4xl font-black text-foreground tracking-tight">Get Started in 3 Steps</h2>
+              <p className="text-xl text-muted-foreground font-medium">Follow these simple steps to launch your first AI-powered quiz.</p>
+            </div>
 
-              <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm rounded-xl transition-all duration-300 hover:bg-muted/30 hover:scale-[1.01]">
-                <div className="w-10 h-10 bg-gradient-to-br from-accent to-secondary rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
-                  <span className="text-white font-bold text-lg">2</span>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                { step: 1, title: "Connect Bot", desc: "Link your Telegram bot to start posting quizzes to your channel", gradient: "from-primary to-accent" },
+                { step: 2, title: "Create Quiz", desc: "Use AI to generate engaging quiz questions in seconds", gradient: "from-accent to-secondary" },
+                { step: 3, title: "Schedule", desc: "Set up daily quiz posts to keep your audience engaged", gradient: "from-secondary to-success" }
+              ].map((item, i) => (
+                <div key={i} className="group p-8 rounded-4xl bg-[hsl(var(--playful-background))] dark:bg-muted/10 border border-border/40 transition-all duration-500 hover:scale-[1.02]">
+                  <div className={`w-14 h-14 bg-gradient-to-br ${item.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+                    <span className="text-white font-black text-2xl">{item.step}</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-foreground mb-3">{item.title}</h3>
+                  <p className="text-muted-foreground font-medium text-lg leading-relaxed">{item.desc}</p>
                 </div>
-                <div>
-                  <h3 className="font-bold text-foreground mb-1.5">Create Your First Quiz</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Use AI to generate engaging quiz questions in seconds</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4 p-5 clay-card-hover bg-muted/20 backdrop-blur-sm rounded-xl transition-all duration-300 hover:bg-muted/30 hover:scale-[1.01]">
-                <div className="w-10 h-10 bg-gradient-to-br from-secondary to-success rounded-2xl flex items-center justify-center flex-shrink-0 shadow-clay">
-                  <span className="text-white font-bold text-lg">3</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-foreground mb-1.5">Schedule Automatic Posts</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">Set up daily quiz posts to keep your audience engaged</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

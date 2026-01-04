@@ -123,6 +123,21 @@
     --sidebar-border: 240 10% 15%;
     --sidebar-ring: 265 100% 65%;
   }
+
+  /* Playful Theme Tokens */
+  :root {
+    --playful-green: 75 64% 51%;
+    --playful-green-foreground: 0 0% 100%;
+    --playful-yellow: 44 100% 63%;
+    --playful-yellow-foreground: 0 0% 100%;
+    --playful-coral: 13 100% 67%;
+    --playful-coral-foreground: 0 0% 100%;
+    --playful-background: 195 40% 98%;
+  }
+
+  .dark {
+    --playful-background: 240 10% 4%;
+  }
 }
 
 @layer base {
@@ -417,6 +432,46 @@
 
   .dark .bg-hero-glow {
     background: radial-gradient(ellipse 50% 80% at 50% 0%, hsl(var(--primary) / 0.15), transparent);
+  }
+
+  /* Playful Decorators */
+  .rounded-3xl-plus {
+    border-radius: 2rem;
+  }
+  
+  .rounded-4xl {
+    border-radius: 2.5rem;
+  }
+
+  .soft-shadow-lg {
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  }
+
+  .status-card-green {
+    background-color: hsl(var(--playful-green));
+    color: hsl(var(--playful-green-foreground));
+  }
+
+  .status-card-yellow {
+    background-color: hsl(var(--playful-yellow));
+    color: hsl(var(--playful-yellow-foreground));
+  }
+
+  .status-card-coral {
+    background-color: hsl(var(--playful-coral));
+    color: hsl(var(--playful-coral-foreground));
+  }
+
+  .row-green {
+    background-color: hsla(75, 64%, 51%, 0.1);
+  }
+
+  .row-yellow {
+    background-color: hsla(44, 100%, 63%, 0.1);
+  }
+
+  .row-coral {
+    background-color: hsla(13, 100%, 67%, 0.1);
   }
 }
 

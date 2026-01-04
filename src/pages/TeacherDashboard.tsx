@@ -1,21 +1,20 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { 
-  BookOpen, 
-  Users, 
-  Calendar, 
-  FileText, 
-  Clock
+import {
+  Users,
+  ChevronDown,
+  Info,
+  Grid
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/LoadingState";
-import { Link } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DashboardStats } from "@/components/DashboardStats";
+import { StatusDistribution } from "@/components/StatusDistribution";
 
 export default function TeacherDashboard() {
   const [selectedTab, setSelectedTab] = useState("overview");
@@ -28,7 +27,7 @@ export default function TeacherDashboard() {
     },
   });
 
-  const { data: myCourses, isLoading: coursesLoading } = useQuery({
+  const { isLoading: coursesLoading } = useQuery({
     queryKey: ['teacher-courses', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -42,57 +41,12 @@ export default function TeacherDashboard() {
     enabled: !!user?.id,
   });
 
-  const { data: myBatches } = useQuery({
-    queryKey: ['teacher-batches', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('batches')
-        .select('*, enrollments(count)')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: upcomingClasses } = useQuery({
-    queryKey: ['upcoming-classes', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('live_classes')
-        .select('*, batch:batches(name), course:courses(title)')
-        .eq('created_by', user.id)
-        .gte('scheduled_at', new Date().toISOString())
-        .order('scheduled_at')
-        .limit(5);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: recentTests } = useQuery({
-    queryKey: ['recent-tests', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('tests')
-        .select('*, test_questions(count)')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const stats = {
-    totalCourses: myCourses?.length || 0,
-    totalBatches: myBatches?.length || 0,
-    totalStudents: myBatches?.reduce((sum, b) => sum + (b.enrollments?.[0]?.count || 0), 0) || 0,
-    upcomingClasses: upcomingClasses?.length || 0,
-  };
+  // Mock data for students to match the UI inspiration
+  const mockStudents = [
+    { id: "1", name: "Sabine Klein", workCompleted: 33, totalWork: 36, averageScore: 23, needingAttention: 45, workingTowards: 8, mastered: 7, status: "coral" },
+    { id: "2", name: "Dante Podenzana", workCompleted: 31, totalWork: 36, averageScore: 53, needingAttention: 6, workingTowards: 35, mastered: 19, status: "yellow" },
+    { id: "3", name: "Susan Chan", workCompleted: 27, totalWork: 36, averageScore: 82, needingAttention: 1, workingTowards: 14, mastered: 45, status: "green" },
+  ];
 
   if (coursesLoading) {
     return (
@@ -104,261 +58,180 @@ export default function TeacherDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-          <p className="text-muted-foreground">Manage your courses, students, and content</p>
-        </div>
+      <div className="space-y-10 pb-20">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+          <div className="flex items-center gap-6">
+            <h1 className="text-5xl font-black text-foreground tracking-tight">Dashboard</h1>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">My Courses</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCourses}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">My Batches</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBatches}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalStudents}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming Classes</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.upcomingClasses}</div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="hidden lg:flex items-center gap-4">
+              <Button variant="outline" className="rounded-2xl border-2 px-4 py-6 gap-2 font-bold text-lg hover:bg-muted/50 transition-all">
+                <Users className="w-5 h-5" />
+                Class A
+                <ChevronDown className="w-5 h-5 opacity-50" />
+              </Button>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link to="/dashboard/courses"><BookOpen className="w-4 h-4 mr-2" /> Create Course</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/dashboard/batches"><Users className="w-4 h-4 mr-2" /> Create Batch</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/dashboard/tests"><FileText className="w-4 h-4 mr-2" /> Create Test</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/dashboard/live-classes"><Calendar className="w-4 h-4 mr-2" /> Schedule Class</Link>
-          </Button>
+              <div className="flex -space-x-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Avatar key={i} className="w-12 h-12 border-4 border-background shadow-md">
+                    <AvatarImage src={`https://i.pravatar.cc/150?u=${i}`} />
+                    <AvatarFallback>ST</AvatarFallback>
+                  </Avatar>
+                ))}
+                <div className="w-12 h-12 rounded-full bg-muted border-4 border-background flex items-center justify-center text-sm font-bold shadow-md">
+                  +8
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="bg-white dark:bg-card px-6 py-4 rounded-2xl flex items-center gap-4 shadow-sm border border-border/40">
+              <span className="flex items-center gap-2 font-bold text-muted-foreground mr-2">
+                <span className="w-3 h-3 bg-primary rounded-full animate-pulse" />
+                Alerts
+              </span>
+              <div className="flex gap-2">
+                <Badge className="bg-muted text-foreground font-bold px-2 rounded-lg">6</Badge>
+                <Badge className="bg-destructive text-destructive-foreground font-bold px-2 rounded-lg">3</Badge>
+              </div>
+              <Button variant="ghost" size="icon" className="ml-2">
+                <Grid className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="courses">My Courses</TabsTrigger>
-            <TabsTrigger value="batches">My Batches</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsList className="bg-transparent h-auto p-0 gap-8 mb-8 border-b-2 border-border/20 w-full justify-start rounded-none">
+            {["overview", "prepare", "teach", "assess", "monitor"].map((tab) => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:border-foreground border-b-4 border-transparent rounded-none px-4 py-4 text-xl font-bold text-muted-foreground transition-all hover:text-foreground/70"
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Upcoming Classes */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" /> Upcoming Classes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {upcomingClasses?.length ? (
-                    <div className="space-y-3">
-                      {upcomingClasses.map((cls: Record<string, unknown>) => (
-                        <div key={cls.id as string} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{cls.title as string}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {(cls.batch as { name: string })?.name || (cls.course as { title: string })?.title}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <Badge variant="outline">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {new Date(cls.scheduled_at as string).toLocaleDateString()}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-4">No upcoming classes</p>
-                  )}
-                </CardContent>
-              </Card>
+          <TabsContent value="overview" className="space-y-10 mt-6 outline-none">
+            {/* Hero Stats */}
+            <DashboardStats
+              overallScore={68}
+              gradeAverage={71}
+              workAssigned={36}
+              workAssignedAverage={38}
+            />
 
-              {/* Recent Tests */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" /> Recent Tests
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {recentTests?.length ? (
-                    <div className="space-y-3">
-                      {recentTests.map((test: Record<string, unknown>) => (
-                        <div key={test.id as string} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{test.title as string}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {(test.test_questions as { count: number }[])?.[0]?.count || 0} questions
-                            </p>
-                          </div>
-                          <Badge variant={test.is_published ? "default" : "secondary"}>
-                            {test.is_published ? "Published" : "Draft"}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-4">No tests created</p>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Status Distribution Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <StatusDistribution
+                count={5}
+                percentage={20}
+                gradeAvg={23}
+                status="green"
+                students={mockStudents.map(s => ({ name: s.name }))}
+              />
+              <StatusDistribution
+                count={10}
+                percentage={40}
+                gradeAvg={50}
+                status="yellow"
+                students={mockStudents.map(s => ({ name: s.name }))}
+              />
+              <StatusDistribution
+                count={5}
+                percentage={20}
+                gradeAvg={15}
+                status="coral"
+                students={mockStudents.map(s => ({ name: s.name }))}
+              />
             </div>
-          </TabsContent>
 
-          <TabsContent value="courses">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {myCourses?.map((course: Record<string, unknown>) => (
-                <Card key={course.id as string}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{course.title as string}</CardTitle>
-                    <CardDescription>{course.category as string || "General"}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Chapters</span>
-                        <span>{(course.chapters as { count: number }[])?.[0]?.count || 0}</span>
+            {/* Students Proficiency Section */}
+            <div className="space-y-6 pt-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-black text-foreground">Students Proficiency</h2>
+                <div className="flex items-center gap-6 text-sm font-bold text-muted-foreground">
+                  <span className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors">
+                    <Info className="w-4 h-4" /> Learning Objectives
+                  </span>
+                  <span className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors underline underline-offset-4 decoration-2">
+                    All Strands
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-card rounded-5xl soft-shadow-lg border border-border/40 overflow-hidden">
+                <div className="grid grid-cols-[2fr,1fr,2fr,1fr,1fr,1fr] px-8 py-6 text-xs font-black text-muted-foreground uppercase tracking-widest border-b border-border/20">
+                  <div>Full Name</div>
+                  <div className="text-center">Work Completed</div>
+                  <div className="text-center">Average Score</div>
+                  <div className="text-center">Needing Attention</div>
+                  <div className="text-center">Working Towards</div>
+                  <div className="text-center">Mastered</div>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {mockStudents.map((student) => (
+                    <div
+                      key={student.id}
+                      className={`grid grid-cols-[2fr,1fr,2fr,1fr,1fr,1fr] items-center px-6 py-6 rounded-4xl transition-all duration-300 hover:scale-[1.01] shadow-sm ${student.status === "green" ? "row-green" :
+                          student.status === "yellow" ? "row-yellow" :
+                            "row-coral"
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-12 h-12 border-2 border-white/50">
+                          <AvatarImage src={`https://i.pravatar.cc/150?u=${student.id}`} />
+                          <AvatarFallback>{student.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-lg font-bold text-foreground">{student.name}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Enrollments</span>
-                        <span>{(course.enrollments as { count: number }[])?.[0]?.count || 0}</span>
+
+                      <div className="text-center text-lg font-bold text-muted-foreground">
+                        {student.workCompleted} / {student.totalWork}
                       </div>
-                      <Badge variant={course.is_published ? "default" : "secondary"} className="mt-2">
-                        {course.is_published ? "Published" : "Draft"}
-                      </Badge>
+
+                      <div className="px-8">
+                        <div className="relative h-12 bg-white dark:bg-background/20 rounded-xl overflow-hidden shadow-inner flex items-center">
+                          <div
+                            className={`h-full opacity-80 ${student.status === "green" ? "bg-[hsl(var(--playful-green))]" :
+                                student.status === "yellow" ? "bg-[hsl(var(--playful-yellow))]" :
+                                  "bg-[hsl(var(--playful-coral))]"
+                              }`}
+                            style={{ width: `${student.averageScore}%` }}
+                          />
+                          <span className="absolute left-4 text-xl font-black text-foreground">{student.averageScore}%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/40 dark:bg-background/40">
+                          <div className={`w-3 h-3 rounded-full ${student.needingAttention > 10 ? 'bg-destructive animate-pulse' : 'bg-destructive/30'}`} />
+                          <span className="ml-1 text-lg font-bold">{student.needingAttention}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/40 dark:bg-background/40">
+                          <div className="w-3 h-3 rounded-full bg-playful-yellow" />
+                          <span className="ml-1 text-lg font-bold">{student.workingTowards}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/40 dark:bg-background/40">
+                          <div className="w-3 h-3 rounded-full bg-playful-green" />
+                          <span className="ml-1 text-lg font-bold">{student.mastered}</span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {(!myCourses || myCourses.length === 0) && (
-                <Card className="col-span-full">
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    No courses created yet. <Link to="/dashboard/courses" className="text-primary underline">Create your first course</Link>
-                  </CardContent>
-                </Card>
-              )}
+                  ))}
+                </div>
+              </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="batches">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {myBatches?.map((batch: Record<string, unknown>) => (
-                <Card key={batch.id as string}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{batch.name as string}</CardTitle>
-                    <CardDescription>{batch.timing as string || "No timing set"}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Students</span>
-                        <span>
-                          {(() => {
-                            const enrollments = batch.enrollments as unknown as { count: number }[] | null;
-                            const count = enrollments?.[0]?.count ?? 0;
-                            const capacity = batch.capacity as number | null;
-                            return `${count} / ${capacity ?? '∞'}`;
-                          })()}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={batch.capacity ? (((batch.enrollments as unknown as { count: number }[])?.[0]?.count ?? 0) / (batch.capacity as number) * 100) : 0}
-                        className="h-2"
-                      />
-                      <Badge variant={batch.status === 'active' ? "default" : "secondary"} className="mt-2">
-                        {batch.status as string}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {(!myBatches || myBatches.length === 0) && (
-                <Card className="col-span-full">
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    No batches created yet. <Link to="/dashboard/batches" className="text-primary underline">Create your first batch</Link>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="schedule">
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Schedule</CardTitle>
-                <CardDescription>Your upcoming classes and sessions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {upcomingClasses?.length ? (
-                  <div className="space-y-4">
-                    {upcomingClasses.map((cls: Record<string, unknown>) => (
-                      <div key={cls.id as string} className="flex items-center gap-4 p-4 border rounded-lg">
-                        <div className="flex-shrink-0 w-16 h-16 bg-primary/10 rounded-lg flex flex-col items-center justify-center">
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(cls.scheduled_at as string).toLocaleDateString('en-US', { weekday: 'short' })}
-                          </span>
-                          <span className="text-xl font-bold">
-                            {new Date(cls.scheduled_at as string).getDate()}
-                          </span>
-                        </div>
-                        <div className="flex-grow">
-                          <p className="font-medium">{cls.title as string}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {(cls.batch as { name: string })?.name} • {cls.duration_minutes as number} mins
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">
-                            {new Date(cls.scheduled_at as string).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          <Badge variant="outline">{(cls.platform as string) || "Online"}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No upcoming classes scheduled
-                  </p>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>

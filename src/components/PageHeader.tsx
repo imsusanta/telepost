@@ -17,26 +17,26 @@ export function PageHeader({
   className = "",
 }: PageHeaderProps) {
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 ${className}`}>
-      <div className="flex items-start gap-3">
+    <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-12 overflow-visible ${className}`}>
+      <div className="flex items-start gap-4">
         {Icon && (
-          <div className="p-3 clay-card bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl shadow-clay">
-            <Icon className="h-7 w-7 text-primary" />
+          <div className="p-4 rounded-3xl bg-white dark:bg-card border border-border/40 soft-shadow-lg transition-transform duration-500 hover:scale-110 hover:rotate-3">
+            <Icon className="h-8 w-8 text-primary" />
           </div>
         )}
-        <div className="flex-1">
-          <h1 className="text-4xl font-bold text-gradient bg-gradient-to-r from-primary via-accent to-secondary mb-2 animate-slide-up">
+        <div className="flex-1 space-y-1">
+          <h1 className="text-5xl font-black text-foreground tracking-tight leading-tight animate-in fade-in slide-in-from-left-4 duration-700">
             {title}
           </h1>
           {description && (
-            <p className="text-muted-foreground text-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
+            <p className="text-xl text-muted-foreground font-medium max-w-2xl animate-in fade-in slide-in-from-left-4 duration-700 delay-100">
               {description}
             </p>
           )}
         </div>
       </div>
       {action && (
-        <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
+        <div className="animate-in fade-in slide-in-from-right-4 duration-700 delay-200">
           {action}
         </div>
       )}
