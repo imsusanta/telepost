@@ -252,8 +252,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           isActive={isActive}
                           tooltip={item.label}
                           className={`transition-all duration-200 ${isActive
-                              ? "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                              : "hover:bg-sidebar-accent/50"
+                            ? "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                            : "hover:bg-sidebar-accent/50"
                             }`}
                         >
                           <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -292,8 +292,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           isActive={isActive}
                           tooltip={item.label}
                           className={`transition-all duration-200 ${isActive
-                              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                              : "hover:bg-sidebar-accent/50"
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                            : "hover:bg-sidebar-accent/50"
                             }`}
                         >
                           <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -332,8 +332,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           isActive={isActive}
                           tooltip={item.label}
                           className={`transition-all duration-200 ${isActive
-                              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                              : "hover:bg-sidebar-accent/50"
+                            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                            : "hover:bg-sidebar-accent/50"
                             }`}
                         >
                           <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -372,8 +372,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           isActive={isActive}
                           tooltip={item.label}
                           className={`transition-all duration-200 ${isActive
-                              ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                              : "hover:bg-sidebar-accent/50"
+                            ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                            : "hover:bg-sidebar-accent/50"
                             }`}
                         >
                           <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -411,8 +411,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           isActive={isActive}
                           tooltip={item.label}
                           className={`transition-all duration-200 ${isActive
-                              ? "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                              : "hover:bg-sidebar-accent/50"
+                            ? "bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                            : "hover:bg-sidebar-accent/50"
                             }`}
                         >
                           <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -452,8 +452,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                               isActive={isActive}
                               tooltip={item.label}
                               className={`transition-all duration-200 ${isActive
-                                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
-                                  : "hover:bg-sidebar-accent/50"
+                                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold shadow-md hover:shadow-lg scale-[1.02]"
+                                : "hover:bg-sidebar-accent/50"
                                 }`}
                             >
                               <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5">
@@ -548,20 +548,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </Sidebar>
 
         {/* Main Content */}
-        <SidebarInset className="flex-1 bg-[hsl(var(--playful-background))] dark:bg-background/95 transition-colors duration-500">
+        <SidebarInset className="flex-1 bg-background transition-colors duration-500">
           <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center gap-4 border-b border-border/40 bg-background/80 backdrop-blur-xl px-8 transition-all">
-            <SidebarTrigger className="clay-button rounded-xl" />
+            <SidebarTrigger className="clay-button rounded-2xl" />
             <div className="flex-1">
               <Breadcrumb />
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="rounded-full relative">
+              <Button variant="ghost" size="icon" className="rounded-full relative hover:bg-primary/10 transition-colors duration-300">
                 <Bell className="w-5 h-5 text-muted-foreground" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background" />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-background animate-pulse" />
               </Button>
             </div>
           </header>
-          <main className="p-8 md:p-12 lg:p-16 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out" id="main-content">
+          <main className="p-8 md:p-12 lg:p-16 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out" id="main-content">
             {children}
           </main>
         </SidebarInset>

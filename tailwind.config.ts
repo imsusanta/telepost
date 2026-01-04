@@ -44,6 +44,10 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        "playful-green": "hsl(var(--playful-green))",
+        "playful-yellow": "hsl(var(--playful-yellow))",
+        "playful-coral": "hsl(var(--playful-coral))",
+        "playful-background": "hsl(var(--playful-background))",
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
@@ -81,7 +85,8 @@ export default {
         xl: "1rem",
         "2xl": "1.25rem",
         "3xl": "1.5rem",
-        "4xl": "2rem",
+        "4xl": "2.5rem",
+        "5xl": "3.5rem",
       },
       boxShadow: {
         'glow-sm': '0 0 20px -5px hsl(var(--primary) / 0.3)',

@@ -232,9 +232,9 @@ export default function Dashboard() {
                 </div>
 
                 {/* Decorative background circle */}
-                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.03] transition-all duration-700 group-hover:scale-150 ${stat.color === 'playful-green' ? 'bg-[hsl(var(--playful-green))]' :
-                    stat.color === 'playful-yellow' ? 'bg-[hsl(var(--playful-yellow))]' :
-                      stat.color === 'playful-coral' ? 'bg-[hsl(var(--playful-coral))]' : 'bg-primary'
+                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.03] transition-all duration-700 group-hover:scale-150 ${stat.color === 'playful-green' ? 'bg-playful-green' :
+                    stat.color === 'playful-yellow' ? 'bg-playful-yellow' :
+                      stat.color === 'playful-coral' ? 'bg-playful-coral' : 'bg-primary'
                   }`} />
               </div>
             ))
