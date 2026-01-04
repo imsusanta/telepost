@@ -3,7 +3,6 @@ import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Tren
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -172,14 +171,17 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="space-y-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
-          <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-700">
-            <h1 className="text-6xl font-black text-foreground tracking-tight leading-tight">
-              Welcome back, <br />
-              <span className="text-primary italic">{profile?.full_name?.split(' ')[0] || "User"}!</span>
-            </h1>
-            <p className="text-xl text-muted-foreground font-medium max-w-lg">
-              Here's a quick look at how your Telegram quizzes are performing today.
-            </p>
+          <div className="flex items-center gap-6 animate-in fade-in slide-in-from-left-4 duration-700">
+            <div className="space-y-2">
+              <h1 className="text-6xl font-black text-foreground tracking-tight leading-tight">
+                Welcome back, <br />
+                <span className="text-primary italic">{profile?.full_name?.split(' ')[0] || "User"}!</span>
+              </h1>
+              <p className="text-xl text-muted-foreground font-medium max-w-lg">
+                Here's a quick look at how your Telegram quizzes are performing today.
+              </p>
+            </div>
+            <div className="wow-badge">Premium v2.0 Active</div>
           </div>
           <Button
             variant="outline"
