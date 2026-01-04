@@ -343,22 +343,28 @@ ADDITIONAL RULES:
     });
 
     if (!response.ok) {
+      const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
+      const rateLimitReset = response.headers.get("x-ratelimit-reset");
+      console.error(`OpenRouter error: status=${response.status}, rateLimit remaining=${rateLimitRemaining}, reset=${rateLimitReset}`);
+      
       if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after") || "30";
+        console.error(`Rate limited. Retry after: ${retryAfter}s`);
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          JSON.stringify({ error: `Rate limit exceeded. Please wait ${retryAfter} seconds and try again.` }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "OpenRouter quota exceeded. Please check your billing." }),
+          JSON.stringify({ error: "AI quota exceeded. Please contact admin to check billing." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
-      console.error("OpenRouter error:", response.status, errorText);
+      console.error("OpenRouter error body:", errorText);
       return new Response(
-        JSON.stringify({ error: "Failed to generate quiz" }),
+        JSON.stringify({ error: "Failed to generate quiz. The AI service is temporarily unavailable." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
