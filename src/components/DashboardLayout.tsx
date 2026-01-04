@@ -191,30 +191,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return profile?.email?.slice(0, 2).toUpperCase() || 'U';
   };
 
-  const renderMenuItems = (items: typeof telegramMenuItems) => {
-    return items.map((item) => {
-      const Icon = item.icon;
-      const isActive = location.pathname === item.path;
-      return (
-        <SidebarMenuItem key={item.path}>
-          <SidebarMenuButton
-            asChild
-            isActive={isActive}
-            tooltip={item.label}
-            className={`transition-all duration-300 rounded-xl h-10 mb-0.5 ${isActive
-              ? "nav-item-active"
-              : "hover:bg-primary/5 hover:translate-x-1"
-              }`}
-          >
-            <Link to={item.path} className="flex items-center gap-3 px-3">
-              <Icon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'scale-110 text-primary' : 'group-hover:scale-110'}`} />
-              <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-semibold text-muted-foreground/80'}`}>{item.label}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      );
-    });
-  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -563,15 +539,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Main Content */}
         <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 overflow-hidden flex flex-col">
-          {/* Header removed as per user request. SidebarTrigger is now floating. */}
-          <div className="fixed top-6 left-6 z-[60] flex items-center gap-4">
-            <SidebarTrigger className="clay-button rounded-2xl w-12 h-12 p-0 flex items-center justify-center shadow-2xl backdrop-blur-xl border-white/20" />
-            <div className="hidden md:block glass-card px-4 py-2 rounded-2xl shadow-xl border-white/10">
-              <Breadcrumb />
-            </div>
-          </div>
-
           <main className="p-8 md:p-12 lg:p-16 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out flex-1" id="main-content">
+            {/* Minimal Header Controls - Integrated into Page Flow */}
+            <div className="flex items-center gap-6 mb-12 animate-in fade-in slide-in-from-left-4 duration-700">
+              <SidebarTrigger className="clay-button rounded-2xl w-12 h-12 p-0 flex items-center justify-center shadow-xl" />
+              <div className="flex-1">
+                <Breadcrumb />
+              </div>
+            </div>
             {children}
           </main>
         </SidebarInset>
