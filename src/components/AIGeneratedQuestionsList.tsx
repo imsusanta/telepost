@@ -65,7 +65,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded }: AIGeneratedQuesti
         source: "ai_generated",
         is_public: false,
         is_active: true,
-        user_id: user.id,
       });
 
       // Remove from temporary storage
@@ -127,7 +126,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded }: AIGeneratedQuesti
           source: "ai_generated",
           is_public: false,
           is_active: true,
-          user_id: user.id,
         })
       );
 

@@ -134,7 +134,6 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
         source: "manual",
         is_public: isPublic,
         is_active: true,
-        user_id: user.id,
       });
 
       toast({

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, Copy } from "lucide-react";
+import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -271,38 +271,6 @@ export default function QuestionBank() {
     setIsEditDialogOpen(true);
   };
 
-  // Duplicate question
-  const handleDuplicate = async (question: QuestionBankItem) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await QuestionBankService.addQuestion(user.id, {
-        question: question.question + " (Copy)",
-        options: question.options,
-        correct_option_index: question.correct_option_index,
-        topic: question.topic,
-        difficulty: question.difficulty,
-        language: question.language,
-        explanation: question.explanation,
-        source: question.source,
-        is_active: question.is_active,
-        is_public: question.is_public,
-      });
-
-      toast({
-        title: "Question Duplicated",
-        description: "A copy of the question has been created.",
-      });
-      handleRefresh();
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to duplicate question",
-        variant: "destructive",
-      });
-    }
-  };
 
 
   // Filter questions by search query

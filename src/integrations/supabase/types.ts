@@ -1560,6 +1560,8 @@ export type Database = {
       question_banks: {
         Row: {
           channel_id: string | null
+          classification_confidence: number | null
+          classification_source: string | null
           correct_option_index: number
           created_at: string
           difficulty: string
@@ -1571,6 +1573,7 @@ export type Database = {
           options: Json
           question: string
           source: string | null
+          subject: string | null
           success_rate: number | null
           tags: Json | null
           times_correct: number | null
@@ -1583,6 +1586,8 @@ export type Database = {
         }
         Insert: {
           channel_id?: string | null
+          classification_confidence?: number | null
+          classification_source?: string | null
           correct_option_index: number
           created_at?: string
           difficulty: string
@@ -1594,6 +1599,7 @@ export type Database = {
           options: Json
           question: string
           source?: string | null
+          subject?: string | null
           success_rate?: number | null
           tags?: Json | null
           times_correct?: number | null
@@ -1606,6 +1612,8 @@ export type Database = {
         }
         Update: {
           channel_id?: string | null
+          classification_confidence?: number | null
+          classification_source?: string | null
           correct_option_index?: number
           created_at?: string
           difficulty?: string
@@ -1617,6 +1625,7 @@ export type Database = {
           options?: Json
           question?: string
           source?: string | null
+          subject?: string | null
           success_rate?: number | null
           tags?: Json | null
           times_correct?: number | null
