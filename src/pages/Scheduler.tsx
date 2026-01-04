@@ -1,6 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { AlertCircle, Calendar, CheckCircle2, Clock, RefreshCw, RotateCcw, Trash2, XCircle } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -66,67 +65,52 @@ export default function Scheduler() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-start">
+      <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex justify-between items-center bg-white/5 p-6 rounded-3xl backdrop-blur-sm border border-white/10">
           <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">Quiz Scheduler</h1>
-            <p className="text-muted-foreground">View and manage scheduled quiz posts to your Telegram channel</p>
+            <h2 className="text-2xl font-black text-foreground tracking-tight">Post Statistics</h2>
+            <p className="text-muted-foreground font-medium">Overview of your scheduled quiz performance</p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2 clay-button">
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="outline" size="lg" onClick={handleRefresh} className="gap-2 clay-button shadow-clay-lg hover:shadow-glow-primary transition-all duration-300">
+            <RefreshCw className="w-5 h-5" />
             Refresh
           </Button>
         </div>
 
         {/* Statistics Cards */}
         {statistics && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Total Posts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{statistics.total}</div>
-              </CardContent>
-            </Card>
-            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Pending</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{statistics.pending}</div>
-              </CardContent>
-            </Card>
-            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Sent</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-success">{statistics.sent}</div>
-              </CardContent>
-            </Card>
-            <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Failed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-destructive">{statistics.failed}</div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="clay-card-hover p-6 flex flex-col justify-between h-32">
+              <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Total Posts</span>
+              <div className="text-4xl font-black text-foreground">{statistics.total}</div>
+            </div>
+            <div className="clay-card-hover p-6 flex flex-col justify-between h-32">
+              <span className="text-xs font-black text-yellow-500/80 uppercase tracking-widest">Pending</span>
+              <div className="text-4xl font-black text-yellow-500">{statistics.pending}</div>
+            </div>
+            <div className="clay-card-hover p-6 flex flex-col justify-between h-32">
+              <span className="text-xs font-black text-emerald-500/80 uppercase tracking-widest">Sent</span>
+              <div className="text-4xl font-black text-emerald-500">{statistics.sent}</div>
+            </div>
+            <div className="clay-card-hover p-6 flex flex-col justify-between h-32">
+              <span className="text-xs font-black text-destructive/80 uppercase tracking-widest">Failed</span>
+              <div className="text-4xl font-black text-destructive">{statistics.failed}</div>
+            </div>
           </div>
         )}
 
-        <Card className="clay-card bg-card/50 backdrop-blur-sm border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <span>Scheduled Posts</span>
-            </CardTitle>
-            <CardDescription>
-              All your scheduled quiz posts and their status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="clay-card p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black text-foreground flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-primary" />
+                Scheduled Posts
+              </h3>
+              <p className="text-muted-foreground font-medium">All your scheduled quiz posts and their status</p>
+            </div>
+          </div>
+
+          <div>
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">Loading scheduled posts...</div>
             ) : scheduledPosts.length === 0 ? (
@@ -196,8 +180,8 @@ export default function Scheduler() {
                 </Table>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Plus, 
-  Search, 
-  Users, 
-  Calendar, 
+import {
+  Plus,
+  Search,
+  Users,
+  Calendar,
   Clock,
   MoreVertical,
   Edit2,
@@ -162,23 +162,22 @@ export default function Batches() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white/5 p-8 rounded-4xl backdrop-blur-sm border border-white/10 shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-              Batches
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage student batches and schedules
+            <h2 className="text-4xl font-black text-foreground tracking-tight leading-tight">
+              Course <span className="text-emerald-500">Batches</span>
+            </h2>
+            <p className="text-xl text-muted-foreground font-medium mt-1">
+              Manage student batches and schedules with precision
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setIsCreateDialogOpen(true)}
-            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-14 rounded-2xl px-8 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Batch
+            <Plus className="w-6 h-6 mr-2" />
+            Create New Batch
           </Button>
         </div>
 
@@ -221,70 +220,78 @@ export default function Batches() {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredBatches.map((batch) => (
-              <Card key={batch.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-emerald-500">
-                <CardHeader className="pb-3">
+              <div key={batch.id} className="clay-card-hover group p-8 flex flex-col justify-between min-h-[280px]">
+                <div className="space-y-4">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{batch.name}</CardTitle>
-                      <Badge variant="outline" className={getStatusColor(batch.status)}>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black tracking-tight group-hover:text-emerald-500 transition-colors">{batch.name}</h3>
+                      <Badge variant="outline" className={`${getStatusColor(batch.status)} font-bold px-3 py-1 rounded-full`}>
                         {batch.status || "upcoming"}
                       </Badge>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="shadow-none hover:bg-muted/50 rounded-xl">
+                          <MoreVertical className="w-5 h-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                      <DropdownMenuContent align="end" className="clay-card">
+                        <DropdownMenuItem className="p-3">
                           <Edit2 className="w-4 h-4 mr-2" />
-                          Edit
+                          Edit Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem className="p-3">
                           <UserPlus className="w-4 h-4 mr-2" />
-                          Add Students
+                          Assign Students
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
+                        <DropdownMenuItem
+                          className="text-destructive p-3 focus:text-destructive"
                           onClick={() => handleDeleteBatch(batch.id)}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
+                          Remove Batch
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
+
                   {batch.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-lg text-muted-foreground font-medium line-clamp-2">
                       {batch.description}
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="w-4 h-4" />
+                </div>
+
+                <div className="space-y-4 mt-8 pt-6 border-t border-border/10">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2 text-muted-foreground font-bold">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                        <Users className="w-4 h-4" />
+                      </div>
                       <span>{batch.current_strength || 0}/{batch.capacity || 30}</span>
                     </div>
                     {batch.timing && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
+                      <div className="flex items-center gap-2 text-muted-foreground font-bold">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                          <Clock className="w-4 h-4" />
+                        </div>
                         <span>{batch.timing}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-muted-foreground col-span-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {batch.start_date ? new Date(batch.start_date).toLocaleDateString() : "Not set"}
-                        {batch.end_date && ` - ${new Date(batch.end_date).toLocaleDateString()}`}
-                      </span>
-                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-3 text-muted-foreground font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <span>
+                      {batch.start_date ? new Date(batch.start_date).toLocaleDateString() : "Not set"}
+                      {batch.end_date && ` - ${new Date(batch.end_date).toLocaleDateString()}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -378,7 +385,7 @@ export default function Batches() {
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateBatch}
                 disabled={!newBatch.name || !newBatch.start_date}
                 className="bg-gradient-to-r from-emerald-500 to-teal-500"

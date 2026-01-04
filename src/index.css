@@ -13,10 +13,15 @@
     --background: 255 45% 97%;
     --foreground: 260 20% 12%;
 
-    /* Playful Mesh Gradient Colors */
+    /* Mesh Gradients */
     --mesh-1: 262 83% 58%;
     --mesh-2: 187 100% 42%;
     --mesh-3: 340 82% 52%;
+
+    /* Premium Design System */
+    --primary: 262 83% 58%;
+    --accent: 340 82% 52%;
+    --secondary: 187 100% 42%;
 
     /* More Vibrant Playful Theme Tokens */
     --playful-green: 142 71% 45%;
@@ -194,6 +199,185 @@
     100% {
       transform: scale(1.05) translate(-1%, 1%);
     }
+  }
+
+  .dark .mesh-gradient {
+    background:
+      radial-gradient(circle at 10% 10%, var(--mesh-1) 0%, transparent 50%),
+      radial-gradient(circle at 90% 10%, var(--mesh-2) 0%, transparent 50%),
+      radial-gradient(circle at 50% 90%, var(--mesh-3) 0%, transparent 50%),
+      var(--background);
+    opacity: 0.25;
+    /* Slightly less opaque in dark mode */
+  }
+
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(265 100% 55%) 0%, hsl(340 95% 55%) 50%, hsl(45 100% 50%) 100%);
+  }
+
+  .dark .text-gradient-primary {
+    background-image: linear-gradient(135deg, hsl(265 100% 65%) 0%, hsl(340 95% 65%) 50%, hsl(45 100% 60%) 100%);
+  }
+
+  .text-gradient-secondary {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(185 100% 40%) 0%, hsl(265 100% 55%) 100%);
+  }
+
+  .dark .text-gradient-secondary {
+    background-image: linear-gradient(135deg, hsl(185 100% 50%) 0%, hsl(265 100% 65%) 100%);
+  }
+
+  .text-gradient-white {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(180deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.7) 100%);
+  }
+
+  /* Glassmorphism - Theme Aware */
+  .glass {
+    @apply backdrop-blur-xl border;
+    background-color: hsl(var(--background) / 0.8);
+    border-color: hsl(var(--border) / 0.5);
+  }
+
+  .dark .glass {
+    background-color: hsl(var(--background) / 0.5);
+    border-color: hsl(var(--border) / 0.3);
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl border rounded-2xl;
+    background-color: hsl(var(--card) / 0.9);
+    border-color: hsl(var(--border) / 0.5);
+  }
+
+  .dark .glass-card {
+    background-color: hsl(var(--card) / 0.5);
+    border-color: hsl(var(--border) / 0.3);
+  }
+
+  .glass-button {
+    @apply backdrop-blur-md border transition-all duration-300;
+    background-color: hsl(var(--muted) / 0.5);
+    border-color: hsl(var(--border) / 0.5);
+  }
+
+  .glass-button:hover {
+    background-color: hsl(var(--muted) / 0.8);
+  }
+
+  .dark .glass-button {
+    background-color: hsl(var(--muted) / 0.3);
+    border-color: hsl(var(--border) / 0.3);
+  }
+
+  .dark .glass-button:hover {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  /* Premium Glow Effects */
+  .glow-primary {
+    box-shadow: 0 0 60px -12px hsl(var(--primary) / 0.4);
+  }
+
+  .dark .glow-primary {
+    box-shadow: 0 0 60px -12px hsl(var(--primary) / 0.5);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 60px -12px hsl(var(--secondary) / 0.4);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 60px -12px hsl(var(--accent) / 0.4);
+  }
+
+  /* Claymorphism - Premium Tactile Glass */
+  .clay-card {
+    @apply backdrop-blur-xl border-t border-l rounded-4xl transition-all duration-500;
+    background: linear-gradient(135deg, hsla(var(--card), 0.7) 0%, hsla(var(--card), 0.4) 100%);
+    border-top-color: hsla(var(--foreground), 0.1);
+    border-left-color: hsla(var(--foreground), 0.1);
+    box-shadow:
+      inset 0 1px 1px 0 hsla(var(--background), 1),
+      0 10px 20px -5px hsla(var(--foreground), 0.05),
+      0 4px 6px -2px hsla(var(--foreground), 0.05);
+  }
+
+  .dark .clay-card {
+    background: linear-gradient(135deg, hsla(var(--card), 0.8) 0%, hsla(var(--card), 0.5) 100%);
+    border-top-color: hsla(var(--background), 0.1);
+    border-left-color: hsla(var(--background), 0.1);
+    box-shadow:
+      inset 0 1px 0 0 hsla(var(--foreground), 0.05),
+      0 10px 20px -5px hsla(0, 0%, 0%, 0.3);
+  }
+
+  .clay-card-hover {
+    @apply clay-card hover:translate-y-[-4px] hover:shadow-2xl cursor-pointer;
+  }
+
+  .clay-button {
+    @apply backdrop-blur-md border rounded-2xl transition-all duration-300 active:scale-95 px-6 py-2.5 font-bold;
+    background: hsla(var(--primary), 0.1);
+    border-color: hsla(var(--primary), 0.2);
+    color: hsl(var(--primary));
+  }
+
+  .clay-button:hover {
+    background: hsla(var(--primary), 0.15);
+    box-shadow: 0 4px 12px -2px hsla(var(--primary), 0.3);
+  }
+
+  /* Subtle Mesh for Main Content */
+  .subtle-mesh {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(at 0% 0%, hsla(var(--primary), 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(var(--accent), 0.03) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(var(--secondary), 0.03) 0px, transparent 50%);
+  }
+
+  .dark .subtle-mesh {
+    background-image:
+      radial-gradient(at 0% 0%, hsla(var(--primary), 0.05) 0px, transparent 40%),
+      radial-gradient(at 100% 0%, hsla(var(--accent), 0.05) 0px, transparent 40%);
+  }
+
+  /* Gradient Borders - Theme Aware */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent))) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Premium Button Styles */
+  .btn-primary-gradient {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+
+  .btn-primary-gradient::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, hsl(265 100% 60%) 0%, hsl(340 95% 60%) 100%);
+  }
+
+  .btn-primary-gradient:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Noise texture overlay */
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.015;
   }
 
   .sidebar-glass {

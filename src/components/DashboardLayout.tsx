@@ -37,6 +37,9 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -47,6 +50,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Breadcrumb } from "./Breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -253,24 +257,244 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="px-2 py-4">
-            <SidebarMenu className="gap-0.5">
-              {renderMenuItems(telegramMenuItems)}
-              <SidebarSeparator className="my-4 opacity-5 mx-4" />
-              {renderMenuItems(lmsMenuItems)}
-              <SidebarSeparator className="my-4 opacity-5 mx-4" />
-              {renderMenuItems(financeMenuItems)}
-              <SidebarSeparator className="my-4 opacity-5 mx-4" />
-              {renderMenuItems(attendanceMenuItems)}
-              <SidebarSeparator className="my-4 opacity-5 mx-4" />
-              {renderMenuItems(settingsMenuItems)}
-              {isUserSuperAdmin && (
-                <>
-                  <SidebarSeparator className="my-4 opacity-5 mx-4" />
-                  {renderMenuItems(superAdminMenuItems)}
-                </>
-              )}
-            </SidebarMenu>
+          <SidebarContent className="px-2">
+            {/* Telegram Quiz Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
+                Telegram Quizzes
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {telegramMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                            ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
+                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                            }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'group-hover:scale-110'}`} />
+                            <span className="font-semibold text-sm">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in duration-500" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* LMS Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Learning Management</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {lmsMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                            ? "bg-emerald-500/20 text-emerald-500 font-bold shadow-lg scale-[1.02] border border-emerald-500/20"
+                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                            }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                            <span className="font-semibold text-sm">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-in fade-in duration-500" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Finance Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Finance</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {financeMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                            ? "bg-amber-500/20 text-amber-500 font-bold shadow-lg scale-[1.02] border border-amber-500/20"
+                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                            }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                            <span className="font-semibold text-sm">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute right-2 w-1.5 h-1.5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-in fade-in duration-500" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Attendance Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                <CalendarCheck className="w-3.5 h-3.5" />
+                <span>Attendance</span>
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {attendanceMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                            ? "bg-blue-500/20 text-blue-500 font-bold shadow-lg scale-[1.02] border border-blue-500/20"
+                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                            }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                            <span className="font-semibold text-sm">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute right-2 w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-in fade-in duration-500" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarSeparator className="my-2" />
+
+            {/* Settings Section */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
+                Settings & Analytics
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {settingsMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                            ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
+                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                            }`}
+                        >
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                            <span className="font-semibold text-sm">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in duration-500" />
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            {/* Super Admin Section */}
+            {isUserSuperAdmin && (
+              <>
+                <SidebarSeparator className="my-2" />
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Super Admin</span>
+                  </SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu className="gap-1">
+                      {superAdminMenuItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              asChild
+                              isActive={isActive}
+                              tooltip={item.label}
+                              className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                                ? "bg-orange-500/20 text-orange-500 font-bold shadow-lg scale-[1.02] border border-orange-500/20"
+                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                                }`}
+                            >
+                              <Link to={item.path} className="flex items-center gap-3 px-3">
+                                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                                <span className="font-semibold text-sm">{item.label}</span>
+                                {isActive && (
+                                  <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-in fade-in duration-500" />
+                                )}
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </>
+            )}
           </SidebarContent>
 
           <SidebarFooter className="p-0 border-t-0 pb-6">
@@ -337,14 +561,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="flex-1 bg-transparent overflow-visible">
-          <div className="mesh-gradient" />
+        {/* Main Content */}
+        <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 overflow-hidden flex flex-col">
+          {/* Header removed as per user request. SidebarTrigger is now floating. */}
+          <div className="fixed top-6 left-6 z-[60] flex items-center gap-4">
+            <SidebarTrigger className="clay-button rounded-2xl w-12 h-12 p-0 flex items-center justify-center shadow-2xl backdrop-blur-xl border-white/20" />
+            <div className="hidden md:block glass-card px-4 py-2 rounded-2xl shadow-xl border-white/10">
+              <Breadcrumb />
+            </div>
+          </div>
 
-          <main className="p-6 md:p-8 lg:p-10 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out relative pb-20">
+          <main className="p-8 md:p-12 lg:p-16 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out flex-1" id="main-content">
             {children}
           </main>
         </SidebarInset>
-      </div>
-    </SidebarProvider>
+      </div >
+    </SidebarProvider >
   );
 }
