@@ -201,6 +201,73 @@
     }
   }
 
+  @keyframes premium-entrance {
+    0% {
+      opacity: 0;
+      transform: scale(0.95) translateY(20px);
+      filter: blur(10px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes soft-float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes glow-pulse {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+    }
+
+    50% {
+      box-shadow: 0 0 40px 0px hsl(var(--primary) / 0.8);
+    }
+  }
+
+  @keyframes wave-text {
+
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-premium-entrance {
+    animation: premium-entrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-soft-float {
+    animation: soft-float 4s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .animate-wave-text {
+    background-size: 200% auto;
+    animation: wave-text 5s ease-in-out infinite;
+  }
+
   .dark .mesh-gradient {
     background:
       radial-gradient(circle at 10% 10%, var(--mesh-1) 0%, transparent 50%),
@@ -315,7 +382,20 @@
   }
 
   .clay-card-hover {
-    @apply clay-card hover:translate-y-[-4px] hover:shadow-2xl cursor-pointer;
+    @apply clay-card hover:translate-y-[-8px] hover:shadow-2xl cursor-pointer;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .clay-card-hover:hover {
+    box-shadow:
+      inset 0 1px 1px 0 hsla(var(--background), 0.8),
+      0 30px 60px -12px hsla(var(--foreground), 0.15),
+      0 18px 36px -18px hsla(var(--foreground), 0.15);
+  }
+
+  .clay-card-hover:hover .stat-icon {
+    transform: scale(1.1) rotate(6deg);
+    filter: drop-shadow(0 0 15px currentColor);
   }
 
   .clay-button {

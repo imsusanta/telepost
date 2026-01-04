@@ -19,17 +19,17 @@ function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?:
       const progress = Math.min((currentTime - startTime) / duration, 1);
 
       setCount(Math.floor(progress * value));
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      }
     };
 
     animationFrame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrame);
   }, [value, duration]);
 
-  return <>{count.toLocaleString()}</>;
+  return (
+    <span className="inline-block transition-all duration-300 hover:scale-110 active:scale-95">
+      {count.toLocaleString()}
+    </span>
+  );
 }
 
 // Fetch dashboard data with React Query for caching and auto-refetch
@@ -169,12 +169,14 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="space-y-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
-          <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-700">
-            <h1 className="text-6xl font-black text-foreground tracking-tight leading-tight">
+          <div className="space-y-4 animate-premium-entrance">
+            <h1 className="text-6xl md:text-7xl font-black text-foreground tracking-tighter leading-none">
               Welcome back, <br />
-              <span className="text-primary italic">{profile?.full_name?.split(' ')[0] || "User"}!</span>
+              <span className="text-primary italic animate-wave-text bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
+                {profile?.full_name?.split(' ')[0] || "User"}!
+              </span>
             </h1>
-            <p className="text-xl text-muted-foreground font-medium max-w-lg">
+            <p className="text-xl text-muted-foreground font-medium max-w-lg delay-300 animate-in fade-in slide-in-from-left-4 duration-1000">
               Here's a quick look at how your Telegram quizzes are performing today.
             </p>
           </div>
@@ -183,9 +185,10 @@ export default function Dashboard() {
             size="lg"
             onClick={handleRefresh}
             disabled={isLoading || isFetching}
-            className="gap-2 rounded-2xl border-2 px-8 py-8 font-bold text-lg hover:bg-muted/50 transition-all shadow-sm group"
+            className="gap-2 rounded-2xl border-2 px-8 py-8 font-bold text-lg hover:bg-muted/50 transition-all shadow-sm group glass-button animate-premium-entrance"
+            style={{ animationDelay: '400ms' }}
           >
-            <RefreshCw className={`w-5 h-5 transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-5 h-5 transition-transform duration-700 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh Data
           </Button>
         </div>
@@ -200,18 +203,18 @@ export default function Dashboard() {
             statsCards.map((stat, idx) => (
               <div
                 key={idx}
-                className={`group relative overflow-hidden rounded-4xl p-8 transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-700 hover:z-10 bg-white dark:bg-card border border-border/40 soft-shadow-lg`}
-                style={{ animationDelay: `${idx * 100}ms` }}
+                className={`group relative overflow-hidden rounded-4xl p-8 bg-white dark:bg-card border border-border/40 soft-shadow-lg clay-card-hover animate-premium-entrance`}
+                style={{ animationDelay: `${idx * 150 + 500}ms` }}
               >
-                <div className="flex flex-col h-full justify-between">
+                <div className="flex flex-col h-full justify-between relative z-10">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">{stat.title}</p>
-                      <div className="text-5xl font-black text-foreground">
+                      <p className="text-sm font-black text-muted-foreground uppercase tracking-widest transition-colors duration-300 group-hover:text-primary">{stat.title}</p>
+                      <div className="text-5xl font-black text-foreground tracking-tighter">
                         <AnimatedCounter value={stat.value} />
                       </div>
                     </div>
-                    <div className={`w-16 h-16 bg-gradient-to-br ${stat.gradient} rounded-3xl flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
+                    <div className={`w-16 h-16 bg-gradient-to-br ${stat.gradient} rounded-3xl flex items-center justify-center shadow-lg stat-icon transition-all duration-700`}>
                       <stat.icon className="w-8 h-8 text-white" />
                     </div>
                   </div>
@@ -228,7 +231,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Decorative background circle */}
-                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.03] transition-all duration-700 group-hover:scale-150 ${stat.color === 'playful-green' ? 'bg-playful-green' :
+                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.05] transition-all duration-700 group-hover:scale-150 animate-soft-float ${stat.color === 'playful-green' ? 'bg-playful-green' :
                   stat.color === 'playful-yellow' ? 'bg-playful-yellow' :
                     stat.color === 'playful-coral' ? 'bg-playful-coral' : 'bg-primary'
                   }`} />
@@ -239,9 +242,9 @@ export default function Dashboard() {
 
         {/* Quick Start Guide */}
         {showQuickStart && !isLoading && (
-          <div className="bg-white dark:bg-card rounded-5xl p-10 border border-border/40 soft-shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+          <div className="bg-white dark:bg-card rounded-5xl p-10 border border-border/40 soft-shadow-lg animate-premium-entrance" style={{ animationDelay: '1.5s' }}>
             <div className="mb-10 text-center max-w-2xl mx-auto space-y-2">
-              <h2 className="text-4xl font-black text-foreground tracking-tight">Get Started in 3 Steps</h2>
+              <h2 className="text-4xl font-black text-foreground tracking-tight italic">Get Started in 3 Steps</h2>
               <p className="text-xl text-muted-foreground font-medium">Follow these simple steps to launch your first AI-powered quiz.</p>
             </div>
 
@@ -251,8 +254,8 @@ export default function Dashboard() {
                 { step: 2, title: "Create Quiz", desc: "Use AI to generate engaging quiz questions in seconds", gradient: "from-accent to-secondary" },
                 { step: 3, title: "Schedule", desc: "Set up daily quiz posts to keep your audience engaged", gradient: "from-secondary to-success" }
               ].map((item, i) => (
-                <div key={i} className="group p-8 rounded-4xl bg-[hsl(var(--playful-background))] dark:bg-muted/10 border border-border/40 transition-all duration-500 hover:scale-[1.02]">
-                  <div className={`w-14 h-14 bg-gradient-to-br ${item.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+                <div key={i} className="group p-8 rounded-4xl bg-[hsl(var(--playful-background))] dark:bg-muted/10 border border-border/40 transition-all duration-500 hover:translate-y-[-10px] hover:shadow-2xl animate-premium-entrance" style={{ animationDelay: `${i * 200 + 1700}ms` }}>
+                  <div className={`w-14 h-14 bg-gradient-to-br ${item.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500`}>
                     <span className="text-white font-black text-2xl">{item.step}</span>
                   </div>
                   <h3 className="text-2xl font-black text-foreground mb-3">{item.title}</h3>
