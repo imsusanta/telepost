@@ -607,6 +607,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_summary: string | null
           channel_id: string | null
           created_at: string
           description: string | null
@@ -622,11 +623,13 @@ export type Database = {
           processing_status: string
           storage_path: string
           title: string | null
+          topics: string[] | null
           updated_at: string
           user_id: string
           word_count: number | null
         }
         Insert: {
+          ai_summary?: string | null
           channel_id?: string | null
           created_at?: string
           description?: string | null
@@ -642,11 +645,13 @@ export type Database = {
           processing_status?: string
           storage_path: string
           title?: string | null
+          topics?: string[] | null
           updated_at?: string
           user_id: string
           word_count?: number | null
         }
         Update: {
+          ai_summary?: string | null
           channel_id?: string | null
           created_at?: string
           description?: string | null
@@ -662,6 +667,7 @@ export type Database = {
           processing_status?: string
           storage_path?: string
           title?: string | null
+          topics?: string[] | null
           updated_at?: string
           user_id?: string
           word_count?: number | null

@@ -1,0 +1,2 @@
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS topics TEXT[];
