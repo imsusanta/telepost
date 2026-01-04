@@ -1,9 +1,8 @@
 import { useMemo, useEffect, useState } from "react";
-import { BarChart3, Bot, Calendar, Database, FileText, LayoutDashboard, RefreshCw, Sparkles, TrendingUp, AlertCircle } from "lucide-react";
+import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -233,8 +232,8 @@ export default function Dashboard() {
 
                 {/* Decorative background circle */}
                 <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full opacity-[0.03] transition-all duration-700 group-hover:scale-150 ${stat.color === 'playful-green' ? 'bg-playful-green' :
-                    stat.color === 'playful-yellow' ? 'bg-playful-yellow' :
-                      stat.color === 'playful-coral' ? 'bg-playful-coral' : 'bg-primary'
+                  stat.color === 'playful-yellow' ? 'bg-playful-yellow' :
+                    stat.color === 'playful-coral' ? 'bg-playful-coral' : 'bg-primary'
                   }`} />
               </div>
             ))
