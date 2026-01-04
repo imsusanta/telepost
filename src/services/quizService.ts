@@ -16,11 +16,24 @@ export class QuizService {
     });
 
     if (error) {
-      // Check if it's an auth error
+      // Try to extract detailed error from response context
+      let errorMessage = error.message || "Failed to generate quiz";
+      
+      // Check for specific HTTP status codes in the error
+      if (error.message?.includes("429") || errorMessage.includes("Rate limit")) {
+        throw new Error("Rate limit exceeded. Please wait 30 seconds and try again.");
+      }
+      if (error.message?.includes("402")) {
+        throw new Error("AI quota exceeded. Please contact admin.");
+      }
+      if (error.message?.includes("504") || error.message?.includes("timeout")) {
+        throw new Error("Request timed out. Try generating fewer questions.");
+      }
       if (error.message?.includes("authorization") || error.message?.includes("401")) {
         throw new Error("Authentication failed. Please refresh the page and try again.");
       }
-      throw new Error(error.message || "Failed to generate quiz");
+      
+      throw new Error(errorMessage);
     }
 
     // Additional validation: check if data contains an error field
@@ -28,6 +41,12 @@ export class QuizService {
       const errorMsg = (data as { error?: string }).error || "Failed to generate quiz";
 
       // Check for specific error messages from the edge function
+      if (errorMsg.includes("Rate limit") || errorMsg.includes("429")) {
+        throw new Error(errorMsg);
+      }
+      if (errorMsg.includes("quota") || errorMsg.includes("402")) {
+        throw new Error(errorMsg);
+      }
       if (errorMsg.includes("authorization")) {
         throw new Error("Authentication error. Please log out and log back in.");
       }

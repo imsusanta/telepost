@@ -124,13 +124,14 @@ export function useQuizGeneration() {
       return generatedQuiz;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate quiz";
-      // Only show toast if not already shown
-      if (!message.includes("Rate limited") &&
-          !message.includes("Already generating") &&
-          !message.includes("limit") &&
-          !message.includes("session expired")) {
+      // Only show toast if not already shown for rate-limiting states
+      const isRateLimitMessage = message.includes("Rate limit") || message.includes("wait");
+      const isAlreadyGenerating = message.includes("Already generating");
+      const isInternalRateLimit = message === "Rate limited";
+      
+      if (!isAlreadyGenerating && !isInternalRateLimit) {
         toast({
-          title: "Generation Failed",
+          title: isRateLimitMessage ? "Rate Limited" : "Generation Failed",
           description: message,
           variant: "destructive",
         });
