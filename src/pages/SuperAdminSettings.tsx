@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { 
   AlertTriangle,
+  Bot,
   Loader2,
   Save,
   Shield,
   Ticket,
   Users,
-  Wrench
+  Wrench,
+  Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -26,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Slider } from '@/components/ui/slider';
 import { isSuperAdmin } from '@/services/couponService';
 import {
   getAllSettings,
@@ -33,11 +36,14 @@ import {
   updateUserDefaults,
   updateSubscriptionDefaults,
   updateMaintenanceSettings,
+  updateAISettings,
   type InvitationDefaults,
   type UserDefaults,
   type SubscriptionDefaults,
   type SystemMaintenance,
+  type AISettings,
 } from '@/services/systemSettingsService';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function SuperAdminSettings() {
   const navigate = useNavigate();
@@ -70,6 +76,14 @@ export default function SuperAdminSettings() {
     maintenance_message: 'System is under maintenance. Please try again later.',
   });
 
+  const [aiSettings, setAISettings] = useState<AISettings>({
+    provider: 'openrouter',
+    model: 'z-ai/glm-4.5-air:free',
+    temperature: 0.7,
+  });
+
+  const [testingAI, setTestingAI] = useState(false);
+
   useEffect(() => {
     const loadSettings = async () => {
       const hasAccess = await isSuperAdmin();
@@ -84,6 +98,7 @@ export default function SuperAdminSettings() {
         setUserDefaults(data.user_defaults);
         setSubscriptionDefaults(data.subscription_defaults);
         setMaintenanceSettings(data.system_maintenance);
+        setAISettings(data.ai_settings);
       } catch (error) {
         toast({
           title: 'Error',
@@ -176,6 +191,57 @@ export default function SuperAdminSettings() {
     }
   };
 
+  const handleSaveAISettings = async () => {
+    try {
+      setSaving(true);
+      await updateAISettings(aiSettings);
+      toast({
+        title: 'Success',
+        description: 'AI settings saved successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save AI settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestAIConnection = async () => {
+    try {
+      setTestingAI(true);
+      
+      const { data, error } = await supabase.functions.invoke('test-ai-connection', {
+        body: { 
+          model: aiSettings.model,
+          temperature: aiSettings.temperature
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: 'Connection Successful',
+          description: `Model "${aiSettings.model}" is working. Response: ${data.response?.substring(0, 100)}...`,
+        });
+      } else {
+        throw new Error(data?.error || 'Unknown error');
+      }
+    } catch (error) {
+      toast({
+        title: 'Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to AI',
+        variant: 'destructive',
+      });
+    } finally {
+      setTestingAI(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -214,7 +280,7 @@ export default function SuperAdminSettings() {
         )}
 
         <Tabs defaultValue="invitations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="invitations" className="gap-2">
               <Ticket className="w-4 h-4" />
               <span className="hidden sm:inline">Invitations</span>
@@ -226,6 +292,10 @@ export default function SuperAdminSettings() {
             <TabsTrigger value="subscriptions" className="gap-2">
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Subscriptions</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Bot className="w-4 h-4" />
+              <span className="hidden sm:inline">AI</span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="gap-2">
               <Wrench className="w-4 h-4" />
@@ -466,6 +536,89 @@ export default function SuperAdminSettings() {
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save Subscription Settings
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AI Configuration */}
+          <TabsContent value="ai">
+            <Card className="border-0 shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5" />
+                  AI Configuration
+                </CardTitle>
+                <CardDescription>
+                  Configure OpenRouter AI model for quiz generation and document processing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <Zap className="h-4 w-4" />
+                  <AlertTitle>OpenRouter Integration</AlertTitle>
+                  <AlertDescription>
+                    Paste any OpenRouter model slug (e.g., <code className="bg-muted px-1 rounded">z-ai/glm-4.5-air:free</code>) to use it for AI features.
+                    Find models at <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="underline">openrouter.ai/models</a>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai_model">Model Name</Label>
+                  <Input
+                    id="ai_model"
+                    value={aiSettings.model}
+                    onChange={(e) => setAISettings(prev => ({
+                      ...prev,
+                      model: e.target.value.trim(),
+                    }))}
+                    placeholder="e.g., z-ai/glm-4.5-air:free"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the full model slug from OpenRouter
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Temperature: {aiSettings.temperature.toFixed(2)}</Label>
+                    </div>
+                    <Slider
+                      value={[aiSettings.temperature]}
+                      onValueChange={(value) => setAISettings(prev => ({
+                        ...prev,
+                        temperature: value[0],
+                      }))}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lower values = more focused, higher values = more creative
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={handleTestAIConnection} 
+                    disabled={testingAI || !aiSettings.model}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {testingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    Test Connection
+                  </Button>
+                  <Button 
+                    onClick={handleSaveAISettings} 
+                    disabled={saving || !aiSettings.model}
+                    className="gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save AI Settings
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
