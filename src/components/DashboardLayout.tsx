@@ -50,7 +50,6 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Breadcrumb } from "./Breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -540,13 +539,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main Content */}
         <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 overflow-hidden flex flex-col">
           <main className="p-8 md:p-12 lg:p-16 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out flex-1" id="main-content">
-            {/* Minimal Header Controls - Integrated into Page Flow */}
-            <div className="flex items-center gap-6 mb-12 animate-in fade-in slide-in-from-left-4 duration-700">
-              <SidebarTrigger className="clay-button rounded-2xl w-12 h-12 p-0 flex items-center justify-center shadow-xl" />
-              <div className="flex-1">
-                <Breadcrumb />
-              </div>
-            </div>
             {children}
           </main>
         </SidebarInset>
