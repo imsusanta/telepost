@@ -80,6 +80,17 @@ export function QuestionPreviewList({ questions, onUpdate, onRemove }: QuestionP
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Short Notes / Explanation Field */}
+                            <div className="space-y-2 pt-2 border-t border-border/30">
+                                <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Short Notes (Optional)</label>
+                                <Input
+                                    value={q.explanation || ""}
+                                    onChange={(e) => onUpdate(idx, { ...q, explanation: e.target.value })}
+                                    placeholder="Add notes or explanation here..."
+                                    className="font-medium text-sm"
+                                />
+                            </div>
                         </CardContent>
                     </Card>
                 );

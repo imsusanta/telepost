@@ -18,8 +18,8 @@
     --mesh-2: 187 100% 42%;
     --mesh-3: 340 82% 52%;
 
-    /* Premium Design System */
-    --primary: 262 83% 58%;
+    /* Premium Design System - Telegram Blue */
+    --primary: 199 77% 51%;
     --accent: 340 82% 52%;
     --secondary: 187 100% 42%;
 
@@ -27,8 +27,7 @@
     --playful-green: 142 71% 45%;
     --playful-yellow: 48 96% 53%;
     --playful-coral: 13 95% 65%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-rgb: 139, 92, 246;
+    --primary-rgb: 36, 161, 222;
     --accent: 340 95% 65%;
     --accent-rgb: 239, 68, 68;
     --playful-background: 255 45% 97%;
@@ -56,7 +55,7 @@
     /* Input and borders */
     --border: 240 5% 90%;
     --input: 240 5% 96%;
-    --ring: 265 100% 55%;
+    --ring: 199 77% 51%;
 
     /* Premium radius - Much larger */
     --radius: 1.5rem;
@@ -64,15 +63,15 @@
     /* Sidebar - Light */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 10% 20%;
-    --sidebar-primary: 265 100% 55%;
+    --sidebar-primary: 199 77% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 5% 94%;
     --sidebar-accent-foreground: 240 10% 10%;
     --sidebar-border: 240 5% 90%;
-    --sidebar-ring: 265 100% 55%;
+    --sidebar-ring: 199 77% 51%;
 
     /* Chart colors */
-    --chart-1: 265 100% 55%;
+    --chart-1: 199 77% 51%;
     --chart-2: 185 100% 40%;
     --chart-3: 340 95% 55%;
     --chart-4: 160 84% 40%;
@@ -85,9 +84,9 @@
     --background: 240 10% 6%;
     --foreground: 210 40% 98%;
 
-    /* Electric Violet - Brighter for Dark Mode */
-    --primary: 262.1 83.3% 57.8%;
-    --primary-rgb: 139, 92, 246;
+    /* Telegram Blue - Primary for Dark Mode */
+    --primary: 199 77% 51%;
+    --primary-rgb: 36, 161, 222;
     --primary-foreground: 210 40% 98%;
 
     /* Cyan Accent */
@@ -123,17 +122,17 @@
     /* Input and borders */
     --border: 240 10% 18%;
     --input: 240 10% 12%;
-    --ring: 265 100% 65%;
+    --ring: 199 77% 60%;
 
     /* Sidebar - Dark */
     --sidebar-background: 240 10% 6%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 265 100% 65%;
+    --sidebar-primary: 199 77% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 10% 12%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 10% 15%;
-    --sidebar-ring: 265 100% 65%;
+    --sidebar-ring: 199 77% 55%;
   }
 
   /* Playful Theme Tokens - Reset for Layering */

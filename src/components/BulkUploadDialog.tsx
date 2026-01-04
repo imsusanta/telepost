@@ -119,27 +119,35 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
                     Bulk Upload
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden clay-card border-none shadow-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-3xl font-black flex items-center gap-3">
-                        <Upload className="w-8 h-8 text-primary" />
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-900 border shadow-2xl">
+                <DialogHeader className="pb-4 border-b">
+                    <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center shadow-lg">
+                            <Upload className="w-5 h-5 text-white" />
+                        </div>
                         Bulk Question Upload
                     </DialogTitle>
-                    <DialogDescription className="text-base">
-                        <span className="font-medium">Format:</span>{" "}
-                        <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">1. Question text</code>{" "}
-                        <code className="bg-muted px-2 py-0.5 rounded text-sm font-mono">a) Option A ... d) Option D</code>{" "}
-                        <code className="bg-success/20 text-success px-2 py-0.5 rounded text-sm font-mono font-bold">Ans: b) Paris</code>
+                    <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                        Paste your questions in the format: <span className="font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">1. Quest a) Opt1 b) Opt2 Ans: a</span>
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto space-y-6 pt-4 pr-2 custom-scrollbar">
-                    <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto space-y-5 py-4 pr-2">
+                    {/* Input Section */}
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Raw Question Text</label>
+                            <label className="text-xs font-semibold uppercase text-gray-500 tracking-wide">
+                                Raw Question Text
+                            </label>
                             <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={handleClipboardPaste} className="h-8 text-[11px] font-black uppercase gap-1 hover:bg-primary/10 transition-all">
-                                    <ClipboardPaste className="w-3 h-3" /> Paste Clipboard
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleClipboardPaste}
+                                    className="h-8 text-xs font-medium gap-1.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+                                >
+                                    <ClipboardPaste className="w-3.5 h-3.5" />
+                                    Paste
                                 </Button>
                                 <div className="relative">
                                     <input
@@ -148,43 +156,44 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
                                         onChange={handleFileUpload}
                                         className="absolute inset-0 opacity-0 cursor-pointer"
                                     />
-                                    <Button variant="ghost" size="sm" className="h-8 text-[11px] font-black uppercase gap-1 hover:bg-primary/10 transition-all">
-                                        <FileUp className="w-3 h-3" /> Upload .txt
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-xs font-medium gap-1.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+                                    >
+                                        <FileUp className="w-3.5 h-3.5" />
+                                        Upload .txt
                                     </Button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="relative group">
-                            <Textarea
-                                placeholder="Paste your questions here...&#10;1. Indian National Congress কবে প্রতিষ্ঠিত হয়?&#10;a) 1880&#10;b) 1885&#10;c) 1890&#10;d) 1895&#10;Ans: b) 1885"
-                                value={rawText}
-                                onChange={(e) => setRawText(e.target.value)}
-                                className="min-h-[200px] font-medium text-lg rounded-2xl border-2 border-border/60 focus:border-primary/50 transition-all"
-                            />
-                            <div className="absolute top-4 right-4 text-[10px] font-black text-muted-foreground/30 uppercase tracking-tighter opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
-                                TelePost AI Parser Active
-                            </div>
-                        </div>
+                        <Textarea
+                            placeholder={"Paste your questions here...\n1. Indian National Congress কবে প্রতিষ্ঠিত হয়?\na) 1880\nb) 1885\nc) 1890\nd) 1895\nAns: b) 1885\nShort Notes: এটি 1885 সালে বোম্বেতে প্রতিষ্ঠিত হয়।"}
+                            value={rawText}
+                            onChange={(e) => setRawText(e.target.value)}
+                            className="min-h-[180px] font-medium text-gray-900 dark:text-white rounded-xl border-2 border-gray-200 dark:border-gray-700 focus:border-sky-500 bg-gray-50 dark:bg-slate-800 transition-all resize-none"
+                        />
 
                         <Button
                             onClick={handleParse}
                             disabled={isParsing || !rawText.trim()}
-                            className="w-full h-12 text-lg font-black uppercase tracking-widest glow-primary transition-all active:scale-95"
+                            className="w-full h-11 font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-all"
                         >
-                            {isParsing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ClipboardPaste className="w-5 h-5 mr-2" />}
+                            {isParsing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ClipboardPaste className="w-4 h-4 mr-2" />}
                             Parse & Preview Questions
                         </Button>
                     </div>
 
+                    {/* Preview Section */}
                     {parsedQuestions.length > 0 && (
-                        <div className="space-y-4 pt-4 border-t border-border/40 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div className="flex items-center justify-between px-2">
-                                <h3 className="text-xl font-black tracking-tight flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5 text-success" />
-                                    Review & Fix {parsedQuestions.length} Questions
+                        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 text-emerald-500" />
+                                    Review {parsedQuestions.length} Questions
                                 </h3>
-                                <span className="text-[11px] font-black uppercase text-muted-foreground tracking-widest bg-muted/50 px-2 py-1 rounded-md">
+                                <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
                                     Parsed Output
                                 </span>
                             </div>
@@ -203,15 +212,21 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
                     )}
                 </div>
 
-                <DialogFooter className="pt-6 border-t border-border/40">
-                    <Button variant="ghost" onClick={() => setOpen(false)} className="font-bold">Cancel</Button>
+                <DialogFooter className="pt-4 border-t border-gray-200 dark:border-gray-700 gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => setOpen(false)}
+                        className="font-medium text-gray-600 dark:text-gray-300"
+                    >
+                        Cancel
+                    </Button>
                     <Button
                         onClick={handleFinalUpload}
                         disabled={parsedQuestions.length === 0 || isUploading}
-                        className="px-10 h-12 font-black uppercase tracking-widest shadow-xl transition-all active:scale-95"
+                        className="px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
                     >
-                        {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Upload className="w-5 h-5 mr-2" />}
-                        Confirm & Save to Question Bank
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                        Save to Question Bank
                     </Button>
                 </DialogFooter>
             </DialogContent>

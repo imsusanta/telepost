@@ -17,50 +17,118 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
 
   const parseMCQ = (text: string): QuizQuestion[] => {
     const questions: QuizQuestion[] = [];
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    let currentQuestion: Partial<QuizQuestion> | null = null;
+
+    // Normalize line endings
+    const normalizedText = text.replace(/\r\n/g, '\n').trim();
+
+    // Split the text into sections starting with "1.", "2.", etc.
+    const sections = normalizedText.split(/\n?(?=\d+\.)/);
+
     let questionNumber = 1;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Check if it's a question (starts with number or "Q")
-      if (/^(\d+[.)]\s*|Q\d+[.):\s]+)/i.test(line)) {
-        // Save previous question if exists
-        if (currentQuestion && currentQuestion.question && currentQuestion.options) {
-          questions.push(currentQuestion as QuizQuestion);
+    for (const section of sections) {
+      if (!section.trim()) continue;
+
+      try {
+        // Check which format is being used: (A)/(B)/(C)/(D) or a)/b)/c)/d)
+        const usesParenthesis = /\([A-Da-d]\)/.test(section);
+
+        let questionText = "";
+        let options: string[] = [];
+        let correctIndex = 0;
+
+        if (usesParenthesis) {
+          // Format: (A), (B), (C), (D)
+          const qMatch = section.match(/^\d+\.(.*?)(?=\n\s*\([Aa]\))/s);
+          questionText = qMatch ? qMatch[1].trim() : "";
+
+          // Extract options
+          const optAMatch = section.match(/\([Aa]\)\s*(.*?)(?=\n\s*\([Bb]\))/s);
+          const optBMatch = section.match(/\([Bb]\)\s*(.*?)(?=\n\s*\([Cc]\))/s);
+          const optCMatch = section.match(/\([Cc]\)\s*(.*?)(?=\n\s*\([Dd]\))/s);
+          const optDMatch = section.match(/\([Dd]\)\s*(.*?)(?=\n\s*Ans:)/si) ||
+            section.match(/\([Dd]\)\s*(.*?)$/s);
+
+          options = [
+            optAMatch ? optAMatch[1].trim() : "",
+            optBMatch ? optBMatch[1].trim() : "",
+            optCMatch ? optCMatch[1].trim() : "",
+            optDMatch ? optDMatch[1].split(/\n\s*Ans:/i)[0].trim() : ""
+          ];
+
+          // Extract answer - supports both "Ans: (B)" and "Ans: B" formats
+          const ansMatch = section.match(/Ans:\s*\(?([A-Da-d])\)?/i);
+          const ansLetter = ansMatch ? ansMatch[1].toLowerCase() : "";
+
+          const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+          correctIndex = letterToIndex[ansLetter] ?? 0;
+        } else {
+          // Format: a), b), c), d) or a., b., c., d. with * marking correct
+          const qMatch = section.match(/^\d+\.(.*?)(?=\n\s*[aA][\)\.])/s);
+          questionText = qMatch ? qMatch[1].trim() : "";
+
+          // Check for Ans: format first
+          const hasAnsLine = /Ans:/i.test(section);
+
+          if (hasAnsLine) {
+            // Format with Ans: line
+            const optAMatch = section.match(/[aA][\)\.]\s*(.*?)(?=\n\s*[bB][\)\.])/s);
+            const optBMatch = section.match(/[bB][\)\.]\s*(.*?)(?=\n\s*[cC][\)\.])/s);
+            const optCMatch = section.match(/[cC][\)\.]\s*(.*?)(?=\n\s*[dD][\)\.])/s);
+            const optDMatch = section.match(/[dD][\)\.]\s*(.*?)(?=\n\s*Ans:)/si) ||
+              section.match(/[dD][\)\.]\s*(.*?)$/s);
+
+            options = [
+              optAMatch ? optAMatch[1].trim() : "",
+              optBMatch ? optBMatch[1].trim() : "",
+              optCMatch ? optCMatch[1].trim() : "",
+              optDMatch ? optDMatch[1].split(/\n\s*Ans:/i)[0].trim() : ""
+            ];
+
+            const ansMatch = section.match(/Ans:\s*\(?([a-dA-D])\)?/i);
+            const ansLetter = ansMatch ? ansMatch[1].toLowerCase() : "";
+
+            const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+            correctIndex = letterToIndex[ansLetter] ?? 0;
+          } else {
+            // Old format with * or ✓ marking correct
+            const lines = section.split('\n').filter(line => line.trim());
+
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+
+              if (/^\d+\./.test(line)) {
+                questionText = line.replace(/^\d+\.\s*/, '').trim();
+              } else if (/^[a-dA-D][\)\.]\s*/i.test(line)) {
+                const optionText = line.replace(/^[a-dA-D][\)\.]\s*/i, '').trim();
+                const isCorrect = /\*|✓|\(correct\)/i.test(optionText);
+                const cleanOption = optionText.replace(/\*|✓|\(correct\)/gi, '').trim();
+
+                if (isCorrect) {
+                  correctIndex = options.length;
+                }
+                options.push(cleanOption);
+              }
+            }
+          }
         }
 
-        // Start new question
-        currentQuestion = {
-          id: questionNumber++,
-          question: line.replace(/^(\d+[.)]\s*|Q\d+[.):\s]+)/i, '').trim(),
-          options: [],
-          correct_option_index: 0
-        };
-      }
-      // Check if it's an option (starts with a), b), A), B), or 1), 2), etc.)
-      else if (/^[a-dA-D1-4][.)]\s*/i.test(line) && currentQuestion) {
-        const optionText = line.replace(/^[a-dA-D1-4][.)]\s*/i, '').trim();
+        // Filter out empty options and validate
+        options = options.filter(opt => opt !== "");
 
-        // Check if this option is marked as correct (contains *, ✓, or (correct))
-        const isCorrect = /\*|✓|\(correct\)/i.test(optionText);
-        const cleanOption = optionText.replace(/\*|✓|\(correct\)/gi, '').trim();
-        
-        if (isCorrect && currentQuestion.options) {
-          currentQuestion.correct_option_index = currentQuestion.options.length;
+        if (questionText && options.length >= 2) {
+          questions.push({
+            id: questionNumber++,
+            question: questionText,
+            options,
+            correct_option_index: correctIndex
+          });
         }
-        
-        currentQuestion.options?.push(cleanOption);
+      } catch (error) {
+        console.error("Error parsing section:", section, error);
       }
     }
-    
-    // Add the last question
-    if (currentQuestion && currentQuestion.question && currentQuestion.options) {
-      questions.push(currentQuestion as QuizQuestion);
-    }
-    
+
     return questions;
   };
 
@@ -76,7 +144,7 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
 
     try {
       const questions = parseMCQ(mcqText);
-      
+
       if (questions.length === 0) {
         toast({
           title: 'Error',
@@ -108,7 +176,7 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
       };
 
       onQuizCreated(quiz);
-      
+
       toast({
         title: 'Success',
         description: `Created ${questions.length} questions successfully!`,
@@ -123,32 +191,51 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
   };
 
   return (
-    <Card className="p-6 bg-background/50 backdrop-blur-sm border-border/50">
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
-          <h2 className="text-2xl font-bold">Manual MCQ Input</h2>
-        </div>
-        
-        <p className="text-muted-foreground text-sm">
-          Paste your multiple choice questions below. Format example:
-        </p>
-        
-        <div className="bg-muted/50 p-3 rounded-lg text-sm font-mono space-y-1">
-          <div>1. What is the capital of France?</div>
-          <div>a) London</div>
-          <div>b) Paris *</div>
-          <div>c) Berlin</div>
-          <div>d) Madrid</div>
+    <Card className="p-6 bg-white dark:bg-slate-900 border shadow-sm">
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center shadow-lg">
+            <FileText className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Manual MCQ Input</h2>
+            <p className="text-sm text-gray-500">Paste your questions in any format below</p>
+          </div>
         </div>
 
-        <div className="bg-accent/10 border border-accent/20 rounded-lg p-3 space-y-2">
+        {/* Format Examples */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Format 1: (A), (B), (C), (D)</h4>
+            <div className="text-sm font-mono text-gray-700 dark:text-gray-300 space-y-0.5">
+              <div>1. পশ্চিমবঙ্গের সর্বোচ্চ শৃঙ্গ কোনটি?</div>
+              <div>(A) ফালুট</div>
+              <div>(B) সান্দাকফু</div>
+              <div>(C) অযোধ্যা</div>
+              <div>(D) গোর্গাবুরু</div>
+              <div className="text-sky-600 dark:text-sky-400">Ans: (B) সান্দাকফু</div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Format 2: a), b), c), d)</h4>
+            <div className="text-sm font-mono text-gray-700 dark:text-gray-300 space-y-0.5">
+              <div>1. What is the capital of France?</div>
+              <div>a) London</div>
+              <div>b) Paris *</div>
+              <div>c) Berlin</div>
+              <div>d) Madrid</div>
+              <div className="text-gray-400 text-xs mt-1">Use * to mark correct answer</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl p-3">
           <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>• Start each question with a number (1., 2., Q1, etc.)</p>
-              <p>• Options should start with a), b), c), d) or 1), 2), 3), 4)</p>
-              <p>• Mark correct answer with * or ✓ or (correct)</p>
+            <AlertCircle className="w-4 h-4 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+              <p>• Supports both <strong>(A), (B), (C), (D)</strong> and <strong>a), b), c), d)</strong> formats</p>
+              <p>• Use <strong>Ans: (B)</strong> or <strong>*</strong> to mark the correct answer</p>
               <p>• Each question needs at least 2 options</p>
             </div>
           </div>
@@ -158,19 +245,19 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
           placeholder="Paste your MCQ questions here..."
           value={mcqText}
           onChange={(e) => setMcqText(e.target.value)}
-          className="min-h-[300px] font-mono text-sm"
+          className="min-h-[250px] font-mono text-sm bg-gray-50 dark:bg-slate-800 border-2 border-gray-200 dark:border-gray-700 focus:border-sky-500 rounded-xl"
         />
 
         <div className="flex gap-3">
-          <Button 
+          <Button
             onClick={handleCreateQuiz}
             disabled={isGenerating || !mcqText.trim()}
-            className="flex-1"
+            className="flex-1 h-12 font-semibold bg-sky-500 hover:bg-sky-600 text-white"
             size="lg"
           >
             {isGenerating ? (
               <>
-                <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin mr-2" />
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                 Creating Quiz...
               </>
             ) : (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download } from "lucide-react";
+import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, Copy } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TelegramShareQuestionBank } from "@/components/TelegramShareQuestionBank";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog";
 import { ParsedQuestion } from "@/utils/questionParser";
+import { EditQuestionDialog } from "@/components/EditQuestionDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
@@ -46,6 +57,12 @@ export default function QuestionBank() {
   const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
   const [defaultLanguage, setDefaultLanguage] = useState("en");
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
+  const [editingQuestion, setEditingQuestion] = useState<QuestionBankItem | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const { toast } = useToast();
 
   const loadQuestions = useCallback(async () => {
@@ -102,17 +119,21 @@ export default function QuestionBank() {
     });
   };
 
-  const handleDelete = async (questionId: string) => {
-    if (!window.confirm("Are you sure you want to delete this question?")) {
-      return;
-    }
+  // Opens delete confirmation dialog
+  const handleDelete = (questionId: string) => {
+    setDeleteQuestionId(questionId);
+  };
+
+  // Executes the actual deletion
+  const confirmDelete = async () => {
+    if (!deleteQuestionId) return;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await QuestionBankService.deleteQuestion(questionId, user.id);
-      setQuestions(questions.filter(q => q.id !== questionId));
+      await QuestionBankService.deleteQuestion(deleteQuestionId, user.id);
+      setQuestions(questions.filter(q => q.id !== deleteQuestionId));
       toast({
         title: "Deleted",
         description: "Question deleted successfully",
@@ -124,6 +145,8 @@ export default function QuestionBank() {
         description: error instanceof Error ? error.message : "Failed to delete question",
         variant: "destructive",
       });
+    } finally {
+      setDeleteQuestionId(null);
     }
   };
 
@@ -157,6 +180,7 @@ export default function QuestionBank() {
         question: q.question,
         options: q.options,
         correct_option_index: q.correct_option_index,
+        explanation: q.explanation || undefined,
         topic: "Bulk Upload",
         difficulty: "medium",
         language: "bn", // Default as per parser support for bilingual text
@@ -207,9 +231,79 @@ export default function QuestionBank() {
     setSelectedQuestionIds(new Set());
   };
 
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedQuestionIds.size === 0) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete all selected questions
+      for (const questionId of selectedQuestionIds) {
+        await QuestionBankService.deleteQuestion(questionId, user.id);
+      }
+
+      setQuestions(questions.filter(q => !selectedQuestionIds.has(q.id)));
+      toast({
+        title: "Bulk Delete Complete",
+        description: `Successfully deleted ${selectedQuestionIds.size} questions.`,
+      });
+      setSelectedQuestionIds(new Set());
+      loadStats();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete some questions",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   const getSelectedQuestions = () => {
     return questions.filter(q => selectedQuestionIds.has(q.id));
   };
+
+  // Edit question
+  const handleEdit = (question: QuestionBankItem) => {
+    setEditingQuestion(question);
+    setIsEditDialogOpen(true);
+  };
+
+  // Duplicate question
+  const handleDuplicate = async (question: QuestionBankItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await QuestionBankService.addQuestion(user.id, {
+        question: question.question + " (Copy)",
+        options: question.options,
+        correct_option_index: question.correct_option_index,
+        topic: question.topic,
+        difficulty: question.difficulty,
+        language: question.language,
+        explanation: question.explanation,
+        source: question.source,
+        is_active: question.is_active,
+        is_public: question.is_public,
+      });
+
+      toast({
+        title: "Question Duplicated",
+        description: "A copy of the question has been created.",
+      });
+      handleRefresh();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to duplicate question",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   // Filter questions by search query
   const filteredQuestions = questions.filter(q =>
@@ -338,13 +432,75 @@ export default function QuestionBank() {
                     Select All
                   </label>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {selectedQuestionIds.size > 0 ? (
-                    <span className="font-medium text-primary">
-                      {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
-                    </span>
-                  ) : (
-                    <span>No questions selected</span>
+                <div className="flex items-center gap-3">
+                  {/* Range Selection */}
+                  <span className="text-sm text-muted-foreground">Range:</span>
+                  <Input
+                    type="number"
+                    placeholder="From"
+                    value={rangeFrom}
+                    onChange={(e) => setRangeFrom(e.target.value)}
+                    className="w-16 h-8 text-sm"
+                    min="1"
+                  />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <Input
+                    type="number"
+                    placeholder="To"
+                    value={rangeTo}
+                    onChange={(e) => setRangeTo(e.target.value)}
+                    className="w-16 h-8 text-sm"
+                    min="1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const from = parseInt(rangeFrom) || 1;
+                      const to = parseInt(rangeTo) || filteredQuestions.length;
+                      if (from > 0 && to >= from && to <= filteredQuestions.length) {
+                        const newSelection = new Set<string>();
+                        for (let i = from - 1; i < to && i < filteredQuestions.length; i++) {
+                          newSelection.add(filteredQuestions[i].id);
+                        }
+                        setSelectedQuestionIds(newSelection);
+                        toast({
+                          title: "Range Selected",
+                          description: `Selected questions ${from} to ${to}`,
+                        });
+                      } else {
+                        toast({
+                          title: "Invalid Range",
+                          description: `Please enter valid range (1 to ${filteredQuestions.length})`,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="h-8 text-sm font-medium"
+                  >
+                    Select Range
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedQuestionIds.size > 0 ? (
+                      <span className="font-medium text-primary">
+                        {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
+                      </span>
+                    ) : (
+                      <span>No questions selected</span>
+                    )}
+                  </div>
+                  {selectedQuestionIds.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowBulkDeleteDialog(true)}
+                      className="gap-2 font-bold"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Selected
+                    </Button>
                   )}
                 </div>
               </div>
@@ -517,102 +673,79 @@ export default function QuestionBank() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-6">
-                {filteredQuestions.map((q, questionIndex) => (
-                  <Card key={q.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${selectedQuestionIds.has(q.id) ? "ring-2 ring-primary" : ""}`}>
-                    {/* Question Number Badge */}
-                    <div className="absolute -left-1 -top-1 w-14 h-14 flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center font-black text-lg shadow-lg">
-                        {questionIndex + 1}
+              <div className="border rounded-lg overflow-hidden bg-card">
+                {/* Table Header */}
+                <div className="grid grid-cols-[auto_auto_1fr_150px_100px] gap-4 p-4 bg-muted/50 border-b font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  <div className="w-6"></div>
+                  <div className="w-10"></div>
+                  <div>Question</div>
+                  <div className="text-center">Subject/Topic</div>
+                  <div className="text-center">Actions</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y">
+                  {filteredQuestions.map((q, index) => (
+                    <div
+                      key={q.id}
+                      className={`grid grid-cols-[auto_auto_1fr_150px_100px] gap-4 p-4 items-center hover:bg-muted/30 transition-colors ${selectedQuestionIds.has(q.id) ? "bg-primary/5" : ""
+                        }`}
+                    >
+                      {/* Checkbox */}
+                      <Checkbox
+                        id={`question-${q.id}`}
+                        checked={selectedQuestionIds.has(q.id)}
+                        onCheckedChange={() => handleToggleQuestion(q.id)}
+                      />
+
+                      {/* Q# */}
+                      <div className="w-10 text-sm font-bold text-muted-foreground">
+                        Q{index + 1}
+                      </div>
+
+                      {/* Question Text Only */}
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground leading-relaxed line-clamp-2">
+                          {q.question}
+                        </p>
+                      </div>
+
+                      {/* Subject/Topic */}
+                      <div className="text-center">
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                          {q.topic}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {q.source === 'ai_generated' ? 'AI Generated' :
+                            q.source === 'bulk_upload' ? 'Bulk Upload' :
+                              q.source === 'manual' ? 'Manual Entry' : 'Question Bank'}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(q)}
+                          className="h-8 w-8 text-primary/70 hover:text-primary hover:bg-primary/10"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(q.id)}
+                          className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-
-                    <CardHeader className="pl-16">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex items-start gap-3 flex-1">
-                          <Checkbox
-                            id={`question-${q.id}`}
-                            checked={selectedQuestionIds.has(q.id)}
-                            onCheckedChange={() => handleToggleQuestion(q.id)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <CardTitle className="text-lg leading-relaxed">{q.question}</CardTitle>
-                            <CardDescription className="flex flex-wrap items-center gap-2 mt-2">
-                              <Badge variant="secondary" className="text-xs">{q.topic}</Badge>
-                              <Badge variant="outline" className="text-xs capitalize">{q.difficulty}</Badge>
-                              <Badge variant="outline" className="text-xs">{q.language === 'bn' ? 'Bengali' : q.language === 'en' ? 'English' : q.language}</Badge>
-                              {q.source && (
-                                <Badge variant="outline" className="text-xs">
-                                  {q.source === 'ai_generated' ? 'AI' :
-                                    q.source === 'bulk_upload' ? 'Bulk' :
-                                      q.source === 'manual' ? 'Manual' :
-                                        q.source === 'document' ? 'Doc' :
-                                          q.source === 'quiz_import' ? 'Import' : q.source}
-                                </Badge>
-                              )}
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {q.is_public && (
-                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded font-semibold">
-                              Public
-                            </span>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(q.id)}
-                            className="text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pl-16 space-y-3">
-                      {/* Options with letter labels */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {q.options.map((option, idx) => {
-                          const isCorrect = idx === q.correct_option_index;
-                          const optionLetter = String.fromCharCode(97 + idx); // a, b, c, d
-                          return (
-                            <div
-                              key={idx}
-                              className={`p-3 rounded-lg border-2 flex items-start gap-2 transition-all ${isCorrect
-                                ? "bg-success/10 border-success/50 dark:bg-success/20"
-                                : "border-border/50 hover:border-border"
-                                }`}
-                            >
-                              <span className={`font-black text-sm ${isCorrect ? 'text-success' : 'text-muted-foreground'}`}>
-                                {optionLetter})
-                              </span>
-                              <span className={`flex-1 ${isCorrect ? 'font-semibold' : ''}`}>{option}</span>
-                              {isCorrect && <span className="text-success font-bold text-xs uppercase tracking-wider">✓</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Correct Answer Summary */}
-                      <div className="pt-2 border-t border-border/30">
-                        <p className="text-sm font-bold text-success flex items-center gap-2">
-                          Correct Answer:
-                          <span className="bg-success/20 px-2 py-0.5 rounded">
-                            {String.fromCharCode(97 + q.correct_option_index)}) {q.options[q.correct_option_index]}
-                          </span>
-                        </p>
-                      </div>
-
-                      {q.explanation && (
-                        <p className="text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-3 mt-2">
-                          {q.explanation}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>
@@ -647,6 +780,65 @@ export default function QuestionBank() {
           defaultLanguage={defaultLanguage}
           onSaved={handleQuestionsSaved}
         />
+
+        {/* Edit Question Dialog */}
+        <EditQuestionDialog
+          question={editingQuestion}
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onSaved={handleRefresh}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteQuestionId !== null} onOpenChange={(open) => !open && setDeleteQuestionId(null)}>
+          <AlertDialogContent className="clay-card border-none">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-black flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-destructive" />
+                Delete Question
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base">
+                Are you sure you want to delete this question? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-bold">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-black"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+          <AlertDialogContent className="clay-card border-none">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-black flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-destructive" />
+                Delete {selectedQuestionIds.size} Questions
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base">
+                Are you sure you want to delete <span className="font-bold text-destructive">{selectedQuestionIds.size}</span> selected questions? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-bold">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  handleBulkDelete();
+                  setShowBulkDeleteDialog(false);
+                }}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-black"
+              >
+                Delete All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

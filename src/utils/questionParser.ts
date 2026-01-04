@@ -2,6 +2,7 @@ export interface ParsedQuestion {
     question: string;
     options: string[];
     correct_option_index: number;
+    explanation?: string;
 }
 
 export function parseBulkQuestions(text: string): ParsedQuestion[] {
@@ -11,51 +12,81 @@ export function parseBulkQuestions(text: string): ParsedQuestion[] {
     const normalizedText = text.replace(/\r\n/g, '\n').trim();
 
     // Split the text into sections starting with "1.", "2.", etc.
-    // We use a positive lookahead to keep the numbering as the start of each block
     const sections = normalizedText.split(/\n?(?=\d+\.)/);
 
     for (const section of sections) {
         if (!section.trim()) continue;
 
-        // Regex to match the different parts:
-        // 1. Question text (from start until "a)")
-        // 2. Options a, b, c, d
-        // 3. Answer line starting with "Ans:"
-
         try {
-            // Extract question text
-            const qMatch = section.match(/^\d+\.(.*?)(?=\n\s*[aA][\)\.])/s);
-            const questionText = qMatch ? qMatch[1].trim() : "";
+            // Check which format is being used: (A)/(B)/(C)/(D) or a)/b)/c)/d)
+            const usesParenthesis = /\([A-Da-d]\)/.test(section);
 
-            // Extract options
-            const optAMatch = section.match(/[aA][\)\.](.*?)(?=\n\s*[bB][\)\.])/s);
-            const optBMatch = section.match(/[bB][\)\.](.*?)(?=\n\s*[cC][\)\.])/s);
-            const optCMatch = section.match(/[cC][\)\.](.*?)(?=\n\s*[dD][\)\.])/s);
-            const optDMatch = section.match(/[dD][\)\.](.*?)(?=\n\s*Ans:)/si);
+            let questionText = "";
+            let options: string[] = ["", "", "", ""];
+            let correctIndex = -1;
+            let explanation: string | undefined;
 
-            // If we don't find "Ans:", try matching until the end for option D
-            const optDMatchFinal = optDMatch || section.match(/[dD][\)\.](.*?)$/s);
+            if (usesParenthesis) {
+                // Format: (A), (B), (C), (D)
+                // Extract question text (from start until first option)
+                const qMatch = section.match(/^\d+\.(.*?)(?=\n\s*\([Aa]\))/s);
+                questionText = qMatch ? qMatch[1].trim() : "";
 
-            const options = [
-                optAMatch ? optAMatch[1].trim() : "",
-                optBMatch ? optBMatch[1].trim() : "",
-                optCMatch ? optCMatch[1].trim() : "",
-                optDMatchFinal ? optDMatchFinal[1].split(/\n\s*Ans:/i)[0].trim() : ""
-            ];
+                // Extract options
+                const optAMatch = section.match(/\([Aa]\)\s*(.*?)(?=\n\s*\([Bb]\))/s);
+                const optBMatch = section.match(/\([Bb]\)\s*(.*?)(?=\n\s*\([Cc]\))/s);
+                const optCMatch = section.match(/\([Cc]\)\s*(.*?)(?=\n\s*\([Dd]\))/s);
+                const optDMatch = section.match(/\([Dd]\)\s*(.*?)(?=\n\s*Ans:)/si) ||
+                    section.match(/\([Dd]\)\s*(.*?)$/s);
 
-            // Extract raw answer
-            const ansMatch = section.match(/Ans:\s*([a-dA-D])/i);
-            const ansLetter = ansMatch ? ansMatch[1].toLowerCase() : "";
+                options = [
+                    optAMatch ? optAMatch[1].trim() : "",
+                    optBMatch ? optBMatch[1].trim() : "",
+                    optCMatch ? optCMatch[1].trim() : "",
+                    optDMatch ? optDMatch[1].split(/\n\s*Ans:/i)[0].trim() : ""
+                ];
 
-            // Map letter to index
-            const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
-            const correctIndex = letterToIndex[ansLetter] ?? -1;
+                // Extract answer - supports both "Ans: (B)" and "Ans: B" formats
+                const ansMatch = section.match(/Ans:\s*\(?([A-Da-d])\)?/i);
+                const ansLetter = ansMatch ? ansMatch[1].toLowerCase() : "";
+
+                const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+                correctIndex = letterToIndex[ansLetter] ?? -1;
+            } else {
+                // Format: a), b), c), d) or a., b., c., d.
+                const qMatch = section.match(/^\d+\.(.*?)(?=\n\s*[aA][\)\.])/s);
+                questionText = qMatch ? qMatch[1].trim() : "";
+
+                const optAMatch = section.match(/[aA][\)\.](.*?)(?=\n\s*[bB][\)\.])/s);
+                const optBMatch = section.match(/[bB][\)\.](.*?)(?=\n\s*[cC][\)\.])/s);
+                const optCMatch = section.match(/[cC][\)\.](.*?)(?=\n\s*[dD][\)\.])/s);
+                const optDMatch = section.match(/[dD][\)\.](.*?)(?=\n\s*Ans:)/si) ||
+                    section.match(/[dD][\)\.](.*?)$/s);
+
+                options = [
+                    optAMatch ? optAMatch[1].trim() : "",
+                    optBMatch ? optBMatch[1].trim() : "",
+                    optCMatch ? optCMatch[1].trim() : "",
+                    optDMatch ? optDMatch[1].split(/\n\s*Ans:/i)[0].trim() : ""
+                ];
+
+                const ansMatch = section.match(/Ans:\s*\(?([a-dA-D])\)?/i);
+                const ansLetter = ansMatch ? ansMatch[1].toLowerCase() : "";
+
+                const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+                correctIndex = letterToIndex[ansLetter] ?? -1;
+            }
+
+            // Extract Short Notes (optional)
+            const notesMatch = section.match(/Short Notes:\s*(.*)/is);
+            explanation = notesMatch ? notesMatch[1].trim() : undefined;
 
             if (questionText && options.every(opt => opt !== "") && correctIndex !== -1) {
                 questions.push({
                     question: questionText,
                     options,
-                    correct_option_index: correctIndex
+                    correct_option_index: correctIndex,
+                    explanation
                 });
             }
         } catch (error) {

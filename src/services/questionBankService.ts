@@ -66,7 +66,7 @@ export class QuestionBankService {
    */
   static async addQuestion(
     userId: string,
-    question: Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect">
+    question: Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">
   ): Promise<QuestionBankItem> {
     const { data, error } = await supabase
       .from("question_banks")
