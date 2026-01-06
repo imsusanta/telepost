@@ -143,8 +143,8 @@ export default function CreateQuizPage() {
         return;
       }
 
-      const data = await QuestionBankService.getQuestions(user.id, filters, 100);
-      setQuestions(data);
+      const result = await QuestionBankService.getQuestions(user.id, filters, 100);
+      setQuestions(result.data);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load questions";
       console.error("Failed to load questions:", error);

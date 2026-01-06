@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Database, Filter, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz } from "lucide-react";
+import { Database, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
