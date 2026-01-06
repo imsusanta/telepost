@@ -9,6 +9,7 @@ export interface QuestionBankItem {
   correct_option_index: number;
   explanation?: string;
   topic: string;
+  subject?: string;
   difficulty: string;
   tags?: string[];
   source?: string;
@@ -20,6 +21,8 @@ export interface QuestionBankItem {
   language: string;
   is_public: boolean;
   is_active: boolean;
+  classification_confidence?: number;
+  classification_source?: 'auto' | 'manual';
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +36,7 @@ export interface QuestionBankFilters {
   tags?: string[];
   channelId?: string;
   includePublic?: boolean;
+  unclassifiedOnly?: boolean;
 }
 
 export class QuestionBankService {
@@ -46,9 +50,10 @@ export class QuestionBankService {
     const formattedQuestions = questions.map(q => ({
       ...q,
       user_id: userId,
-      topic: q.topic || "Bulk Upload",
+      topic: q.topic || "General",
+      subject: q.subject || undefined,
       difficulty: q.difficulty || "medium",
-      language: q.language || "bn", // Default to bn as requested support for both
+      language: q.language || "bn",
       source: "bulk_upload"
     }));
 
@@ -82,17 +87,19 @@ export class QuestionBankService {
   }
 
   /**
-   * Get questions from bank
+   * Get questions from bank with pagination and search
    */
   static async getQuestions(
     userId: string,
     filters?: QuestionBankFilters,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<QuestionBankItem[]> {
+    limit: number = 20,
+    offset: number = 0,
+    search?: string,
+    sortOrder: 'asc' | 'desc' = 'desc'
+  ): Promise<{ data: QuestionBankItem[]; count: number }> {
     let query = supabase
       .from("question_banks")
-      .select("*");
+      .select("*", { count: "exact" });
 
     // Handle user filtering with public questions option
     if (filters?.includePublic) {
@@ -103,16 +110,24 @@ export class QuestionBankService {
 
     // Apply filters
     if (filters?.topic) {
-      query = query.eq("topic", filters.topic);
+      if (Array.isArray(filters.topic)) {
+        query = query.in("topic", filters.topic);
+      } else {
+        query = query.eq("topic", filters.topic);
+      }
+    }
+    if (filters?.subject) {
+      if (Array.isArray(filters.subject)) {
+        query = query.in("subject", filters.subject);
+      } else {
+        query = query.eq("subject", filters.subject);
+      }
     }
     if (filters?.difficulty) {
       query = query.eq("difficulty", filters.difficulty);
     }
     if (filters?.language) {
       query = query.eq("language", filters.language);
-    }
-    if (filters?.subject) {
-      query = query.ilike("topic", `%${filters.subject}%`);
     }
     if (filters?.source) {
       query = query.eq("source", filters.source);
@@ -123,13 +138,24 @@ export class QuestionBankService {
     if (filters?.tags && filters.tags.length > 0) {
       query = query.contains("tags", filters.tags);
     }
+    if (filters?.unclassifiedOnly) {
+      query = query.or("subject.is.null,subject.eq.\"\"");
+    }
 
-    const { data, error } = await query
-      .order("created_at", { ascending: false })
+    // Apply search
+    if (search?.trim()) {
+      query = query.ilike("question", `%${search.trim()}%`);
+    }
+
+    const { data, error, count } = await query
+      .order("created_at", { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return (data || []) as QuestionBankItem[];
+    return {
+      data: (data || []) as QuestionBankItem[],
+      count: count || 0
+    };
   }
 
   /**
@@ -141,7 +167,7 @@ export class QuestionBankService {
     filters?: QuestionBankFilters
   ): Promise<QuestionBankItem[]> {
     // First, get all matching questions
-    const allQuestions = await this.getQuestions(userId, filters, 1000);
+    const { data: allQuestions } = await this.getQuestions(userId, filters, 1000);
 
     // Shuffle and take requested count
     const shuffled = allQuestions.sort(() => Math.random() - 0.5);
@@ -247,31 +273,62 @@ export class QuestionBankService {
   }
 
   /**
+   * Bulk update classification for questions
+   */
+  static async bulkUpdateClassification(
+    questionIds: string[],
+    userId: string,
+    subject: string,
+    topic: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from("question_banks")
+      .update({ subject, topic })
+      .in("id", questionIds)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+  }
+
+  /**
    * Get question bank statistics
    */
   static async getStatistics(userId: string): Promise<{
     total: number;
     byTopic: Record<string, number>;
+    bySubject: Record<string, number>;
     byDifficulty: Record<string, number>;
     byLanguage: Record<string, number>;
+    unclassifiedCount: number;
   }> {
     const { data, error } = await supabase
       .from("question_banks")
-      .select("topic, difficulty, language")
+      .select("topic, subject, difficulty, language")
       .eq("user_id", userId);
 
     if (error) throw error;
 
+    const questionsData = data as any[];
+
     const stats = {
-      total: data.length,
+      total: questionsData.length,
       byTopic: {} as Record<string, number>,
+      bySubject: {} as Record<string, number>,
       byDifficulty: {} as Record<string, number>,
       byLanguage: {} as Record<string, number>,
+      unclassifiedCount: 0,
     };
 
-    data.forEach((q) => {
+    questionsData.forEach((q) => {
       // By topic
-      stats.byTopic[q.topic] = (stats.byTopic[q.topic] || 0) + 1;
+      if (q.topic) stats.byTopic[q.topic] = (stats.byTopic[q.topic] || 0) + 1;
+
+      // By subject
+      if (q.subject) {
+        stats.bySubject[q.subject] = (stats.bySubject[q.subject] || 0) + 1;
+      } else {
+        stats.unclassifiedCount++;
+      }
 
       // By difficulty
       stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1;

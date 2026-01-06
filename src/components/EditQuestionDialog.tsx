@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { QuestionBankService, QuestionBankItem } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
 import { Pencil, Loader2, Save, X, CheckCircle2 } from "lucide-react";
+import { PREDEFINED_SUBJECTS, ClassificationService, refreshSubjectsCache } from "@/services/classificationService";
+import { ClassificationMetadataService, ClassificationSubject } from "@/services/classificationMetadataService";
+import { isSuperAdmin } from "@/services/couponService";
 
 interface EditQuestionDialogProps {
     question: QuestionBankItem | null;
@@ -22,12 +25,41 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
         question: "",
         options: ["", "", "", ""],
         correct_option_index: 0,
+        subject: "",
         topic: "",
         difficulty: "medium",
         language: "bn",
         explanation: "",
     });
+    const [existingTopics, setExistingTopics] = useState<string[]>([]);
+    const [dbSubjects, setDbSubjects] = useState<ClassificationSubject[]>([]);
+    const [isSuperUser, setIsSuperUser] = useState(false);
     const { toast } = useToast();
+
+    const loadExistingData = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Check if super admin
+            const superAdminStatus = await isSuperAdmin();
+            setIsSuperUser(superAdminStatus);
+
+            // Refresh cache and load subjects
+            await refreshSubjectsCache();
+            const subjects = await ClassificationMetadataService.getSubjects();
+            setDbSubjects(subjects);
+
+            const topics = await ClassificationService.getAllTopics(user.id);
+            setExistingTopics(topics);
+        } catch (error) {
+            console.error("Failed to load existing topics/subjects:", error);
+        }
+    };
+
+    useEffect(() => {
+        if (open) loadExistingData();
+    }, [open]);
 
     // Populate form when question changes
     useEffect(() => {
@@ -36,6 +68,7 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                 question: question.question,
                 options: [...question.options],
                 correct_option_index: question.correct_option_index,
+                subject: question.subject || "",
                 topic: question.topic || "",
                 difficulty: question.difficulty || "medium",
                 language: question.language || "bn",
@@ -77,6 +110,7 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                 question: formData.question,
                 options: formData.options,
                 correct_option_index: formData.correct_option_index,
+                subject: formData.subject,
                 topic: formData.topic,
                 difficulty: formData.difficulty,
                 language: formData.language,
@@ -174,16 +208,66 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                         </div>
                     </div>
 
-                    {/* Metadata Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Subject</label>
+                            <div className="flex gap-2">
+                                <Select
+                                    value={formData.subject}
+                                    onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                                >
+                                    <SelectTrigger className="font-medium rounded-xl border-2 border-border/60 flex-1">
+                                        <SelectValue placeholder="Select Subject" />
+                                    </SelectTrigger>
+                                    <SelectContent className="clay-card border-none max-h-[300px]">
+                                        {/* DB Subjects */}
+                                        {dbSubjects.map((s) => (
+                                            <SelectItem key={s.id} value={s.name} className="font-medium rounded-lg">
+                                                {s.icon} {s.name}
+                                            </SelectItem>
+                                        ))}
+
+                                        {/* Fallback to Predefined if DB is empty or doesn't contain them */}
+                                        {dbSubjects.length === 0 && PREDEFINED_SUBJECTS.map((s) => (
+                                            <SelectItem key={s.id} value={s.name} className="font-medium rounded-lg">
+                                                {s.icon} {s.name}
+                                            </SelectItem>
+                                        ))}
+
+                                        {/* AI Suggested / Manual (if user is super admin) */}
+                                        {formData.subject && !dbSubjects.some(s => s.name === formData.subject) && !PREDEFINED_SUBJECTS.some(s => s.name === formData.subject) && (
+                                            <SelectItem value={formData.subject} className="font-medium rounded-lg">
+                                                ✨ {formData.subject}
+                                            </SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {isSuperUser && (
+                                    <Input
+                                        placeholder="New..."
+                                        value={formData.subject}
+                                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                                        className="w-1/3 font-medium rounded-xl border-2 border-border/60"
+                                    />
+                                )}
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Topic</label>
                             <Input
                                 value={formData.topic}
                                 onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                                placeholder="e.g., History, Science..."
+                                placeholder="e.g., Algebra, WWII..."
+                                list="edit-existing-topics"
                                 className="font-medium rounded-xl border-2 border-border/60"
                             />
+                            <datalist id="edit-existing-topics">
+                                {existingTopics.map(t => (
+                                    <option key={t} value={t} />
+                                ))}
+                            </datalist>
                         </div>
 
                         <div className="space-y-2">

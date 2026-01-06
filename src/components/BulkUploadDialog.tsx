@@ -5,7 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { parseBulkQuestions, ParsedQuestion } from "@/utils/questionParser";
 import { QuestionPreviewList } from "./QuestionPreviewList";
-import { Upload, ClipboardPaste, BookOpen, AlertCircle, FileUp, Loader2 } from "lucide-react";
+import { Upload, ClipboardPaste, BookOpen, AlertCircle, FileUp, Loader2, Sparkles } from "lucide-react";
+import { ClassificationService } from "@/services/classificationService";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
+import { Progress } from "./ui/progress";
 
 interface BulkUploadDialogProps {
     onUpload: (questions: ParsedQuestion[]) => Promise<void>;
@@ -17,6 +21,9 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
     const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([]);
     const [isParsing, setIsParsing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [autoClassify, setAutoClassify] = useState(true);
+    const [classifyingProgress, setClassifyingProgress] = useState(0);
+    const [isClassifying, setIsClassifying] = useState(false);
     const { toast } = useToast();
 
     const handleParse = () => {
@@ -96,13 +103,48 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
 
         setIsUploading(true);
         try {
-            await onUpload(parsedQuestions);
+            let finalQuestions = [...parsedQuestions];
+
+            if (autoClassify) {
+                setIsClassifying(true);
+                const requests = parsedQuestions.map(q => ({
+                    question: q.question,
+                    options: q.options,
+                    explanation: q.explanation || "",
+                }));
+
+                const results = await ClassificationService.classifyQuestionsBulk(
+                    requests,
+                    (completed, total) => {
+                        setClassifyingProgress(Math.round((completed / total) * 100));
+                    }
+                );
+
+                finalQuestions = parsedQuestions.map((q, i) => ({
+                    ...q,
+                    subject: results[i]?.subject || q.subject,
+                    topic: results[i]?.topic || q.topic,
+                    difficulty: results[i]?.difficulty || q.difficulty,
+                }));
+                setIsClassifying(false);
+            }
+
+            await onUpload(finalQuestions);
             setOpen(false);
             resetState();
+            toast({
+                title: "Upload complete",
+                description: `Successfully added ${finalQuestions.length} questions.`,
+            });
         } catch (error) {
-            // Error handled by parent
+            toast({
+                title: "Upload failed",
+                description: "An error occurred during upload.",
+                variant: "destructive"
+            });
         } finally {
             setIsUploading(false);
+            setIsClassifying(false);
         }
     };
 
@@ -213,21 +255,57 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
                 </div>
 
                 <DialogFooter className="pt-4 border-t border-gray-200 dark:border-gray-700 gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => setOpen(false)}
-                        className="font-medium text-gray-600 dark:text-gray-300"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleFinalUpload}
-                        disabled={parsedQuestions.length === 0 || isUploading}
-                        className="px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
-                    >
-                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                        Save to Question Bank
-                    </Button>
+                    <div className="flex-1 flex flex-col gap-2">
+                        {isClassifying && (
+                            <div className="flex flex-col gap-1 px-4">
+                                <div className="flex items-center justify-between text-[10px] font-medium text-sky-600 dark:text-sky-400">
+                                    <span className="flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3" />
+                                        AI Classifying...
+                                    </span>
+                                    <span>{classifyingProgress}%</span>
+                                </div>
+                                <Progress value={classifyingProgress} className="h-1 bg-sky-100 dark:bg-sky-900/30" />
+                            </div>
+                        )}
+                        <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center gap-2 mr-4">
+                                <Checkbox
+                                    id="auto-classify"
+                                    checked={autoClassify}
+                                    onCheckedChange={(checked) => setAutoClassify(!!checked)}
+                                />
+                                <Label htmlFor="auto-classify" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3 text-sky-500" />
+                                    AI Auto-classify
+                                </Label>
+                            </div>
+                            <Button
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                className="font-medium text-gray-600 dark:text-gray-300"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleFinalUpload}
+                                disabled={parsedQuestions.length === 0 || isUploading}
+                                className="px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        {isClassifying ? 'Classifying...' : 'Uploading...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Save to Bank
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { PREDEFINED_SUBJECTS, ClassificationService, refreshSubjectsCache } from "@/services/classificationService";
+import { ClassificationMetadataService, ClassificationSubject } from "@/services/classificationMetadataService";
+import { isSuperAdmin } from "@/services/couponService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +38,31 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [existingTopics, setExistingTopics] = useState<string[]>([]);
+  const [dbSubjects, setDbSubjects] = useState<ClassificationSubject[]>([]);
+  const [isSuperUser, setIsSuperUser] = useState(false);
   const { toast } = useToast();
+
+  const loadExistingData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if super admin
+      const superAdminStatus = await isSuperAdmin();
+      setIsSuperUser(superAdminStatus);
+
+      // Refresh cache and load subjects
+      await refreshSubjectsCache();
+      const subjects = await ClassificationMetadataService.getSubjects();
+      setDbSubjects(subjects);
+
+      const topics = await ClassificationService.getAllTopics(user.id);
+      setExistingTopics(topics);
+    } catch (error) {
+      console.error("Failed to load existing topics/subjects:", error);
+    }
+  };
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...options];
@@ -128,6 +155,7 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
         correct_option_index: correctIndex,
         explanation: explanation.trim() || undefined,
         topic: topic.trim(),
+        subject: subject.trim() || undefined,
         difficulty,
         language,
         tags: tagArray.length > 0 ? tagArray : undefined,
@@ -156,7 +184,10 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => {
+      setOpen(val);
+      if (val) loadExistingData();
+    }}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
@@ -242,26 +273,63 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject *</Label>
+              <div className="flex gap-2">
+                <Select value={subject} onValueChange={setSubject}>
+                  <SelectTrigger id="subject" className="flex-1">
+                    <SelectValue placeholder="Select Subject" />
+                  </SelectTrigger>
+                  <SelectContent className="clay-card border-none max-h-[300px]">
+                    {/* DB Subjects */}
+                    {dbSubjects.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>
+                        {s.icon} {s.name}
+                      </SelectItem>
+                    ))}
+
+                    {/* Fallback to Predefined if DB is empty or doesn't contain them */}
+                    {dbSubjects.length === 0 && PREDEFINED_SUBJECTS.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>
+                        {s.icon} {s.name}
+                      </SelectItem>
+                    ))}
+
+                    {/* AI Suggested / Manual (if user is super admin) */}
+                    {subject && !dbSubjects.some(s => s.name === subject) && !PREDEFINED_SUBJECTS.some(s => s.name === subject) && (
+                      <SelectItem value={subject}>
+                        ✨ {subject}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {isSuperUser && (
+                  <Input
+                    placeholder="New..."
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-1/3"
+                  />
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="topic">Topic *</Label>
               <Input
                 id="topic"
-                placeholder="e.g., Mathematics"
+                placeholder="e.g., Algebra, WWII..."
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
+                list="existing-topics"
                 required
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject (Optional)</Label>
-              <Input
-                id="subject"
-                placeholder="e.g., Algebra"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              />
+              <datalist id="existing-topics">
+                {existingTopics.map(t => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </div>
           </div>
 

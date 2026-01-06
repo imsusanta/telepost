@@ -3,6 +3,9 @@ export interface ParsedQuestion {
     options: string[];
     correct_option_index: number;
     explanation?: string;
+    subject?: string;
+    topic?: string;
+    difficulty?: string;
 }
 
 export function parseBulkQuestions(text: string): ParsedQuestion[] {

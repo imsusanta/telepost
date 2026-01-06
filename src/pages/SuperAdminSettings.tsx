@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   AlertTriangle,
   Bot,
   Loader2,
@@ -8,8 +8,10 @@ import {
   Ticket,
   Users,
   Wrench,
-  Zap
+  Zap,
+  Layers
 } from 'lucide-react';
+import { TaxonomyManagement } from '@/components/TaxonomyManagement';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -176,8 +178,8 @@ export default function SuperAdminSettings() {
       await updateMaintenanceSettings(maintenanceSettings);
       toast({
         title: 'Success',
-        description: maintenanceSettings.maintenance_mode 
-          ? 'Maintenance mode enabled' 
+        description: maintenanceSettings.maintenance_mode
+          ? 'Maintenance mode enabled'
           : 'Maintenance settings saved',
       });
     } catch (error) {
@@ -213,9 +215,9 @@ export default function SuperAdminSettings() {
   const handleTestAIConnection = async () => {
     try {
       setTestingAI(true);
-      
+
       const { data, error } = await supabase.functions.invoke('test-ai-connection', {
-        body: { 
+        body: {
           model: aiSettings.model,
           temperature: aiSettings.temperature
         }
@@ -300,6 +302,10 @@ export default function SuperAdminSettings() {
             <TabsTrigger value="maintenance" className="gap-2">
               <Wrench className="w-4 h-4" />
               <span className="hidden sm:inline">Maintenance</span>
+            </TabsTrigger>
+            <TabsTrigger value="taxonomy" className="gap-2">
+              <Layers className="w-4 h-4" />
+              <span className="hidden sm:inline">Taxonomy</span>
             </TabsTrigger>
           </TabsList>
 
@@ -601,8 +607,8 @@ export default function SuperAdminSettings() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button 
-                    onClick={handleTestAIConnection} 
+                  <Button
+                    onClick={handleTestAIConnection}
                     disabled={testingAI || !aiSettings.model}
                     variant="outline"
                     className="gap-2"
@@ -610,8 +616,8 @@ export default function SuperAdminSettings() {
                     {testingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                     Test Connection
                   </Button>
-                  <Button 
-                    onClick={handleSaveAISettings} 
+                  <Button
+                    onClick={handleSaveAISettings}
                     disabled={saving || !aiSettings.model}
                     className="gap-2"
                   >
@@ -669,8 +675,8 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
 
-                <Button 
-                  onClick={handleSaveMaintenanceSettings} 
+                <Button
+                  onClick={handleSaveMaintenanceSettings}
                   disabled={saving}
                   variant={maintenanceSettings.maintenance_mode ? "destructive" : "default"}
                   className="gap-2"
@@ -680,6 +686,11 @@ export default function SuperAdminSettings() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Taxonomy Management */}
+          <TabsContent value="taxonomy">
+            <TaxonomyManagement />
           </TabsContent>
         </Tabs>
       </div>
