@@ -363,6 +363,7 @@ export type Database = {
           icon: string | null
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           color?: string | null
@@ -370,6 +371,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           color?: string | null
@@ -377,6 +379,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -386,18 +389,21 @@ export type Database = {
           id: string
           name: string
           subject_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           subject_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           subject_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
