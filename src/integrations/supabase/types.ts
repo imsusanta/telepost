@@ -56,6 +56,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          generation_time_ms: number | null
+          id: string
+          prompt: string | null
+          request_type: string
+          success: boolean | null
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          prompt?: string | null
+          request_type: string
+          success?: boolean | null
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          prompt?: string | null
+          request_type?: string
+          success?: boolean | null
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -2603,6 +2639,36 @@ export type Database = {
           total_quizzes_generated?: number
           total_storage_used_bytes?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_ai_settings: {
+        Row: {
+          api_key_status: string | null
+          created_at: string | null
+          gemini_api_key_encrypted: string | null
+          id: string
+          last_verified_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          api_key_status?: string | null
+          created_at?: string | null
+          gemini_api_key_encrypted?: string | null
+          id?: string
+          last_verified_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          api_key_status?: string | null
+          created_at?: string | null
+          gemini_api_key_encrypted?: string | null
+          id?: string
+          last_verified_at?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
