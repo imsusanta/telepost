@@ -1,30 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { parseBulkQuestions, ParsedQuestion } from "@/utils/questionParser";
 import { QuestionPreviewList } from "./QuestionPreviewList";
-import { Upload, ClipboardPaste, BookOpen, AlertCircle, FileUp, Loader2, Sparkles } from "lucide-react";
-import { ClassificationService } from "@/services/classificationService";
-import { Checkbox } from "./ui/checkbox";
-import { Label } from "./ui/label";
-import { Progress } from "./ui/progress";
+import { Upload, ClipboardPaste, BookOpen, AlertCircle, FileUp, Loader2, Database, Layers } from "lucide-react";
+import {
+
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface BulkUploadDialogProps {
     onUpload: (questions: ParsedQuestion[]) => Promise<void>;
+    fullSubjects?: any[];
+    fullTopics?: any[];
 }
 
-export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
+export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] }: BulkUploadDialogProps) {
     const [open, setOpen] = useState(false);
     const [rawText, setRawText] = useState("");
     const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([]);
     const [isParsing, setIsParsing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const [autoClassify, setAutoClassify] = useState(true);
-    const [classifyingProgress, setClassifyingProgress] = useState(0);
-    const [isClassifying, setIsClassifying] = useState(false);
+
+    // Taxonomy Selection - default to GK
+    const [selectedSubject, setSelectedSubject] = useState<string>("GK");
+    const [selectedTopic, setSelectedTopic] = useState<string>("__NONE__");
+
     const { toast } = useToast();
+
+    // Set default subject when subjects are loaded (prefer GK)
+    useEffect(() => {
+        if (fullSubjects.length > 0 && !selectedSubject) {
+            const gkSubject = fullSubjects.find(s => s.name.toLowerCase() === 'gk');
+            setSelectedSubject(gkSubject ? gkSubject.name : fullSubjects[0].name);
+        }
+    }, [fullSubjects, selectedSubject]);
+
+
+    // Reset topic when subject changes
+    useEffect(() => {
+        setSelectedTopic("__NONE__");
+    }, [selectedSubject]);
 
     const handleParse = () => {
         if (!rawText.trim()) {
@@ -105,29 +127,12 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
         try {
             let finalQuestions = [...parsedQuestions];
 
-            if (autoClassify) {
-                setIsClassifying(true);
-                const requests = parsedQuestions.map(q => ({
-                    question: q.question,
-                    options: q.options,
-                    explanation: q.explanation || "",
-                }));
-
-                const results = await ClassificationService.classifyQuestionsBulk(
-                    requests,
-                    (completed, total) => {
-                        setClassifyingProgress(Math.round((completed / total) * 100));
-                    }
-                );
-
-                finalQuestions = parsedQuestions.map((q, i) => ({
-                    ...q,
-                    subject: results[i]?.subject || q.subject,
-                    topic: results[i]?.topic || q.topic,
-                    difficulty: results[i]?.difficulty || q.difficulty,
-                }));
-                setIsClassifying(false);
-            }
+            // Apply Subject/Topic selection
+            finalQuestions = finalQuestions.map(q => ({
+                ...q,
+                subject: selectedSubject || q.subject || (fullSubjects.length > 0 ? fullSubjects[0].name : "GK"),
+                topic: (selectedTopic && selectedTopic !== "__NONE__") ? selectedTopic : (q.topic || ""),
+            }));
 
             await onUpload(finalQuestions);
             setOpen(false);
@@ -144,163 +149,221 @@ export function BulkUploadDialog({ onUpload }: BulkUploadDialogProps) {
             });
         } finally {
             setIsUploading(false);
-            setIsClassifying(false);
         }
     };
 
     const resetState = () => {
         setRawText("");
         setParsedQuestions([]);
+        if (fullSubjects.length > 0) {
+            setSelectedSubject(fullSubjects[0].name);
+        } else {
+            setSelectedSubject("");
+        }
+        setSelectedTopic("__NONE__");
     };
 
     return (
         <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) resetState(); }}>
             <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 border-2 hover:bg-primary/10 transition-all font-bold group">
+                <Button variant="outline" className="gap-2 border-2 hover:bg-primary/10 transition-all font-bold group border-sky-500/20 text-sky-600 dark:text-sky-400">
                     <BookOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     Bulk Upload
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-900 border shadow-2xl">
-                <DialogHeader className="pb-4 border-b">
-                    <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center shadow-lg">
-                            <Upload className="w-5 h-5 text-white" />
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-900 border-none shadow-2xl p-0 rounded-2xl">
+                {/* Compact Header */}
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                                <Upload className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-bold text-white">
+                                    Bulk Upload
+                                </DialogTitle>
+                                <DialogDescription className="text-emerald-100/80 text-sm">
+                                    Import questions from text
+                                </DialogDescription>
+                            </div>
                         </div>
-                        Bulk Question Upload
-                    </DialogTitle>
-                    <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                        Paste your questions in the format: <span className="font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">1. Quest a) Opt1 b) Opt2 Ans: a</span>
-                    </DialogDescription>
-                </DialogHeader>
+                    </DialogHeader>
+                </div>
 
-                <div className="flex-1 overflow-y-auto space-y-5 py-4 pr-2">
-                    {/* Input Section */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-semibold uppercase text-gray-500 tracking-wide">
-                                Raw Question Text
-                            </label>
-                            <div className="flex gap-2">
+                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                    {/* Inline Subject & Topic Selection */}
+                    <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
+
+                        <div className="flex items-center gap-2">
+                            <Database className="w-4 h-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Subject:</span>
+                            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                                <SelectTrigger className="h-9 w-[140px] bg-white dark:bg-slate-800 border rounded-lg text-sm">
+                                    <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {fullSubjects.length === 0 ? (
+                                        <SelectItem value="GK">GK</SelectItem>
+                                    ) : (
+                                        fullSubjects.map(s => (
+                                            <SelectItem key={s.id} value={s.name}>
+                                                {s.icon && <span className="mr-1">{s.icon}</span>}
+                                                {s.name}
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Topic:</span>
+                            <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                                <SelectTrigger className="h-9 w-[140px] bg-white dark:bg-slate-800 border rounded-lg text-sm">
+                                    <SelectValue placeholder="Optional" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__NONE__">No Topic</SelectItem>
+                                    {selectedSubject && fullTopics
+                                        .filter(t => {
+                                            const subject = fullSubjects.find(s => s.name === selectedSubject);
+                                            return subject && t.subject_id === subject.id;
+                                        })
+                                        .map(t => (
+                                            <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                                        ))
+                                    }
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex-1" />
+
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClipboardPaste}
+                                className="h-8 text-xs font-medium gap-1.5 text-slate-600 hover:text-emerald-600"
+                            >
+                                <ClipboardPaste className="w-3.5 h-3.5" />
+                                Paste
+                            </Button>
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".txt"
+                                    onChange={handleFileUpload}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                />
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={handleClipboardPaste}
-                                    className="h-8 text-xs font-medium gap-1.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+                                    className="h-8 text-xs font-medium gap-1.5 text-slate-600 hover:text-emerald-600"
                                 >
-                                    <ClipboardPaste className="w-3.5 h-3.5" />
-                                    Paste
+                                    <FileUp className="w-3.5 h-3.5" />
+                                    File
                                 </Button>
-                                <div className="relative">
-                                    <input
-                                        type="file"
-                                        accept=".txt"
-                                        onChange={handleFileUpload}
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                    />
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 text-xs font-medium gap-1.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-600 dark:text-sky-400"
-                                    >
-                                        <FileUp className="w-3.5 h-3.5" />
-                                        Upload .txt
-                                    </Button>
-                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <Textarea
-                            placeholder={"Paste your questions here...\n1. Indian National Congress কবে প্রতিষ্ঠিত হয়?\na) 1880\nb) 1885\nc) 1890\nd) 1895\nAns: b) 1885\nShort Notes: এটি 1885 সালে বোম্বেতে প্রতিষ্ঠিত হয়।"}
-                            value={rawText}
-                            onChange={(e) => setRawText(e.target.value)}
-                            className="min-h-[180px] font-medium text-gray-900 dark:text-white rounded-xl border-2 border-gray-200 dark:border-gray-700 focus:border-sky-500 bg-gray-50 dark:bg-slate-800 transition-all resize-none"
-                        />
+                    {/* Input Section */}
+                    <div className="space-y-3">
+
+                        <div className="relative group">
+                            <Textarea
+                                placeholder={"Paste your questions here...\n\nExample Format:\n1. Indian National Congress কবে প্রতিষ্ঠিত হয়?\na) 1880\nb) 1885\nc) 1890\nd) 1895\nAns: b) 1885\nShort Notes: এটি 1885 সালে বোম্বেতে প্রতিষ্ঠিত হয়।"}
+                                value={rawText}
+                                onChange={(e) => setRawText(e.target.value)}
+                                className="min-h-[250px] p-6 text-base font-medium rounded-2xl border-2 border-slate-200 dark:border-slate-700/50 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 bg-slate-50/50 dark:bg-slate-800/80 transition-all resize-none shadow-inner"
+                            />
+                            {!rawText && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center opacity-30 group-focus-within:opacity-0 transition-opacity">
+                                    <ClipboardPaste className="w-12 h-12 mb-2" />
+                                    <p className="text-sm font-bold">Paste questions to get started</p>
+                                </div>
+                            )}
+                        </div>
 
                         <Button
                             onClick={handleParse}
                             disabled={isParsing || !rawText.trim()}
-                            className="w-full h-11 font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-all"
+                            className="w-full h-12 text-lg font-black bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white transition-all shadow-xl shadow-sky-500/20 rounded-xl gap-3"
                         >
-                            {isParsing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ClipboardPaste className="w-4 h-4 mr-2" />}
-                            Parse & Preview Questions
+                            {isParsing ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookOpen className="w-5 h-5" />}
+
+                            Parse & Review Batch
                         </Button>
                     </div>
 
                     {/* Preview Section */}
                     {parsedQuestions.length > 0 && (
-                        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="space-y-6 pt-10 border-t-2 border-dashed border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-4 duration-700">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5 text-emerald-500" />
-                                    Review {parsedQuestions.length} Questions
-                                </h3>
-                                <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                    Parsed Output
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                        <AlertCircle className="w-6 h-6 text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800 dark:text-white">
+                                            Ready for Preview
+                                        </h3>
+                                        <p className="text-xs font-bold text-slate-400">Found {parsedQuestions.length} questions correctly formatted</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="link"
+                                    className="text-slate-400 hover:text-red-500 font-bold"
+                                    onClick={() => setParsedQuestions([])}
+                                >
+                                    Clear All
+                                </Button>
                             </div>
-                            <QuestionPreviewList
-                                questions={parsedQuestions}
-                                onUpdate={(idx, updated) => {
-                                    const newQs = [...parsedQuestions];
-                                    newQs[idx] = updated;
-                                    setParsedQuestions(newQs);
-                                }}
-                                onRemove={(idx) => {
-                                    setParsedQuestions(parsedQuestions.filter((_, i) => i !== idx));
-                                }}
-                            />
+
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                                <QuestionPreviewList
+                                    questions={parsedQuestions}
+                                    onUpdate={(idx, updated) => {
+                                        const newQs = [...parsedQuestions];
+                                        newQs[idx] = updated;
+                                        setParsedQuestions(newQs);
+                                    }}
+                                    onRemove={(idx) => {
+                                        setParsedQuestions(parsedQuestions.filter((_, i) => i !== idx));
+                                    }}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="pt-4 border-t border-gray-200 dark:border-gray-700 gap-2">
-                    <div className="flex-1 flex flex-col gap-2">
-                        {isClassifying && (
-                            <div className="flex flex-col gap-1 px-4">
-                                <div className="flex items-center justify-between text-[10px] font-medium text-sky-600 dark:text-sky-400">
-                                    <span className="flex items-center gap-1">
-                                        <Sparkles className="w-3 h-3" />
-                                        AI Classifying...
-                                    </span>
-                                    <span>{classifyingProgress}%</span>
-                                </div>
-                                <Progress value={classifyingProgress} className="h-1 bg-sky-100 dark:bg-sky-900/30" />
-                            </div>
-                        )}
-                        <div className="flex items-center justify-end gap-2">
-                            <div className="flex items-center gap-2 mr-4">
-                                <Checkbox
-                                    id="auto-classify"
-                                    checked={autoClassify}
-                                    onCheckedChange={(checked) => setAutoClassify(!!checked)}
-                                />
-                                <Label htmlFor="auto-classify" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3 text-sky-500" />
-                                    AI Auto-classify
-                                </Label>
-                            </div>
+                <DialogFooter className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex-1 flex flex-col gap-3">
+                        <div className="flex items-center justify-end gap-3">
                             <Button
                                 variant="outline"
                                 onClick={() => setOpen(false)}
-                                className="font-medium text-gray-600 dark:text-gray-300"
+                                className="h-12 px-6 font-bold text-slate-500 border-none hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
                             >
-                                Cancel
+                                Cancel Upload
                             </Button>
                             <Button
                                 onClick={handleFinalUpload}
                                 disabled={parsedQuestions.length === 0 || isUploading}
-                                className="px-6 font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-lg shadow-emerald-500/20"
+                                className="h-12 px-10 text-base font-black bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-xl shadow-emerald-500/20 rounded-xl gap-3"
                             >
                                 {isUploading ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        {isClassifying ? 'Classifying...' : 'Uploading...'}
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Uploading Batch...
                                     </>
                                 ) : (
                                     <>
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Save to Bank
+                                        <Upload className="w-5 h-5" />
+                                        Finish & Save to Bank
                                     </>
                                 )}
                             </Button>

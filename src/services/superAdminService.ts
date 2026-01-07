@@ -595,3 +595,22 @@ export async function cancelUserSubscription(userId: string): Promise<void> {
     throw new Error(error.message);
   }
 }
+
+/**
+ * Reset a user's password (super admin only)
+ * Calls the admin-reset-password edge function
+ */
+export async function resetUserPassword(userId: string, newPassword: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+    body: { userId, newPassword },
+  });
+
+  if (error) {
+    console.error('Error resetting password:', error);
+    throw new Error(error.message || 'Failed to reset password');
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+}

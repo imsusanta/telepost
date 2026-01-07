@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  Ban, 
-  Check, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Ban,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   Download,
-  Edit, 
-  Loader2, 
+  Edit,
+  Loader2,
   MoreHorizontal,
-  Search, 
+  Search,
   Shield,
   ShieldCheck,
   User,
   UserCog,
   Users,
-  X
+  X,
+  Key,
+  RefreshCw
 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -31,6 +33,7 @@ import {
   updateUserRole,
   extendUserSubscription,
   setCustomSubscriptionEndDate,
+  resetUserPassword,
   type UserWithSubscription,
   type AppRole,
 } from '@/services/superAdminService';
@@ -82,7 +85,7 @@ export default function SuperAdminUsers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  
+
   // Filter state
   const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'active' | 'suspended' | 'banned' | 'all'>('all');
@@ -105,6 +108,11 @@ export default function SuperAdminUsers() {
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<AppRole>('user');
 
+  // Password Reset dialog state
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -119,8 +127,8 @@ export default function SuperAdminUsers() {
       setLoading(true);
       const [paginatedData, plansData] = await Promise.all([
         getPaginatedUsers(
-          currentPage, 
-          pageSize, 
+          currentPage,
+          pageSize,
           debouncedSearch,
           roleFilter === 'all' ? undefined : roleFilter,
           statusFilter === 'all' ? undefined : statusFilter
@@ -175,7 +183,7 @@ export default function SuperAdminUsers() {
     setSelectedUser(user);
     setSelectedPlanId(user.subscription?.plan_id || '');
     setCustomEndDate(
-      user.subscription?.current_period_end 
+      user.subscription?.current_period_end
         ? new Date(user.subscription.current_period_end)
         : undefined
     );
@@ -201,7 +209,7 @@ export default function SuperAdminUsers() {
 
     try {
       setIsUpdating(true);
-      
+
       await updateUserSubscription(
         selectedUser.id,
         selectedPlanId,
@@ -308,6 +316,50 @@ export default function SuperAdminUsers() {
     }
   };
 
+  const handleResetPassword = (user: UserWithSubscription) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setIsResetPasswordOpen(true);
+  };
+
+  const generateRandomPassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    const password = Array.from(crypto.getRandomValues(new Uint32Array(12)))
+      .map((x) => chars[x % chars.length])
+      .join("");
+    setNewPassword(password);
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!selectedUser || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast({
+        title: 'Validation Error',
+        description: 'Password must be at least 6 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      await resetUserPassword(selectedUser.id, newPassword);
+      toast({
+        title: 'Success',
+        description: `Password for ${selectedUser.email} reset successfully`,
+      });
+      setIsResetPasswordOpen(false);
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to reset password',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleToggleUserStatus = async (
     userId: string,
     currentStatus: string
@@ -316,8 +368,7 @@ export default function SuperAdminUsers() {
 
     if (
       !confirm(
-        `Are you sure you want to ${
-          newStatus === 'active' ? 'activate' : 'suspend'
+        `Are you sure you want to ${newStatus === 'active' ? 'activate' : 'suspend'
         } this user?`
       )
     ) {
@@ -550,8 +601,8 @@ export default function SuperAdminUsers() {
                 />
               </div>
               <div className="flex gap-2">
-                <Select 
-                  value={roleFilter} 
+                <Select
+                  value={roleFilter}
                   onValueChange={(v) => {
                     setRoleFilter(v as AppRole | 'all');
                     setCurrentPage(1);
@@ -567,8 +618,8 @@ export default function SuperAdminUsers() {
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select 
-                  value={statusFilter} 
+                <Select
+                  value={statusFilter}
                   onValueChange={(v) => {
                     setStatusFilter(v as 'active' | 'suspended' | 'banned' | 'all');
                     setCurrentPage(1);
@@ -680,8 +731,8 @@ export default function SuperAdminUsers() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
                               className="opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -700,7 +751,12 @@ export default function SuperAdminUsers() {
                               Change Role
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                              <Key className="w-4 h-4 mr-2" />
+                              Reset Password
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
                               onClick={() => handleToggleUserStatus(user.id, user.status)}
                               className={user.status === 'active' ? 'text-amber-600' : 'text-emerald-600'}
                             >
@@ -800,7 +856,7 @@ export default function SuperAdminUsers() {
                 <TabsTrigger value="extend">Extend</TabsTrigger>
                 <TabsTrigger value="custom">Custom Date</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="plan" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Subscription Plan</Label>
@@ -817,8 +873,8 @@ export default function SuperAdminUsers() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  onClick={handleUpdateSubscription} 
+                <Button
+                  onClick={handleUpdateSubscription}
                   disabled={isUpdating || !selectedPlanId}
                   className="w-full"
                 >
@@ -844,8 +900,8 @@ export default function SuperAdminUsers() {
                     max={365}
                   />
                 </div>
-                <Button 
-                  onClick={handleExtendSubscription} 
+                <Button
+                  onClick={handleExtendSubscription}
                   disabled={isUpdating || daysToExtend < 1}
                   className="w-full"
                 >
@@ -881,8 +937,8 @@ export default function SuperAdminUsers() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <Button 
-                  onClick={handleSetCustomEndDate} 
+                <Button
+                  onClick={handleSetCustomEndDate}
                   disabled={isUpdating || !customEndDate}
                   className="w-full"
                 >
@@ -957,6 +1013,61 @@ export default function SuperAdminUsers() {
                 ) : (
                   'Update Role'
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-primary" />
+                Reset User Password
+              </DialogTitle>
+              <DialogDescription>
+                Set a new password for {selectedUser?.email}. The user will be able to log in with this new password immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="new-password"
+                    type="text"
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="font-mono"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={generateRandomPassword}
+                    title="Generate random password"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 6 characters. Randomly generated passwords are recommended for security.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmResetPassword}
+                disabled={isResetting || !newPassword}
+                className="gap-2"
+              >
+                {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Reset Password
               </Button>
             </DialogFooter>
           </DialogContent>

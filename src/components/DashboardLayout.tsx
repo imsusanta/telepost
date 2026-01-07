@@ -1,4 +1,4 @@
-import { ReactNode, useState, useCallback, useEffect } from "react";
+import { ReactNode, useState, useCallback, useEffect, useRef } from "react";
 import {
   BarChart3,
   Bell,
@@ -25,7 +25,8 @@ import {
   Video,
   Mail,
   ChevronRight,
-  User
+  User,
+  PenLine
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +77,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return cached === 'true';
   });
   const [profile, setProfile] = useState<Profile | null>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+
+  // Restore sidebar scroll position
+  useEffect(() => {
+    const savedScrollPos = sessionStorage.getItem('sidebarScrollPosition');
+    if (savedScrollPos && sidebarScrollRef.current) {
+      sidebarScrollRef.current.scrollTop = parseInt(savedScrollPos, 10);
+    }
+  }, []);
+
+  const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    sessionStorage.setItem('sidebarScrollPosition', String(scrollTop));
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -143,9 +158,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const telegramMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
+    { icon: PenLine, label: "Create Post", path: "/dashboard/create-post" },
     { icon: Radio, label: "Channels", path: "/dashboard/channels" },
     { icon: Image, label: "Stories", path: "/dashboard/stories" },
     { icon: Database, label: "Question Bank", path: "/dashboard/question-bank" },
+    { icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" },
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
   ];
 
@@ -232,7 +249,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="px-2">
+          <SidebarContent
+            className="px-2"
+            ref={sidebarScrollRef}
+            onScroll={handleSidebarScroll}
+          >
             {/* Telegram Quiz Section */}
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">

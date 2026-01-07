@@ -36,8 +36,10 @@ export interface QuestionBankFilters {
   tags?: string[];
   channelId?: string;
   includePublic?: boolean;
+  isPublicOnly?: boolean; // Filter to show ONLY public questions
   unclassifiedOnly?: boolean;
 }
+
 
 export class QuestionBankService {
   /**
@@ -102,11 +104,17 @@ export class QuestionBankService {
       .select("*", { count: "exact" });
 
     // Handle user filtering with public questions option
-    if (filters?.includePublic) {
+    if (filters?.isPublicOnly) {
+      // Show ONLY public questions (from any user)
+      query = query.eq("is_public", true);
+    } else if (filters?.includePublic) {
+      // Show user's own questions + public questions
       query = query.or(`user_id.eq.${userId},is_public.eq.true`);
     } else {
+      // Show only user's own questions (private)
       query = query.eq("user_id", userId);
     }
+
 
     // Apply filters
     if (filters?.topic) {
@@ -293,18 +301,28 @@ export class QuestionBankService {
   /**
    * Get question bank statistics
    */
-  static async getStatistics(userId: string): Promise<{
+  static async getStatistics(userId: string, includePublic: boolean = false): Promise<{
     total: number;
     byTopic: Record<string, number>;
     bySubject: Record<string, number>;
     byDifficulty: Record<string, number>;
     byLanguage: Record<string, number>;
     unclassifiedCount: number;
+    publicCount: number;
+    privateCount: number;
   }> {
-    const { data, error } = await supabase
+    let query = supabase
       .from("question_banks")
-      .select("topic, subject, difficulty, language")
-      .eq("user_id", userId);
+      .select("topic, subject, difficulty, language, is_public, user_id");
+
+    // Include public questions if requested
+    if (includePublic) {
+      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
+    } else {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -317,7 +335,10 @@ export class QuestionBankService {
       byDifficulty: {} as Record<string, number>,
       byLanguage: {} as Record<string, number>,
       unclassifiedCount: 0,
+      publicCount: 0,
+      privateCount: 0,
     };
+
 
     questionsData.forEach((q) => {
       // By topic
@@ -337,7 +358,15 @@ export class QuestionBankService {
       if (q.language) {
         stats.byLanguage[q.language] = (stats.byLanguage[q.language] || 0) + 1;
       }
+
+      // Count public vs private
+      if (q.is_public) {
+        stats.publicCount++;
+      } else {
+        stats.privateCount++;
+      }
     });
+
 
     return stats;
   }

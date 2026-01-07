@@ -390,6 +390,7 @@ function determineTopic(channel: Channel, documents: Array<{ topics?: string[]; 
 function generateChannelSystemPrompt(channel: Channel, knowledgeBase: string): string {
   // If channel has a custom system prompt, use it
   if (channel.settings.system_prompt) {
+    console.log(`Using custom system prompt for channel ${channel.name}`);
     return channel.settings.system_prompt;
   }
 
@@ -408,17 +409,17 @@ function generateChannelSystemPrompt(channel: Channel, knowledgeBase: string): s
 CHANNEL-SPECIFIC GUIDELINES:
 - This is a dedicated channel for ${subject}
 - Generate questions that are relevant and accurate for this specific topic
-- Use the channel's knowledge base documents as the primary source for questions
+${knowledgeBase ? `- Use the channel's knowledge base documents as the primary source for questions
 - Ensure all questions are based ONLY on the content available in this channel
-- Do NOT include information from external sources or other topics
+- Do NOT include information from external sources or other topics` : `- Focus on ${subject} related questions using your general AI knowledge if no documents are provided`}
 
 ${languageInstructions[language] || languageInstructions['en']}
 
 QUESTION QUALITY:
 - Create clear, unambiguous questions
-- Ensure correct answers are verifiable from the knowledge base
+- Ensure correct answers are verifiable
 - Make wrong options plausible but clearly incorrect
-- Provide helpful explanations that reference the source material
+- Provide helpful explanations
 - Maintain appropriate difficulty level: ${channel.settings.default_difficulty}
 
 CONTENT GUIDELINES:
@@ -517,6 +518,9 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
+  console.log(`Generating quiz for topic: ${topic} using model: google/gemini-1.5-flash`);
+  console.log(`User prompt length: ${userPrompt.length}`);
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -524,7 +528,7 @@ ADDITIONAL RULES:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-1.5-flash",
       messages: [
         { role: "system", content: baseSystemPrompt },
         { role: "user", content: userPrompt },

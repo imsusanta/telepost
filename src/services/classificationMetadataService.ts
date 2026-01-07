@@ -5,6 +5,7 @@ export interface ClassificationSubject {
     name: string;
     icon: string | null;
     color: string | null;
+    user_id: string | null; // null = global subject
     created_at: string;
 }
 
@@ -12,12 +13,14 @@ export interface ClassificationTopic {
     id: string;
     subject_id: string;
     name: string;
+    user_id: string | null; // null = global topic
     created_at: string;
 }
 
 export class ClassificationMetadataService {
     /**
-     * Get all subjects
+     * Get all subjects (user's own + global)
+     * RLS policy handles filtering, so no need to filter here
      */
     static async getSubjects(): Promise<ClassificationSubject[]> {
         const { data, error } = await supabase
@@ -30,12 +33,12 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Create a new subject
+     * Create a new subject for the current user
      */
-    static async createSubject(name: string, color?: string, icon?: string): Promise<ClassificationSubject> {
+    static async createSubject(name: string, userId: string, color?: string, icon?: string): Promise<ClassificationSubject> {
         const { data, error } = await supabase
-            .from('classification_subjects' as any)
-            .insert({ name, color, icon })
+            .from('classification_subjects')
+            .insert({ name, color, icon, user_id: userId })
             .select()
             .single();
 
@@ -49,7 +52,7 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Update a subject
+     * Update a subject (user can only update their own)
      */
     static async updateSubject(id: string, updates: Partial<Pick<ClassificationSubject, 'name' | 'color' | 'icon'>>): Promise<ClassificationSubject> {
         const { data, error } = await supabase
@@ -64,7 +67,7 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Delete a subject
+     * Delete a subject (user can only delete their own)
      */
     static async deleteSubject(id: string): Promise<void> {
         const { error } = await supabase
@@ -76,7 +79,8 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Get all topics for all subjects
+     * Get all topics (user's own + global)
+     * RLS policy handles filtering
      */
     static async getAllTopics(): Promise<ClassificationTopic[]> {
         const { data, error } = await supabase
@@ -103,12 +107,12 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Create a new topic
+     * Create a new topic for the current user
      */
-    static async createTopic(subjectId: string, name: string): Promise<ClassificationTopic> {
+    static async createTopic(subjectId: string, name: string, userId: string): Promise<ClassificationTopic> {
         const { data, error } = await supabase
-            .from('classification_topics' as any)
-            .insert({ subject_id: subjectId, name })
+            .from('classification_topics')
+            .insert({ subject_id: subjectId, name, user_id: userId })
             .select()
             .single();
 
@@ -122,7 +126,7 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Update a topic
+     * Update a topic (user can only update their own)
      */
     static async updateTopic(id: string, name: string): Promise<ClassificationTopic> {
         const { data, error } = await supabase
@@ -137,7 +141,7 @@ export class ClassificationMetadataService {
     }
 
     /**
-     * Delete a topic
+     * Delete a topic (user can only delete their own)
      */
     static async deleteTopic(id: string): Promise<void> {
         const { error } = await supabase
@@ -148,3 +152,4 @@ export class ClassificationMetadataService {
         if (error) throw error;
     }
 }
+

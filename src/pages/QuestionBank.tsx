@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Database, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz } from "lucide-react";
+import { Database, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz, Globe, Lock } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,8 @@ export default function QuestionBank() {
   const [questions, setQuestions] = useState<QuestionBankItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<QuestionBankFilters>({
     includePublic: true,
@@ -56,11 +59,15 @@ export default function QuestionBank() {
     byDifficulty: Record<string, number>;
     byLanguage: Record<string, number>;
     unclassifiedCount: number;
+    publicCount: number;
+    privateCount: number;
   } | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [pageSize, setPageSize] = useState(20);
+  const pageSize = 20; // Fixed page size
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   interface GeneratedQuestion {
     question: string;
@@ -96,10 +103,14 @@ export default function QuestionBank() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Track the current user ID for ownership checks
+      setCurrentUserId(user.id);
+
       const offset = (page - 1) * pageSize;
       const { data, count } = await QuestionBankService.getQuestions(user.id, filters, pageSize, offset, query, sortOrder);
       setQuestions(data);
       setTotalCount(count);
+
     } catch (error: unknown) {
       toast({
         title: "Error",
@@ -116,7 +127,8 @@ export default function QuestionBank() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const statistics = await QuestionBankService.getStatistics(user.id);
+      // Include public questions in stats (always true to show complete stats)
+      const statistics = await QuestionBankService.getStatistics(user.id, true);
       setStats(statistics);
     } catch (error: unknown) {
       toast({
@@ -126,6 +138,7 @@ export default function QuestionBank() {
       });
     }
   }, [toast]);
+
 
   const loadClassificationData = useCallback(async () => {
     try {
@@ -150,10 +163,12 @@ export default function QuestionBank() {
 
       if (tableMissing) {
         console.warn("Classification tables missing. Please run database migrations.");
+        const rawError = (allSubjectsRes.status === 'rejected' ? allSubjectsRes.reason?.message : '') ||
+          (allTopicsRes.status === 'rejected' ? allTopicsRes.reason?.message : '');
         toast({
           title: "Database Setup Required",
-          description: "Classification tables are missing. Please run the SQL fix from database_fix.md in Supabase.",
-          variant: "default",
+          description: `Error: ${rawError}. Please ensure you've run the SQL in database_fix.md and refreshed the page.`,
+          variant: "destructive",
         });
       }
 
@@ -174,8 +189,9 @@ export default function QuestionBank() {
   }, [toast]);
 
   const handleAddSubject = async (name: string) => {
+    if (!currentUserId) return;
     try {
-      await ClassificationMetadataService.createSubject(name);
+      await ClassificationMetadataService.createSubject(name, currentUserId);
       toast({
         title: "Success",
         description: `Subject "${name}" created successfully`,
@@ -318,8 +334,9 @@ export default function QuestionBank() {
   };
 
   const handleAddTopic = async (subjectId: string, name: string) => {
+    if (!currentUserId) return;
     try {
-      await ClassificationMetadataService.createTopic(subjectId, name);
+      await ClassificationMetadataService.createTopic(subjectId, name, currentUserId);
       toast({
         title: "Success",
         description: `Topic "${name}" created successfully`,
@@ -336,23 +353,25 @@ export default function QuestionBank() {
   };
 
   const handleBulkMove = async () => {
-    if (!bulkMoveSubject || !bulkMoveTopic || selectedQuestionIds.size === 0) return;
+    if (!bulkMoveSubject || selectedQuestionIds.size === 0) return;
 
     try {
       setIsBulkMoving(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const targetTopic = bulkMoveTopic === "NO_TOPIC" ? "" : bulkMoveTopic;
+
       await QuestionBankService.bulkUpdateClassification(
         Array.from(selectedQuestionIds),
         user.id,
         bulkMoveSubject,
-        bulkMoveTopic
+        targetTopic
       );
 
       toast({
         title: "Success",
-        description: `Successfully moved ${selectedQuestionIds.size} questions to ${bulkMoveSubject} > ${bulkMoveTopic}`,
+        description: `Successfully moved ${selectedQuestionIds.size} questions to ${bulkMoveSubject}${targetTopic ? ' > ' + targetTopic : ''}`,
       });
 
       setIsBulkMoveDialogOpen(false);
@@ -375,7 +394,8 @@ export default function QuestionBank() {
     loadQuestions(currentPage, searchQuery);
     loadStats();
     loadClassificationData();
-  }, [currentPage, filters, loadStats, loadClassificationData]); // Specifically removed loadQuestions from here to avoid recursive triggers if not careful, but actually loadQuestions is memoized correctly. Let's keep it clean.
+  }, [currentPage, filters, loadQuestions, loadStats, loadClassificationData, searchQuery]);
+
 
   // Handle search with debounce
   useEffect(() => {
@@ -543,6 +563,66 @@ export default function QuestionBank() {
     }
   };
 
+  // Toggle single question public status
+  const handleTogglePublic = async (question: QuestionBankItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const newStatus = !question.is_public;
+      await QuestionBankService.updateQuestion(question.id, user.id, { is_public: newStatus });
+
+      setQuestions(questions.map(q =>
+        q.id === question.id ? { ...q, is_public: newStatus } : q
+      ));
+
+      toast({
+        title: newStatus ? "Made Public" : "Made Private",
+        description: newStatus
+          ? "Question is now visible to all users."
+          : "Question is now private.",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update question",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Bulk toggle public status
+  const handleBulkTogglePublic = async (makePublic: boolean) => {
+    if (selectedQuestionIds.size === 0) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      for (const questionId of selectedQuestionIds) {
+        await QuestionBankService.updateQuestion(questionId, user.id, { is_public: makePublic });
+      }
+
+      setQuestions(questions.map(q =>
+        selectedQuestionIds.has(q.id) ? { ...q, is_public: makePublic } : q
+      ));
+
+      toast({
+        title: makePublic ? "Made Public" : "Made Private",
+        description: `${selectedQuestionIds.size} questions are now ${makePublic ? 'public' : 'private'}.`,
+      });
+
+      setSelectedQuestionIds(new Set());
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update questions",
+        variant: "destructive",
+      });
+    }
+  };
+
+
 
   const getSelectedQuestions = () => {
     return questions.filter(q => selectedQuestionIds.has(q.id));
@@ -662,7 +742,11 @@ export default function QuestionBank() {
                 />
               </div>
               <div className="flex gap-2">
-                <BulkUploadDialog onUpload={handleBulkUpload} />
+                <BulkUploadDialog
+                  onUpload={handleBulkUpload}
+                  fullSubjects={fullSubjects}
+                  fullTopics={fullTopics}
+                />
                 <AddQuestionDialog onQuestionAdded={handleRefresh} />
                 <TelegramShareQuestionBank
                   selectedQuestions={getSelectedQuestions()}
@@ -761,6 +845,28 @@ export default function QuestionBank() {
                       </Button>
 
                       <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-2 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500/30 hover:border-emerald-500/60 text-emerald-700 dark:text-emerald-400"
+                        onClick={() => handleBulkTogglePublic(true)}
+                        disabled={selectedQuestionIds.size === 0}
+                      >
+                        <Globe className="w-4 h-4" />
+                        Make Public
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-2 bg-slate-50 dark:bg-slate-800 border-slate-300 hover:border-slate-400 text-slate-600 dark:text-slate-400"
+                        onClick={() => handleBulkTogglePublic(false)}
+                        disabled={selectedQuestionIds.size === 0}
+                      >
+                        <Lock className="w-4 h-4" />
+                        Make Private
+                      </Button>
+
+                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => setShowBulkDeleteDialog(true)}
@@ -771,6 +877,7 @@ export default function QuestionBank() {
                       </Button>
                     </div>
                   )}
+
                 </div>
               </div>
             )}
@@ -783,6 +890,7 @@ export default function QuestionBank() {
               subjectsWithCounts={subjectsWithCounts}
               topicsWithCounts={topicsWithCounts}
               fullSubjects={fullSubjects}
+              fullTopics={fullTopics}
               totalCount={totalCount}
               filteredCount={filteredQuestions.length}
               onAddSubject={isSuperUser ? handleAddSubject : undefined}
@@ -795,13 +903,37 @@ export default function QuestionBank() {
 
             {/* Statistics */}
             {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">Total Questions</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">{stats.total}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-emerald-200 dark:border-emerald-800">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                      <Globe className="w-4 h-4" />
+                      Public
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-500">{stats.publicCount || 0}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200 dark:border-slate-700">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <Lock className="w-4 h-4" />
+                      Private
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-slate-600 dark:text-slate-400">{stats.privateCount || 0}</div>
                   </CardContent>
                 </Card>
 
@@ -822,23 +954,9 @@ export default function QuestionBank() {
                     <div className="text-3xl font-bold">{Object.keys(stats.byLanguage).length}</div>
                   </CardContent>
                 </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Average Usage</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">
-                      {stats.total > 0
-                        ? Math.round(
-                          questions.reduce((sum, q) => sum + q.times_used, 0) / stats.total
-                        )
-                        : 0}
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
+
 
             {/* Questions List */}
             {loading ? (
@@ -877,7 +995,7 @@ export default function QuestionBank() {
               <>
                 <div className="border rounded-lg overflow-hidden bg-card">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[auto_auto_1fr_150px_100px] gap-4 p-4 bg-muted/50 border-b font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                  <div className="grid grid-cols-[auto_auto_1fr_150px_130px] gap-4 p-4 bg-muted/50 border-b font-semibold text-sm text-muted-foreground uppercase tracking-wider">
                     <div className="w-6"></div>
                     <div className="w-10"></div>
                     <div>Question</div>
@@ -890,7 +1008,7 @@ export default function QuestionBank() {
                     {filteredQuestions.map((q, index) => (
                       <div
                         key={q.id}
-                        className={`grid grid-cols-[auto_auto_1fr_150px_100px] gap-4 p-4 items-center hover:bg-muted/30 transition-colors ${selectedQuestionIds.has(q.id) ? "bg-primary/5" : ""
+                        className={`grid grid-cols-[auto_auto_1fr_150px_130px] gap-4 p-4 items-center hover:bg-muted/30 transition-colors ${selectedQuestionIds.has(q.id) ? "bg-primary/5" : ""
                           }`}
                       >
                         {/* Checkbox */}
@@ -926,25 +1044,50 @@ export default function QuestionBank() {
 
                         {/* Actions */}
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(q)}
-                            className="h-8 w-8 text-primary/70 hover:text-primary hover:bg-primary/10"
-                            title="Edit"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(q.id)}
-                            className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {/* Show public indicator for all */}
+                          {q.is_public && q.user_id !== currentUserId ? (
+                            // For public questions not owned by user - show read-only indicator
+                            <div className="h-8 px-2 flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-md">
+                              <Globe className="w-3.5 h-3.5" />
+                              <span className="font-medium">Public</span>
+                            </div>
+                          ) : q.user_id === currentUserId ? (
+                            // For questions owned by current user - show all action buttons
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleTogglePublic(q)}
+                                className={`h-8 w-8 ${q.is_public
+                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                title={q.is_public ? "Public (Click to make Private)" : "Private (Click to make Public)"}
+                              >
+                                {q.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(q)}
+                                className="h-8 w-8 text-primary/70 hover:text-primary hover:bg-primary/10"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(q.id)}
+                                className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : null}
                         </div>
+
+
                       </div>
                     ))}
                   </div>
@@ -957,27 +1100,8 @@ export default function QuestionBank() {
                       <p className="text-sm text-muted-foreground font-semibold">
                         Showing <span className="text-foreground font-black">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-foreground font-black">{Math.min(currentPage * pageSize, totalCount)}</span> of <span className="text-foreground font-black">{totalCount}</span>
                       </p>
-
-                      <div className="hidden md:flex items-center gap-2">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Page Size:</span>
-                        <Select
-                          value={pageSize.toString()}
-                          onValueChange={(val) => {
-                            setPageSize(parseInt(val));
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[70px] font-bold border-2 bg-background">
-                            <SelectValue placeholder="20" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="20" className="font-medium">20</SelectItem>
-                            <SelectItem value="30" className="font-medium">30</SelectItem>
-                            <SelectItem value="50" className="font-medium">50</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
+
 
                     <div className="flex items-center gap-4">
                       <Button
@@ -1141,9 +1265,16 @@ export default function QuestionBank() {
                     <SelectValue placeholder={bulkMoveSubject ? "Select Topic" : "Select Subject First"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {topicsWithCounts.map(t => (
-                      <SelectItem key={t.topic} value={t.topic}>{t.topic}</SelectItem>
-                    ))}
+                    <SelectItem value="NO_TOPIC">Clear Topic / Optional</SelectItem>
+                    {fullTopics
+                      .filter(t => {
+                        const subject = fullSubjects.find(s => s.name === bulkMoveSubject);
+                        return subject && t.subject_id === subject.id;
+                      })
+                      .map(t => (
+                        <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                      ))
+                    }
                   </SelectContent>
                 </Select>
               </div>
@@ -1152,7 +1283,7 @@ export default function QuestionBank() {
               <AlertDialogCancel className="font-bold">Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleBulkMove}
-                disabled={!bulkMoveSubject || !bulkMoveTopic || isBulkMoving}
+                disabled={!bulkMoveSubject || isBulkMoving}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground font-black"
               >
                 {isBulkMoving ? "Moving..." : "Move Questions"}

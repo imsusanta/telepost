@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { isSuperAdmin } from "@/services/couponService";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import DashboardLayout from "@/components/DashboardLayout";
 
 interface SuperAdminRouteProps {
   children: React.ReactNode;
@@ -60,7 +62,7 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
 
         // Check super admin with timeout
         const isSuper = await checkSuperAdminWithTimeout();
-        
+
         if (isMounted) {
           setHasAccess(isSuper);
           if (!isSuper) {
@@ -123,9 +125,14 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-red-950 to-slate-950 flex items-center justify-center">
-        <div className="text-white">Verifying access...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Verifying access...</p>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 

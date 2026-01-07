@@ -8,10 +8,9 @@ import {
   Ticket,
   Users,
   Wrench,
-  Zap,
-  Layers
+  Zap
 } from 'lucide-react';
-import { TaxonomyManagement } from '@/components/TaxonomyManagement';
+
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -302,10 +301,6 @@ export default function SuperAdminSettings() {
             <TabsTrigger value="maintenance" className="gap-2">
               <Wrench className="w-4 h-4" />
               <span className="hidden sm:inline">Maintenance</span>
-            </TabsTrigger>
-            <TabsTrigger value="taxonomy" className="gap-2">
-              <Layers className="w-4 h-4" />
-              <span className="hidden sm:inline">Taxonomy</span>
             </TabsTrigger>
           </TabsList>
 
@@ -686,11 +681,6 @@ export default function SuperAdminSettings() {
                 </Button>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Taxonomy Management */}
-          <TabsContent value="taxonomy">
-            <TaxonomyManagement />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
 import {
     Plus,
     Trash2,
@@ -40,6 +42,7 @@ export function TaxonomyManagement() {
     const [loading, setLoading] = useState(true);
     const [loadingTopics, setLoadingTopics] = useState(false);
     const [isSuperUser, setIsSuperUser] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // Add/Edit Subject Dialog State
     const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
@@ -62,6 +65,9 @@ export function TaxonomyManagement() {
     const checkPermission = async () => {
         const admin = await isSuperAdmin();
         setIsSuperUser(admin);
+        // Get current user ID for creating subjects/topics
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setCurrentUserId(user.id);
     };
 
     useEffect(() => {
@@ -117,7 +123,8 @@ export function TaxonomyManagement() {
                 });
                 toast({ title: 'Success', description: 'Subject updated successfully' });
             } else {
-                await ClassificationMetadataService.createSubject(subjectName, subjectColor, subjectIcon);
+                if (!currentUserId) return;
+                await ClassificationMetadataService.createSubject(subjectName, currentUserId, subjectColor, subjectIcon);
                 toast({ title: 'Success', description: 'Subject created successfully' });
             }
             setSubjectDialogOpen(false);
@@ -161,7 +168,8 @@ export function TaxonomyManagement() {
                 await ClassificationMetadataService.updateTopic(editingTopic.id, topicName);
                 toast({ title: 'Success', description: 'Topic updated' });
             } else {
-                await ClassificationMetadataService.createTopic(selectedSubject.id, topicName);
+                if (!currentUserId) return;
+                await ClassificationMetadataService.createTopic(selectedSubject.id, topicName, currentUserId);
                 toast({ title: 'Success', description: 'Topic created' });
             }
             setTopicName('');

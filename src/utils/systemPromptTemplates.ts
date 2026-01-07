@@ -317,12 +317,21 @@ export function getSystemPromptTemplate(id: string): SystemPromptTemplate | unde
 export function generateChannelSystemPrompt(
   subject: string,
   language: 'bn' | 'en' | 'hi',
-  additionalInstructions?: string
+  additionalInstructions?: string,
+  templateId?: string
 ): string {
-  // Find matching template or use general
-  const template = systemPromptTemplates.find(
-    t => t.subject.toLowerCase() === subject.toLowerCase()
-  ) || systemPromptTemplates[0];
+  // Find matching template by ID if provided, otherwise by subject, or use general
+  let template: SystemPromptTemplate | undefined;
+
+  if (templateId) {
+    template = systemPromptTemplates.find(t => t.id === templateId);
+  }
+
+  if (!template) {
+    template = systemPromptTemplates.find(
+      t => t.subject.toLowerCase() === subject.toLowerCase()
+    ) || systemPromptTemplates[0];
+  }
 
   // Language-specific additions
   const languageInstructions: Record<string, string> = {
@@ -332,6 +341,12 @@ export function generateChannelSystemPrompt(
   };
 
   let prompt = template.prompt;
+
+  // Replace [YOUR SUBJECT] placeholder if it exists in the template
+  if (prompt.includes("[YOUR SUBJECT]")) {
+    prompt = prompt.replace("[YOUR SUBJECT]", subject || template.subject);
+  }
+
   prompt += languageInstructions[language] || languageInstructions['en'];
 
   // Global content guidelines

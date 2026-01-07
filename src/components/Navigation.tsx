@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard } from "lucide-react";
 import { Button } from "./ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NavigationProps {
   onGetStarted?: () => void;
@@ -10,6 +11,7 @@ interface NavigationProps {
 export const Navigation = ({ onGetStarted }: NavigationProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,10 +22,30 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Check auth state
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const handleGetStarted = () => {
     if (onGetStarted) {
       onGetStarted();
     }
+    setIsMenuOpen(false);
+  };
+
+  const handleGoToDashboard = () => {
+    navigate("/dashboard");
     setIsMenuOpen(false);
   };
 
@@ -43,13 +65,12 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
       </a>
 
       <div className="mx-4 mt-4">
-        <nav 
-          className={`max-w-5xl mx-auto px-6 py-3 rounded-full border transition-all duration-300 ${
-            isScrolled 
-              ? "bg-background/80 backdrop-blur-lg border-border/50 shadow-sm" 
+        <nav
+          className={`max-w-5xl mx-auto px-6 py-3 rounded-full border transition-all duration-300 ${isScrolled
+              ? "bg-background/80 backdrop-blur-lg border-border/50 shadow-sm"
               : "bg-transparent border-transparent"
-          }`}
-          role="navigation" 
+            }`}
+          role="navigation"
           aria-label="Main navigation"
         >
           <div className="flex items-center justify-between">
@@ -75,21 +96,34 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
               ))}
             </div>
 
-            {/* CTA Buttons */}
+            {/* CTA Buttons - Conditional based on auth state */}
             <div className="hidden md:flex items-center gap-3">
-              <button
-                onClick={() => navigate("/auth")}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign in
-              </button>
-              <Button
-                onClick={handleGetStarted}
-                size="sm"
-                className="h-8 px-4 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full"
-              >
-                Get Started
-              </Button>
+              {isLoggedIn ? (
+                <Button
+                  onClick={handleGoToDashboard}
+                  size="sm"
+                  className="h-8 px-4 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full gap-2"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate("/auth")}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Sign in
+                  </button>
+                  <Button
+                    onClick={handleGetStarted}
+                    size="sm"
+                    className="h-8 px-4 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full"
+                  >
+                    Get Started
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -118,22 +152,35 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                   </a>
                 ))}
                 <div className="pt-3 mt-2 border-t border-border flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      navigate("/auth");
-                      setIsMenuOpen(false);
-                    }}
-                    className="px-3 py-2 text-sm text-muted-foreground"
-                  >
-                    Sign in
-                  </button>
-                  <Button
-                    onClick={handleGetStarted}
-                    size="sm"
-                    className="h-9 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full"
-                  >
-                    Get Started
-                  </Button>
+                  {isLoggedIn ? (
+                    <Button
+                      onClick={handleGoToDashboard}
+                      size="sm"
+                      className="h-9 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full gap-2"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      Go to Dashboard
+                    </Button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          navigate("/auth");
+                          setIsMenuOpen(false);
+                        }}
+                        className="px-3 py-2 text-sm text-muted-foreground"
+                      >
+                        Sign in
+                      </button>
+                      <Button
+                        onClick={handleGetStarted}
+                        size="sm"
+                        className="h-9 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full"
+                      >
+                        Get Started
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -143,3 +190,4 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
     </header>
   );
 };
+

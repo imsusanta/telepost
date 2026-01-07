@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,11 +21,11 @@ import {
     Pencil,
     Trash2,
     Check,
+    Globe,
+    Lock,
 } from "lucide-react";
 import {
-    DIFFICULTY_LEVELS,
     getSubjectColor,
-    getDifficultyConfig,
 } from "@/services/classificationService";
 import { QuestionBankFilters } from "@/services/questionBankService";
 
@@ -45,6 +45,7 @@ interface QuestionFiltersProps {
     subjectsWithCounts: SubjectCount[];
     topicsWithCounts: TopicCount[];
     fullSubjects?: any[];
+    fullTopics?: any[];
     totalCount: number;
     filteredCount: number;
     onAddSubject?: (name: string) => void;
@@ -63,6 +64,7 @@ export function QuestionFilters({
     subjectsWithCounts,
     topicsWithCounts,
     fullSubjects = [],
+    fullTopics = [],
     totalCount,
     filteredCount,
     onAddSubject,
@@ -74,7 +76,7 @@ export function QuestionFilters({
 }: QuestionFiltersProps) {
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-    const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
+    const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'private' | 'public'>('all');
     const [sortBy, setSortBy] = useState<SortOption>('oldest');
     const [subjectSearch, setSubjectSearch] = useState("");
     const [topicSearch, setTopicSearch] = useState("");
@@ -85,13 +87,68 @@ export function QuestionFilters({
     const [editingTopic, setEditingTopic] = useState<string | null>(null);
     const [editTopicName, setEditTopicName] = useState("");
 
+    // Build combined subject list (metadata + usage)
+    const allDisplaySubjects = useMemo(() => {
+        // Start with metadata subjects
+        const subjects = fullSubjects.map((s: any) => ({
+            id: s.id,
+            subject: s.name,
+            count: subjectsWithCounts.find((swc: any) => swc.subject === s.name)?.count || 0
+        }));
+
+        // Add subjects from usage that are NOT in metadata (legacy)
+        subjectsWithCounts.forEach((swc: any) => {
+            if (!subjects.find((s: any) => s.subject === swc.subject)) {
+                subjects.push({
+                    id: swc.subject, // Fallback ID
+                    subject: swc.subject,
+                    count: swc.count
+                });
+            }
+        });
+
+        return subjects.sort((a: any, b: any) => b.count - a.count || a.subject.localeCompare(b.subject));
+    }, [fullSubjects, subjectsWithCounts]);
+
     // Filter subjects by search
-    const filteredSubjects = subjectsWithCounts.filter((s) =>
+    const filteredSubjects = allDisplaySubjects.filter((s: any) =>
         s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
-    // Filter topics by search and selected subjects
-    const filteredTopics = topicsWithCounts.filter((t) =>
+    // Build combined topic list (metadata + usage)
+    const allDisplayTopics = useMemo(() => {
+        // Start with metadata topics
+        const topics = fullTopics
+            .filter((t: any) => {
+                // If one subject is selected, only show its topics
+                if (selectedSubjects.length === 1) {
+                    const subject = fullSubjects.find((s: any) => s.name === selectedSubjects[0]);
+                    return subject && t.subject_id === subject.id;
+                }
+                return true;
+            })
+            .map((t: any) => ({
+                topic: t.name,
+                count: topicsWithCounts.find((twc: any) => twc.topic === t.name)?.count || 0
+            }));
+
+        // Add topics from usage that are NOT in metadata (legacy)
+        // Only if they match the selected subject's name (basic heuristic)
+        topicsWithCounts.forEach((twc: any) => {
+            if (!topics.find((t: any) => t.topic === twc.topic)) {
+                // For legacy, we don't have subject mapping, so we show it if no subject selected 
+                // or if we're not filtering topics strictly
+                if (selectedSubjects.length === 0) {
+                    topics.push(twc);
+                }
+            }
+        });
+
+        return topics.sort((a: any, b: any) => b.count - a.count || a.topic.localeCompare(b.topic));
+    }, [fullTopics, topicsWithCounts, selectedSubjects, fullSubjects]);
+
+    // Filter topics by search
+    const filteredTopics = allDisplayTopics.filter((t: any) =>
         t.topic.toLowerCase().includes(topicSearch.toLowerCase())
     );
 
@@ -113,14 +170,28 @@ export function QuestionFilters({
         updateFilters({ topics: newTopics });
     };
 
-    // Handle difficulty toggle
-    const toggleDifficulty = (difficulty: string) => {
-        const newDifficulties = selectedDifficulties.includes(difficulty)
-            ? selectedDifficulties.filter((d) => d !== difficulty)
-            : [...selectedDifficulties, difficulty];
-        setSelectedDifficulties(newDifficulties);
-        updateFilters({ difficulties: newDifficulties });
+    // Handle visibility filter change
+    const handleVisibilityChange = (value: 'all' | 'private' | 'public') => {
+        setVisibilityFilter(value);
+        // Update the parent filters based on visibility selection
+        const newFilters = { ...filters };
+        // Reset both flags first
+        newFilters.includePublic = undefined;
+        newFilters.isPublicOnly = undefined;
+
+        if (value === 'public') {
+            // Show ONLY public questions
+            newFilters.isPublicOnly = true;
+        } else if (value === 'private') {
+            // Show ONLY user's own questions (private)
+            newFilters.includePublic = false;
+        } else {
+            // Show all (user's own + public)
+            newFilters.includePublic = true;
+        }
+        onFiltersChange(newFilters);
     };
+
 
     // Update parent filters
     const updateFilters = (updates: {
@@ -147,10 +218,10 @@ export function QuestionFilters({
     const clearAllFilters = () => {
         setSelectedSubjects([]);
         setSelectedTopics([]);
-        setSelectedDifficulties([]);
+        setVisibilityFilter('all');
         setSortBy('latest');
         onFiltersChange({
-            includePublic: filters.includePublic,
+            includePublic: true,
         });
     };
 
@@ -158,7 +229,7 @@ export function QuestionFilters({
     const hasActiveFilters =
         selectedSubjects.length > 0 ||
         selectedTopics.length > 0 ||
-        selectedDifficulties.length > 0;
+        visibilityFilter !== 'all';
 
     return (
         <div className="space-y-3">
@@ -542,32 +613,45 @@ export function QuestionFilters({
                         )}
                     </PopoverContent>
                 </Popover>
-                {/* Difficulty Chips */}
-                <div className="flex items-center gap-1.5">
-                    {DIFFICULTY_LEVELS.map((level) => {
-                        const isSelected = selectedDifficulties.includes(level.id);
-                        const config = getDifficultyConfig(level.id);
-                        return (
-                            <Button
-                                key={level.id}
-                                variant={isSelected ? "default" : "outline"}
-                                size="sm"
-                                className={`h-8 px-3 text-xs font-semibold transition-all ${isSelected
-                                    ? `${config.bgColor} ${config.textColor} hover:opacity-80`
-                                    : "hover:bg-muted/50"
-                                    }`}
-                                style={
-                                    isSelected
-                                        ? { backgroundColor: `${config.color}20`, color: config.color }
-                                        : {}
-                                }
-                                onClick={() => toggleDifficulty(level.id)}
-                            >
-                                {level.name}
-                            </Button>
-                        );
-                    })}
+                {/* Visibility Filter (Private/Public) */}
+                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg">
+                    <Button
+                        variant={visibilityFilter === 'all' ? "default" : "ghost"}
+                        size="sm"
+                        className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out ${visibilityFilter === 'all'
+                                ? 'bg-slate-700 text-white shadow-md scale-[1.02]'
+                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            }`}
+                        onClick={() => handleVisibilityChange('all')}
+                    >
+                        All
+                    </Button>
+                    <Button
+                        variant={visibilityFilter === 'private' ? "default" : "ghost"}
+                        size="sm"
+                        className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out gap-1.5 ${visibilityFilter === 'private'
+                                ? 'bg-slate-600 text-white shadow-md scale-[1.02]'
+                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            }`}
+                        onClick={() => handleVisibilityChange('private')}
+                    >
+                        <Lock className="w-3 h-3" />
+                        Private
+                    </Button>
+                    <Button
+                        variant={visibilityFilter === 'public' ? "default" : "ghost"}
+                        size="sm"
+                        className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out gap-1.5 ${visibilityFilter === 'public'
+                                ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
+                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            }`}
+                        onClick={() => handleVisibilityChange('public')}
+                    >
+                        <Globe className="w-3 h-3" />
+                        Public
+                    </Button>
                 </div>
+
 
 
                 {/* Spacer */}
@@ -656,26 +740,26 @@ export function QuestionFilters({
                         </Badge>
                     ))}
 
-                    {selectedDifficulties.map((diff) => {
-                        const config = getDifficultyConfig(diff);
-                        return (
-                            <Badge
-                                key={`diff-${diff}`}
-                                variant="secondary"
-                                className={`h-6 gap-1 pr-1 ${config.bgColor} ${config.textColor}`}
+                    {visibilityFilter !== 'all' && (
+                        <Badge
+                            variant="secondary"
+                            className={`h-6 gap-1 pr-1 ${visibilityFilter === 'public'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                }`}
+                        >
+                            {visibilityFilter === 'public' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                            {visibilityFilter === 'public' ? 'Public' : 'Private'}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                onClick={() => handleVisibilityChange('all')}
                             >
-                                {diff}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 p-0 hover:bg-transparent"
-                                    onClick={() => toggleDifficulty(diff)}
-                                >
-                                    <X className="w-3 h-3" />
-                                </Button>
-                            </Badge>
-                        );
-                    })}
+                                <X className="w-3 h-3" />
+                            </Button>
+                        </Badge>
+                    )}
 
 
                     <Separator orientation="vertical" className="h-4 mx-1" />

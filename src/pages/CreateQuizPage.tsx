@@ -796,8 +796,8 @@ export default function CreateQuizPage() {
                           <div className="text-3xl font-bold">
                             {stats.total > 0
                               ? Math.round(
-                                  questions.reduce((sum, q) => sum + q.times_used, 0) / stats.total
-                                )
+                                questions.reduce((sum, q) => sum + q.times_used, 0) / stats.total
+                              )
                               : 0}
                           </div>
                         </CardContent>
@@ -872,11 +872,10 @@ export default function CreateQuizPage() {
                               {q.options.map((option, idx) => (
                                 <div
                                   key={idx}
-                                  className={`p-2 rounded border ${
-                                    idx === q.correct_option_index
-                                      ? "bg-green-50 border-green-300 dark:bg-green-950/20"
-                                      : ""
-                                  }`}
+                                  className={`p-2 rounded border ${idx === q.correct_option_index
+                                    ? "bg-green-50 border-green-300 dark:bg-green-950/20"
+                                    : ""
+                                    }`}
                                 >
                                   {idx === q.correct_option_index && "✓ "}
                                   {option}

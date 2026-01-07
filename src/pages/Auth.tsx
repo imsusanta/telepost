@@ -101,17 +101,6 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const rateLimit = checkRateLimit('signup', 3, 60 * 60 * 1000);
-    if (!rateLimit.allowed) {
-      const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
-      toast({
-        title: "Too Many Attempts",
-        description: `Please wait ${resetMinutes} minutes before trying again.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password, true);
 
@@ -124,6 +113,17 @@ export default function Auth() {
       toast({
         title: "Error",
         description: "Please enter your full name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const rateLimit = checkRateLimit('signup', 10, 60 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
+      toast({
+        title: "Too Many Attempts",
+        description: `Please wait ${resetMinutes} minutes before trying again.`,
         variant: "destructive",
       });
       return;
@@ -149,6 +149,7 @@ export default function Auth() {
         title: "Success!",
         description: "Account created successfully! You can now sign in.",
       });
+      localStorage.removeItem('ratelimit_signup');
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to create account";
       toast({
@@ -164,6 +165,14 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const isEmailValid = validateEmail(email);
+    if (!isEmailValid || !password) {
+      if (!password) {
+        setPasswordError("Password is required");
+      }
+      return;
+    }
+
     const rateLimit = checkRateLimit('login', 5, 15 * 60 * 1000);
     if (!rateLimit.allowed) {
       const resetMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
@@ -172,14 +181,6 @@ export default function Auth() {
         description: `Account temporarily locked. Please wait ${resetMinutes} minutes before trying again.`,
         variant: "destructive",
       });
-      return;
-    }
-
-    const isEmailValid = validateEmail(email);
-    if (!isEmailValid || !password) {
-      if (!password) {
-        setPasswordError("Password is required");
-      }
       return;
     }
 
@@ -297,8 +298,8 @@ export default function Auth() {
               {activeTab === "signin" ? "Welcome back" : "Create account"}
             </h2>
             <p className="text-muted-foreground">
-              {activeTab === "signin" 
-                ? "Enter your credentials to access your dashboard" 
+              {activeTab === "signin"
+                ? "Enter your credentials to access your dashboard"
                 : "Create your account to get started"}
             </p>
           </div>
@@ -308,21 +309,19 @@ export default function Auth() {
             <div className="grid grid-cols-2 gap-1">
               <button
                 onClick={() => setActiveTab("signin")}
-                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
-                  activeTab === "signin"
+                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === "signin"
                     ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 Sign In
               </button>
               <button
                 onClick={() => setActiveTab("signup")}
-                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
-                  activeTab === "signup"
+                className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === "signup"
                     ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 Sign Up
               </button>
@@ -347,9 +346,8 @@ export default function Auth() {
                   }}
                   onBlur={() => validateEmail(email)}
                   required
-                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
-                    emailError ? "border-destructive" : ""
-                  }`}
+                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${emailError ? "border-destructive" : ""
+                    }`}
                 />
                 {emailError && (
                   <p className="text-sm text-destructive flex items-center gap-1">
@@ -374,9 +372,8 @@ export default function Auth() {
                       setPasswordError("");
                     }}
                     required
-                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
-                      passwordError ? "border-destructive" : ""
-                    }`}
+                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${passwordError ? "border-destructive" : ""
+                      }`}
                   />
                   <button
                     type="button"
@@ -440,9 +437,8 @@ export default function Auth() {
                   }}
                   onBlur={() => validateEmail(email)}
                   required
-                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
-                    emailError ? "border-destructive" : ""
-                  }`}
+                  className={`h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${emailError ? "border-destructive" : ""
+                    }`}
                 />
                 {emailError && (
                   <p className="text-sm text-destructive flex items-center gap-1">
@@ -468,9 +464,8 @@ export default function Auth() {
                     }}
                     onBlur={() => validatePassword(password, true)}
                     required
-                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${
-                      passwordError ? "border-destructive" : ""
-                    }`}
+                    className={`h-12 bg-white/5 border-white/10 rounded-xl pr-12 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all ${passwordError ? "border-destructive" : ""
+                      }`}
                   />
                   <button
                     type="button"
@@ -483,15 +478,14 @@ export default function Auth() {
                 {password && (
                   <div className="space-y-2">
                     <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full ${passwordStrength.color} transition-all duration-300`}
                         style={{ width: passwordStrength.width }}
                       />
                     </div>
-                    <p className={`text-xs ${
-                      passwordStrength.strength === "Strong" ? "text-success" :
-                      passwordStrength.strength === "Medium" ? "text-accent" : "text-destructive"
-                    }`}>
+                    <p className={`text-xs ${passwordStrength.strength === "Strong" ? "text-success" :
+                        passwordStrength.strength === "Medium" ? "text-accent" : "text-destructive"
+                      }`}>
                       {passwordStrength.strength} password
                     </p>
                   </div>

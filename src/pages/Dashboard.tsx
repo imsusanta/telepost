@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock, Zap } from "lucide-react";
+import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -113,7 +113,6 @@ export default function Dashboard() {
     { title: "Create Quiz", icon: Plus, path: "/dashboard/create-quiz", color: "bg-sky-500" },
     { title: "Question Bank", icon: Database, path: "/dashboard/question-bank", color: "bg-emerald-500" },
     { title: "Scheduler", icon: Clock, path: "/dashboard/scheduler", color: "bg-amber-500" },
-    { title: "AI Generator", icon: Zap, path: "/dashboard/ai-generator", color: "bg-rose-500" },
   ];
 
   return (
@@ -175,7 +174,7 @@ export default function Dashboard() {
             <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {quickActions.map((action, idx) => (
                 <Button
                   key={idx}
@@ -230,7 +229,7 @@ export default function Dashboard() {
                   <p className="text-4xl font-bold">{stats?.totalDocuments || 0}</p>
                   <p className="text-sm text-muted-foreground">PDFs uploaded</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/notes")}>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/documents")}>
                   View <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>

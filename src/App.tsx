@@ -20,6 +20,7 @@ const Documents = lazy(() => import("./pages/Documents"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const QuestionBank = lazy(() => import("./pages/QuestionBank"));
 const Channels = lazy(() => import("./pages/Channels"));
+const CreatePost = lazy(() => import("./pages/CreatePost"));
 const Stories = lazy(() => import("./pages/Stories"));
 const Courses = lazy(() => import("./pages/Courses"));
 const CourseEditor = lazy(() => import("./pages/CourseEditor"));
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/dashboard/create-quiz" element={<ProtectedRoute><CreateQuizPage /></ProtectedRoute>} />
               <Route path="/dashboard/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
               <Route path="/dashboard/channels" element={<ProtectedRoute><Channels /></ProtectedRoute>} />
+              <Route path="/dashboard/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
               <Route path="/dashboard/stories" element={<ProtectedRoute><Stories /></ProtectedRoute>} />
               <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
               <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />

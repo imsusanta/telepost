@@ -49,7 +49,7 @@ export default function Documents() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
+      const docs = await DocumentService.getUserDocuments(user.id, (selectedChannel && selectedChannel !== "all") ? selectedChannel : undefined);
       setDocuments(docs);
     } catch (error: unknown) {
       toast({
