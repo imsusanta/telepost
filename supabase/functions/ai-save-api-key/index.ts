@@ -65,7 +65,7 @@ serve(async (req) => {
     } catch (error) {
         console.error("Error:", error);
         return new Response(
-            JSON.stringify({ error: error.message || "Failed to save API key" }),
+            JSON.stringify({ error: error instanceof Error ? error.message : "Failed to save API key" }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }

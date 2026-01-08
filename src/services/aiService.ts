@@ -151,11 +151,13 @@ export class AIService {
 
             if (error) throw error;
 
+            const stats = data as { posts_generated_today?: number; images_generated_today?: number; total_calls_this_month?: number; total_tokens_this_month?: number } | null;
+
             return {
-                postsGeneratedToday: data.posts_generated_today || 0,
-                imagesGeneratedToday: data.images_generated_today || 0,
-                totalCallsThisMonth: data.total_calls_this_month || 0,
-                totalTokensThisMonth: data.total_tokens_this_month || 0,
+                postsGeneratedToday: stats?.posts_generated_today || 0,
+                imagesGeneratedToday: stats?.images_generated_today || 0,
+                totalCallsThisMonth: stats?.total_calls_this_month || 0,
+                totalTokensThisMonth: stats?.total_tokens_this_month || 0,
             };
         } catch {
             return {
