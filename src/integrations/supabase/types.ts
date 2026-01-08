@@ -2185,6 +2185,42 @@ export type Database = {
         }
         Relationships: []
       }
+      system_features: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          feature_key: string
+          id: string
+          is_core_feature: boolean
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          feature_key: string
+          id?: string
+          is_core_feature?: boolean
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          feature_key?: string
+          id?: string
+          is_core_feature?: boolean
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string
