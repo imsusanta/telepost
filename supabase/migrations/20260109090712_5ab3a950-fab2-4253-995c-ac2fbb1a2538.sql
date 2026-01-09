@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_stories ALTER COLUMN media_url DROP NOT NULL;

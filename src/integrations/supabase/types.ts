@@ -2266,7 +2266,7 @@ export type Database = {
           expires_at: string | null
           is_highlight: boolean | null
           media_type: string
-          media_url: string
+          media_url: string | null
           posted_at: string | null
           reach: number | null
           scheduled_time: string | null
@@ -2291,7 +2291,7 @@ export type Database = {
           expires_at?: string | null
           is_highlight?: boolean | null
           media_type: string
-          media_url: string
+          media_url?: string | null
           posted_at?: string | null
           reach?: number | null
           scheduled_time?: string | null
@@ -2316,7 +2316,7 @@ export type Database = {
           expires_at?: string | null
           is_highlight?: boolean | null
           media_type?: string
-          media_url?: string
+          media_url?: string | null
           posted_at?: string | null
           reach?: number | null
           scheduled_time?: string | null
