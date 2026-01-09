@@ -1,9 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
-import { StoryService } from "./storyService";
 
 /**
  * Post represents a Telegram channel post (text and/or image)
- * This is a simplified wrapper around the Stories functionality
  */
 export interface Post {
     id: string;
@@ -33,15 +31,49 @@ export interface PostFilters {
 }
 
 /**
- * PostService provides a simplified interface for creating and managing
- * Telegram channel posts. Internally uses the Stories infrastructure.
+ * PostService provides interface for creating and managing Telegram channel posts
+ * Uses the telegram_posts table
  */
 export class PostService {
     /**
      * Upload an image for a post
      */
     static async uploadPostImage(userId: string, file: File): Promise<string> {
-        return StoryService.uploadStoryMedia(userId, file, "image");
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from("post-media")
+            .upload(fileName, file, {
+                cacheControl: "3600",
+                upsert: false,
+            });
+
+        if (uploadError) {
+            // Try story-media bucket as fallback
+            const { error: fallbackError } = await supabase.storage
+                .from("story-media")
+                .upload(fileName, file, {
+                    cacheControl: "3600",
+                    upsert: false,
+                });
+
+            if (fallbackError) {
+                throw new Error(fallbackError.message || "Failed to upload image");
+            }
+
+            const { data: urlData } = supabase.storage
+                .from("story-media")
+                .getPublicUrl(fileName);
+
+            return urlData.publicUrl;
+        }
+
+        const { data: urlData } = supabase.storage
+            .from("post-media")
+            .getPublicUrl(fileName);
+
+        return urlData.publicUrl;
     }
 
     /**
@@ -51,32 +83,18 @@ export class PostService {
         userId: string,
         data: CreatePostData
     ): Promise<Post> {
-        const mediaType = data.image_url ? "image" : "text";
         const status = data.scheduled_time ? "scheduled" : "draft";
 
-        // Note: Database CHECK constraint allows media_url to be NULL for text posts
-        // but TypeScript types incorrectly show it as required. Using type assertion.
-        const insertData = {
-            user_id: userId,
-            channel_id: data.channel_id,
-            media_type: mediaType,
-            media_url: data.image_url || null,
-            caption: data.content,
-            status: status,
-            scheduled_time: data.scheduled_time || null,
-        } as {
-            user_id: string;
-            channel_id: string;
-            media_type: string;
-            media_url: string;
-            caption: string;
-            status: string;
-            scheduled_time: string | null;
-        };
-
-        const { data: story, error } = await supabase
-            .from("telegram_stories")
-            .insert(insertData)
+        const { data: post, error } = await supabase
+            .from("telegram_posts")
+            .insert({
+                user_id: userId,
+                channel_id: data.channel_id,
+                content: data.content,
+                image_url: data.image_url || null,
+                status: status,
+                scheduled_time: data.scheduled_time || null,
+            })
             .select()
             .single();
 
@@ -84,9 +102,8 @@ export class PostService {
             throw new Error(error.message || "Failed to create post");
         }
 
-        return mapStoryToPost(story);
+        return mapDbToPost(post);
     }
-
 
     /**
      * Get user's posts with optional filters
@@ -96,7 +113,7 @@ export class PostService {
         filters?: PostFilters
     ): Promise<Post[]> {
         let query = supabase
-            .from("telegram_stories")
+            .from("telegram_posts")
             .select("*")
             .eq("user_id", userId)
             .order("created_at", { ascending: false });
@@ -119,7 +136,7 @@ export class PostService {
             throw new Error(error.message || "Failed to fetch posts");
         }
 
-        return (data || []).map(mapStoryToPost);
+        return (data || []).map(mapDbToPost);
     }
 
     /**
@@ -127,9 +144,9 @@ export class PostService {
      */
     static async getPost(postId: string, userId: string): Promise<Post> {
         const { data, error } = await supabase
-            .from("telegram_stories")
+            .from("telegram_posts")
             .select("*")
-            .eq("story_id", postId)
+            .eq("id", postId)
             .eq("user_id", userId)
             .single();
 
@@ -137,7 +154,7 @@ export class PostService {
             throw new Error(error.message || "Post not found");
         }
 
-        return mapStoryToPost(data);
+        return mapDbToPost(data);
     }
 
     /**
@@ -148,15 +165,16 @@ export class PostService {
         userId: string,
         updates: Partial<CreatePostData>
     ): Promise<Post> {
-        const updateData: Record<string, unknown> = {};
+        const updateData: Record<string, unknown> = {
+            updated_at: new Date().toISOString(),
+        };
 
         if (updates.content !== undefined) {
-            updateData.caption = updates.content;
+            updateData.content = updates.content;
         }
 
         if (updates.image_url !== undefined) {
-            updateData.media_url = updates.image_url || null; // Must be null for text posts per DB constraint
-            updateData.media_type = updates.image_url ? "image" : "text";
+            updateData.image_url = updates.image_url || null;
         }
 
         if (updates.scheduled_time !== undefined) {
@@ -169,9 +187,9 @@ export class PostService {
         }
 
         const { data, error } = await supabase
-            .from("telegram_stories")
+            .from("telegram_posts")
             .update(updateData)
-            .eq("story_id", postId)
+            .eq("id", postId)
             .eq("user_id", userId)
             .select()
             .single();
@@ -180,7 +198,7 @@ export class PostService {
             throw new Error(error.message || "Failed to update post");
         }
 
-        return mapStoryToPost(data);
+        return mapDbToPost(data);
     }
 
     /**
@@ -188,9 +206,9 @@ export class PostService {
      */
     static async deletePost(postId: string, userId: string): Promise<void> {
         const { error } = await supabase
-            .from("telegram_stories")
+            .from("telegram_posts")
             .delete()
-            .eq("story_id", postId)
+            .eq("id", postId)
             .eq("user_id", userId);
 
         if (error) {
@@ -202,8 +220,8 @@ export class PostService {
      * Post immediately to Telegram
      */
     static async postNow(postId: string): Promise<void> {
-        const { error } = await supabase.functions.invoke("send-telegram-story", {
-            body: { storyId: postId, instantPost: true },
+        const { error } = await supabase.functions.invoke("send-telegram-post", {
+            body: { postId },
         });
 
         if (error) {
@@ -220,12 +238,13 @@ export class PostService {
         scheduledTime: string
     ): Promise<Post> {
         const { data, error } = await supabase
-            .from("telegram_stories")
+            .from("telegram_posts")
             .update({
                 status: "scheduled",
                 scheduled_time: scheduledTime,
+                updated_at: new Date().toISOString(),
             })
-            .eq("story_id", postId)
+            .eq("id", postId)
             .eq("user_id", userId)
             .select()
             .single();
@@ -234,7 +253,7 @@ export class PostService {
             throw new Error(error.message || "Failed to schedule post");
         }
 
-        return mapStoryToPost(data);
+        return mapDbToPost(data);
     }
 
     /**
@@ -250,26 +269,26 @@ export class PostService {
         const [totalResult, draftResult, scheduledResult, postedResult, failedResult] =
             await Promise.all([
                 supabase
-                    .from("telegram_stories")
+                    .from("telegram_posts")
                     .select("*", { count: "exact", head: true })
                     .eq("user_id", userId),
                 supabase
-                    .from("telegram_stories")
+                    .from("telegram_posts")
                     .select("*", { count: "exact", head: true })
                     .eq("user_id", userId)
                     .eq("status", "draft"),
                 supabase
-                    .from("telegram_stories")
+                    .from("telegram_posts")
                     .select("*", { count: "exact", head: true })
                     .eq("user_id", userId)
                     .eq("status", "scheduled"),
                 supabase
-                    .from("telegram_stories")
+                    .from("telegram_posts")
                     .select("*", { count: "exact", head: true })
                     .eq("user_id", userId)
                     .eq("status", "posted"),
                 supabase
-                    .from("telegram_stories")
+                    .from("telegram_posts")
                     .select("*", { count: "exact", head: true })
                     .eq("user_id", userId)
                     .eq("status", "failed"),
@@ -286,20 +305,20 @@ export class PostService {
 }
 
 /**
- * Maps a telegram_stories row to a Post object
+ * Maps a telegram_posts row to a Post object
  */
-function mapStoryToPost(story: Record<string, unknown>): Post {
+function mapDbToPost(row: Record<string, unknown>): Post {
     return {
-        id: story.story_id as string,
-        user_id: story.user_id as string,
-        channel_id: story.channel_id as string | null,
-        content: (story.caption as string) || "",
-        image_url: story.media_type === "image" ? (story.media_url as string) : null,
-        status: story.status as Post["status"],
-        scheduled_time: story.scheduled_time as string | null,
-        posted_at: story.posted_at as string | null,
-        error_message: story.error_message as string | null,
-        created_at: story.created_at as string,
-        updated_at: story.updated_at as string | null,
+        id: row.id as string,
+        user_id: row.user_id as string,
+        channel_id: row.channel_id as string | null,
+        content: (row.content as string) || "",
+        image_url: row.image_url as string | null,
+        status: row.status as Post["status"],
+        scheduled_time: row.scheduled_time as string | null,
+        posted_at: row.posted_at as string | null,
+        error_message: row.error_message as string | null,
+        created_at: row.created_at as string,
+        updated_at: row.updated_at as string | null,
     };
 }
