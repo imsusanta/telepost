@@ -25,9 +25,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse request body once and store it
+  let requestBody: TelegramStoryRequest;
   try {
-    const { storyId, instantPost = false }: TelegramStoryRequest = await req.json();
+    requestBody = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid request body" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
+  const { storyId, instantPost = false } = requestBody;
+
+  try {
     if (!storyId) {
       return new Response(
         JSON.stringify({ error: "Missing required field: storyId" }),
@@ -40,13 +51,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch story data
+    // Fetch story data with channel bot token
     const { data: story, error: storyError } = await supabase
       .from('telegram_stories')
       .select(`
         *,
         channels (
-          telegram_channel_id
+          telegram_channel_id,
+          telegram_bot_token
         )
       `)
       .eq('story_id', storyId)
@@ -65,10 +77,10 @@ serve(async (req) => {
       throw new Error(`Can only instantly post stories with 'draft' or 'scheduled' status (current: ${story.status})`);
     }
 
-    // Get bot token from environment (server-side only)
-    const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    // Get bot token - prefer channel-specific token, fallback to environment
+    const botToken = story.channels?.telegram_bot_token || Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!botToken) {
-      throw new Error("Bot token not configured. Please add TELEGRAM_BOT_TOKEN to secrets.");
+      throw new Error("Bot token not configured. Please add a bot token in channel settings or add TELEGRAM_BOT_TOKEN to secrets.");
     }
 
     const chatId = story.channels?.telegram_channel_id;
@@ -209,28 +221,29 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error sending Telegram story:", error);
 
-    // Update story status to 'failed'
-    try {
-      const { storyId } = await req.json();
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    // Update story status to 'failed' using the storyId we already parsed
+    if (storyId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-      await supabase
-        .from('telegram_stories')
-        .update({
-          status: 'failed',
-          error_message: error instanceof Error ? error.message : "Unknown error",
-        })
-        .eq('story_id', storyId);
-    } catch (updateError) {
-      console.error('Failed to update story status to failed:', updateError);
+        await supabase
+          .from('telegram_stories')
+          .update({
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : "Unknown error",
+          })
+          .eq('story_id', storyId);
+      } catch (updateError) {
+        console.error('Failed to update story status to failed:', updateError);
+      }
     }
 
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",
-        details: "Make sure your bot token is correct and the chat_id is valid.",
+        details: "Make sure your bot is added as admin to the channel with 'Post Messages' permission.",
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
