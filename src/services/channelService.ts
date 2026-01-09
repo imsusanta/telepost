@@ -156,7 +156,8 @@ export class ChannelService {
    * SECURITY: Bot token is stored server-side only
    */
   static async testTelegramConnection(
-    chatId: string
+    chatId: string,
+    channelId?: string
   ): Promise<{ success: boolean; message: string }> {
     try {
       const { data, error } = await supabase.functions.invoke(
@@ -164,6 +165,7 @@ export class ChannelService {
         {
           body: {
             chatId,
+            channelId,
           },
         }
       );

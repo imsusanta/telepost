@@ -64,6 +64,7 @@ export class QuizService {
 
   static async sendToTelegram(params: {
     chatId: string;
+    channelId?: string;
     quiz: Quiz;
     scheduleInterval?: number | null;
     instantPoll?: boolean;
@@ -79,9 +80,9 @@ export class QuizService {
     return data;
   }
 
-  static async testTelegramConnection(chatId: string) {
+  static async testTelegramConnection(chatId: string, channelId?: string) {
     const { data, error } = await supabase.functions.invoke("test-telegram-connection", {
-      body: { chatId },
+      body: { chatId, channelId },
     });
 
     if (error) {

@@ -15,6 +15,7 @@ export interface Channel {
   user_id: string;
   name: string;
   telegram_channel_id: string | null;
+  telegram_bot_token?: string | null;
   description: string | null;
   settings: ChannelSettings;
   last_auto_generated_at: string | null;
