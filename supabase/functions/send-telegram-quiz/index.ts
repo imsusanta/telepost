@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface TelegramQuizRequest {
   chatId: string;
+  channelId?: string;
   quiz: {
     topic: string;
     questions: Array<{
@@ -39,6 +40,8 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
     const supabase = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -51,7 +54,7 @@ serve(async (req) => {
       );
     }
 
-    const { chatId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
+    const { chatId, channelId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
     
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
@@ -69,9 +72,38 @@ serve(async (req) => {
       );
     }
 
+    // Get bot token - prefer channel-specific, fallback to global
+    let botToken: string | null = null;
+    let tokenSource = 'global';
+
+    if (channelId) {
+      // Use service role to fetch channel data
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: channel, error: channelError } = await supabaseAdmin
+        .from('channels')
+        .select('telegram_bot_token')
+        .eq('id', channelId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (channelError) {
+        console.log(`Channel not found or not owned by user: ${channelId}`);
+      } else if (channel?.telegram_bot_token) {
+        botToken = channel.telegram_bot_token;
+        tokenSource = 'channel';
+        console.log(`Using channel-specific bot token for channel: ${channelId}`);
+      }
+    }
+
+    // Fallback to global token
+    if (!botToken) {
+      botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
+      console.log('Using global TELEGRAM_BOT_TOKEN');
+    }
+
     // If scheduleInterval is provided, create recurring scheduled posts
     if (scheduleInterval) {
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
       const now = new Date();
@@ -90,11 +122,12 @@ serve(async (req) => {
       for (let i = 0; i < questionBatches.length; i++) {
         const scheduledTime = new Date(now.getTime() + ((i + 1) * scheduleInterval * 60 * 1000));
         scheduledPosts.push({
-          user_id: user.id, // SECURITY FIX: Always set user_id
+          user_id: user.id,
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
             questions: questionBatches[i],
+            channelId, // Store channelId for later use when processing scheduled posts
           },
           scheduled_time: scheduledTime.toISOString(),
           min_questions_per_interval: questionsPerPost,
@@ -127,13 +160,12 @@ serve(async (req) => {
       );
     }
 
-    // Send immediately
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!TELEGRAM_BOT_TOKEN) {
-      throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+    // Send immediately - need a bot token
+    if (!botToken) {
+      throw new Error("No Telegram bot token configured. Please add a bot token to your channel settings or configure TELEGRAM_BOT_TOKEN.");
     }
 
-    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+    const baseUrl = `https://api.telegram.org/bot${botToken}`;
     
     // Send intro message
     await fetch(`${baseUrl}/sendMessage`, {
@@ -187,13 +219,14 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Successfully sent ${results.length} polls to chat ${chatId}`);
+    console.log(`Successfully sent ${results.length} polls to chat ${chatId} using ${tokenSource} bot token`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: `Sent ${results.length} quiz polls to Telegram`,
         pollsSent: results.length,
+        tokenSource,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

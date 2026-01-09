@@ -21,6 +21,7 @@ interface Channel {
   user_id: string;
   name: string;
   telegram_channel_id: string;
+  telegram_bot_token: string | null;
   settings: ChannelSettings;
 }
 
@@ -39,17 +40,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get server-side Telegram bot token
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!TELEGRAM_BOT_TOKEN) {
-      console.error("TELEGRAM_BOT_TOKEN not configured");
-      return new Response(
-        JSON.stringify({
-          error: "Bot token not configured. Please add TELEGRAM_BOT_TOKEN to secrets."
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Get global Telegram bot token (used as fallback)
+    const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
     // Get request body for optional parameters
     let specificChannelId: string | null = null;
@@ -213,9 +205,18 @@ serve(async (req) => {
           throw new Error("Quiz generation failed: No valid questions");
         }
 
-        // Send to Telegram (using server-side bot token)
+        // Get bot token - prefer channel-specific, fallback to global
+        const channelBotToken = channel.telegram_bot_token || GLOBAL_TELEGRAM_BOT_TOKEN;
+        
+        if (!channelBotToken) {
+          throw new Error("No bot token configured for this channel. Please add a bot token to channel settings or configure TELEGRAM_BOT_TOKEN.");
+        }
+
+        console.log(`Using ${channel.telegram_bot_token ? 'channel-specific' : 'global'} bot token for channel: ${channel.name}`);
+
+        // Send to Telegram
         await sendQuizToTelegram(
-          TELEGRAM_BOT_TOKEN,
+          channelBotToken,
           channel.telegram_channel_id,
           { ...quiz, questions: quiz.questions }
         );

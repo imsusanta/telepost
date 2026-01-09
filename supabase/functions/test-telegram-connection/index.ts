@@ -23,6 +23,8 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
     const supabase = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -35,7 +37,7 @@ serve(async (req) => {
       );
     }
 
-    const { chatId } = await req.json();
+    const { chatId, channelId } = await req.json();
 
     // Input validation
     if (!chatId) {
@@ -55,20 +57,48 @@ serve(async (req) => {
       );
     }
 
-    // SECURITY: Only use server-side bot token - never accept from client
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!TELEGRAM_BOT_TOKEN) {
-      console.error("TELEGRAM_BOT_TOKEN not configured");
+    // Get bot token - prefer channel-specific, fallback to global
+    let botToken: string | null = null;
+    let tokenSource = 'global';
+
+    if (channelId) {
+      // Use service role to fetch channel data
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: channel, error: channelError } = await supabaseAdmin
+        .from('channels')
+        .select('telegram_bot_token')
+        .eq('id', channelId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (channelError) {
+        console.log(`Channel not found or not owned by user: ${channelId}`);
+      } else if (channel?.telegram_bot_token) {
+        botToken = channel.telegram_bot_token;
+        tokenSource = 'channel';
+        console.log(`Using channel-specific bot token for channel: ${channelId}`);
+      }
+    }
+
+    // Fallback to global token
+    if (!botToken) {
+      botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
+      console.log('Using global TELEGRAM_BOT_TOKEN');
+    }
+
+    if (!botToken) {
+      console.error("No bot token available");
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Bot not configured. Please contact support."
+          error: "No bot token configured. Please add a bot token to your channel settings or contact support."
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+    const baseUrl = `https://api.telegram.org/bot${botToken}`;
     
     // Try to get chat info to verify access
     const response = await fetch(`${baseUrl}/getChat`, {
@@ -113,7 +143,7 @@ serve(async (req) => {
     const chatType = data.result?.type || "unknown";
     const chatTitle = data.result?.title || data.result?.username || "Chat";
     
-    console.log(`Connection test successful for user ${user.id} to ${chatType}`);
+    console.log(`Connection test successful for user ${user.id} to ${chatType} using ${tokenSource} bot token`);
     
     return new Response(
       JSON.stringify({ 
@@ -122,7 +152,8 @@ serve(async (req) => {
         chatInfo: {
           type: chatType,
           title: chatTitle,
-        }
+        },
+        tokenSource,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
