@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.test-ai-connection]
 verify_jwt = true
+
+[functions.send-telegram-post]
+verify_jwt = true
