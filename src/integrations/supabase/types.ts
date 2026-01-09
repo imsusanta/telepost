@@ -2254,6 +2254,62 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_posts: {
+        Row: {
+          channel_id: string | null
+          content: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          image_url: string | null
+          posted_at: string | null
+          scheduled_time: string | null
+          status: Database["public"]["Enums"]["post_status_enum"] | null
+          telegram_chat_id: string | null
+          telegram_message_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          channel_id?: string | null
+          content: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          posted_at?: string | null
+          scheduled_time?: string | null
+          status?: Database["public"]["Enums"]["post_status_enum"] | null
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          channel_id?: string | null
+          content?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          posted_at?: string | null
+          scheduled_time?: string | null
+          status?: Database["public"]["Enums"]["post_status_enum"] | null
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_posts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_stories: {
         Row: {
           background_color: string | null
@@ -2841,6 +2897,7 @@ export type Database = {
         | "teacher"
         | "student"
         | "parent"
+      post_status_enum: "draft" | "scheduled" | "posted" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2976,6 +3033,7 @@ export const Constants = {
         "student",
         "parent",
       ],
+      post_status_enum: ["draft", "scheduled", "posted", "failed"],
     },
   },
 } as const
