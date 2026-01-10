@@ -16,10 +16,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!TELEGRAM_BOT_TOKEN) {
-      throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-    }
+    const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
     // Get all pending posts that are due (limit to 50 per run to avoid timeouts)
     const { data: pendingPosts, error: fetchError } = await supabase
@@ -59,18 +56,44 @@ serve(async (req) => {
 
     for (const post of pendingPosts || []) {
       try {
-        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+        // Fetch channel-specific bot token based on chat_id
+        const { data: channel, error: channelError } = await supabase
+          .from('channels')
+          .select('telegram_bot_token, name')
+          .eq('telegram_channel_id', post.chat_id)
+          .maybeSingle();
+
+        if (channelError) {
+          console.error(`Error fetching channel for chat_id ${post.chat_id}:`, channelError);
+        }
+
+        // Use channel-specific token, fallback to global token
+        const botToken = channel?.telegram_bot_token || GLOBAL_TELEGRAM_BOT_TOKEN;
+        
+        if (!botToken) {
+          throw new Error(`No bot token available for chat_id: ${post.chat_id}. Please configure a bot token in channel settings or set TELEGRAM_BOT_TOKEN environment variable.`);
+        }
+
+        console.log(`Processing post ${post.id} for chat ${post.chat_id} using ${channel?.telegram_bot_token ? 'channel-specific' : 'global'} bot token`);
+
+        const baseUrl = `https://api.telegram.org/bot${botToken}`;
 
         // Send intro message
-        await fetch(`${baseUrl}/sendMessage`, {
+        const introResponse = await fetch(`${baseUrl}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: post.chat_id,
-            text: `Topic: ${post.quiz_data.topic}\n\nHere are ${post.quiz_data.questions.length} questions for you! Answer the polls below:`,
+            text: `📝 *Quiz: ${post.quiz_data.topic}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the polls below:`,
             parse_mode: "Markdown",
           }),
         });
+
+        if (!introResponse.ok) {
+          const introData = await introResponse.json();
+          console.error(`Failed to send intro message:`, introData);
+          throw new Error(`Bot access error: ${introData.description || "Failed to send message"}. Make sure the bot is added as an admin to the channel with 'Post Messages' permission.`);
+        }
 
         // Send each question as a poll
         for (let i = 0; i < post.quiz_data.questions.length; i++) {
