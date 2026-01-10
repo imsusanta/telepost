@@ -5,13 +5,8 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Key,
   Loader2,
   SettingsIcon,
-  Trash2,
-  BarChart3,
-  XCircle,
-  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -19,58 +14,84 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { AIService, AISettings, AIUsageStats } from "@/services/aiService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Settings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [botLoading, setBotLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-
-  // AI Settings state
-  const [aiSettings, setAiSettings] = useState<AISettings | null>(null);
-  const [aiUsageStats, setAiUsageStats] = useState<AIUsageStats | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [savingApiKey, setSavingApiKey] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [removingKey, setRemovingKey] = useState(false);
+  const [botToken, setBotToken] = useState("");
+  const [showBotToken, setShowBotToken] = useState(false);
+  const [hasBotToken, setHasBotToken] = useState(false);
 
   useEffect(() => {
     loadProfile();
-    loadAISettings();
+    loadBotConfig();
   }, []);
 
   const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setEmail(user.email || "");
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      if (data) {
-        setFullName(data.full_name || "");
+      if (userError) {
+        console.error("Error getting user:", userError);
+        return;
       }
+
+      if (user) {
+        console.log("User found:", user.email);
+        setEmail(user.email || "");
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Error loading profile:", error);
+          // Still try to set email even if profile fails
+          return;
+        }
+
+        if (data) {
+          console.log("Profile loaded:", data.full_name);
+          setFullName(data.full_name || "");
+        }
+      } else {
+        console.log("No user found");
+      }
+    } catch (err) {
+      console.error("Exception in loadProfile:", err);
     }
   };
 
-  const loadAISettings = async () => {
-    try {
-      const settings = await AIService.getSettings();
-      setAiSettings(settings);
+  const loadBotConfig = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        // Check if user has any channels - use any to bypass type issues
+        const { data: channels, error } = await (supabase as any)
+          .from("channels")
+          .select("id, telegram_bot_token")
+          .eq("user_id", user.id)
+          .limit(1);
 
-      if (settings.hasApiKey) {
-        const stats = await AIService.getUsageStats();
-        setAiUsageStats(stats);
+        if (error) {
+          console.error("Error loading bot config:", error);
+          return;
+        }
+
+        if (channels && channels.length > 0 && channels[0].telegram_bot_token) {
+          setHasBotToken(true);
+          setBotToken("••••••••••••••••••••");
+        }
+      } catch (err) {
+        console.error("Exception loading bot config:", err);
       }
-    } catch (error) {
-      console.error("Error loading AI settings:", error);
     }
   };
 
@@ -104,119 +125,89 @@ export default function Settings() {
     }
   };
 
-  const handleSaveApiKey = async () => {
-    if (!apiKey.trim()) {
+  const handleSaveBotToken = async () => {
+    if (!botToken || botToken === "••••••••••••••••••••") {
       toast({
-        title: "Error",
-        description: "Please enter an API key",
+        title: "Enter Bot Token",
+        description: "Please enter a new bot token",
         variant: "destructive",
       });
       return;
     }
 
-    setSavingApiKey(true);
-    try {
-      await AIService.saveApiKey(apiKey.trim());
-      toast({
-        title: "API Key Saved",
-        description: "Your Gemini API key has been saved. Click 'Test Connection' to verify.",
-      });
-      setApiKey("");
-      await loadAISettings();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save API key",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingApiKey(false);
-    }
-  };
+    setBotLoading(true);
 
-  const handleTestConnection = async () => {
-    setTestingConnection(true);
     try {
-      const result = await AIService.testApiKey();
-      if (result.success) {
-        toast({
-          title: "Connection Successful! 🎉",
-          description: `Connected to ${result.model}. Your AI features are ready to use.`,
-        });
-        await loadAISettings();
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: result.message,
-          variant: "destructive",
-        });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      console.log("Saving bot token for user:", user.id);
+
+      // Use any to bypass TypeScript issues with telegram_bot_token column
+      const supabaseAny = supabase as any;
+
+      // Check if user already has any channel
+      const { data: existingChannels, error: fetchError } = await supabaseAny
+        .from("channels")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .limit(1);
+
+      if (fetchError) {
+        console.error("Error fetching channels:", fetchError);
+        throw new Error(fetchError.message || "Failed to fetch channels");
       }
-    } catch (error) {
-      toast({
-        title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to test connection",
-        variant: "destructive",
-      });
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
-  const handleRemoveApiKey = async () => {
-    setRemovingKey(true);
-    try {
-      await AIService.removeApiKey();
+      console.log("Existing channels:", existingChannels);
+
+      let saveError = null;
+
+      if (existingChannels && existingChannels.length > 0) {
+        // Update ALL existing channels with the new bot token
+        console.log(`Updating ${existingChannels.length} existing channels...`);
+        const { error: updateError } = await supabaseAny
+          .from("channels")
+          .update({ telegram_bot_token: botToken })
+          .eq("user_id", user.id);
+
+        saveError = updateError;
+      } else {
+        // Create a new channel with the bot token
+        console.log("Creating new channel for user:", user.id);
+        const result = await supabaseAny
+          .from("channels")
+          .insert({
+            user_id: user.id,
+            name: "Default Channel",
+            telegram_bot_token: botToken,
+            description: "Default channel for quiz posting"
+          });
+        saveError = result.error;
+      }
+
+      if (saveError) {
+        console.error("Error saving bot token:", saveError);
+        throw new Error(saveError.message || "Failed to save bot token");
+      }
+
+      console.log("Bot token saved successfully!");
+      setHasBotToken(true);
+      setBotToken("••••••••••••••••••••");
+      setShowBotToken(false);
+
       toast({
-        title: "API Key Removed",
-        description: "Your Gemini API key has been removed.",
+        title: "Bot Token Saved!",
+        description: "Your Telegram bot token has been saved successfully.",
       });
-      setAiSettings(null);
-      setAiUsageStats(null);
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Exception in handleSaveBotToken:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to remove API key",
+        description: error instanceof Error ? error.message : "Failed to save bot token",
         variant: "destructive",
       });
     } finally {
-      setRemovingKey(false);
-    }
-  };
-
-  const getStatusBadge = () => {
-    if (!aiSettings?.hasApiKey) {
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Not Configured
-        </Badge>
-      );
-    }
-
-    switch (aiSettings.apiKeyStatus) {
-      case "active":
-        return (
-          <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Connected
-          </Badge>
-        );
-      case "invalid":
-        return (
-          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
-            <XCircle className="h-3 w-3 mr-1" />
-            Invalid
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Pending Verification
-          </Badge>
-        );
-      default:
-        return null;
+      setBotLoading(false);
     }
   };
 
@@ -230,6 +221,88 @@ export default function Settings() {
           <p className="text-muted-foreground text-lg">Manage your account settings and preferences</p>
         </div>
 
+        {/* Telegram Bot Configuration Card */}
+        <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
+          <CardHeader className="space-y-3 pb-6">
+            <CardTitle className="flex items-center space-x-3 text-2xl">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-clay-sm">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+                Telegram Bot
+              </span>
+              {hasBotToken && (
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+              )}
+            </CardTitle>
+            <CardDescription className="text-muted-foreground text-base">
+              Connect your Telegram bot to post quizzes to your channels
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert>
+              <Bot className="h-4 w-4" />
+              <AlertDescription>
+                To get a bot token, message{" "}
+                <a
+                  href="https://t.me/BotFather"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  @BotFather <ExternalLink className="w-3 h-3" />
+                </a>
+                {" "}on Telegram and create a new bot.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+              <Label htmlFor="botToken" className="text-base font-medium text-foreground">
+                Bot Token
+              </Label>
+              <div className="relative">
+                <Input
+                  id="botToken"
+                  type={showBotToken ? "text" : "password"}
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  className="h-12 pr-10 font-mono"
+                  placeholder="Enter your Telegram bot token"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowBotToken(!showBotToken)}
+                >
+                  {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your bot token is stored securely and never shared.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSaveBotToken}
+              disabled={botLoading}
+              className="h-12 px-8 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold"
+            >
+              {botLoading ? (
+                <span className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </span>
+              ) : hasBotToken ? (
+                "Update Bot Token"
+              ) : (
+                "Save Bot Token"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Profile Settings Card */}
         <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
           <CardHeader className="space-y-3 pb-6">
@@ -242,7 +315,7 @@ export default function Settings() {
               </span>
             </CardTitle>
             <CardDescription className="text-muted-foreground text-base">
-              Update your personal information and account details
+              Update your personal information
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -273,9 +346,8 @@ export default function Settings() {
                   disabled
                   className="h-12"
                 />
-                <p className="text-sm text-muted-foreground flex items-center space-x-1">
-                  <span className="inline-block w-1.5 h-1.5 bg-muted rounded-full"></span>
-                  <span>Email address is managed by your authentication provider</span>
+                <p className="text-sm text-muted-foreground">
+                  Email address is managed by your authentication provider
                 </p>
               </div>
 
@@ -296,160 +368,6 @@ export default function Settings() {
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* AI Configuration Card */}
-        <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-          <CardHeader className="space-y-3 pb-6">
-            <CardTitle className="flex items-center space-x-3 text-2xl">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-clay-sm">
-                <Bot className="w-6 h-6 text-white" />
-              </div>
-              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                AI Configuration
-              </span>
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
-              Configure your OpenRouter API key for AI-powered post and image generation (uses Gemini 2.0 Flash free model)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* API Key Input */}
-            <div className="space-y-3">
-              <Label htmlFor="apiKey" className="text-base font-medium text-foreground flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                OpenRouter API Key
-              </Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="apiKey"
-                    type={showApiKey ? "text" : "password"}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={aiSettings?.hasApiKey ? "••••••••••••••••••••" : "Enter your OpenRouter API key..."}
-                    className="h-12 pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <Button
-                  onClick={handleSaveApiKey}
-                  disabled={savingApiKey || !apiKey.trim()}
-                  className="h-12"
-                >
-                  {savingApiKey ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Your API key is stored securely and only used for generating content. We never share or store your generated content.
-              </p>
-            </div>
-
-            {/* Get API Key Link */}
-            <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm text-muted-foreground">Don't have an API key?</span>
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
-              >
-                Get Free OpenRouter API Key
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-
-            <Separator />
-
-            {/* API Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">API Status:</span>
-                {getStatusBadge()}
-                {aiSettings?.apiKeyStatus === "active" && (
-                  <span className="text-xs text-muted-foreground">
-                    • Model: gemini-2.0-flash-exp (free)
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={handleTestConnection}
-                disabled={testingConnection || !aiSettings?.hasApiKey}
-              >
-                {testingConnection ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Test Connection
-                  </>
-                )}
-              </Button>
-              {aiSettings?.hasApiKey && (
-                <Button
-                  variant="outline"
-                  onClick={handleRemoveApiKey}
-                  disabled={removingKey}
-                  className="text-destructive hover:text-destructive"
-                >
-                  {removingKey ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-2 h-4 w-4" />
-                  )}
-                  Remove Key
-                </Button>
-              )}
-            </div>
-
-            {/* Usage Statistics */}
-            {aiSettings?.hasApiKey && aiSettings.apiKeyStatus === "active" && aiUsageStats && (
-              <>
-                <Separator />
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-foreground flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Usage Statistics
-                  </Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-foreground">{aiUsageStats.postsGeneratedToday}</p>
-                      <p className="text-xs text-muted-foreground">Posts Today</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-foreground">{aiUsageStats.imagesGeneratedToday}</p>
-                      <p className="text-xs text-muted-foreground">Images Today</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-foreground">{aiUsageStats.totalCallsThisMonth}</p>
-                      <p className="text-xs text-muted-foreground">Total This Month</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-foreground">{aiUsageStats.totalTokensThisMonth.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">Tokens Used</p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
           </CardContent>
         </Card>
       </div>

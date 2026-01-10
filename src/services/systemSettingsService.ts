@@ -31,12 +31,18 @@ export interface AISettings {
   temperature: number;
 }
 
+export interface TelegramSettings {
+  global_bot_token: string;
+  fallback_enabled: boolean;
+}
+
 export interface SystemSettings {
   invitation_defaults: InvitationDefaults;
   user_defaults: UserDefaults;
   subscription_defaults: SubscriptionDefaults;
   system_maintenance: SystemMaintenance;
   ai_settings: AISettings;
+  telegram_settings: TelegramSettings;
 }
 
 type SettingKey = keyof SystemSettings;
@@ -55,7 +61,7 @@ export async function getAllSettings(): Promise<SystemSettings> {
   }
 
   const settings: Record<string, unknown> = {};
-  
+
   for (const row of data || []) {
     settings[row.setting_key] = row.setting_value;
   }
@@ -86,6 +92,10 @@ export async function getAllSettings(): Promise<SystemSettings> {
       provider: 'openrouter',
       model: 'z-ai/glm-4.5-air:free',
       temperature: 0.7,
+    },
+    telegram_settings: (settings.telegram_settings as TelegramSettings) || {
+      global_bot_token: '',
+      fallback_enabled: true,
     },
   };
 }
@@ -202,4 +212,22 @@ export async function getAISettings(): Promise<AISettings> {
  */
 export async function updateAISettings(settings: AISettings): Promise<void> {
   return updateSetting('ai_settings', settings);
+}
+
+/**
+ * Get Telegram settings
+ */
+export async function getTelegramSettings(): Promise<TelegramSettings> {
+  const settings = await getSetting('telegram_settings');
+  return settings || {
+    global_bot_token: '',
+    fallback_enabled: true,
+  };
+}
+
+/**
+ * Update Telegram settings
+ */
+export async function updateTelegramSettings(settings: TelegramSettings): Promise<void> {
+  return updateSetting('telegram_settings', settings);
 }

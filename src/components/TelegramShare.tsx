@@ -12,11 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface TelegramShareProps {
   quiz: Quiz;
-  selectedChannelId?: string;
+  initialChatId?: string; // This was selectedChannelId (the Telegram ID)
+  initialChannelId?: string; // This is the database ID
 }
 
-export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) => {
+export const TelegramShare = ({ quiz, initialChatId, initialChannelId }: TelegramShareProps) => {
   const [chatId, setChatId] = useState("");
+  const [channels, setChannels] = useState<any[]>([]);
+  const [channelId, setChannelId] = useState<string>("");
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
@@ -26,19 +29,56 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
   const [instantPoll, setInstantPoll] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [hasAutoFilled, setHasAutoFilled] = useState(false);
 
-  // Auto-fill chat ID when dialog opens if a channel is selected
+  // Load channels when dialog opens
   useEffect(() => {
-    if (isOpen && selectedChannelId && !hasAutoFilled) {
-      setChatId(selectedChannelId);
-      setHasAutoFilled(true);
+    if (isOpen) {
+      loadChannels();
     }
-    // Reset when dialog closes
-    if (!isOpen) {
-      setHasAutoFilled(false);
+  }, [isOpen]);
+
+  const loadChannels = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await (supabase
+        .from("channels")
+        .select("id, name, telegram_channel_id, telegram_bot_token")
+        .eq("user_id", user.id) as any);
+
+      if (error) throw error;
+      setChannels(data || []);
+
+      // If initialChannelId is provided, set it
+      if (initialChannelId) {
+        setChannelId(initialChannelId);
+        const channel = data?.find((c: any) => c.id === initialChannelId);
+        if (channel?.telegram_channel_id) {
+          setChatId(channel.telegram_channel_id);
+        }
+      } else if (initialChatId) {
+        setChatId(initialChatId);
+      } else if (data && data.length > 0) {
+        // Default to the first channel if no initial ID provided
+        setChannelId(data[0].id);
+        if (data[0].telegram_channel_id) {
+          setChatId(data[0].telegram_channel_id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading channels:", error);
     }
-  }, [isOpen, selectedChannelId, hasAutoFilled]);
+  };
+
+  // Handle channel selection
+  const handleChannelChange = (selectedId: string) => {
+    setChannelId(selectedId);
+    const channel = channels.find(c => c.id === selectedId);
+    if (channel?.telegram_channel_id) {
+      setChatId(channel.telegram_channel_id);
+    }
+  };
 
   const handleTestConnection = async () => {
     if (!chatId.trim()) {
@@ -56,7 +96,10 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
 
     try {
       const { data, error } = await supabase.functions.invoke("test-telegram-connection", {
-        body: { chatId: correctedChatId },
+        body: {
+          chatId: correctedChatId,
+          channelId: (channelId && channelId !== "none") ? channelId : undefined
+        },
       });
 
       if (error) throw error;
@@ -107,7 +150,7 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
 
     // Auto-correct common chat ID format issues
     let correctedChatId = chatId.trim();
-    
+
     // If user enters a number starting with "100" (likely forgot the minus sign)
     if (/^\d+$/.test(correctedChatId) && correctedChatId.startsWith("100")) {
       correctedChatId = `-${correctedChatId}`;
@@ -119,6 +162,7 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
       const { data, error } = await supabase.functions.invoke("send-telegram-quiz", {
         body: {
           chatId: correctedChatId,
+          channelId: (channelId && channelId !== "none") ? channelId : undefined,
           quiz: {
             topic: quiz.topic,
             questions: quiz.questions,
@@ -141,7 +185,7 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
       } else {
         toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
       }
-      
+
       setIsOpen(false);
       setChatId("");
       setScheduleInterval("5");
@@ -179,20 +223,37 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="chatId">Telegram Chat ID</Label>
-            {selectedChannelId && hasAutoFilled && (
-              <p className="text-xs text-green-600 dark:text-green-400 mb-1">
-                ✓ Auto-filled from selected channel
+            <Label htmlFor="channel">Select Channel</Label>
+            <Select value={channelId} onValueChange={handleChannelChange} disabled={isSending}>
+              <SelectTrigger id="channel">
+                <SelectValue placeholder={channels.length > 0 ? "Select a Channel" : "No channels found"} />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((ch) => (
+                  <SelectItem key={ch.id} value={ch.id}>
+                    {ch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {channels.length === 0 && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">
+                Please add a channel first in the 'Channels' page.
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Optional: Selecting a channel will automatically fill its Chat ID.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="chatId">Telegram Chat ID</Label>
             <Input
               id="chatId"
               placeholder="e.g., -1001234567890 or @channelname"
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
               disabled={isSending}
-              readOnly={!!selectedChannelId && hasAutoFilled}
-              className={selectedChannelId && hasAutoFilled ? "bg-muted" : ""}
             />
             <div className="flex items-center gap-2 mt-2">
               <Button
@@ -210,25 +271,10 @@ export const TelegramShare = ({ quiz, selectedChannelId }: TelegramShareProps) =
                   {testResult.success ? "✓ Connected" : "✗ Failed"}
                 </span>
               )}
-              {selectedChannelId && hasAutoFilled && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setChatId("");
-                    setHasAutoFilled(false);
-                  }}
-                  disabled={isSending}
-                  className="text-xs"
-                >
-                  Clear
-                </Button>
-              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {selectedChannelId && hasAutoFilled
-                ? "Using the selected channel's Telegram ID"
+              {channelId && channelId !== "none"
+                ? "Using the selected channel's Chat ID (you can override it)"
                 : "For channels: Use -100xxxxxxxxxx format (with minus sign)"}
             </p>
           </div>

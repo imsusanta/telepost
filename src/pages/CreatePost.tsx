@@ -366,11 +366,12 @@ export default function CreatePost() {
                                             <Label htmlFor="content">Message</Label>
                                             <Textarea
                                                 id="content"
-                                                placeholder="Write your post here... Supports Markdown: *bold* _italic_ `code`"
+                                                placeholder="Write your post here... Supports Markdown: *bold* _italic_ `code` and emojis 😊"
                                                 value={content}
                                                 onChange={(e) => setContent(e.target.value)}
                                                 rows={6}
-                                                className="resize-none font-mono"
+                                                className="resize-y min-h-[150px] font-mono"
+                                                style={{ resize: 'vertical' }}
                                             />
                                             <p className="text-xs text-muted-foreground text-right">
                                                 {content.length} characters

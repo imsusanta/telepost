@@ -62,9 +62,50 @@ serve(async (req) => {
     for (const story of stories) {
       try {
         const channel = story.channels as { telegram_channel_id?: string } | null;
-        const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
-        if (!botToken) {
-          throw new Error("Bot token not configured");
+        const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+        let TELEGRAM_BOT_TOKEN: string | null = null;
+
+        // 1. Try to get token from the specific channel
+        if (story.channel_id) {
+          const { data: channel } = await supabaseAdmin
+            .from('channels')
+            .select('telegram_bot_token')
+            .eq('id', story.channel_id)
+            .single();
+
+          if (channel?.telegram_bot_token) {
+            TELEGRAM_BOT_TOKEN = channel.telegram_bot_token;
+            console.log(`Using bot token from channel ${story.channel_id}`);
+          }
+        }
+
+        // 2. Fallback: Search for any bot token owned by the user
+        if (!TELEGRAM_BOT_TOKEN && story.user_id) {
+          const { data: botChannel } = await supabaseAdmin
+            .from('channels')
+            .select('telegram_bot_token')
+            .eq('user_id', story.user_id)
+            .not('telegram_bot_token', 'is', null)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (botChannel?.telegram_bot_token) {
+            TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
+            console.log(`Using fallback bot token from user ${story.user_id}'s other channels`);
+          }
+        }
+
+        // 3. Fallback: Use global token
+        if (!TELEGRAM_BOT_TOKEN) {
+          TELEGRAM_BOT_TOKEN = GLOBAL_TELEGRAM_BOT_TOKEN;
+          if (TELEGRAM_BOT_TOKEN) {
+            console.log("Using global bot token (last resort)");
+          }
+        }
+
+        if (!TELEGRAM_BOT_TOKEN) {
+          throw new Error("No bot token available for this story. Please configure a bot token in settings.");
         }
 
         const chatId = channel?.telegram_channel_id;
@@ -72,7 +113,7 @@ serve(async (req) => {
           throw new Error("Chat ID not configured");
         }
 
-        const baseUrl = `https://api.telegram.org/bot${botToken}`;
+        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
         let messageId: string | null = null;
 
         // Send based on media type
@@ -175,7 +216,7 @@ serve(async (req) => {
 
 function buildCaption(story: { caption?: string; text_overlay?: Array<{ text?: string }> }): string {
   let caption = story.caption || "";
-  
+
   if (story.text_overlay && Array.isArray(story.text_overlay)) {
     const overlayTexts = story.text_overlay
       .map((overlay) => overlay.text)
@@ -185,6 +226,6 @@ function buildCaption(story: { caption?: string; text_overlay?: Array<{ text?: s
       caption = caption ? `${caption}\n\n${overlayTexts}` : overlayTexts;
     }
   }
-  
+
   return caption;
 }

@@ -681,51 +681,52 @@ export default function QuestionBank() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold flex items-center gap-2">
-              <Database className="w-10 h-10" />
+            <h1 className="text-2xl md:text-4xl font-bold flex items-center gap-2">
+              <Database className="w-6 h-6 md:w-10 md:h-10" />
               Question Bank
             </h1>
-            <p className="text-muted-foreground font-medium">
-              Total Questions: <span className="text-foreground font-bold">{totalCount}</span>
-              {searchQuery && <span className="ml-2">({totalCount} matching search)</span>}
+            <p className="text-sm md:text-base text-muted-foreground font-medium">
+              Total: <span className="text-foreground font-bold">{totalCount}</span>
+              {searchQuery && <span className="ml-1 md:ml-2">({totalCount} matching)</span>}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-              className="gap-2 font-bold border-2 hover:bg-muted transition-all active:scale-95"
+              className="gap-1 md:gap-2 font-bold border-2 hover:bg-muted transition-all active:scale-95"
               title={sortOrder === 'desc' ? "Showing Newest First" : "Showing Oldest First"}
             >
               {sortOrder === 'desc' ? <ArrowDownAz className="w-4 h-4" /> : <ArrowUpAz className="w-4 h-4" />}
-              {sortOrder === 'desc' ? "Newest" : "Oldest"}
+              <span className="hidden sm:inline">{sortOrder === 'desc' ? "Newest" : "Oldest"}</span>
             </Button>
-            <Button variant="outline" onClick={handleExportQuestions} disabled={filteredQuestions.length === 0} className="gap-2 font-bold border-2">
+            <Button variant="outline" size="sm" onClick={handleExportQuestions} disabled={filteredQuestions.length === 0} className="gap-1 md:gap-2 font-bold border-2">
               <Download className="w-4 h-4" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2 font-bold border-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-1 md:gap-2 font-bold border-2">
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="questions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="questions" className="gap-2">
-              <List className="w-4 h-4" />
-              My Questions
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="questions" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+              <List className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">My</span> Questions
             </TabsTrigger>
-            <TabsTrigger value="ai-generate" className="gap-2">
-              <Zap className="w-4 h-4" />
-              AI Generate
+            <TabsTrigger value="ai-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+              <Zap className="w-3 h-3 md:w-4 md:h-4" />
+              AI <span className="hidden sm:inline">Generate</span>
             </TabsTrigger>
-            <TabsTrigger value="pdf-generate" className="gap-2">
-              <FileText className="w-4 h-4" />
-              PDF Generate
+            <TabsTrigger value="pdf-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+              <FileText className="w-3 h-3 md:w-4 md:h-4" />
+              PDF <span className="hidden sm:inline">Generate</span>
             </TabsTrigger>
           </TabsList>
 
@@ -757,126 +758,148 @@ export default function QuestionBank() {
 
             {/* Selection Controls */}
             {totalCount > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="select-all"
-                    checked={selectedQuestionIds.size === filteredQuestions.length && filteredQuestions.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                    Select All
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Range Selection */}
-                  <span className="text-sm text-muted-foreground">Range:</span>
-                  <Input
-                    type="number"
-                    placeholder="From"
-                    value={rangeFrom}
-                    onChange={(e) => setRangeFrom(e.target.value)}
-                    className="w-16 h-8 text-sm"
-                    min="1"
-                  />
-                  <span className="text-sm text-muted-foreground">to</span>
-                  <Input
-                    type="number"
-                    placeholder="To"
-                    value={rangeTo}
-                    onChange={(e) => setRangeTo(e.target.value)}
-                    className="w-16 h-8 text-sm"
-                    min="1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const from = parseInt(rangeFrom) || 1;
-                      const to = parseInt(rangeTo) || filteredQuestions.length;
-                      if (from > 0 && to >= from && to <= filteredQuestions.length) {
-                        const newSelection = new Set<string>();
-                        for (let i = from - 1; i < to && i < filteredQuestions.length; i++) {
-                          newSelection.add(filteredQuestions[i].id);
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
+                {/* First Row: Select All + Range Selection */}
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="select-all"
+                      checked={selectedQuestionIds.size === filteredQuestions.length && filteredQuestions.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <label htmlFor="select-all" className="text-xs md:text-sm font-medium cursor-pointer whitespace-nowrap">
+                      Select All
+                    </label>
+                  </div>
+
+                  {/* Range Selection - Simplified on mobile */}
+                  <div className="flex items-center gap-1.5 md:gap-2">
+                    <span className="text-xs md:text-sm text-muted-foreground hidden sm:inline">Range:</span>
+                    <Input
+                      type="number"
+                      placeholder="From"
+                      value={rangeFrom}
+                      onChange={(e) => setRangeFrom(e.target.value)}
+                      className="w-14 md:w-16 h-7 md:h-8 text-xs md:text-sm"
+                      min="1"
+                    />
+                    <span className="text-xs text-muted-foreground">-</span>
+                    <Input
+                      type="number"
+                      placeholder="To"
+                      value={rangeTo}
+                      onChange={(e) => setRangeTo(e.target.value)}
+                      className="w-14 md:w-16 h-7 md:h-8 text-xs md:text-sm"
+                      min="1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const from = parseInt(rangeFrom) || 1;
+                        const to = parseInt(rangeTo) || filteredQuestions.length;
+                        if (from > 0 && to >= from && to <= filteredQuestions.length) {
+                          const newSelection = new Set<string>();
+                          for (let i = from - 1; i < to && i < filteredQuestions.length; i++) {
+                            newSelection.add(filteredQuestions[i].id);
+                          }
+                          setSelectedQuestionIds(newSelection);
+                          toast({
+                            title: "Range Selected",
+                            description: `Selected questions ${from} to ${to}`,
+                          });
+                        } else {
+                          toast({
+                            title: "Invalid Range",
+                            description: `Please enter valid range (1 to ${filteredQuestions.length})`,
+                            variant: "destructive",
+                          });
                         }
-                        setSelectedQuestionIds(newSelection);
-                        toast({
-                          title: "Range Selected",
-                          description: `Selected questions ${from} to ${to}`,
-                        });
-                      } else {
-                        toast({
-                          title: "Invalid Range",
-                          description: `Please enter valid range (1 to ${filteredQuestions.length})`,
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    className="h-8 text-sm font-medium"
-                  >
-                    Select Range
-                  </Button>
+                      }}
+                      className="h-7 md:h-8 text-xs md:text-sm font-medium px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Select</span> Go
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-muted-foreground">
+
+                {/* Second Row: Selection Status + Actions */}
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  <div className="text-xs md:text-sm text-muted-foreground">
                     {selectedQuestionIds.size > 0 ? (
                       <span className="font-medium text-primary">
-                        {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
+                        {selectedQuestionIds.size} selected
                       </span>
                     ) : (
-                      <span>No questions selected</span>
+                      <span className="hidden md:inline">No questions selected</span>
                     )}
                   </div>
-                  {selectedQuestionIds.size > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-2 bg-background/50 border-primary/20 hover:border-primary/50"
-                        onClick={() => {
-                          setBulkMoveSubject("");
-                          setBulkMoveTopic("");
-                          setIsBulkMoveDialogOpen(true);
-                        }}
-                        disabled={selectedQuestionIds.size === 0}
-                      >
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        Move Category
-                      </Button>
+                  {selectedQuestionIds.size > 0 && (() => {
+                    // Check if any selected question is a public question not owned by the current user
+                    const selectedQuestionsList = Array.from(selectedQuestionIds).map(id => questions.find(q => q.id === id));
+                    const hasUnownedPublicQuestion = selectedQuestionsList.some(q => q && q.is_public && q.user_id !== currentUserId);
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-2 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500/30 hover:border-emerald-500/60 text-emerald-700 dark:text-emerald-400"
-                        onClick={() => handleBulkTogglePublic(true)}
-                        disabled={selectedQuestionIds.size === 0}
-                      >
-                        <Globe className="w-4 h-4" />
-                        Make Public
-                      </Button>
+                    // If user selected any public questions they don't own, don't show action buttons
+                    if (hasUnownedPublicQuestion) {
+                      return (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                          Cannot modify selected public questions
+                        </div>
+                      );
+                    }
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-2 bg-slate-50 dark:bg-slate-800 border-slate-300 hover:border-slate-400 text-slate-600 dark:text-slate-400"
-                        onClick={() => handleBulkTogglePublic(false)}
-                        disabled={selectedQuestionIds.size === 0}
-                      >
-                        <Lock className="w-4 h-4" />
-                        Make Private
-                      </Button>
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 md:h-8 gap-1 md:gap-2 text-xs md:text-sm bg-background/50 border-primary/20 hover:border-primary/50"
+                          onClick={() => {
+                            setBulkMoveSubject("");
+                            setBulkMoveTopic("");
+                            setIsBulkMoveDialogOpen(true);
+                          }}
+                          disabled={selectedQuestionIds.size === 0}
+                        >
+                          <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary" />
+                          <span className="hidden sm:inline">Move</span>
+                        </Button>
 
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setShowBulkDeleteDialog(true)}
-                        className="gap-2 font-bold"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete Selected
-                      </Button>
-                    </div>
-                  )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 md:h-8 gap-1 md:gap-2 text-xs md:text-sm bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500/30 hover:border-emerald-500/60 text-emerald-700 dark:text-emerald-400"
+                          onClick={() => handleBulkTogglePublic(true)}
+                          disabled={selectedQuestionIds.size === 0}
+                        >
+                          <Globe className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Public</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 md:h-8 gap-1 md:gap-2 text-xs md:text-sm bg-slate-50 dark:bg-slate-800 border-slate-300 hover:border-slate-400 text-slate-600 dark:text-slate-400"
+                          onClick={() => handleBulkTogglePublic(false)}
+                          disabled={selectedQuestionIds.size === 0}
+                        >
+                          <Lock className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Private</span>
+                        </Button>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setShowBulkDeleteDialog(true)}
+                          className="h-7 md:h-8 gap-1 md:gap-2 text-xs md:text-sm font-bold"
+                        >
+                          <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </Button>
+                      </div>
+                    );
+                  })()}
+
 
                 </div>
               </div>

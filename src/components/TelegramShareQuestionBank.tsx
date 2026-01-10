@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, HelpCircle, Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { QuestionBankItem } from "@/services/questionBankService";
+import type { Channel } from "@/types/channel";
+import { ChannelService } from "@/services/channelService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +37,46 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
   const [customMinQuestions, setCustomMinQuestions] = useState<string>("");
   const [instantPoll, setInstantPoll] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [selectedChannelId, setSelectedChannelId] = useState<string>("default");
+  const [userChannels, setUserChannels] = useState<Channel[]>([]);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadUserChannels();
+    }
+  }, [isOpen]);
+
+  const loadUserChannels = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const channels = await ChannelService.getUserChannels(user.id);
+      setUserChannels(channels);
+
+      // Select the first channel by default if available
+      if (channels.length > 0) {
+        setSelectedChannelId(channels[0].id);
+        if (channels[0].telegram_channel_id) {
+          setChatId(channels[0].telegram_channel_id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading channels:", error);
+    }
+  };
+
+  const handleChannelChange = (channelId: string) => {
+    setSelectedChannelId(channelId);
+
+    if (channelId !== "default") {
+      const selectedChannel = userChannels.find(c => c.id === channelId);
+      if (selectedChannel?.telegram_channel_id) {
+        setChatId(selectedChannel.telegram_channel_id);
+      }
+    }
+  };
 
   const handleTestConnection = async () => {
     if (!chatId.trim()) {
@@ -54,7 +94,10 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
 
     try {
       const { data, error } = await supabase.functions.invoke("test-telegram-connection", {
-        body: { chatId: correctedChatId },
+        body: {
+          chatId: correctedChatId,
+          channelId: selectedChannelId !== "default" ? selectedChannelId : undefined
+        },
       });
 
       if (error) throw error;
@@ -149,6 +192,7 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
       const { data, error } = await supabase.functions.invoke("send-telegram-quiz", {
         body: {
           chatId: correctedChatId,
+          channelId: selectedChannelId !== "default" ? selectedChannelId : undefined,
           quiz: {
             topic,
             questions,
@@ -215,6 +259,30 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="channelSelect">Select Channel</Label>
+              <Select value={selectedChannelId} onValueChange={handleChannelChange}>
+                <SelectTrigger id="channelSelect">
+                  <SelectValue placeholder={userChannels.length > 0 ? "Select a Channel" : "No channels found"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {userChannels.map(channel => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {userChannels.length === 0 && (
+                <p className="text-xs text-rose-500 mt-1 font-medium">
+                  Please add a channel first in the 'Channels' page.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Optional: Selecting a channel will automatically fill its Chat ID.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="chatId">Telegram Chat ID</Label>
               <Input

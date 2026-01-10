@@ -13,13 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingState } from "@/components/LoadingState";
 import { Plus, UserCheck, UserX, Clock } from "lucide-react";
-import { 
-  getAttendanceSessions, 
-  createAttendanceSession, 
+import {
+  getAttendanceSessions,
+  createAttendanceSession,
   getAttendanceRecords,
   markAttendance,
   getBatchAttendanceReport,
-  type AttendanceSession 
+  type AttendanceSession
 } from "@/services/attendanceService";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -67,16 +67,16 @@ export default function Attendance() {
         .select('student_id')
         .eq('batch_id', selectedSession.batch_id)
         .eq('status', 'active');
-      
+
       if (!enrollments || enrollments.length === 0) return [];
-      
+
       // Then fetch profile data for each student
       const studentIds = enrollments.map(e => e.student_id);
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', studentIds);
-      
+
       return profiles || [];
     },
     enabled: !!selectedSession?.batch_id,
@@ -121,7 +121,7 @@ export default function Attendance() {
   const handleCreateSession = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     createSessionMutation.mutate({
       ...formData,
       created_by: user.id,
@@ -233,10 +233,10 @@ export default function Attendance() {
 
         {/* Filters */}
         <div className="flex gap-4">
-          <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+          <Select value={selectedBatch || "all"} onValueChange={(v) => setSelectedBatch(v === "all" ? "" : v)}>
             <SelectTrigger className="w-[200px]"><SelectValue placeholder="All Batches" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Batches</SelectItem>
+              <SelectItem value="all">All Batches</SelectItem>
               {batches?.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
@@ -309,14 +309,14 @@ export default function Attendance() {
                     </TableHeader>
                     <TableBody>
                       {sessions?.map((session) => (
-                        <TableRow 
+                        <TableRow
                           key={session.id}
                           className={selectedSession?.id === session.id ? "bg-muted" : ""}
                         >
                           <TableCell className="font-medium">{session.batch?.name}</TableCell>
                           <TableCell>{format(new Date(session.session_date), "MMM d, yyyy")}</TableCell>
                           <TableCell>
-                            {session.start_time && session.end_time 
+                            {session.start_time && session.end_time
                               ? `${session.start_time} - ${session.end_time}`
                               : "-"}
                           </TableCell>
@@ -329,8 +329,8 @@ export default function Attendance() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => setSelectedSession(session)}
                             >
@@ -359,7 +359,7 @@ export default function Attendance() {
                 <CardHeader>
                   <CardTitle>Mark Attendance - {selectedSession.batch?.name}</CardTitle>
                   <CardDescription>
-                    {format(new Date(selectedSession.session_date), "MMMM d, yyyy")} | 
+                    {format(new Date(selectedSession.session_date), "MMMM d, yyyy")} |
                     {selectedSession.start_time} - {selectedSession.end_time}
                   </CardDescription>
                 </CardHeader>

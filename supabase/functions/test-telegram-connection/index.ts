@@ -23,8 +23,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -37,7 +35,7 @@ serve(async (req) => {
       );
     }
 
-    const { chatId, channelId } = await req.json();
+    const { chatId, channelId, botToken } = await req.json();
 
     // Input validation
     if (!chatId) {
@@ -57,49 +55,94 @@ serve(async (req) => {
       );
     }
 
-    // Get bot token - prefer channel-specific, fallback to global
-    let botToken: string | null = null;
-    let tokenSource = 'global';
+    // Get bot token from channel with ownership verification
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-    if (channelId) {
-      // Use service role to fetch channel data
-      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-      
+    let TELEGRAM_BOT_TOKEN: string | null = botToken || null;
+
+    if (channelId && !TELEGRAM_BOT_TOKEN) {
+      // Verify user owns this channel and get its bot token
       const { data: channel, error: channelError } = await supabaseAdmin
         .from('channels')
-        .select('telegram_bot_token')
+        .select('id, user_id, telegram_bot_token')
         .eq('id', channelId)
-        .eq('user_id', user.id)
         .single();
-      
-      if (channelError) {
-        console.log(`Channel not found or not owned by user: ${channelId}`);
-      } else if (channel?.telegram_bot_token) {
-        botToken = channel.telegram_bot_token;
-        tokenSource = 'channel';
-        console.log(`Using channel-specific bot token for channel: ${channelId}`);
+
+      if (channelError || !channel) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Channel not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // SECURITY: Verify ownership
+      if (channel.user_id !== user.id) {
+        console.error(`Security violation: User ${user.id} tried to test channel ${channelId} owned by ${channel.user_id}`);
+        return new Response(
+          JSON.stringify({ success: false, error: 'You do not have permission to test this channel' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      TELEGRAM_BOT_TOKEN = channel.telegram_bot_token;
+    }
+
+    // FALLBACK: If specific channel has no token (or no channelId provided), 
+    // look for ANY channel with a bot token owned by the user
+    if (!TELEGRAM_BOT_TOKEN) {
+      console.log(`Searching for fallback bot token for user ${user.id}...`);
+      const { data: botChannel } = await supabaseAdmin
+        .from('channels')
+        .select('telegram_bot_token')
+        .eq('user_id', user.id)
+        .not('telegram_bot_token', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (botChannel) {
+        TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
+        console.log("Using fallback bot token from another channel.");
       }
     }
 
-    // Fallback to global token
-    if (!botToken) {
-      botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
-      console.log('Using global TELEGRAM_BOT_TOKEN');
+    // Fallback to global token as extreme last resort (though we want to move away from this)
+    if (!TELEGRAM_BOT_TOKEN) {
+      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
     }
 
-    if (!botToken) {
-      console.error("No bot token available");
+    // SECURITY: Restrict specific administrative bot token to super admins only
+    const ADMIN_BOT_TOKEN = "8478847750:AAF58NI0nqfxEzEqe7npy9s0CwEJN9PuX4k";
+    if (TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
+      console.log(`Checking if user ${user.id} has super admin permissions to use the admin bot token...`);
+      const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
+
+      if (!isSuperAdmin) {
+        console.warn(`Access denied: Non-admin user ${user.id} attempted to use administrative bot token.`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`Access granted: Super admin ${user.id} is using the administrative bot token.`);
+    }
+
+    if (!TELEGRAM_BOT_TOKEN) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "No bot token configured. Please add a bot token to your channel settings or contact support."
+          error: "No bot token configured. Please add a Telegram bot token to your channel."
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const baseUrl = `https://api.telegram.org/bot${botToken}`;
-    
+    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
     // Try to get chat info to verify access
     const response = await fetch(`${baseUrl}/getChat`, {
       method: "POST",
@@ -108,31 +151,31 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       console.error("Telegram API error for user:", user.id);
-      
+
       if (data.error_code === 400 && data.description?.includes('chat not found')) {
         return new Response(
-          JSON.stringify({ 
-            success: false, 
+          JSON.stringify({
+            success: false,
             error: `Chat not found. Please verify:\n1. The chat ID is correct\n2. Your bot has been added to this chat\n3. For channels: Use format -100xxxxxxxxxx`
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else if (data.error_code === 403) {
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Bot not authorized. Please add the bot to the chat/channel and grant it permission to post messages.`
+          JSON.stringify({
+            success: false,
+            error: `Bot not authorized. Please:\n1. Open your Telegram Channel\n2. Manage Channel > Administrators\n3. Add your bot as an Admin\n4. Ensure 'Post Messages' permission is ON.`
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
+
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: "Failed to connect. Please check your chat ID and try again."
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -142,18 +185,17 @@ serve(async (req) => {
     // Success - bot can access the chat
     const chatType = data.result?.type || "unknown";
     const chatTitle = data.result?.title || data.result?.username || "Chat";
-    
-    console.log(`Connection test successful for user ${user.id} to ${chatType} using ${tokenSource} bot token`);
-    
+
+    console.log(`Connection test successful for user ${user.id} to ${chatType}`);
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Connected to ${chatType}: ${chatTitle}`,
         chatInfo: {
           type: chatType,
           title: chatTitle,
-        },
-        tokenSource,
+        }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -161,8 +203,8 @@ serve(async (req) => {
   } catch (error) {
     console.error("Test connection error:", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: "Connection test failed. Please try again."
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

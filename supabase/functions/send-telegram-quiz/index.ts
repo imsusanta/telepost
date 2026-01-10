@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface TelegramQuizRequest {
   chatId: string;
-  channelId?: string;
+  channelId?: string; // NEW: Channel ID for ownership verification
   quiz: {
     topic: string;
     questions: Array<{
@@ -40,8 +40,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseAnon, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -55,7 +53,7 @@ serve(async (req) => {
     }
 
     const { chatId, channelId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
-    
+
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: chatId and quiz" }),
@@ -72,40 +70,93 @@ serve(async (req) => {
       );
     }
 
-    // Get bot token - prefer channel-specific, fallback to global
-    let botToken: string | null = null;
-    let tokenSource = 'global';
+    // SECURITY FIX: Get bot token from channel with ownership verification
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+    let TELEGRAM_BOT_TOKEN: string | null = null;
 
     if (channelId) {
-      // Use service role to fetch channel data
-      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-      
+      // Verify user owns this channel and get its bot token
       const { data: channel, error: channelError } = await supabaseAdmin
         .from('channels')
-        .select('telegram_bot_token')
+        .select('id, user_id, telegram_bot_token, telegram_channel_id')
         .eq('id', channelId)
-        .eq('user_id', user.id)
         .single();
-      
-      if (channelError) {
-        console.log(`Channel not found or not owned by user: ${channelId}`);
-      } else if (channel?.telegram_bot_token) {
-        botToken = channel.telegram_bot_token;
-        tokenSource = 'channel';
-        console.log(`Using channel-specific bot token for channel: ${channelId}`);
+
+      if (channelError || !channel) {
+        return new Response(
+          JSON.stringify({ error: 'Channel not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // SECURITY: Verify ownership
+      if (channel.user_id !== user.id) {
+        console.error(`Security violation: User ${user.id} tried to post to channel ${channelId} owned by ${channel.user_id}`);
+        return new Response(
+          JSON.stringify({ error: 'You do not have permission to post to this channel' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      TELEGRAM_BOT_TOKEN = channel.telegram_bot_token;
+    }
+
+    // FALLBACK: If specific channel has no token, look for ANY channel with a bot token owned by the user
+    if (!TELEGRAM_BOT_TOKEN) {
+      console.log(`Searching for fallback bot token for user ${user.id}...`);
+      const { data: botChannel } = await supabaseAdmin
+        .from('channels')
+        .select('telegram_bot_token')
+        .eq('user_id', user.id)
+        .not('telegram_bot_token', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (botChannel) {
+        TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
+        console.log("Using fallback bot token from another channel.");
       }
     }
 
-    // Fallback to global token
-    if (!botToken) {
-      botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
-      console.log('Using global TELEGRAM_BOT_TOKEN');
+    // Fallback to global bot token as extreme last resort
+    if (!TELEGRAM_BOT_TOKEN) {
+      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
+    }
+
+    // SECURITY: Restrict specific administrative bot token to super admins only
+    const ADMIN_BOT_TOKEN = "8478847750:AAF58NI0nqfxEzEqe7npy9s0CwEJN9PuX4k";
+    if (TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
+      console.log(`Checking if user ${user.id} has super admin permissions to use the admin bot token...`);
+      const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
+
+      if (!isSuperAdmin) {
+        console.warn(`Access denied: Non-admin user ${user.id} attempted to use administrative bot token.`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`Access granted: Super admin ${user.id} is using the administrative bot token.`);
+    }
+
+    if (!TELEGRAM_BOT_TOKEN) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "No bot token available. Please configure a bot token for the selected channel in the 'Channels' page."
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // If scheduleInterval is provided, create recurring scheduled posts
     if (scheduleInterval) {
-      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-
       const now = new Date();
       const scheduledPosts = [];
 
@@ -123,11 +174,11 @@ serve(async (req) => {
         const scheduledTime = new Date(now.getTime() + ((i + 1) * scheduleInterval * 60 * 1000));
         scheduledPosts.push({
           user_id: user.id,
+          channel_id: channelId || null, // Store channel reference for scheduled posts
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
             questions: questionBatches[i],
-            channelId, // Store channelId for later use when processing scheduled posts
           },
           scheduled_time: scheduledTime.toISOString(),
           min_questions_per_interval: questionsPerPost,
@@ -160,15 +211,11 @@ serve(async (req) => {
       );
     }
 
-    // Send immediately - need a bot token
-    if (!botToken) {
-      throw new Error("No Telegram bot token configured. Please add a bot token to your channel settings or configure TELEGRAM_BOT_TOKEN.");
-    }
+    // Send immediately using the channel-specific bot token
+    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
-    const baseUrl = `https://api.telegram.org/bot${botToken}`;
-    
     // Send intro message
-    await fetch(`${baseUrl}/sendMessage`, {
+    const introResponse = await fetch(`${baseUrl}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -178,11 +225,28 @@ serve(async (req) => {
       }),
     });
 
+    if (!introResponse.ok) {
+      const introData = await introResponse.json();
+      console.error("Failed to send intro message:", introData);
+
+      let errorMsg = `Telegram Error: ${introData.description || "Failed to start quiz"}`;
+      if (introData.error_code === 403) {
+        errorMsg = `Bot Access Error: Your bot is not a member of this chat or is not an administrator. Please check permissions.`;
+      } else if (introData.error_code === 400 && introData.description?.includes('chat not found')) {
+        errorMsg = `Chat Not Found: The chat ID "${chatId}" is incorrect or the bot hasn't seen this chat yet.`;
+      }
+
+      return new Response(
+        JSON.stringify({ success: false, error: errorMsg }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Send each question as a poll
     const results = [];
     for (let i = 0; i < quiz.questions.length; i++) {
       const question = quiz.questions[i];
-      
+
       const pollResponse = await fetch(`${baseUrl}/sendPoll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,35 +262,38 @@ serve(async (req) => {
       });
 
       const pollData = await pollResponse.json();
-      
+
       if (!pollResponse.ok) {
         console.error(`Failed to send poll ${i + 1}:`, pollData);
-        
+
+        let errorMsg = `Failed to send poll: ${pollData.description || "Unknown error"}`;
         if (pollData.error_code === 403) {
-          throw new Error(`Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and add your bot as an Administrator\n2. Grant it 'Post Messages' permission\n3. Try again`);
+          errorMsg = `Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and add your bot as an Administrator\n2. Grant it 'Post Messages' permission\n3. Try again`;
         } else if (pollData.error_code === 400 && pollData.description?.includes('chat not found')) {
-          throw new Error(`Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect.`);
+          errorMsg = `Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect.`;
         }
-        
-        throw new Error(`Failed to send poll: ${pollData.description || "Unknown error"}`);
+
+        return new Response(
+          JSON.stringify({ success: false, error: errorMsg }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-      
+
       results.push(pollData);
-      
+
       // Small delay between polls to avoid rate limiting
       if (!instantPoll && i < quiz.questions.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
-    console.log(`Successfully sent ${results.length} polls to chat ${chatId} using ${tokenSource} bot token`);
+    console.log(`Successfully sent ${results.length} polls to chat ${chatId}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Sent ${results.length} quiz polls to Telegram`,
         pollsSent: results.length,
-        tokenSource,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -234,7 +301,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error sending Telegram quiz:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",
         details: "Make sure your bot token is correct and the chat_id is valid."
       }),

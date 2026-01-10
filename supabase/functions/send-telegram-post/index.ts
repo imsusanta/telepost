@@ -1,207 +1,223 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface TelegramPost {
-  id: string;
-  user_id: string;
-  channel_id: string | null;
-  content: string;
-  image_url: string | null;
-  status: string;
-  telegram_chat_id: string | null;
-  channels: {
-    telegram_bot_token: string | null;
-    telegram_channel_id: string | null;
-  } | null;
+interface TelegramPostRequest {
+    postId: string;
+    instantPost?: boolean;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  let postId: string | undefined;
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-  try {
-    const body = await req.json();
-    postId = body.postId;
-
-    if (!postId) {
-      return new Response(
-        JSON.stringify({ error: 'Post ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
     }
 
-    console.log(`Processing post: ${postId}`);
+    try {
+        const { postId, instantPost = false }: TelegramPostRequest = await req.json();
 
-    // Get the post details with channel info
-    const { data, error: postError } = await supabase
-      .from('telegram_posts')
-      .select('*, channels(telegram_bot_token, telegram_channel_id)')
-      .eq('id', postId)
-      .single();
+        if (!postId) {
+            return new Response(
+                JSON.stringify({ error: "Missing required field: postId" }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
 
-    if (postError || !data) {
-      console.error('Failed to fetch post:', postError);
-      return new Response(
-        JSON.stringify({ error: 'Post not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        // Initialize Supabase client
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Fetch post data with channel info
+        const { data: post, error: postError } = await supabase
+            .from('telegram_posts')
+            .select(`
+        *,
+        channels (
+          telegram_channel_id,
+          telegram_bot_token,
+          user_id
+        )
+      `)
+            .eq('id', postId)
+            .single();
+
+        if (postError || !post) {
+            throw new Error(`Post not found: ${postError?.message}`);
+        }
+
+        // Check if post is ready
+        if (!instantPost && post.status !== 'scheduled') {
+            throw new Error(`Post status must be 'scheduled' to post (current: ${post.status})`);
+        }
+
+        if (instantPost && post.status !== 'draft' && post.status !== 'scheduled') {
+            throw new Error(`Can only instantly post with 'draft' or 'scheduled' status (current: ${post.status})`);
+        }
+
+        // Get bot token
+        const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+        let TELEGRAM_BOT_TOKEN: string | null = null;
+
+        // 1. Try channel's bot token
+        if (post.channels?.telegram_bot_token) {
+            TELEGRAM_BOT_TOKEN = post.channels.telegram_bot_token;
+            console.log(`Using bot token from channel`);
+        }
+
+        // 2. Fallback: Search for any bot token owned by the user
+        if (!TELEGRAM_BOT_TOKEN && post.user_id) {
+            const { data: botChannel } = await supabase
+                .from('channels')
+                .select('telegram_bot_token')
+                .eq('user_id', post.user_id)
+                .not('telegram_bot_token', 'is', null)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (botChannel?.telegram_bot_token) {
+                TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
+                console.log(`Using fallback bot token from user's channels`);
+            }
+        }
+
+        // 3. Fallback: Use global token
+        if (!TELEGRAM_BOT_TOKEN) {
+            TELEGRAM_BOT_TOKEN = GLOBAL_TELEGRAM_BOT_TOKEN;
+            if (TELEGRAM_BOT_TOKEN) {
+                console.log("Using global bot token");
+            }
+        }
+
+        if (!TELEGRAM_BOT_TOKEN) {
+            throw new Error("No bot token available. Please configure a bot token in channel settings.");
+        }
+
+        const chatId = post.channels?.telegram_channel_id;
+        if (!chatId) {
+            throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
+        }
+
+        // Validate chat ID format
+        if (!chatId.startsWith('@') && !chatId.startsWith('-')) {
+            throw new Error(`Invalid chat ID format: "${chatId}". Use @channelname for public or -100xxxxxxxxxx for private channels.`);
+        }
+
+        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+        let messageId: string | null = null;
+        let postSuccess = false;
+
+        // Send post based on content type
+        if (post.image_url) {
+            // Send photo with caption
+            const photoResponse = await fetch(`${baseUrl}/sendPhoto`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    photo: post.image_url,
+                    caption: post.content || "",
+                    parse_mode: "Markdown",
+                }),
+            });
+
+            const photoData = await photoResponse.json();
+
+            if (!photoResponse.ok) {
+                const errorMsg = photoData.description || "Failed to send photo";
+                throw new Error(`Telegram Error: ${errorMsg}`);
+            }
+
+            messageId = photoData.result?.message_id?.toString();
+            postSuccess = true;
+            console.log("Photo post sent successfully");
+
+        } else {
+            // Send text message
+            const messageResponse = await fetch(`${baseUrl}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: post.content,
+                    parse_mode: "Markdown",
+                }),
+            });
+
+            const messageData = await messageResponse.json();
+
+            if (!messageResponse.ok) {
+                const errorMsg = messageData.description || "Failed to send message";
+                throw new Error(`Telegram Error: ${errorMsg}`);
+            }
+
+            messageId = messageData.result?.message_id?.toString();
+            postSuccess = true;
+            console.log("Text post sent successfully");
+        }
+
+        if (postSuccess) {
+            // Update post status to 'posted'
+            const now = new Date().toISOString();
+
+            const { error: updateError } = await supabase
+                .from('telegram_posts')
+                .update({
+                    status: 'posted',
+                    posted_at: now,
+                    telegram_message_id: messageId,
+                    telegram_chat_id: chatId,
+                })
+                .eq('id', postId);
+
+            if (updateError) {
+                console.error('Failed to update post status:', updateError);
+            }
+
+            return new Response(
+                JSON.stringify({
+                    success: true,
+                    message: "Post sent successfully to Telegram",
+                    messageId,
+                }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        throw new Error("Failed to send post");
+
+    } catch (error) {
+        console.error("Error sending post:", error);
+
+        // Try to update post status to failed
+        try {
+            const { postId } = await (await fetch(new Request(req.url, req))).json().catch(() => ({}));
+            if (postId) {
+                const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                const supabase = createClient(supabaseUrl, supabaseKey);
+
+                await supabase
+                    .from('telegram_posts')
+                    .update({
+                        status: 'failed',
+                        error_message: error instanceof Error ? error.message : 'Unknown error',
+                    })
+                    .eq('id', postId);
+            }
+        } catch {
+            // Ignore error update failures
+        }
+
+        return new Response(
+            JSON.stringify({
+                error: error instanceof Error ? error.message : "Failed to send post",
+            }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
     }
-
-    const post = data as unknown as TelegramPost;
-
-    // Get bot token - prefer channel-specific token, fallback to environment
-    const botToken = post.channels?.telegram_bot_token || Deno.env.get('TELEGRAM_BOT_TOKEN');
-    const chatId = post.channels?.telegram_channel_id || post.telegram_chat_id;
-
-    if (!botToken) {
-      console.error('No bot token configured');
-      await supabase.from('telegram_posts').update({
-        status: 'failed',
-        error_message: 'No Telegram bot token configured. Add it in channel settings.',
-        updated_at: new Date().toISOString(),
-      } as Record<string, unknown>).eq('id', postId);
-      return new Response(
-        JSON.stringify({ error: 'No Telegram bot token configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!chatId) {
-      console.error('No chat ID configured');
-      await supabase.from('telegram_posts').update({
-        status: 'failed',
-        error_message: 'No Telegram channel ID configured. Add it in channel settings.',
-        updated_at: new Date().toISOString(),
-      } as Record<string, unknown>).eq('id', postId);
-      return new Response(
-        JSON.stringify({ error: 'No Telegram channel ID configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Sending post to Telegram chat: ${chatId}`);
-
-    let telegramResponse;
-
-    // Check if post has an image
-    if (post.image_url) {
-      // Send photo with caption
-      const photoUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
-      telegramResponse = await fetch(photoUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: post.image_url,
-          caption: post.content || '',
-          parse_mode: 'HTML',
-        }),
-      });
-    } else {
-      // Send text message
-      const messageUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-      telegramResponse = await fetch(messageUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: post.content,
-          parse_mode: 'HTML',
-        }),
-      });
-    }
-
-    const telegramResult = await telegramResponse.json();
-    console.log('Telegram API response:', JSON.stringify(telegramResult));
-
-    if (!telegramResult.ok) {
-      const errorMessage = handleTelegramError(telegramResult);
-      console.error('Telegram API error:', errorMessage);
-      await supabase.from('telegram_posts').update({
-        status: 'failed',
-        error_message: errorMessage,
-        updated_at: new Date().toISOString(),
-      } as Record<string, unknown>).eq('id', postId);
-      return new Response(
-        JSON.stringify({ error: errorMessage }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const telegramMessageId = telegramResult.result?.message_id?.toString();
-    console.log(`Post sent successfully. Message ID: ${telegramMessageId}`);
-
-    // Update post status to posted
-    const { error: updateError } = await supabase
-      .from('telegram_posts')
-      .update({ 
-        status: 'posted', 
-        posted_at: new Date().toISOString(),
-        telegram_message_id: telegramMessageId,
-        telegram_chat_id: chatId,
-        error_message: null,
-        updated_at: new Date().toISOString()
-      } as Record<string, unknown>)
-      .eq('id', postId);
-
-    if (updateError) {
-      console.error('Failed to update post status:', updateError);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message_id: telegramMessageId,
-        posted_at: new Date().toISOString()
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error in send-telegram-post:', error);
-    
-    // Update status to failed if we have postId
-    if (postId) {
-      try {
-        await supabase.from('telegram_posts').update({
-          status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Unknown error',
-          updated_at: new Date().toISOString(),
-        } as Record<string, unknown>).eq('id', postId);
-      } catch (updateErr) {
-        console.error('Failed to update post status:', updateErr);
-      }
-    }
-
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
 });
-
-// Helper function to handle Telegram API errors
-function handleTelegramError(errorData: { error_code?: number; description?: string }): string {
-  if (errorData.error_code === 403) {
-    return `Bot Access Error: Your bot is not an admin of this channel. Please add your bot as Administrator with 'Post Messages' permission.`;
-  } else if (errorData.error_code === 400 && errorData.description?.includes('chat not found')) {
-    return `Chat Not Found: The channel ID is incorrect. For private channels use format: -100xxxxxxxxxx`;
-  } else if (errorData.error_code === 400 && errorData.description?.includes('wrong file identifier')) {
-    return `Invalid Media: The image URL is invalid or expired. Please re-upload the image.`;
-  }
-  return `Telegram Error: ${errorData.description || "Unknown error"}`;
-}

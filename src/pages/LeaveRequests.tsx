@@ -48,7 +48,7 @@ export default function LeaveRequests() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof updateLeaveRequest>[1] }) => 
+    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof updateLeaveRequest>[1] }) =>
       updateLeaveRequest(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
@@ -62,7 +62,7 @@ export default function LeaveRequests() {
   const handleSubmit = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     createMutation.mutate({
       ...formData,
       student_id: user.id,
@@ -72,7 +72,7 @@ export default function LeaveRequests() {
   const handleApprove = async (id: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     updateMutation.mutate({
       id,
       updates: { status: 'approved', approved_by: user.id }
@@ -82,7 +82,7 @@ export default function LeaveRequests() {
   const handleReject = async (id: string, reason?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     updateMutation.mutate({
       id,
       updates: { status: 'rejected', approved_by: user.id, rejection_reason: reason }
@@ -177,10 +177,10 @@ export default function LeaveRequests() {
 
         {/* Filters */}
         <div className="flex gap-4">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Status" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>

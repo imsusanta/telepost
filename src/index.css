@@ -1150,3 +1150,107 @@
 .delay-800 {
   animation-delay: 800ms;
 }
+
+/* Mobile-Friendly Utility Styles */
+@media (max-width: 767px) {
+
+  /* Ensure minimum touch target sizes on mobile */
+  button,
+  [role="button"],
+  a,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for icon-only buttons that are already sized correctly */
+  button[class*="size-icon"],
+  button[class*="h-8"],
+  button[class*="h-7"] {
+    min-height: auto;
+    min-width: auto;
+  }
+
+  /* Better text handling on mobile */
+  .text-truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Smooth horizontal scrolling for overflow content */
+  .scroll-x-mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .scroll-x-mobile::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Reduce animations on mobile for better performance */
+  .animate-soft-float,
+  .float {
+    animation: none;
+  }
+
+  /* Improve touch feedback */
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  /* Ensure cards don't have excessive padding on mobile */
+  .p-8 {
+    padding: 1rem;
+  }
+
+  .p-6 {
+    padding: 0.75rem;
+  }
+}
+
+/* Safe area insets for mobile devices with notches */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Better focus visibility for accessibility */
+@media (max-width: 767px) {
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}
+
+/* Responsive card grid utilities */
+.card-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .card-grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .card-grid-responsive {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

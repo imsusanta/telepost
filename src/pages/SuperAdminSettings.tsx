@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   Bot,
+  Eye,
+  EyeOff,
   Loader2,
   Save,
+  Send,
   Shield,
   Ticket,
+  ToggleLeft,
   Users,
   Wrench,
   Zap
@@ -38,13 +42,16 @@ import {
   updateSubscriptionDefaults,
   updateMaintenanceSettings,
   updateAISettings,
+  updateTelegramSettings,
   type InvitationDefaults,
   type UserDefaults,
   type SubscriptionDefaults,
   type SystemMaintenance,
   type AISettings,
+  type TelegramSettings,
 } from '@/services/systemSettingsService';
 import { supabase } from '@/integrations/supabase/client';
+import { getSystemFeatures, toggleFeature, type SystemFeature } from '@/services/featureService';
 
 export default function SuperAdminSettings() {
   const navigate = useNavigate();
@@ -83,7 +90,18 @@ export default function SuperAdminSettings() {
     temperature: 0.7,
   });
 
+  const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>({
+    global_bot_token: '',
+    fallback_enabled: true,
+  });
+  const [showGlobalToken, setShowGlobalToken] = useState(false);
+
   const [testingAI, setTestingAI] = useState(false);
+
+  // Feature toggles state
+  const [features, setFeatures] = useState<SystemFeature[]>([]);
+  const [loadingFeatures, setLoadingFeatures] = useState(true);
+  const [togglingFeature, setTogglingFeature] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -100,6 +118,10 @@ export default function SuperAdminSettings() {
         setSubscriptionDefaults(data.subscription_defaults);
         setMaintenanceSettings(data.system_maintenance);
         setAISettings(data.ai_settings);
+        setTelegramSettings(data.telegram_settings || {
+          global_bot_token: '',
+          fallback_enabled: true,
+        });
       } catch (error) {
         toast({
           title: 'Error',
@@ -113,6 +135,43 @@ export default function SuperAdminSettings() {
 
     loadSettings();
   }, [navigate, toast]);
+
+  // Load feature toggles
+  useEffect(() => {
+    const loadFeatures = async () => {
+      try {
+        const data = await getSystemFeatures();
+        setFeatures(data);
+      } catch (error) {
+        console.error('Failed to load features:', error);
+      } finally {
+        setLoadingFeatures(false);
+      }
+    };
+    loadFeatures();
+  }, []);
+
+  const handleToggleFeature = async (featureKey: string, enabled: boolean) => {
+    setTogglingFeature(featureKey);
+    try {
+      await toggleFeature(featureKey as 'telegram_quiz' | 'lms_attendance', enabled);
+      setFeatures(prev => prev.map(f =>
+        f.feature_key === featureKey ? { ...f, is_enabled: enabled } : f
+      ));
+      toast({
+        title: 'Feature Updated',
+        description: `${featureKey === 'lms_attendance' ? 'LMS & Attendance' : 'Telegram Quiz'} has been ${enabled ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update feature',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingFeature(null);
+    }
+  };
 
   const handleSaveInvitationDefaults = async () => {
     try {
@@ -211,6 +270,25 @@ export default function SuperAdminSettings() {
     }
   };
 
+  const handleSaveTelegramSettings = async () => {
+    try {
+      setSaving(true);
+      await updateTelegramSettings(telegramSettings);
+      toast({
+        title: 'Success',
+        description: 'Telegram settings saved successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save Telegram settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleTestAIConnection = async () => {
     try {
       setTestingAI(true);
@@ -280,8 +358,16 @@ export default function SuperAdminSettings() {
           </Alert>
         )}
 
-        <Tabs defaultValue="invitations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+        <Tabs defaultValue="features" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
+            <TabsTrigger value="features" className="gap-2">
+              <ToggleLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Features</span>
+            </TabsTrigger>
+            <TabsTrigger value="telegram" className="gap-2">
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Telegram</span>
+            </TabsTrigger>
             <TabsTrigger value="invitations" className="gap-2">
               <Ticket className="w-4 h-4" />
               <span className="hidden sm:inline">Invitations</span>
@@ -303,6 +389,141 @@ export default function SuperAdminSettings() {
               <span className="hidden sm:inline">Maintenance</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Feature Toggles */}
+          <TabsContent value="features">
+            <Card className="border-0 shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ToggleLeft className="w-5 h-5" />
+                  Feature Toggles
+                </CardTitle>
+                <CardDescription>
+                  Enable or disable platform features globally
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {loadingFeatures ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading features...
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {features.map((feature) => (
+                      <div
+                        key={feature.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border ${feature.is_core_feature
+                          ? 'bg-primary/5 border-primary/20'
+                          : 'bg-muted/50 border-border'
+                          }`}
+                      >
+                        <div>
+                          <Label className="font-medium">
+                            {feature.display_name}
+                            {feature.is_core_feature && (
+                              <span className="ml-2 text-xs text-primary">(Core Feature)</span>
+                            )}
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {feature.description}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={feature.is_enabled}
+                          onCheckedChange={(checked) => handleToggleFeature(feature.feature_key, checked)}
+                          disabled={feature.is_core_feature || togglingFeature === feature.feature_key}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Important</AlertTitle>
+                  <AlertDescription>
+                    Disabling a feature will hide it from all users. Core features cannot be disabled.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Telegram Bot Settings */}
+          <TabsContent value="telegram">
+            <Card className="border-0 shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="w-5 h-5" />
+                  Global Telegram Bot
+                </CardTitle>
+                <CardDescription>
+                  Configure the global Telegram bot used as fallback for all users
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <Bot className="h-4 w-4" />
+                  <AlertTitle>Super Admin Bot Token</AlertTitle>
+                  <AlertDescription>
+                    This is the primary bot token used when users haven't configured their own.
+                    Get a token from <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="underline font-semibold">@BotFather</a>.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <Label htmlFor="global_bot_token">Global Bot Token</Label>
+                  <div className="relative">
+                    <Input
+                      id="global_bot_token"
+                      type={showGlobalToken ? "text" : "password"}
+                      value={telegramSettings.global_bot_token}
+                      onChange={(e) => setTelegramSettings(prev => ({
+                        ...prev,
+                        global_bot_token: e.target.value.trim(),
+                      }))}
+                      placeholder="Enter global Telegram bot token"
+                      className="pr-10 font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      onClick={() => setShowGlobalToken(!showGlobalToken)}
+                    >
+                      {showGlobalToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This token is used as the fallback when a user's channel doesn't have a specific token.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 border rounded-lg">
+                  <div>
+                    <Label>Enable Fallback</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Allow users without channel-specific tokens to use this global bot
+                    </p>
+                  </div>
+                  <Switch
+                    checked={telegramSettings.fallback_enabled}
+                    onCheckedChange={(checked) => setTelegramSettings(prev => ({
+                      ...prev,
+                      fallback_enabled: checked,
+                    }))}
+                  />
+                </div>
+
+                <Button onClick={handleSaveTelegramSettings} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Telegram Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Invitation Defaults */}
           <TabsContent value="invitations">
@@ -684,6 +905,6 @@ export default function SuperAdminSettings() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Lovable AI Gateway configuration
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-1.5-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,7 +65,7 @@ serve(async (req) => {
     // authUserId is already validated from the JWT; no additional auth checks needed here.
 
     const requestData = await req.json();
-    
+
     // Input validation
     const {
       topic,
@@ -311,7 +311,7 @@ ADDITIONAL RULES:
 
     if (!response.ok) {
       console.error(`Lovable AI error: status=${response.status}`);
-      
+
       if (response.status === 429) {
         console.error("Rate limited by Lovable AI");
         return new Response(

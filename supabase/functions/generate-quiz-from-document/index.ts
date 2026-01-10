@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Lovable AI Gateway configuration
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-1.5-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -95,8 +95,8 @@ serve(async (req) => {
     const languageInstructions = language === 'en'
       ? 'ALL questions, options, and explanations MUST be written in English.'
       : language === 'hi'
-      ? 'ALL questions, options, and explanations MUST be written in Hindi (हिन्दी).'
-      : 'ALL questions, options, and explanations MUST be written in Bengali (বাংলা).';
+        ? 'ALL questions, options, and explanations MUST be written in Hindi (हिन्दी).'
+        : 'ALL questions, options, and explanations MUST be written in Bengali (বাংলা).';
 
     const userPrompt = `Create a multiple-choice quiz based on the following document content.
 

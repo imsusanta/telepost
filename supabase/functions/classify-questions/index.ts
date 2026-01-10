@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // Lovable AI Gateway configuration (same as generate-quiz)
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-1.5-flash";
 
 const PREDEFINED_SUBJECTS = [
     "Science",

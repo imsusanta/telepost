@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowLeft, Database, FileText, Filter, RefreshCw, Search, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Database, FileText, Globe, RefreshCw, Search, Sparkles, Trash2, Upload, Plus } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { QuizConfigForm } from "@/components/QuizConfig";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { TelegramShare } from "@/components/TelegramShare";
 import { QuizOverview } from "@/components/QuizOverview";
-import { QuizConfig as QuizConfigType } from "@/types/quiz";
+import { QuizConfig as QuizConfigType, QuizQuestion } from "@/types/quiz";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { ClassificationBadges } from "@/components/ClassificationBadges";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingState } from "@/components/LoadingState";
 import { DocumentService, Document } from "@/services/documentService";
@@ -23,6 +24,10 @@ import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { QuestionFilters } from "@/components/QuestionFilters";
+import { ClassificationService } from "@/services/classificationService";
+import { ClassificationMetadataService } from "@/services/classificationMetadataService";
 
 export default function CreateQuizPage() {
   const { quiz, isGenerating, generateQuiz, resetQuiz, setQuiz } = useQuizGeneration();
@@ -44,12 +49,27 @@ export default function CreateQuizPage() {
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [isQuestionsRefreshing, setIsQuestionsRefreshing] = useState(false);
   const [questionSearchQuery, setQuestionSearchQuery] = useState("");
-  const [filters, setFilters] = useState<QuestionBankFilters>({});
+  const [filters, setFilters] = useState<QuestionBankFilters>({ includePublic: true });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [stats, setStats] = useState<{
     total: number;
     byTopic: Record<string, number>;
+    bySubject: Record<string, number>;
     byLanguage: Record<string, number>;
+    unclassifiedCount: number;
+    publicCount: number;
+    privateCount: number;
   } | null>(null);
+
+  // Selection states
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const [subjectsWithCounts, setSubjectsWithCounts] = useState<{ subject: string; count: number }[]>([]);
+  const [topicsWithCounts, setTopicsWithCounts] = useState<{ topic: string; count: number }[]>([]);
+  const [fullSubjects, setFullSubjects] = useState<any[]>([]);
+  const [fullTopics, setFullTopics] = useState<any[]>([]);
 
   // Data loading functions
   const loadChannels = useCallback(async () => {
@@ -66,6 +86,10 @@ export default function CreateQuizPage() {
 
       const userChannels = await ChannelService.getUserChannels(user.id);
       setChannels(userChannels);
+      setCurrentUserId(user.id);
+
+      const adminStatus = await ChannelService.checkIsSuperAdmin(user.id);
+      setIsSuperAdmin(adminStatus);
     } catch (error) {
       console.error("Failed to load channels:", error);
       // Don't show toast for channels as it's not critical
@@ -170,11 +194,37 @@ export default function CreateQuizPage() {
         return;
       }
 
-      const statistics = await QuestionBankService.getStatistics(user.id);
+      const statistics = await QuestionBankService.getStatistics(user.id, true);
       setStats(statistics);
     } catch (error) {
       console.error("Failed to load stats:", error);
       // Don't show toast for stats as it's not critical
+    }
+  }, []);
+
+  const loadClassificationData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [subjectsRes, topicsRes, allSubjectsRes, allTopicsRes] = await Promise.allSettled([
+        ClassificationService.getSubjectsWithCounts(user.id),
+        ClassificationService.getAllTopics(user.id),
+        ClassificationMetadataService.getSubjects(),
+        ClassificationMetadataService.getAllTopics()
+      ]);
+
+      const subjects = subjectsRes.status === 'fulfilled' ? subjectsRes.value : [];
+      const topics = topicsRes.status === 'fulfilled' ? topicsRes.value : [];
+      const allSubjects = allSubjectsRes.status === 'fulfilled' ? allSubjectsRes.value : [];
+      const allTopics = allTopicsRes.status === 'fulfilled' ? allTopicsRes.value : [];
+
+      setSubjectsWithCounts(subjects);
+      setTopicsWithCounts(topics.map(t => ({ topic: t, count: 0 })));
+      setFullSubjects(allSubjects);
+      setFullTopics(allTopics);
+    } catch (error) {
+      console.error("Failed to load classification data:", error);
     }
   }, []);
 
@@ -250,7 +300,30 @@ export default function CreateQuizPage() {
     }
     loadQuestions();
     loadStats();
-  }, [filters, loadQuestions, loadStats, isFiltersInitialized]);
+    loadClassificationData();
+  }, [filters, loadQuestions, loadStats, loadClassificationData, isFiltersInitialized]);
+
+  const handleToggleQuestion = (questionId: string) => {
+    const newSelection = new Set(selectedQuestionIds);
+    if (newSelection.has(questionId)) {
+      newSelection.delete(questionId);
+    } else {
+      newSelection.add(questionId);
+    }
+    setSelectedQuestionIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedQuestionIds.size === filteredQuestions.length) {
+      setSelectedQuestionIds(new Set());
+    } else {
+      setSelectedQuestionIds(new Set(filteredQuestions.map(q => q.id)));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedQuestionIds(new Set());
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -344,9 +417,7 @@ export default function CreateQuizPage() {
     });
   };
 
-  const handleFilterChange = useCallback((key: string, value: string | null) => {
-    setFilters(prev => ({ ...prev, [key]: value || undefined }));
-  }, []);
+
 
   const handleQuestionsRefresh = async () => {
     setIsQuestionsRefreshing(true);
@@ -393,6 +464,77 @@ export default function CreateQuizPage() {
     setQuiz(createdQuiz);
   }, [setQuiz]);
 
+  const handleAddToQuiz = useCallback((q: QuestionBankItem) => {
+    const quizQuestion: QuizQuestion = {
+      id: (quiz?.questions.length || 0) + 1,
+      question: q.question,
+      options: q.options,
+      correct_option_index: q.correct_option_index,
+      explanation: q.explanation
+    };
+
+    if (quiz) {
+      setQuiz({
+        ...quiz,
+        questions: [...quiz.questions, quizQuestion]
+      });
+    } else {
+      setQuiz({
+        request_id: `manual-${Date.now()}`,
+        topic: q.topic || "Manual Selection",
+        questions: [quizQuestion],
+        metadata: {
+          difficulty: 'medium',
+          generated_at: new Date().toISOString()
+        }
+      });
+    }
+
+    toast({
+      title: "Added to Quiz",
+      description: "Question added to your current quiz.",
+    });
+  }, [quiz, setQuiz, toast]);
+
+  const handleBulkAddToQuiz = useCallback(() => {
+    if (selectedQuestionIds.size === 0) return;
+
+    const selectedQuestions = questions.filter(q => selectedQuestionIds.has(q.id));
+
+    const quizQuestions: QuizQuestion[] = selectedQuestions.map((q, idx) => ({
+      id: (quiz?.questions.length || 0) + idx + 1,
+      question: q.question,
+      options: q.options,
+      correct_option_index: q.correct_option_index,
+      explanation: q.explanation
+    }));
+
+    if (quiz) {
+      setQuiz({
+        ...quiz,
+        questions: [...quiz.questions, ...quizQuestions]
+      });
+    } else {
+      setQuiz({
+        request_id: `manual-${Date.now()}`,
+        topic: selectedQuestions[0]?.topic || "Manual Selection",
+        questions: quizQuestions,
+        metadata: {
+          difficulty: 'medium',
+          generated_at: new Date().toISOString()
+        }
+      });
+    }
+
+    setSelectedQuestionIds(new Set());
+    toast({
+      title: "Questions Added",
+      description: `Added ${quizQuestions.length} questions to the quiz.`,
+    });
+  }, [quiz, questions, selectedQuestionIds, setQuiz, toast]);
+
+
+
   // Memoized filtered data
   const filteredDocuments = useMemo(() => documents.filter(doc =>
     documentSearchQuery === "" ||
@@ -406,6 +548,29 @@ export default function CreateQuizPage() {
     q.topic.toLowerCase().includes(questionSearchQuery.toLowerCase()) ||
     q.options.some(opt => opt.toLowerCase().includes(questionSearchQuery.toLowerCase()))
   ), [questions, questionSearchQuery]);
+
+  const handleSelectRange = useCallback(() => {
+    const from = parseInt(rangeFrom) || 1;
+    const to = parseInt(rangeTo) || (filteredQuestions?.length || 0);
+
+    if (from > 0 && to >= from && to <= (filteredQuestions?.length || 0)) {
+      const newSelection = new Set<string>();
+      for (let i = from - 1; i < to && i < filteredQuestions.length; i++) {
+        newSelection.add(filteredQuestions[i].id);
+      }
+      setSelectedQuestionIds(newSelection);
+      toast({
+        title: "Range Selected",
+        description: `Selected questions ${from} to ${to}`,
+      });
+    } else {
+      toast({
+        title: "Invalid Range",
+        description: `Please enter valid range (1 to ${filteredQuestions?.length || 0})`,
+        variant: "destructive",
+      });
+    }
+  }, [rangeFrom, rangeTo, filteredQuestions, toast]);
 
   if (isGenerating) {
     return (
@@ -423,29 +588,29 @@ export default function CreateQuizPage() {
         {!quiz ? (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Sparkles className="h-6 w-6 text-primary" />
+              <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold">Create Quiz</h1>
-                <p className="text-muted-foreground">Generate AI-powered quizzes, manage documents and question bank</p>
+                <h1 className="text-2xl md:text-4xl font-bold">Create Quiz</h1>
+                <p className="text-sm md:text-base text-muted-foreground">Generate AI-powered quizzes, manage documents and question bank</p>
               </div>
             </div>
 
             <Tabs defaultValue="ai" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6">
-                <TabsTrigger value="ai" className="gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  AI Generated
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto">
+                <TabsTrigger value="ai" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                  <Sparkles className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">AI</span> Generated
                 </TabsTrigger>
-                <TabsTrigger value="manual">Manual Input</TabsTrigger>
-                <TabsTrigger value="documents" className="gap-2">
-                  <FileText className="h-4 w-4" />
+                <TabsTrigger value="manual" className="text-xs md:text-sm py-2">Manual Input</TabsTrigger>
+                <TabsTrigger value="documents" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                  <FileText className="h-3 w-3 md:h-4 md:w-4" />
                   Documents
                 </TabsTrigger>
-                <TabsTrigger value="question-bank" className="gap-2">
-                  <Database className="h-4 w-4" />
-                  Question Bank
+                <TabsTrigger value="question-bank" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                  <Database className="h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Question</span> Bank
                 </TabsTrigger>
               </TabsList>
 
@@ -692,71 +857,84 @@ export default function CreateQuizPage() {
                   </div>
 
                   {/* Filters */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Filter className="w-5 h-5" />
-                        Filters
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Difficulty</label>
-                          <Select
-                            value={filters.difficulty || "all"}
-                            onValueChange={(value) => handleFilterChange("difficulty", value === "all" ? null : value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Difficulties" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Difficulties</SelectItem>
-                              <SelectItem value="easy">Easy</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="hard">Hard</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                  <QuestionFilters
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    subjectsWithCounts={subjectsWithCounts}
+                    topicsWithCounts={topicsWithCounts}
+                    fullSubjects={fullSubjects}
+                    fullTopics={fullTopics}
+                    totalCount={stats?.total || 0}
+                    filteredCount={filteredQuestions.length}
+                  />
 
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Language</label>
-                          <Select
-                            value={filters.language || "all"}
-                            onValueChange={(value) => handleFilterChange("language", value === "all" ? null : value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Languages" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Languages</SelectItem>
-                              <SelectItem value="bn">Bengali</SelectItem>
-                              <SelectItem value="en">English</SelectItem>
-                              <SelectItem value="hi">Hindi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Topic</label>
-                          <Input
-                            placeholder="Filter by topic"
-                            value={filters.topic || ""}
-                            onChange={(e) => handleFilterChange("topic", e.target.value)}
+                  {/* Selection Bar */}
+                  {filteredQuestions.length > 0 && (
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all"
+                            checked={selectedQuestionIds.size === filteredQuestions.length && filteredQuestions.length > 0}
+                            onCheckedChange={handleSelectAll}
                           />
+                          <label htmlFor="select-all" className="text-xs md:text-sm font-medium cursor-pointer whitespace-nowrap">
+                            Select All
+                          </label>
                         </div>
 
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Subject</label>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <span className="text-xs md:text-sm text-muted-foreground hidden sm:inline">Range:</span>
                           <Input
-                            placeholder="Filter by subject"
-                            value={filters.subject || ""}
-                            onChange={(e) => handleFilterChange("subject", e.target.value)}
+                            type="number"
+                            placeholder="From"
+                            value={rangeFrom}
+                            onChange={(e) => setRangeFrom(e.target.value)}
+                            className="w-14 md:w-16 h-7 md:h-8 text-xs md:text-sm"
+                            min="1"
                           />
+                          <span className="text-xs text-muted-foreground">-</span>
+                          <Input
+                            type="number"
+                            placeholder="To"
+                            value={rangeTo}
+                            onChange={(e) => setRangeTo(e.target.value)}
+                            className="w-14 md:w-16 h-7 md:h-8 text-xs md:text-sm"
+                            min="1"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSelectRange}
+                            className="h-7 md:h-8 text-xs md:text-sm font-medium px-2 md:px-3"
+                          >
+                            Go
+                          </Button>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      {selectedQuestionIds.size > 0 && (
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-primary">
+                            {selectedQuestionIds.size} selected
+                          </span>
+                          <div className="h-6 w-px bg-border mx-1" />
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleBulkAddToQuiz}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-black shadow-lg shadow-primary/20 gap-2 h-9 px-4"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add to Quiz
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={handleClearSelection} className="h-9 px-3 text-xs font-bold hover:bg-primary/5">
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Statistics */}
                   {stats && (
@@ -807,21 +985,16 @@ export default function CreateQuizPage() {
 
                   {/* Questions List */}
                   {questionsLoading ? (
-                    <div className="grid gap-4">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <Card key={i}>
-                          <CardHeader>
-                            <Skeleton className="h-6 w-3/4" />
-                            <Skeleton className="h-4 w-1/2" />
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              {Array.from({ length: 4 }).map((_, j) => (
-                                <Skeleton key={j} className="h-10 w-full" />
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
+                    <div className="space-y-4">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <div key={n} className="flex gap-4 items-center p-4 border rounded-lg animate-pulse">
+                          <Skeleton className="w-5 h-5 rounded" />
+                          <Skeleton className="w-8 h-8 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-3/4 rounded" />
+                            <Skeleton className="h-3 w-1/4 rounded" />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   ) : filteredQuestions.length === 0 ? (
@@ -839,57 +1012,82 @@ export default function CreateQuizPage() {
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="grid gap-4">
-                      {filteredQuestions.map((q) => (
-                        <Card key={q.id}>
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg">{q.question}</CardTitle>
-                                <CardDescription>
-                                  {q.topic} • {q.difficulty} • {q.language} • Used {q.times_used} times
-                                </CardDescription>
+                    <div className="space-y-4">
+                      <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-[auto_auto_1fr_150px_130px] gap-4 p-4 bg-muted/50 border-b font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                          <div className="w-6"></div>
+                          <div className="w-8 text-center text-xs">#</div>
+                          <div className="text-xs">Question</div>
+                          <div className="text-center text-xs">Subject/Topic</div>
+                          <div className="text-center text-xs">Actions</div>
+                        </div>
+
+                        {/* Table Body */}
+                        <div className="divide-y divide-border/50">
+                          {filteredQuestions.map((q, index) => (
+                            <div
+                              key={q.id}
+                              className={`grid grid-cols-[auto_auto_1fr_150px_130px] gap-4 p-4 items-center hover:bg-muted/30 transition-colors ${selectedQuestionIds.has(q.id) ? "bg-primary/5" : ""
+                                }`}
+                            >
+                              <Checkbox
+                                checked={selectedQuestionIds.has(q.id)}
+                                onCheckedChange={() => handleToggleQuestion(q.id)}
+                              />
+                              <div className="w-8 text-xs font-bold text-muted-foreground text-center">
+                                {index + 1}
                               </div>
-                              <div className="flex items-center gap-2">
-                                {q.is_public && (
-                                  <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
-                                    Public
-                                  </span>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteQuestion(q.id)}
-                                  className="text-red-500 hover:text-red-600"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              {q.options.map((option, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`p-2 rounded border ${idx === q.correct_option_index
-                                    ? "bg-green-50 border-green-300 dark:bg-green-950/20"
-                                    : ""
-                                    }`}
-                                >
-                                  {idx === q.correct_option_index && "✓ "}
-                                  {option}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground leading-snug line-clamp-2" title={q.question}>
+                                  {q.question}
+                                </p>
+                                <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
+                                  <span>{q.language.toUpperCase()}</span>
+                                  {q.difficulty && <span>• {q.difficulty.toUpperCase()}</span>}
+                                  <span>• Used {q.times_used} times</span>
+                                  {q.is_public && (
+                                    <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                                      <Globe className="w-3 h-3" />
+                                      Public
+                                    </span>
+                                  )}
                                 </div>
-                              ))}
+                              </div>
+                              <div className="flex justify-center">
+                                <ClassificationBadges
+                                  subject={q.subject}
+                                  topic={q.topic}
+                                  difficulty={q.difficulty}
+                                  compact={true}
+                                />
+                              </div>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleAddToQuiz(q)}
+                                  className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-all active:scale-95"
+                                  title="Add to Quiz"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                                {(q.user_id === currentUserId || isSuperAdmin) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteQuestion(q.id)}
+                                    className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-all active:scale-95"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                            {q.explanation && (
-                              <p className="mt-3 text-sm text-muted-foreground italic">
-                                Explanation: {q.explanation}
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -909,9 +1107,14 @@ export default function CreateQuizPage() {
               </Button>
               <TelegramShare
                 quiz={quiz}
-                selectedChannelId={
+                initialChatId={
                   selectedChannel && selectedChannel !== "all"
                     ? channels.find(ch => ch.id === selectedChannel)?.telegram_channel_id || undefined
+                    : undefined
+                }
+                initialChannelId={
+                  selectedChannel && selectedChannel !== "all"
+                    ? selectedChannel
                     : undefined
                 }
               />

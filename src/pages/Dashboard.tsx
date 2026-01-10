@@ -21,7 +21,8 @@ async function fetchDashboardData() {
     responsesResult,
     documentsResult,
     questionsResult,
-    channelsResult
+    channelsResult,
+    connectedBotsResult
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase.from("quiz_generations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
@@ -30,7 +31,9 @@ async function fetchDashboardData() {
     supabase.from("quiz_responses").select("id, quiz_generations!inner(user_id)", { count: "exact", head: true }).eq("quiz_generations.user_id", user.id),
     supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id),
     supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id)
+    supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+    // Count channels with bot tokens (connected bots)
+    (supabase as any).from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id).not("telegram_bot_token", "is", null)
   ]);
 
   return {
@@ -42,7 +45,7 @@ async function fetchDashboardData() {
       totalViews: responsesResult.count || 0,
       totalDocuments: documentsResult.count || 0,
       totalQuestions: questionsResult.count || 0,
-      connectedBots: 1,
+      connectedBots: connectedBotsResult.count || 0,
       totalChannels: channelsResult.count || 0
     }
   };
@@ -121,10 +124,10 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               Welcome back, {profile?.full_name?.split(' ')[0] || "User"}!
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
               Here's what's happening with your quizzes today.
             </p>
           </div>
@@ -207,6 +210,27 @@ export default function Dashboard() {
                 <div>
                   <p className="text-4xl font-bold">{stats?.totalChannels || 0}</p>
                   <p className="text-sm text-muted-foreground">Active channels</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/channels")}>
+                  Manage <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Connected Bots */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Bot className="w-4 h-4 text-emerald-500" />
+                Connected Bots
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-4xl font-bold">{stats?.connectedBots || 0}</p>
+                  <p className="text-sm text-muted-foreground">Bot tokens configured</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/channels")}>
                   Manage <ArrowRight className="w-4 h-4 ml-1" />

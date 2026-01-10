@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, BookOpen, FileText, MessageCircle, Plus, Settings, Sparkles, Trash2, Zap } from "lucide-react";
+import { AlertCircle, BookOpen, FileText, Loader2, MessageCircle, Plus, Settings, Sparkles, Trash2, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "@/types/channel";
@@ -16,6 +16,16 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { systemPromptTemplates, getSystemPromptTemplate, generateChannelSystemPrompt } from "@/utils/systemPromptTemplates";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Channels() {
@@ -30,6 +40,11 @@ export default function Channels() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [limits, setLimits] = useState<{ max_telegram_channels: number }>({ max_telegram_channels: 1 });
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -37,6 +52,7 @@ export default function Channels() {
     name: "",
     description: "",
     telegram_channel_id: "",
+    telegram_bot_token: "",
   });
 
   const loadChannels = useCallback(async () => {
@@ -60,7 +76,32 @@ export default function Channels() {
 
   useEffect(() => {
     loadChannels();
+    fetchLimits();
   }, [loadChannels]);
+
+  const fetchLimits = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.log("Checking super admin status for user:", user.id);
+
+      // Check if user is Super Admin
+      const superAdminStatus = await ChannelService.checkIsSuperAdmin(user.id);
+      console.log("Super admin status result:", superAdminStatus);
+      setIsSuperAdmin(superAdminStatus);
+
+      if (!superAdminStatus) {
+        const userLimits = await ChannelService.getSubscriptionLimits(user.id);
+        console.log("User limits:", userLimits);
+        setLimits(userLimits);
+      } else {
+        console.log("User is Super Admin - no limits applied");
+      }
+    } catch (error) {
+      console.error("Error fetching limits:", error);
+    }
+  };
 
   const handleCreateChannel = async () => {
     if (!newChannel.name.trim()) {
@@ -104,12 +145,16 @@ export default function Channels() {
       name: "",
       description: "",
       telegram_channel_id: "",
+      telegram_bot_token: "",
     });
     setConnectionTestResult(null);
   };
 
   const handleTestConnection = async () => {
-    if (!newChannel.telegram_channel_id) {
+    const trimmedChatId = newChannel.telegram_channel_id.trim();
+    const trimmedBotToken = newChannel.telegram_bot_token.trim();
+
+    if (!trimmedChatId) {
       toast({
         title: "Missing chat ID",
         description: "Please enter the Telegram channel/chat ID to test connection",
@@ -123,7 +168,9 @@ export default function Channels() {
 
     try {
       const result = await ChannelService.testTelegramConnection(
-        newChannel.telegram_channel_id
+        trimmedChatId,
+        undefined,
+        trimmedBotToken
       );
       setConnectionTestResult(result);
 
@@ -154,7 +201,12 @@ export default function Channels() {
   };
 
   const handleTestConnectionForEdit = async () => {
-    if (!selectedChannel?.telegram_channel_id) {
+    if (!selectedChannel) return;
+
+    const trimmedChatId = selectedChannel.telegram_channel_id?.trim();
+    const trimmedBotToken = selectedChannel.telegram_bot_token?.trim();
+
+    if (!trimmedChatId) {
       toast({
         title: "Missing chat ID",
         description: "Please enter the Telegram channel/chat ID to test connection",
@@ -167,7 +219,9 @@ export default function Channels() {
 
     try {
       const result = await ChannelService.testTelegramConnection(
-        selectedChannel.telegram_channel_id
+        trimmedChatId,
+        selectedChannel.id,
+        trimmedBotToken || undefined
       );
 
       if (result.success) {
@@ -193,22 +247,23 @@ export default function Channels() {
     }
   };
 
-  const handleDeleteChannel = async (channelId: string) => {
-    if (!confirm("Are you sure you want to delete this channel? This will not delete associated documents.")) {
-      return;
-    }
+  const handleDeleteChannel = async () => {
+    if (!channelToDelete) return;
 
+    setIsDeleting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await ChannelService.deleteChannel(channelId, user.id);
+      await ChannelService.deleteChannel(channelToDelete, user.id);
 
       toast({
         title: "Success",
         description: "Channel deleted successfully",
       });
 
+      setIsDeleteDialogOpen(false);
+      setChannelToDelete(null);
       loadChannels();
     } catch (error: unknown) {
       toast({
@@ -216,6 +271,8 @@ export default function Channels() {
         description: error instanceof Error ? error.message : "Failed to delete channel",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -225,7 +282,10 @@ export default function Channels() {
       if (!user) return;
 
       await ChannelService.updateChannel(channel.id, user.id, {
-        telegram_channel_id: channel.telegram_channel_id || undefined,
+        name: channel.name.trim(),
+        description: channel.description?.trim() || "",
+        telegram_channel_id: channel.telegram_channel_id?.trim() || undefined,
+        telegram_bot_token: channel.telegram_bot_token?.trim() || undefined,
         settings: channel.settings,
       });
 
@@ -260,6 +320,10 @@ export default function Channels() {
   }, []);
 
   const handleManualGeneration = async (channel: Channel) => {
+    console.log("handleManualGeneration called for channel:", channel.id, channel.name);
+    console.log("Channel settings:", channel.settings);
+    console.log("telegram_channel_id:", channel.telegram_channel_id);
+
     if (!channel.telegram_channel_id) {
       toast({
         title: "Error",
@@ -270,6 +334,7 @@ export default function Channels() {
     }
 
     if (!channel.settings.default_subject) {
+      console.log("No default_subject set for channel");
       toast({
         title: "Error",
         description: "Please set a default subject for quiz generation",
@@ -280,7 +345,9 @@ export default function Channels() {
 
     setGeneratingChannelId(channel.id);
     try {
+      console.log("Calling ChannelService.triggerAutoGeneration...");
       const result = await ChannelService.triggerAutoGeneration(channel.id, true);
+      console.log("triggerAutoGeneration result:", result);
 
       if (!result.success) {
         throw new Error(result.message || "Failed to generate quiz");
@@ -387,7 +454,7 @@ export default function Channels() {
           <div>
             <h1 className="text-3xl font-bold">Channels</h1>
             <p className="text-muted-foreground">
-              Manage your Telegram channels and their knowledge bases
+              {isSuperAdmin ? "Manage your Telegram channels" : `Manage your Telegram channels (${channels.length}/${limits.max_telegram_channels} used)`}
             </p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
@@ -395,9 +462,9 @@ export default function Channels() {
             if (!open) resetCreateForm();
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled={!isSuperAdmin && channels.length >= limits.max_telegram_channels}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Channel
+                {!isSuperAdmin && channels.length >= limits.max_telegram_channels ? "Limit Reached" : "Create Channel"}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -437,8 +504,18 @@ export default function Channels() {
                     onChange={(e) => setNewChannel({ ...newChannel, telegram_channel_id: e.target.value })}
                     placeholder="@mychannel or -1001234567890"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="telegram_bot_token">Telegram Bot Token (Optional)</Label>
+                  <Input
+                    id="telegram_bot_token"
+                    type="password"
+                    value={newChannel.telegram_bot_token}
+                    onChange={(e) => setNewChannel({ ...newChannel, telegram_bot_token: e.target.value })}
+                    placeholder="Enter bot token from @BotFather"
+                  />
                   <p className="text-xs text-muted-foreground mt-1">
-                    🔒 Bot token is configured server-side for security
+                    Required to post to this channel. You can also set a global token in Settings.
                   </p>
                 </div>
                 {newChannel.telegram_channel_id && (
@@ -504,7 +581,11 @@ export default function Channels() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteChannel(channel.id)}
+                      onClick={() => {
+                        setChannelToDelete(channel.id);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -615,13 +696,61 @@ export default function Channels() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Channel Settings: {selectedChannel?.name}</DialogTitle>
+              <DialogTitle>Edit Channel: {selectedChannel?.name}</DialogTitle>
               <DialogDescription>
-                Configure auto quiz generation and system prompts for this channel's isolated knowledge base
+                Update channel details and configure auto quiz generation settings
               </DialogDescription>
             </DialogHeader>
             {selectedChannel && (
               <div className="space-y-6">
+                {/* Channel Information */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Channel Information</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label htmlFor="edit-name">Channel Name *</Label>
+                      <Input
+                        id="edit-name"
+                        value={selectedChannel.name}
+                        onChange={(e) =>
+                          setSelectedChannel({
+                            ...selectedChannel,
+                            name: e.target.value,
+                          })
+                        }
+                        placeholder="My Channel"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-description">Description (Optional)</Label>
+                      <Textarea
+                        id="edit-description"
+                        value={selectedChannel.description || ""}
+                        onChange={(e) =>
+                          setSelectedChannel({
+                            ...selectedChannel,
+                            description: e.target.value,
+                          })
+                        }
+                        placeholder="Channel description..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Setup Instructions */}
+                <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Quick Setup Instructions:</p>
+                    <ol className="text-xs text-blue-700 dark:text-blue-400 list-decimal ml-4 space-y-1">
+                      <li>Add your bot to your channel as an <strong>Administrator</strong>.</li>
+                      <li>Ensure it has <strong>"Post Messages"</strong> permission.</li>
+                      <li>Copy the Channel ID (e.g., <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">-100...</code>).</li>
+                      <li>Enter the token from <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">@BotFather</code> below.</li>
+                    </ol>
+                  </div>
+                </Alert>
+
                 {/* Telegram Configuration */}
                 <div className="space-y-4">
                   <h3 className="font-medium">Telegram Configuration</h3>
@@ -638,6 +767,21 @@ export default function Channels() {
                           })
                         }
                         placeholder="@mychannel or -1001234567890"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-telegram-bot-token">Telegram Bot Token</Label>
+                      <Input
+                        id="edit-telegram-bot-token"
+                        type="password"
+                        value={selectedChannel.telegram_bot_token || ""}
+                        onChange={(e) =>
+                          setSelectedChannel({
+                            ...selectedChannel,
+                            telegram_bot_token: e.target.value,
+                          })
+                        }
+                        placeholder="Enter bot token"
                       />
                     </div>
                     {selectedChannel.telegram_channel_id && (
@@ -879,6 +1023,38 @@ Example: Generate questions focused on practical applications and real-world exa
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Deletion Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the channel.
+                Associated documents and quizzes will remain but will no longer be linked to this channel.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteChannel();
+                }}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Channel"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

@@ -4,6 +4,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Crown,
   Download,
   Edit,
@@ -13,6 +14,7 @@ import {
   Shield,
   ShieldCheck,
   User,
+  UserCheck,
   UserCog,
   Users,
   X,
@@ -39,6 +41,7 @@ import {
 } from '@/services/superAdminService';
 import { isSuperAdmin } from '@/services/couponService';
 import { SubscriptionService, type SubscriptionPlan } from '@/services/subscriptionService';
+import { approveUser } from '@/services/featureService';
 import {
   Dialog,
   DialogContent,
@@ -88,7 +91,7 @@ export default function SuperAdminUsers() {
 
   // Filter state
   const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'suspended' | 'banned' | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'suspended' | 'banned' | 'pending' | 'all'>('all');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -391,6 +394,23 @@ export default function SuperAdminUsers() {
     }
   };
 
+  const handleApproveUser = async (user: UserWithSubscription) => {
+    try {
+      await approveUser(user.id);
+      toast({
+        title: 'User Approved',
+        description: `${user.email} can now access the platform`,
+      });
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to approve user',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleExportUsers = () => {
     const csvContent = [
       ['Email', 'Name', 'Role', 'Status', 'Plan', 'Joined'].join(','),
@@ -462,7 +482,15 @@ export default function SuperAdminUsers() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'pending':
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 gap-1">
+            <Clock className="w-3 h-3" />
+            Pending
+          </Badge>
+        );
       case 'active':
+      case 'approved':
         return (
           <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
             <Check className="w-3 h-3" />
@@ -477,10 +505,11 @@ export default function SuperAdminUsers() {
           </Badge>
         );
       case 'banned':
+      case 'rejected':
         return (
           <Badge className="bg-red-500/10 text-red-600 border-red-500/20 gap-1">
             <X className="w-3 h-3" />
-            Banned
+            {status === 'rejected' ? 'Rejected' : 'Banned'}
           </Badge>
         );
       default:
@@ -621,7 +650,7 @@ export default function SuperAdminUsers() {
                 <Select
                   value={statusFilter}
                   onValueChange={(v) => {
-                    setStatusFilter(v as 'active' | 'suspended' | 'banned' | 'all');
+                    setStatusFilter(v as 'active' | 'suspended' | 'banned' | 'pending' | 'all');
                     setCurrentPage(1);
                   }}
                 >
@@ -630,6 +659,7 @@ export default function SuperAdminUsers() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="suspended">Suspended</SelectItem>
                     <SelectItem value="banned">Banned</SelectItem>
@@ -755,6 +785,18 @@ export default function SuperAdminUsers() {
                               <Key className="w-4 h-4 mr-2" />
                               Reset Password
                             </DropdownMenuItem>
+                            {(user.status === 'pending') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleApproveUser(user)}
+                                  className="text-emerald-600"
+                                >
+                                  <UserCheck className="w-4 h-4 mr-2" />
+                                  Approve User
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleToggleUserStatus(user.id, user.status)}
