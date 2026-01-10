@@ -207,7 +207,7 @@ serve(async (req) => {
 
         // Get bot token - prefer channel-specific, fallback to global
         const channelBotToken = channel.telegram_bot_token || GLOBAL_TELEGRAM_BOT_TOKEN;
-        
+
         if (!channelBotToken) {
           throw new Error("No bot token configured for this channel. Please add a bot token to channel settings or configure TELEGRAM_BOT_TOKEN.");
         }
@@ -603,7 +603,7 @@ async function sendQuizToTelegram(
     const question = quiz.questions[i];
     const pollData = {
       chat_id: chatId,
-      question: question.question,
+      question: `Q${i + 1}: ${question.question}`,
       options: question.options,
       type: "quiz",
       correct_option_id: question.correct_option_index,
