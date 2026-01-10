@@ -519,7 +519,7 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-  console.log(`Generating quiz for topic: ${topic} using model: google/gemini-1.5-flash`);
+  console.log(`Generating quiz for topic: ${topic} using model: google/gemini-2.5-flash`);
   console.log(`User prompt length: ${userPrompt.length}`);
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -529,7 +529,7 @@ ADDITIONAL RULES:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-1.5-flash",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: baseSystemPrompt },
         { role: "user", content: userPrompt },
