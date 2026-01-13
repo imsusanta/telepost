@@ -5,6 +5,7 @@
 
 -- Drop the existing restrictive policy
 DROP POLICY IF EXISTS "Users can view their own questions" ON public.question_banks;
+DROP POLICY IF EXISTS "Users can view own or public questions" ON public.question_banks;
 
 -- Create a new policy that allows viewing own questions AND public questions
 CREATE POLICY "Users can view own or public questions" ON public.question_banks

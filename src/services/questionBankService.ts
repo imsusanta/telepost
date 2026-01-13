@@ -167,8 +167,91 @@ export class QuestionBankService {
   }
 
   /**
-   * Get random questions from bank
+   * Get questions by their IDs - useful for fetching selected questions across pages
    */
+  static async getQuestionsByIds(
+    questionIds: string[]
+  ): Promise<QuestionBankItem[]> {
+    if (questionIds.length === 0) return [];
+
+    console.log(`[getQuestionsByIds] Fetching ${questionIds.length} questions...`);
+
+    const { data, error, count } = await supabase
+      .from("question_banks")
+      .select("*", { count: "exact" })
+      .in("id", questionIds);
+
+    if (error) {
+      console.error(`[getQuestionsByIds] Error:`, error);
+      throw error;
+    }
+
+    console.log(`[getQuestionsByIds] Received ${data?.length || 0} questions (count: ${count})`);
+
+    // Warn if there's a mismatch
+    if (data && data.length !== questionIds.length) {
+      console.warn(`[getQuestionsByIds] WARNING: Requested ${questionIds.length} IDs but got ${data.length} results. Some IDs may not exist in database.`);
+    }
+
+    return (data || []) as QuestionBankItem[];
+  }
+
+  /**
+   * Get question IDs by range (1-indexed positions) - for selecting questions across pages
+   */
+  static async getQuestionIdsByRange(
+    userId: string,
+    fromPosition: number,
+    toPosition: number,
+    filters?: QuestionBankFilters,
+    sortOrder: 'asc' | 'desc' = 'desc'
+  ): Promise<string[]> {
+    let query = supabase
+      .from("question_banks")
+      .select("id");
+
+    // Handle user filtering with public questions option
+    if (filters?.isPublicOnly) {
+      query = query.eq("is_public", true);
+    } else if (filters?.includePublic) {
+      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
+    } else {
+      query = query.eq("user_id", userId);
+    }
+
+    // Apply filters
+    if (filters?.topic) {
+      if (Array.isArray(filters.topic)) {
+        query = query.in("topic", filters.topic);
+      } else {
+        query = query.eq("topic", filters.topic);
+      }
+    }
+    if (filters?.subject) {
+      if (Array.isArray(filters.subject)) {
+        query = query.in("subject", filters.subject);
+      } else {
+        query = query.eq("subject", filters.subject);
+      }
+    }
+    if (filters?.difficulty) {
+      query = query.eq("difficulty", filters.difficulty);
+    }
+    if (filters?.language) {
+      query = query.eq("language", filters.language);
+    }
+
+    // Get the range (convert 1-indexed to 0-indexed)
+    const offset = fromPosition - 1;
+    const limit = toPosition - fromPosition + 1;
+
+    const { data, error } = await query
+      .order("created_at", { ascending: sortOrder === 'asc' })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return (data || []).map(q => q.id);
+  }
   static async getRandomQuestions(
     userId: string,
     count: number,

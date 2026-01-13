@@ -66,7 +66,7 @@ export default function QuestionBank() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const pageSize = 20; // Fixed page size
+  const [pageSize, setPageSize] = useState(20);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   interface GeneratedQuestion {
@@ -622,12 +622,6 @@ export default function QuestionBank() {
     }
   };
 
-
-
-  const getSelectedQuestions = () => {
-    return questions.filter(q => selectedQuestionIds.has(q.id));
-  };
-
   // Edit question
   const handleEdit = (question: QuestionBankItem) => {
     setEditingQuestion(question);
@@ -750,7 +744,7 @@ export default function QuestionBank() {
                 />
                 <AddQuestionDialog onQuestionAdded={handleRefresh} />
                 <TelegramShareQuestionBank
-                  selectedQuestions={getSelectedQuestions()}
+                  selectedQuestionIds={selectedQuestionIds}
                   onClearSelection={handleClearSelection}
                 />
               </div>
@@ -768,7 +762,7 @@ export default function QuestionBank() {
                       onCheckedChange={handleSelectAll}
                     />
                     <label htmlFor="select-all" className="text-xs md:text-sm font-medium cursor-pointer whitespace-nowrap">
-                      Select All
+                      Select All ({filteredQuestions.length})
                     </label>
                   </div>
 
@@ -795,23 +789,41 @@ export default function QuestionBank() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         const from = parseInt(rangeFrom) || 1;
-                        const to = parseInt(rangeTo) || filteredQuestions.length;
-                        if (from > 0 && to >= from && to <= filteredQuestions.length) {
-                          const newSelection = new Set<string>();
-                          for (let i = from - 1; i < to && i < filteredQuestions.length; i++) {
-                            newSelection.add(filteredQuestions[i].id);
-                          }
-                          setSelectedQuestionIds(newSelection);
-                          toast({
-                            title: "Range Selected",
-                            description: `Selected questions ${from} to ${to}`,
-                          });
-                        } else {
+                        const to = parseInt(rangeTo) || totalCount;
+
+                        if (from < 1 || to < from || to > totalCount) {
                           toast({
                             title: "Invalid Range",
-                            description: `Please enter valid range (1 to ${filteredQuestions.length})`,
+                            description: `Please enter valid range (1 to ${totalCount})`,
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (!user) return;
+
+                          // Fetch question IDs for the given range from database
+                          const questionIds = await QuestionBankService.getQuestionIdsByRange(
+                            user.id,
+                            from,
+                            to,
+                            filters,
+                            sortOrder
+                          );
+
+                          setSelectedQuestionIds(new Set(questionIds));
+                          toast({
+                            title: "Range Selected",
+                            description: `Selected ${questionIds.length} questions (${from} to ${to})`,
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to select question range",
                             variant: "destructive",
                           });
                         }
@@ -1123,6 +1135,26 @@ export default function QuestionBank() {
                       <p className="text-sm text-muted-foreground font-semibold">
                         Showing <span className="text-foreground font-black">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-foreground font-black">{Math.min(currentPage * pageSize, totalCount)}</span> of <span className="text-foreground font-black">{totalCount}</span>
                       </p>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Page Size:</span>
+                        <Select
+                          value={pageSize.toString()}
+                          onValueChange={(val) => {
+                            setPageSize(parseInt(val));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="w-[70px] h-8 font-bold border-2">
+                            <SelectValue placeholder="20" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
 

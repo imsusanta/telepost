@@ -5,15 +5,19 @@ ALTER TABLE public.scheduled_telegram_posts ADD COLUMN IF NOT EXISTS user_id uui
 DROP POLICY IF EXISTS "Anyone can schedule posts" ON public.scheduled_telegram_posts;
 DROP POLICY IF EXISTS "Anyone can view scheduled posts" ON public.scheduled_telegram_posts;
 
+DROP POLICY IF EXISTS "Users can insert their own scheduled posts" ON public.scheduled_telegram_posts;
 CREATE POLICY "Users can insert their own scheduled posts" ON public.scheduled_telegram_posts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own scheduled posts" ON public.scheduled_telegram_posts;
 CREATE POLICY "Users can view their own scheduled posts" ON public.scheduled_telegram_posts
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own scheduled posts" ON public.scheduled_telegram_posts;
 CREATE POLICY "Users can update their own scheduled posts" ON public.scheduled_telegram_posts
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own scheduled posts" ON public.scheduled_telegram_posts;
 CREATE POLICY "Users can delete their own scheduled posts" ON public.scheduled_telegram_posts
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -33,15 +37,19 @@ CREATE TABLE IF NOT EXISTS public.channels (
 
 ALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own channels" ON public.channels;
 CREATE POLICY "Users can view their own channels" ON public.channels
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own channels" ON public.channels;
 CREATE POLICY "Users can insert their own channels" ON public.channels
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own channels" ON public.channels;
 CREATE POLICY "Users can update their own channels" ON public.channels
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own channels" ON public.channels;
 CREATE POLICY "Users can delete their own channels" ON public.channels
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -69,15 +77,19 @@ CREATE TABLE IF NOT EXISTS public.documents (
 
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own documents" ON public.documents;
 CREATE POLICY "Users can view their own documents" ON public.documents
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own documents" ON public.documents;
 CREATE POLICY "Users can insert their own documents" ON public.documents
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own documents" ON public.documents;
 CREATE POLICY "Users can update their own documents" ON public.documents
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own documents" ON public.documents;
 CREATE POLICY "Users can delete their own documents" ON public.documents
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -102,15 +114,19 @@ CREATE TABLE IF NOT EXISTS public.question_banks (
 
 ALTER TABLE public.question_banks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own questions" ON public.question_banks;
 CREATE POLICY "Users can view their own questions" ON public.question_banks
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own questions" ON public.question_banks;
 CREATE POLICY "Users can insert their own questions" ON public.question_banks
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own questions" ON public.question_banks;
 CREATE POLICY "Users can update their own questions" ON public.question_banks
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own questions" ON public.question_banks;
 CREATE POLICY "Users can delete their own questions" ON public.question_banks
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -134,9 +150,11 @@ CREATE TABLE IF NOT EXISTS public.quiz_generations (
 
 ALTER TABLE public.quiz_generations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own quiz generations" ON public.quiz_generations;
 CREATE POLICY "Users can view their own quiz generations" ON public.quiz_generations
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own quiz generations" ON public.quiz_generations;
 CREATE POLICY "Users can insert their own quiz generations" ON public.quiz_generations
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -153,9 +171,11 @@ CREATE TABLE IF NOT EXISTS public.analytics_events (
 
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own analytics" ON public.analytics_events;
 CREATE POLICY "Users can view their own analytics" ON public.analytics_events
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own analytics" ON public.analytics_events;
 CREATE POLICY "Users can insert their own analytics" ON public.analytics_events
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -173,9 +193,11 @@ CREATE TABLE IF NOT EXISTS public.quiz_responses (
 
 ALTER TABLE public.quiz_responses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own responses" ON public.quiz_responses;
 CREATE POLICY "Users can view their own responses" ON public.quiz_responses
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own responses" ON public.quiz_responses;
 CREATE POLICY "Users can insert their own responses" ON public.quiz_responses
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -198,12 +220,15 @@ CREATE TABLE IF NOT EXISTS public.leaderboards (
 
 ALTER TABLE public.leaderboards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view all leaderboards" ON public.leaderboards;
 CREATE POLICY "Users can view all leaderboards" ON public.leaderboards
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can update their own leaderboard" ON public.leaderboards;
 CREATE POLICY "Users can update their own leaderboard" ON public.leaderboards
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own leaderboard" ON public.leaderboards;
 CREATE POLICY "Users can insert their own leaderboard" ON public.leaderboards
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -223,6 +248,7 @@ CREATE TABLE IF NOT EXISTS public.subscription_plans (
 
 ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active plans" ON public.subscription_plans;
 CREATE POLICY "Anyone can view active plans" ON public.subscription_plans
   FOR SELECT USING (is_active = true);
 
@@ -242,6 +268,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own subscription" ON public.subscriptions;
 CREATE POLICY "Users can view their own subscription" ON public.subscriptions
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -259,12 +286,15 @@ CREATE TABLE IF NOT EXISTS public.usage_tracking (
 
 ALTER TABLE public.usage_tracking ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own usage" ON public.usage_tracking;
 CREATE POLICY "Users can view their own usage" ON public.usage_tracking
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "System can insert usage" ON public.usage_tracking;
 CREATE POLICY "System can insert usage" ON public.usage_tracking
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "System can update usage" ON public.usage_tracking;
 CREATE POLICY "System can update usage" ON public.usage_tracking
   FOR UPDATE USING (true);
 
@@ -285,12 +315,15 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
 
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own tickets" ON public.support_tickets;
 CREATE POLICY "Users can view their own tickets" ON public.support_tickets
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create tickets" ON public.support_tickets;
 CREATE POLICY "Users can create tickets" ON public.support_tickets
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own tickets" ON public.support_tickets;
 CREATE POLICY "Users can update their own tickets" ON public.support_tickets
   FOR UPDATE USING (auth.uid() = user_id);
 
@@ -307,6 +340,7 @@ CREATE TABLE IF NOT EXISTS public.support_ticket_messages (
 
 ALTER TABLE public.support_ticket_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view messages for their tickets" ON public.support_ticket_messages;
 CREATE POLICY "Users can view messages for their tickets" ON public.support_ticket_messages
   FOR SELECT USING (
     EXISTS (
@@ -316,6 +350,7 @@ CREATE POLICY "Users can view messages for their tickets" ON public.support_tick
     )
   );
 
+DROP POLICY IF EXISTS "Users can create messages for their tickets" ON public.support_ticket_messages;
 CREATE POLICY "Users can create messages for their tickets" ON public.support_ticket_messages
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -341,12 +376,15 @@ CREATE TABLE IF NOT EXISTS public.user_branding (
 
 ALTER TABLE public.user_branding ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own branding" ON public.user_branding;
 CREATE POLICY "Users can view their own branding" ON public.user_branding
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own branding" ON public.user_branding;
 CREATE POLICY "Users can insert their own branding" ON public.user_branding
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own branding" ON public.user_branding;
 CREATE POLICY "Users can update their own branding" ON public.user_branding
   FOR UPDATE USING (auth.uid() = user_id);
 

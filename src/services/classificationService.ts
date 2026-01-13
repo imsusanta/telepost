@@ -91,44 +91,13 @@ export class ClassificationService {
      * Classify a single question using AI
      */
     static async classifyQuestion(request: ClassificationRequest): Promise<ClassificationResult> {
-        try {
-            const { data, error } = await supabase.functions.invoke('classify-questions', {
-                body: {
-                    questions: [request],
-                    mode: 'single'
-                }
-            });
-
-            if (error) {
-                console.error('Edge Function Invite Error:', error);
-                throw error;
-            }
-
-            if (data?.debug) {
-                console.log('DIAGNOSTIC - Edge Function Debug Info:', data.debug);
-            }
-
-            if (data?.results && data.results.length > 0) {
-                return data.results[0];
-            }
-
-            // Fallback if no result
-            return {
-                subject: 'General Knowledge',
-                topic: 'General',
-                difficulty: 'medium',
-                confidence: 0
-            };
-        } catch (error) {
-            console.error('Classification error:', error);
-            // Return fallback classification
-            return {
-                subject: 'General Knowledge',
-                topic: 'General',
-                difficulty: 'medium',
-                confidence: 0
-            };
-        }
+        // Edge function removed - returning fallback immediately
+        return {
+            subject: 'General Knowledge',
+            topic: 'General',
+            difficulty: 'medium',
+            confidence: 0
+        };
     }
 
     /**
@@ -138,59 +107,16 @@ export class ClassificationService {
         requests: ClassificationRequest[],
         onProgress?: (completed: number, total: number) => void
     ): Promise<ClassificationResult[]> {
-        const results: ClassificationResult[] = [];
-        const batchSize = 5; // Process in batches of 5
+        // Edge function removed - returning fallbacks immediately
+        const results = requests.map(() => ({
+            subject: 'General Knowledge',
+            topic: 'General',
+            difficulty: 'medium' as const,
+            confidence: 0
+        }));
 
-        for (let i = 0; i < requests.length; i += batchSize) {
-            const batch = requests.slice(i, i + batchSize);
-
-            try {
-                const { data, error } = await supabase.functions.invoke('classify-questions', {
-                    body: {
-                        questions: batch,
-                        mode: 'bulk'
-                    }
-                });
-
-                if (error) {
-                    console.error('Edge Function Bulk Invite Error:', error);
-                    throw error;
-                }
-
-                if (data?.debug) {
-                    console.log('DIAGNOSTIC - Bulk Edge Function Debug Info:', data.debug);
-                }
-
-                if (data?.results) {
-                    results.push(...data.results);
-                } else {
-                    // Add fallback results for failed batch
-                    batch.forEach(() => {
-                        results.push({
-                            subject: 'General Knowledge',
-                            topic: 'General',
-                            difficulty: 'medium',
-                            confidence: 0
-                        });
-                    });
-                }
-            } catch (error) {
-                console.error('Batch classification error:', error);
-                // Add fallback results for failed batch
-                batch.forEach(() => {
-                    results.push({
-                        subject: 'General Knowledge',
-                        topic: 'General',
-                        difficulty: 'medium',
-                        confidence: 0
-                    });
-                });
-            }
-
-            // Report progress
-            if (onProgress) {
-                onProgress(Math.min(i + batchSize, requests.length), requests.length);
-            }
+        if (onProgress) {
+            onProgress(requests.length, requests.length);
         }
 
         return results;

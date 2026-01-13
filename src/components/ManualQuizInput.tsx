@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertCircle, FileText, Send } from "lucide-react";
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,16 @@ interface ManualQuizInputProps {
 
 export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInputProps) {
   const [mcqText, setMcqText] = useState('');
+  const [parsingWarnings, setParsingWarnings] = useState<string[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (mcqText.trim()) {
+      parseMCQ(mcqText);
+    } else {
+      setParsingWarnings([]);
+    }
+  }, [mcqText]);
 
   const parseMCQ = (text: string): QuizQuestion[] => {
     const questions: QuizQuestion[] = [];
@@ -128,6 +137,17 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
         console.error("Error parsing section:", section, error);
       }
     }
+
+    const warnings: string[] = [];
+    questions.forEach((q, i) => {
+      const qNum = i + 1;
+      if (q.question.length > 300) warnings.push(`Q${qNum}: Question text > 300 chars`);
+      q.options?.forEach((opt, oi) => {
+        if (opt.length > 100) warnings.push(`Q${qNum}: Option ${String.fromCharCode(65 + oi)} > 100 chars`);
+      });
+      if (q.explanation && q.explanation.length > 200) warnings.push(`Q${qNum}: Explanation > 200 chars`);
+    });
+    setParsingWarnings(warnings);
 
     return questions;
   };
@@ -247,6 +267,22 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
           onChange={(e) => setMcqText(e.target.value)}
           className="min-h-[250px] font-mono text-sm bg-gray-50 dark:bg-slate-800 border-2 border-gray-200 dark:border-gray-700 focus:border-sky-500 rounded-xl"
         />
+
+        {parsingWarnings.length > 0 && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+            <div className="flex gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Telegram Poll Limits Exceeded</p>
+                <div className="max-h-20 overflow-y-auto space-y-0.5">
+                  {parsingWarnings.map((warn, i) => (
+                    <p key={i} className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">• {warn}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3">
           <Button

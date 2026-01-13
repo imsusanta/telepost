@@ -370,11 +370,18 @@ export default function CreatePost() {
                                                 value={content}
                                                 onChange={(e) => setContent(e.target.value)}
                                                 rows={6}
-                                                className="resize-y min-h-[150px] font-mono"
+                                                className={`resize-y min-h-[150px] font-mono ${content.length > (imagePreviewUrl ? 1024 : 4096) ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                                                 style={{ resize: 'vertical' }}
                                             />
-                                            <p className="text-xs text-muted-foreground text-right">
-                                                {content.length} characters
+                                            <p className={`text-xs mt-1 flex justify-between ${content.length > (imagePreviewUrl ? 1024 : 4096) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                                <span>
+                                                    {content.length > (imagePreviewUrl ? 1024 : 4096) && (
+                                                        "⚠️ Exceeds Telegram limit"
+                                                    )}
+                                                </span>
+                                                <span>
+                                                    {content.length} / {imagePreviewUrl ? 1024 : 4096} characters
+                                                </span>
                                             </p>
                                         </div>
 

@@ -125,7 +125,7 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Welcome back, {profile?.full_name?.split(' ')[0] || "User"}!
+              Welcome back, {profile?.full_name || "User"}!
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
               Here's what's happening with your quizzes today.
@@ -194,6 +194,7 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
 
         {/* Info Cards Row */}
         <div className="grid md:grid-cols-3 gap-4">

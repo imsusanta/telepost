@@ -45,18 +45,7 @@ DROP POLICY IF EXISTS "Admins can view all documents" ON public.documents;
 DROP POLICY IF EXISTS "Admins can view all quiz generations" ON public.quiz_generations;
 DROP POLICY IF EXISTS "Admins can view all question_banks" ON public.question_banks;
 
--- Drop security table policies
-DROP POLICY IF EXISTS "Admins can view security alerts" ON public.security_alerts;
-DROP POLICY IF EXISTS "Super admins can insert security alerts" ON public.security_alerts;
-DROP POLICY IF EXISTS "Super admins can update security alerts" ON public.security_alerts;
-DROP POLICY IF EXISTS "Admins can view login attempts" ON public.login_attempts;
-DROP POLICY IF EXISTS "Users can view their own sessions" ON public.session_tracking;
-DROP POLICY IF EXISTS "Admins can view all sessions" ON public.session_tracking;
-DROP POLICY IF EXISTS "Users can insert their own sessions" ON public.session_tracking;
-DROP POLICY IF EXISTS "Users can update their own sessions" ON public.session_tracking;
-DROP POLICY IF EXISTS "Admins can view activity log" ON public.admin_activity_log;
-DROP POLICY IF EXISTS "Admins can insert activity log" ON public.admin_activity_log;
-DROP POLICY IF EXISTS "Super admins can view audit log" ON public.data_audit_log;
+-- Tables will be dropped below, which automatically removes their policies
 
 -- =============================================
 -- 3. DROP SUPER ADMIN TABLES
@@ -122,14 +111,32 @@ DROP INDEX IF EXISTS idx_profiles_role;
 -- =============================================
 
 -- Users can view their own profile
-CREATE POLICY "Users can view their own profile"
-ON public.profiles FOR SELECT
-USING (auth.uid() = id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'profiles'
+        AND policyname = 'Users can view their own profile'
+    ) THEN
+        CREATE POLICY "Users can view their own profile"
+        ON public.profiles FOR SELECT
+        USING (auth.uid() = id);
+    END IF;
+END $$;
 
 -- Users can update their own profile
-CREATE POLICY "Users can update their own profile"
-ON public.profiles FOR UPDATE
-USING (auth.uid() = id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'profiles'
+        AND policyname = 'Users can update their own profile'
+    ) THEN
+        CREATE POLICY "Users can update their own profile"
+        ON public.profiles FOR UPDATE
+        USING (auth.uid() = id);
+    END IF;
+END $$;
 
 -- =============================================
 -- 8. ENSURE SUBSCRIPTIONS TABLE EXISTS AND HAS PROPER POLICIES

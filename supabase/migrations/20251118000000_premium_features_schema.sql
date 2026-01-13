@@ -581,7 +581,7 @@ VALUES
   ('starter', 'Starter', 29.00, 1, 10, 50, 1, 10000, false, false, false, false, false, false, false, false, false, false),
   ('pro', 'Pro', 99.00, 3, 50, NULL, 30, 50000, true, true, true, true, true, true, true, true, false, false),
   ('agency', 'Agency', 249.00, 10, 200, NULL, 100, 200000, true, true, true, true, true, true, true, true, true, true),
-  ('enterprise', 'Enterprise', 999.00, NULL, 1000, NULL, 1000, 1000000, true, true, true, true, true, true, true, true, true, true)
+  ('enterprise', 'Enterprise', 999.00, 999, 1000, NULL, 1000, 1000000, true, true, true, true, true, true, true, true, true, true)
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================

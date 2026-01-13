@@ -6,6 +6,38 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// OpenRouter configuration
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+interface AISettings {
+    provider: 'openrouter' | 'lovable';
+    model: string;
+    temperature: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getAISettings(supabase: any): Promise<AISettings> {
+    try {
+        const { data, error } = await supabase
+            .from('system_settings')
+            .select('setting_value')
+            .eq('setting_key', 'ai_settings')
+            .maybeSingle();
+
+        if (data?.setting_value) {
+            return data.setting_value as AISettings;
+        }
+    } catch (error) {
+        console.error("Failed to fetch AI settings:", error);
+    }
+
+    return {
+        provider: 'lovable',
+        model: 'openai/gpt-4o-mini',
+        temperature: 0.7,
+    };
+}
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
@@ -13,88 +45,97 @@ serve(async (req) => {
 
     try {
         const authHeader = req.headers.get("Authorization");
-        if (!authHeader) throw new Error("Missing authorization header");
-
-        const { prompt, tone, length, language, includeEmojis, includeHashtags, includeCTA, includeQuote } = await req.json();
-
-        // Initialize Supabase
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-        // Get user
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !user) throw new Error("Unauthorized");
-
-        // Get API key
-        const { data: settings } = await supabase
-            .from("user_ai_settings")
-            .select("gemini_api_key_encrypted")
-            .eq("user_id", user.id)
-            .single();
-
-        if (!settings?.gemini_api_key_encrypted) throw new Error("API key not configured");
-
-        const apiKey = settings.gemini_api_key_encrypted;
-        const isOpenRouter = apiKey.startsWith("sk-or-") || apiKey.includes(".");
-
-        const systemPrompt = `You are an expert Telegram channel post writer. Generate an engaging post for a Telegram channel.
-Topic: ${prompt}
-Tone: ${tone}
-Length: ${length}
-Language: ${language}
-${includeEmojis ? "Use emojis." : "No emojis."}
-${includeHashtags ? "Include hashtags." : "No hashtags."}
-${includeCTA ? "Include CTA." : "No CTA."}
-${includeQuote ? "Include a quote." : "No quote."}
-
-Generate ONLY the post text.`;
-
-        let resultText = "";
-
-        if (isOpenRouter) {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: "google/gemini-2.0-flash-exp:free",
-                    messages: [{ role: "user", content: systemPrompt }],
-                })
-            });
-            const data = await response.json();
-            resultText = data.choices?.[0]?.message?.content;
-        } else {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: systemPrompt }] }]
-                })
-            });
-            const data = await response.json();
-            resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!authHeader) {
+            return new Response(
+                JSON.stringify({ error: "No authorization header" }),
+                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
         }
+
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        const supabase = createClient(supabaseUrl!, supabaseKey!);
+        const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+
+        if (userError || !user) {
+            return new Response(
+                JSON.stringify({ error: "Invalid token" }),
+                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const { prompt, systemPrompt, temperature = 0.7 } = await req.json();
+
+        if (!prompt) {
+            return new Response(
+                JSON.stringify({ error: "Prompt is required" }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+        if (!OPENROUTER_API_KEY) {
+            throw new Error("OPENROUTER_API_KEY not configured");
+        }
+
+        const aiSettings = await getAISettings(supabase);
+        console.log(`Generating text using OpenRouter (${aiSettings.model})...`);
+
+        const response = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": supabaseUrl!,
+                "X-Title": "QuizMaker",
+            },
+            body: JSON.stringify({
+                model: aiSettings.model,
+                messages: [
+                    { role: "system", content: systemPrompt || "You are a helpful assistant." },
+                    { role: "user", content: prompt }
+                ],
+                temperature: aiSettings.temperature || temperature,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`OpenRouter error (${response.status}):`, errorText);
+            let errorMessage = `AI Service failure: ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+            } catch (pErr) {
+                errorMessage = errorText || errorMessage;
+            }
+            return new Response(
+                JSON.stringify({ error: errorMessage, status: response.status }),
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const data = await response.json();
+        const resultText = data.choices?.[0]?.message?.content;
 
         // Log usage
         await supabase.from("ai_usage_logs").insert({
             user_id: user.id,
-            request_type: "text_generation",
-            prompt: prompt,
-            success: true
+            feature: "text-generation",
+            model: aiSettings.model,
         });
 
-        return new Response(JSON.stringify({ text: resultText }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        return new Response(
+            JSON.stringify({ text: resultText }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
 
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+    } catch (error: any) {
+        console.error("Error in ai-generate-text:", error);
+        return new Response(
+            JSON.stringify({ error: error.message }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
     }
 });

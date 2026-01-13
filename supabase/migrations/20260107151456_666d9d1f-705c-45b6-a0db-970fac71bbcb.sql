@@ -36,17 +36,30 @@ ALTER TABLE public.user_ai_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for user_ai_settings
+DROP POLICY IF EXISTS "Users can view own AI settings" ON public.user_ai_settings;
 CREATE POLICY "Users can view own AI settings" ON public.user_ai_settings FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own AI settings" ON public.user_ai_settings;
 CREATE POLICY "Users can insert own AI settings" ON public.user_ai_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own AI settings" ON public.user_ai_settings;
 CREATE POLICY "Users can update own AI settings" ON public.user_ai_settings FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own AI settings" ON public.user_ai_settings;
 CREATE POLICY "Users can delete own AI settings" ON public.user_ai_settings FOR DELETE USING (auth.uid() = user_id);
 
 -- RLS Policies for ai_usage_logs
+DROP POLICY IF EXISTS "Users can view own AI usage logs" ON public.ai_usage_logs;
 CREATE POLICY "Users can view own AI usage logs" ON public.ai_usage_logs FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own AI usage logs" ON public.ai_usage_logs;
 CREATE POLICY "Users can insert own AI usage logs" ON public.ai_usage_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Super admin access
+DROP POLICY IF EXISTS "Super admins can view all AI settings" ON public.user_ai_settings;
 CREATE POLICY "Super admins can view all AI settings" ON public.user_ai_settings FOR SELECT USING (public.is_super_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "Super admins can view all AI usage logs" ON public.ai_usage_logs;
 CREATE POLICY "Super admins can view all AI usage logs" ON public.ai_usage_logs FOR SELECT USING (public.is_super_admin(auth.uid()));
 
 -- Updated_at trigger for user_ai_settings

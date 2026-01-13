@@ -19,7 +19,8 @@ import {
   Users,
   X,
   Key,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -411,6 +412,127 @@ export default function SuperAdminUsers() {
     }
   };
 
+  const handleSendPaymentRequest = async (user: UserWithSubscription) => {
+    if (!confirm(`Send payment request to ${user.email}? Their account will be locked until payment is complete.`)) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({
+          payment_status: 'locked',
+          payment_requested_at: new Date().toISOString(),
+          payment_amount: 999
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Payment Request Sent',
+        description: `${user.email}'s account is now locked. They must pay to access features.`,
+      });
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send payment request',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleActivateForTrial = async (user: UserWithSubscription) => {
+    if (!confirm(`Activate ${user.email} for trial? This will unlock their account and give full access.`)) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({
+          payment_status: 'paid',
+          payment_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'User Activated',
+        description: `${user.email} has been activated for trial and can now access all features.`,
+      });
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to activate user',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Lock user account - blocks access to Telegram Quiz features
+  const handleLockAccount = async (user: UserWithSubscription) => {
+    if (!confirm(`Lock account for ${user.email}? They will lose access to Telegram Quiz features until unlocked.`)) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({ account_locked: true })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Account Locked',
+        description: `${user.email}'s account has been locked. They need to pay to unlock.`,
+      });
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to lock account',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Unlock user account - restores access to Telegram Quiz features
+  const handleUnlockAccount = async (user: UserWithSubscription) => {
+    if (!confirm(`Unlock account for ${user.email}? They will regain access to all features.`)) {
+      return;
+    }
+
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update({ account_locked: false })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Account Unlocked',
+        description: `${user.email}'s account has been unlocked. They can now access all features.`,
+      });
+      await loadData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to unlock account',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleExportUsers = () => {
     const csvContent = [
       ['Email', 'Name', 'Role', 'Status', 'Plan', 'Joined'].join(','),
@@ -463,13 +585,6 @@ export default function SuperAdminUsers() {
             Super Admin
           </Badge>
         );
-      case 'admin':
-        return (
-          <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 gap-1">
-            <ShieldCheck className="w-3 h-3" />
-            Admin
-          </Badge>
-        );
       default:
         return (
           <Badge variant="secondary" className="gap-1">
@@ -515,6 +630,35 @@ export default function SuperAdminUsers() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getPaymentStatusBadge = (user: UserWithSubscription) => {
+    // Access payment_status from user object (may not be typed yet)
+    const paymentStatus = (user as any).payment_status;
+
+    if (!paymentStatus || paymentStatus === 'pending') {
+      return <Badge variant="outline" className="text-muted-foreground">—</Badge>;
+    }
+
+    if (paymentStatus === 'locked') {
+      return (
+        <Badge className="bg-red-500/10 text-red-600 border-red-500/20 gap-1">
+          <CreditCard className="w-3 h-3" />
+          Payment Pending
+        </Badge>
+      );
+    }
+
+    if (paymentStatus === 'paid') {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
+          <Check className="w-3 h-3" />
+          Paid
+        </Badge>
+      );
+    }
+
+    return <Badge variant="outline">{paymentStatus}</Badge>;
   };
 
   const clearFilters = () => {
@@ -684,6 +828,7 @@ export default function SuperAdminUsers() {
                   <TableHead className="font-semibold">User</TableHead>
                   <TableHead className="font-semibold">Role</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Payment</TableHead>
                   <TableHead className="font-semibold">Plan</TableHead>
                   <TableHead className="font-semibold">Usage</TableHead>
                   <TableHead className="font-semibold">Joined</TableHead>
@@ -726,7 +871,17 @@ export default function SuperAdminUsers() {
                         </div>
                       </TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
-                      <TableCell>{getStatusBadge(user.status)}</TableCell>
+                      <TableCell>
+                        {user.account_locked ? (
+                          <Badge className="bg-rose-500/10 text-rose-600 border-rose-500/20 gap-1">
+                            <X className="w-3 h-3" />
+                            Payment Lock
+                          </Badge>
+                        ) : (
+                          getStatusBadge(user.status)
+                        )}
+                      </TableCell>
+                      <TableCell>{getPaymentStatusBadge(user)}</TableCell>
                       <TableCell>
                         {user.subscription ? (
                           <div>
@@ -797,6 +952,22 @@ export default function SuperAdminUsers() {
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuSeparator />
+                            {/* Account Lock/Unlock for Payment */}
+                            <DropdownMenuItem
+                              onClick={() => handleLockAccount(user)}
+                              className="text-amber-600"
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Lock Account (Payment)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleUnlockAccount(user)}
+                              className="text-emerald-600"
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              Unlock Account
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleToggleUserStatus(user.id, user.status)}

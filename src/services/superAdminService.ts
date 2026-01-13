@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type AppRole = 'user' | 'admin' | 'super_admin';
+export type AppRole = 'user' | 'super_admin';
 
 export interface UserProfile {
   id: string;
@@ -9,6 +9,7 @@ export interface UserProfile {
   role: AppRole;
   can_purchase_plans: boolean;
   status: 'active' | 'suspended' | 'banned';
+  account_locked?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -159,6 +160,7 @@ export async function getPaginatedUsers(
       updated_at: profile.updated_at || new Date().toISOString(),
       role: userRole,
       status: (profile.status as 'active' | 'suspended' | 'banned') || 'active',
+      account_locked: profile.account_locked ?? false,
       can_purchase_plans: profile.can_purchase_plans ?? true,
       subscription: userSub ? {
         id: userSub.id,

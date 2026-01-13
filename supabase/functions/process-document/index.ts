@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface AISettings {
-  provider: 'openrouter';
+  provider: 'openrouter' | 'lovable';
   model: string;
   temperature: number;
 }
@@ -33,8 +33,8 @@ async function getAISettings(supabase: any): Promise<AISettings> {
   }
 
   return {
-    provider: 'openrouter',
-    model: 'z-ai/glm-4.5-air:free',
+    provider: 'lovable',
+    model: 'openai/gpt-4o-mini',
     temperature: 0.7,
   };
 }
@@ -46,7 +46,7 @@ serve(async (req) => {
 
   try {
     console.log("=== PDF Processing Request Started ===");
-    
+
     // SECURITY: Require authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -60,7 +60,7 @@ serve(async (req) => {
     // Initialize Supabase client with user's auth
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY");
-    
+
     if (!supabaseUrl || !supabaseAnon) {
       console.error("Missing Supabase configuration");
       return new Response(
@@ -112,14 +112,14 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+
     // SECURITY: Verify the document belongs to the authenticated user
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('user_id')
       .eq('id', documentId)
       .single();
-    
+
     if (docError || !document) {
       console.error("Document not found:", docError?.message);
       return new Response(
@@ -127,7 +127,7 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
+
     if (document.user_id !== user.id) {
       console.error(`Unauthorized: User ${user.id} attempted to access document owned by ${document.user_id}`);
       return new Response(
@@ -135,7 +135,7 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
+
     console.log(`✓ Document ownership verified for user ${user.id}`);
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
@@ -182,7 +182,7 @@ serve(async (req) => {
     const header = new Uint8Array(headerBuffer);
     const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46]; // %PDF
     const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
-    
+
     if (!isPDF) {
       console.error(`Invalid PDF: File does not have valid PDF signature. Got: ${Array.from(header).map(b => b.toString(16)).join(' ')}`);
       return new Response(
@@ -218,39 +218,39 @@ serve(async (req) => {
       // Use AI with vision to extract text from PDF
       console.log("Sending PDF to OpenRouter for text extraction...");
       const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": supabaseUrl,
-            "X-Title": "QuizMaker Document Processing",
-          },
-          body: JSON.stringify({
-            model: aiSettings.model,
-            messages: [
-              {
-                role: "system",
-                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
-              },
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: "Extract all text from this PDF document. Return only the extracted text content."
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:application/pdf;base64,${base64}`
-                    }
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": supabaseUrl,
+          "X-Title": "QuizMaker Document Processing",
+        },
+        body: JSON.stringify({
+          model: aiSettings.model,
+          messages: [
+            {
+              role: "system",
+              content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract all text from this PDF document. Return only the extracted text content."
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:application/pdf;base64,${base64}`
                   }
-                ]
-              },
-            ],
-            temperature: 0.1,
-          }),
-        });
+                }
+              ]
+            },
+          ],
+          temperature: 0.1,
+        }),
+      });
 
       if (extractResponse.ok) {
         console.log(`✓ AI extraction response received (status: ${extractResponse.status})`);
@@ -263,28 +263,28 @@ serve(async (req) => {
           // Now analyze the extracted text for summary and topics
           console.log("Analyzing extracted text for summary and topics...");
           const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": supabaseUrl,
-                "X-Title": "QuizMaker Document Analysis",
-              },
-              body: JSON.stringify({
-                model: aiSettings.model,
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
-                  },
-                  {
-                    role: "user",
-                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
-                  },
-                ],
-                temperature: 0.3,
-              }),
-            });
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": supabaseUrl,
+              "X-Title": "QuizMaker Document Analysis",
+            },
+            body: JSON.stringify({
+              model: aiSettings.model,
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                },
+                {
+                  role: "user",
+                  content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                },
+              ],
+              temperature: 0.3,
+            }),
+          });
 
           if (analyzeResponse.ok) {
             console.log(`✓ Analysis response received (status: ${analyzeResponse.status})`);

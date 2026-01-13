@@ -11,54 +11,92 @@ interface SuperAdminRouteProps {
   children: React.ReactNode;
 }
 
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 8000;
 
 export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
+  // Initialize from localStorage cache to prevent flicker on navigation
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState(() => {
+    // Check cached value first for instant access on navigation
+    return localStorage.getItem('is_super_admin') === 'true';
+  });
 
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout;
 
     const checkSuperAdminWithTimeout = async (): Promise<boolean> => {
+      // First check cache for quick access
+      const cachedStatus = localStorage.getItem('is_super_admin');
+      if (cachedStatus === 'true') {
+        return true;
+      }
+
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
           console.warn("Super admin check timed out");
-          resolve(false);
+          // On timeout, trust the cache if available
+          resolve(cachedStatus === 'true');
         }, TIMEOUT_MS);
 
         isSuperAdmin()
           .then((result) => {
             clearTimeout(timeout);
+            // Update cache
+            localStorage.setItem('is_super_admin', String(result));
             resolve(result);
           })
           .catch((error) => {
             clearTimeout(timeout);
             console.error("Super admin check error:", error);
-            resolve(false);
+            // On error, trust the cache
+            resolve(cachedStatus === 'true');
           });
       });
     };
 
     const checkAccess = async () => {
       try {
-        // Refresh session first to ensure valid credentials
-        await supabase.auth.refreshSession();
-
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Get current session first without refreshing to avoid race conditions
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (!isMounted) return;
 
-        if (error || !session?.user) {
-          console.log("No valid session found");
-          setUser(null);
-          setHasAccess(false);
+        // If we have a cached super admin status and a session, use it immediately
+        const cachedSuperAdmin = localStorage.getItem('is_super_admin') === 'true';
+        if (session?.user && cachedSuperAdmin) {
+          setUser(session.user);
+          setHasAccess(true);
+          setLoading(false);
+          // Still verify in background
+          checkSuperAdminWithTimeout().then((isSuper) => {
+            if (isMounted && !isSuper) {
+              setHasAccess(false);
+              toast.error("Access denied: Super admin privileges required");
+            }
+          });
           return;
         }
 
-        setUser(session.user);
+        if (sessionError || !session?.user) {
+          // Try refreshing the session
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+          if (!isMounted) return;
+
+          if (refreshError || !refreshData.session?.user) {
+            console.log("No valid session found after refresh");
+            setUser(null);
+            setHasAccess(false);
+            setLoading(false);
+            return;
+          }
+
+          setUser(refreshData.session.user);
+        } else {
+          setUser(session.user);
+        }
 
         // Check super admin with timeout
         const isSuper = await checkSuperAdminWithTimeout();
@@ -72,6 +110,17 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
       } catch (error) {
         console.error("Failed to check access:", error);
         if (isMounted) {
+          // On error, if we have cached super admin status, trust it
+          const cachedSuperAdmin = localStorage.getItem('is_super_admin') === 'true';
+          if (cachedSuperAdmin) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              setUser(session.user);
+              setHasAccess(true);
+              setLoading(false);
+              return;
+            }
+          }
           setUser(null);
           setHasAccess(false);
         }
@@ -86,9 +135,14 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
     timeoutId = setTimeout(() => {
       if (isMounted && loading) {
         console.warn("Access check fallback timeout triggered");
+        // On timeout, if cached as super admin, grant access
+        const cachedSuperAdmin = localStorage.getItem('is_super_admin') === 'true';
+        if (cachedSuperAdmin) {
+          setHasAccess(true);
+        }
         setLoading(false);
       }
-    }, TIMEOUT_MS + 1000);
+    }, TIMEOUT_MS + 2000);
 
     checkAccess();
 
@@ -99,6 +153,7 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
       if (!session?.user) {
         setUser(null);
         setHasAccess(false);
+        localStorage.removeItem('is_super_admin');
         setLoading(false);
         return;
       }
@@ -122,6 +177,12 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // If cached as super admin and still loading, show content immediately
+  const cachedSuperAdmin = localStorage.getItem('is_super_admin') === 'true';
+  if (loading && cachedSuperAdmin) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (

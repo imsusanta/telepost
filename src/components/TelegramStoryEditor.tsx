@@ -442,7 +442,12 @@ export const TelegramStoryEditor: React.FC<TelegramStoryEditorProps> = ({
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={3}
+                className={caption.length > 1024 ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
+              <p className={`text-xs mt-1 flex justify-between ${caption.length > 1024 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                <span>{caption.length > 1024 && "⚠️ Exceeds Telegram limit"}</span>
+                <span>{caption.length} / 1024 characters</span>
+              </p>
             </div>
 
             {/* Channel Selection */}

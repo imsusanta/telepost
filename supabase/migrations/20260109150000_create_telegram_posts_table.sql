@@ -48,27 +48,32 @@ ALTER TABLE public.telegram_posts ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 -- Users can view their own posts
+DROP POLICY IF EXISTS "Users can view own posts" ON public.telegram_posts;
 CREATE POLICY "Users can view own posts"
     ON public.telegram_posts FOR SELECT
     USING (auth.uid() = user_id);
 
 -- Users can insert their own posts
+DROP POLICY IF EXISTS "Users can insert own posts" ON public.telegram_posts;
 CREATE POLICY "Users can insert own posts"
     ON public.telegram_posts FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own posts
+DROP POLICY IF EXISTS "Users can update own posts" ON public.telegram_posts;
 CREATE POLICY "Users can update own posts"
     ON public.telegram_posts FOR UPDATE
     USING (auth.uid() = user_id);
 
 -- Users can delete their own posts
+DROP POLICY IF EXISTS "Users can delete own posts" ON public.telegram_posts;
 CREATE POLICY "Users can delete own posts"
     ON public.telegram_posts FOR DELETE
     USING (auth.uid() = user_id);
 
 -- Create trigger for updated_at
-CREATE OR REPLACE TRIGGER update_telegram_posts_updated_at
+DROP TRIGGER IF EXISTS update_telegram_posts_updated_at ON public.telegram_posts;
+CREATE TRIGGER update_telegram_posts_updated_at
     BEFORE UPDATE ON public.telegram_posts
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();

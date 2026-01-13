@@ -87,16 +87,19 @@ export default function Channels() {
       console.log("Checking super admin status for user:", user.id);
 
       // Check if user is Super Admin
-      const superAdminStatus = await ChannelService.checkIsSuperAdmin(user.id);
-      console.log("Super admin status result:", superAdminStatus);
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('role, max_telegram_channels')
+        .eq('id', user.id)
+        .single();
+
+      const superAdminStatus = profile?.role === 'super_admin';
       setIsSuperAdmin(superAdminStatus);
 
       if (!superAdminStatus) {
-        const userLimits = await ChannelService.getSubscriptionLimits(user.id);
-        console.log("User limits:", userLimits);
-        setLimits(userLimits);
+        setLimits({ max_telegram_channels: profile?.max_telegram_channels || 1 });
       } else {
-        console.log("User is Super Admin - no limits applied");
+        console.log("User is Admin - no limits applied");
       }
     } catch (error) {
       console.error("Error fetching limits:", error);
@@ -152,7 +155,6 @@ export default function Channels() {
 
   const handleTestConnection = async () => {
     const trimmedChatId = newChannel.telegram_channel_id.trim();
-    const trimmedBotToken = newChannel.telegram_bot_token.trim();
 
     if (!trimmedChatId) {
       toast({
@@ -169,8 +171,7 @@ export default function Channels() {
     try {
       const result = await ChannelService.testTelegramConnection(
         trimmedChatId,
-        undefined,
-        trimmedBotToken
+        undefined
       );
       setConnectionTestResult(result);
 
@@ -204,7 +205,6 @@ export default function Channels() {
     if (!selectedChannel) return;
 
     const trimmedChatId = selectedChannel.telegram_channel_id?.trim();
-    const trimmedBotToken = selectedChannel.telegram_bot_token?.trim();
 
     if (!trimmedChatId) {
       toast({
@@ -220,8 +220,7 @@ export default function Channels() {
     try {
       const result = await ChannelService.testTelegramConnection(
         trimmedChatId,
-        selectedChannel.id,
-        trimmedBotToken || undefined
+        selectedChannel.id
       );
 
       if (result.success) {
@@ -285,7 +284,6 @@ export default function Channels() {
         name: channel.name.trim(),
         description: channel.description?.trim() || "",
         telegram_channel_id: channel.telegram_channel_id?.trim() || undefined,
-        telegram_bot_token: channel.telegram_bot_token?.trim() || undefined,
         settings: channel.settings,
       });
 

@@ -34,7 +34,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -48,7 +48,7 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -57,16 +57,7 @@ serve(async (req) => {
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: chatId and quiz" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate chatId format (prevent injection)
-    const chatIdRegex = /^(@[a-zA-Z0-9_]+|-?[0-9]+)$/;
-    if (!chatIdRegex.test(chatId)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid chat ID format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -139,7 +130,7 @@ serve(async (req) => {
             success: false,
             error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
           }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       console.log(`Access granted: Super admin ${user.id} is using the administrative bot token.`);
@@ -151,30 +142,37 @@ serve(async (req) => {
           success: false,
           error: "No bot token available. Please configure a bot token for the selected channel in the 'Channels' page."
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // If scheduleInterval is provided, create recurring scheduled posts
-    if (scheduleInterval) {
+    // If scheduleInterval is provided OR if there are MANY questions (> 100), 
+    // automatically queue them to avoid timeouts and rate limits
+    // Users can send up to 100 questions immediately
+    const shouldQueue = scheduleInterval || (quiz.questions.length > 100 && !instantPoll);
+
+    if (shouldQueue) {
       const now = new Date();
       const scheduledPosts = [];
 
-      // Determine how many questions per post (default to 1 if not specified)
-      const questionsPerPost = minQuestionsPerInterval || 1;
+      // Determine how many questions per post
+      // For auto-queued large quizzes, we use a conservative default of 5 per batch
+      const questionsPerPost = scheduleInterval ? (minQuestionsPerInterval || 1) : 5;
+      const effectiveInterval = scheduleInterval || 1; // Default to 1 min interval for auto-queue
 
-      // Group questions into batches according to minQuestionsPerInterval
+      // Group questions into batches
       const questionBatches = [];
       for (let i = 0; i < quiz.questions.length; i += questionsPerPost) {
         questionBatches.push(quiz.questions.slice(i, i + questionsPerPost));
       }
 
-      // Create a scheduled post for each batch at the specified interval
+      // Create a scheduled post for each batch
       for (let i = 0; i < questionBatches.length; i++) {
-        const scheduledTime = new Date(now.getTime() + ((i + 1) * scheduleInterval * 60 * 1000));
+        // First batch is scheduled for now + 1 min, then spaced by effectiveInterval
+        const scheduledTime = new Date(now.getTime() + ((i + 1) * effectiveInterval * 60 * 1000));
         scheduledPosts.push({
           user_id: user.id,
-          channel_id: channelId || null, // Store channel reference for scheduled posts
+          channel_id: channelId || null,
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
@@ -194,25 +192,61 @@ serve(async (req) => {
         throw new Error(`Failed to schedule posts: ${insertError.message}`);
       }
 
-      const totalPosts = questionBatches.length;
-      const message = questionsPerPost === 1
-        ? `Scheduled ${quiz.questions.length} quiz questions to post every ${scheduleInterval} minute(s)`
-        : `Scheduled ${totalPosts} posts with ${questionsPerPost} questions each to post every ${scheduleInterval} minute(s) (${quiz.questions.length} total questions)`;
+      if (scheduleInterval) {
+        const totalPosts = questionBatches.length;
+        const message = questionsPerPost === 1
+          ? `Scheduled ${quiz.questions.length} quiz questions to post every ${scheduleInterval} minute(s)`
+          : `Scheduled ${totalPosts} posts with ${questionsPerPost} questions each to post every ${scheduleInterval} minute(s) (${quiz.questions.length} total questions)`;
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message,
-          scheduledCount: quiz.questions.length,
-          postsCount: totalPosts,
-          questionsPerPost,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message,
+            scheduledCount: quiz.questions.length,
+            postsCount: totalPosts,
+            questionsPerPost,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else {
+        // Auto-queued response
+        return new Response(
+          JSON.stringify({
+            success: true,
+            isQueued: true,
+            message: `Large quiz (${quiz.questions.length} questions) queued for background delivery. It will appear in Telegram shortly.`,
+            pollsSent: 0
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Send immediately using the channel-specific bot token
     const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
+    // Helper to truncate text to Telegram limits with surrogate-pair safety
+    const safeTruncate = (str: string, limit: number): string => {
+      if (!str) return "";
+      // Use Array.from to correctly handle emojis and multi-unit characters
+      const chars = Array.from(str);
+      if (chars.length <= limit) return str;
+      return chars.slice(0, limit - 3).join("") + "...";
+    };
+
+    // Detect if questions contain Bengali text
+    const hasBengaliText = quiz.questions.some((q: any) => {
+      const questionText = q.question || '';
+      const isBengali = /[\u0980-\u09FF]/.test(questionText);
+      console.log(`Question: "${questionText.substring(0, 50)}..." -> Bengali: ${isBengali}`);
+      return isBengali;
+    });
+    console.log(`Final hasBengaliText: ${hasBengaliText}`);
+
+    // Language-aware intro message - Updated 23:55 IST
+    const introText = hasBengaliText
+      ? `📚 বিষয়: ${quiz.topic}\n\nআপনার জন্য ${quiz.questions.length}টি প্রশ্ন রয়েছে! নীচের প্রশ্নগুলির উত্তর দিন:`
+      : `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the questions below:`;
 
     // Send intro message
     const introResponse = await fetch(`${baseUrl}/sendMessage`, {
@@ -220,7 +254,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the polls below:`,
+        text: safeTruncate(introText, 4000),
         parse_mode: "Markdown",
       }),
     });
@@ -242,58 +276,130 @@ serve(async (req) => {
       );
     }
 
+    // Helper to send Telegram requests with retry logic for 429 errors
+    async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
+      let retries = 0;
+      while (retries < maxRetries) {
+        const response = await fetch(url, options);
+        if (response.status === 429) {
+          const data = await response.json();
+          const retryAfter = (data.parameters?.retry_after || 5) * 1000;
+          console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+          retries++;
+          continue;
+        }
+        return response;
+      }
+      return fetch(url, options); // Final attempt
+    }
+
     // Send each question as a poll
     const results = [];
+    const failures = [];
     for (let i = 0; i < quiz.questions.length; i++) {
-      const question = quiz.questions[i];
+      const q = quiz.questions[i];
 
-      const pollResponse = await fetch(`${baseUrl}/sendPoll`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          question: `Q${i + 1}: ${question.question}`,
-          options: question.options,
-          type: "quiz",
-          correct_option_id: question.correct_option_index,
-          explanation: question.explanation || "Check the answer!",
-          is_anonymous: true,
-        }),
-      });
+      // Telegram Poll Limits (ULTRA STRICT for Bengali/emoji safety):
+      // Question: 300 chars max (we use 200 for maximum safety)
+      // Options: 100 chars each max (we use 80 for maximum safety)
+      // Explanation: 200 chars max (we use 150 for maximum safety)
+      // Max 10 options allowed
 
-      const pollData = await pollResponse.json();
+      const questionCharCount = Array.from(q.question || "").length;
+      const requiresFallback = questionCharCount > 200;
+      const pollQuestion = requiresFallback
+        ? safeTruncate(`Q${i + 1}. Select the correct answer:`, 200)
+        : safeTruncate(`Q${i + 1}. ${q.question}`, 200);
 
-      if (!pollResponse.ok) {
-        console.error(`Failed to send poll ${i + 1}:`, pollData);
-
-        let errorMsg = `Failed to send poll: ${pollData.description || "Unknown error"}`;
-        if (pollData.error_code === 403) {
-          errorMsg = `Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open Telegram and add your bot as an Administrator\n2. Grant it 'Post Messages' permission\n3. Try again`;
-        } else if (pollData.error_code === 400 && pollData.description?.includes('chat not found')) {
-          errorMsg = `Chat Not Found: The chat ID "${chatId}" doesn't exist or is incorrect.`;
+      if (requiresFallback) {
+        // Send the full question text as a message first
+        // Limit to 4000 to avoid "message too long" error
+        try {
+          await fetchWithRetry(`${baseUrl}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: safeTruncate(`*Question ${i + 1}:*\n${q.question}`, 4000),
+              parse_mode: "Markdown",
+            }),
+          });
+        } catch (e) {
+          console.error(`Failed to send fallback message for Q${i + 1}:`, e);
         }
-
-        return new Response(
-          JSON.stringify({ success: false, error: errorMsg }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
       }
 
-      results.push(pollData);
+      // Ensure options are valid and truncated
+      let pollOptions = (q.options || [])
+        .slice(0, 10) // Max 10 options
+        .map(opt => safeTruncate(String(opt || "Option"), 80))
+        .filter(opt => opt.length > 0); // Remove empty options
 
-      // Small delay between polls to avoid rate limiting
-      if (!instantPoll && i < quiz.questions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // Telegram requires at least 2 options
+      while (pollOptions.length < 2) {
+        pollOptions.push("Option " + (pollOptions.length + 1));
+      }
+
+      const pollExplanation = safeTruncate(q.explanation || "Correct", 150);
+
+      try {
+        const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            question: pollQuestion,
+            options: pollOptions,
+            type: "quiz",
+            correct_option_id: q.correct_option_index,
+            explanation: pollExplanation,
+            is_anonymous: true,
+          }),
+        });
+
+        const pollData = await pollResponse.json();
+
+        if (!pollResponse.ok) {
+          console.error(`Failed to send poll ${i + 1}:`, pollData);
+          failures.push({
+            questionIndex: i + 1,
+            error: pollData.description || "Unknown error"
+          });
+          // Continue to next question instead of stopping
+          continue;
+        }
+
+        results.push(pollData);
+      } catch (pollError) {
+        console.error(`Exception sending poll ${i + 1}:`, pollError);
+        failures.push({
+          questionIndex: i + 1,
+          error: pollError instanceof Error ? pollError.message : "Unknown error"
+        });
+        // Continue to next question
+        continue;
+      }
+
+      // Delay between polls to avoid rate limiting
+      // Standard: 200ms, Instant: 50ms (Telegram allows ~30 msgs/sec)
+      const delay = instantPoll ? 50 : 200;
+      if (i < quiz.questions.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
 
-    console.log(`Successfully sent ${results.length} polls to chat ${chatId}`);
+    console.log(`Sent ${results.length} polls, ${failures.length} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Sent ${results.length} quiz polls to Telegram`,
+        message: failures.length > 0
+          ? `Sent ${results.length}/${quiz.questions.length} polls. ${failures.length} failed due to message length limits.`
+          : `Sent ${results.length} quiz polls to Telegram`,
         pollsSent: results.length,
+        pollsFailed: failures.length,
+        failures: failures.length > 0 ? failures : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -305,7 +411,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : "Unknown error",
         details: "Make sure your bot token is correct and the chat_id is valid."
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

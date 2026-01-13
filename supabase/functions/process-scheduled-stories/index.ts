@@ -114,13 +114,32 @@ serve(async (req) => {
         }
 
         const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
+        // Helper to send Telegram requests with retry logic for 429 errors
+        async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
+          let retries = 0;
+          while (retries < maxRetries) {
+            const response = await fetch(url, options);
+            if (response.status === 429) {
+              const data = await response.json();
+              const retryAfter = (data.parameters?.retry_after || 5) * 1000;
+              console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retryAfter));
+              retries++;
+              continue;
+            }
+            return response;
+          }
+          return fetch(url, options); // Final attempt
+        }
+
         let messageId: string | null = null;
 
         // Send based on media type
         if (story.media_type === 'image') {
           const caption = buildCaption(story);
 
-          const response = await fetch(`${baseUrl}/sendPhoto`, {
+          const response = await fetchWithRetry(`${baseUrl}/sendPhoto`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -137,7 +156,7 @@ serve(async (req) => {
         } else if (story.media_type === 'video') {
           const caption = buildCaption(story);
 
-          const response = await fetch(`${baseUrl}/sendVideo`, {
+          const response = await fetchWithRetry(`${baseUrl}/sendVideo`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -152,6 +171,9 @@ serve(async (req) => {
           if (!response.ok) throw new Error(data.description || "Failed to send video");
           messageId = data.result?.message_id?.toString();
         }
+
+        // Standard 1000ms delay between stories to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Update story status to posted
         const { error: updateError } = await supabaseAdmin

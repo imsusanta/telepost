@@ -221,7 +221,7 @@ export class PostService {
      */
     static async postNow(postId: string): Promise<void> {
         const { error } = await supabase.functions.invoke("send-telegram-post", {
-            body: { postId },
+            body: { postId, instantPost: true },
         });
 
         if (error) {

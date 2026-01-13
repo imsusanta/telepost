@@ -70,6 +70,7 @@ CREATE POLICY "Users can view their own roles"
   USING (auth.uid() = user_id);
 
 -- Security definer functions for role checks
+DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role) CASCADE;
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
 RETURNS boolean
 LANGUAGE sql
@@ -85,6 +86,7 @@ AS $$
   )
 $$;
 
+DROP FUNCTION IF EXISTS public.is_super_admin(uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.is_super_admin(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -95,6 +97,7 @@ AS $$
   SELECT public.has_role(p_user_id, 'super_admin'::app_role)
 $$;
 
+DROP FUNCTION IF EXISTS public.is_admin(uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.is_admin(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -127,6 +130,7 @@ CREATE POLICY "Anyone can view active invitation codes"
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS invitation_code_used TEXT;
 
 -- Validate invitation code function
+DROP FUNCTION IF EXISTS public.validate_invitation_code(text) CASCADE;
 CREATE OR REPLACE FUNCTION public.validate_invitation_code(p_code text)
 RETURNS TABLE(is_valid boolean, message text)
 LANGUAGE plpgsql
@@ -156,6 +160,7 @@ END;
 $$;
 
 -- Consume invitation code function
+DROP FUNCTION IF EXISTS public.consume_invitation_code(text, uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.consume_invitation_code(p_code text, p_user_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -182,6 +187,7 @@ END;
 $$;
 
 -- Validate coupon function
+DROP FUNCTION IF EXISTS public.validate_coupon(text, uuid, text, numeric) CASCADE;
 CREATE OR REPLACE FUNCTION public.validate_coupon(
   p_coupon_code text,
   p_user_id uuid,
@@ -260,6 +266,7 @@ END;
 $$;
 
 -- Apply coupon function
+DROP FUNCTION IF EXISTS public.apply_coupon(text, uuid, uuid, numeric, numeric, numeric) CASCADE;
 CREATE OR REPLACE FUNCTION public.apply_coupon(
   p_coupon_code text,
   p_user_id uuid,

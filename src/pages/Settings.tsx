@@ -110,6 +110,9 @@ export default function Settings() {
 
       if (error) throw error;
 
+      // Dispatch custom event to notify Sidebar (DashboardLayout) to reload profile
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+
       toast({
         title: "Success!",
         description: "Settings updated successfully.",

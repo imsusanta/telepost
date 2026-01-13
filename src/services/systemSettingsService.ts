@@ -10,7 +10,7 @@ export interface InvitationDefaults {
 
 export interface UserDefaults {
   auto_approve_signups: boolean;
-  default_role: 'user' | 'admin';
+  default_role: 'user';
   email_verification_required: boolean;
 }
 
@@ -26,7 +26,7 @@ export interface SystemMaintenance {
 }
 
 export interface AISettings {
-  provider: 'openrouter';
+  provider: 'openrouter' | 'lovable';
   model: string;
   temperature: number;
 }
@@ -89,8 +89,8 @@ export async function getAllSettings(): Promise<SystemSettings> {
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
     ai_settings: (settings.ai_settings as AISettings) || {
-      provider: 'openrouter',
-      model: 'z-ai/glm-4.5-air:free',
+      provider: 'lovable',
+      model: 'openai/gpt-4o-mini',
       temperature: 0.7,
     },
     telegram_settings: (settings.telegram_settings as TelegramSettings) || {
@@ -201,8 +201,8 @@ export async function toggleMaintenanceMode(enabled: boolean): Promise<void> {
 export async function getAISettings(): Promise<AISettings> {
   const settings = await getSetting('ai_settings');
   return settings || {
-    provider: 'openrouter',
-    model: 'z-ai/glm-4.5-air:free',
+    provider: 'lovable',
+    model: 'openai/gpt-4o-mini',
     temperature: 0.7,
   };
 }

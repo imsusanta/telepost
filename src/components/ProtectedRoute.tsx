@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import PendingApprovalScreen from "@/components/PendingApprovalScreen";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -83,10 +82,5 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Wrap with PendingApprovalScreen to check approval status
-  return (
-    <PendingApprovalScreen>
-      {children}
-    </PendingApprovalScreen>
-  );
+  return <>{children}</>;
 }

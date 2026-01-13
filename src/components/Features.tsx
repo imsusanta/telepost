@@ -1,37 +1,37 @@
-import { Sparkles, Send, FileText, BarChart3, Database, Users } from "lucide-react";
+import { Send, Zap, FileText, BarChart3, Database, Users } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 
 const features = [
   {
-    icon: Sparkles,
-    title: "AI-Powered Generation",
-    description: "Upload your documents and get curriculum-aligned questions in seconds. Our AI understands context, difficulty, and learning objectives.",
+    icon: Zap,
+    title: "30-Second Quiz Posting",
+    description: "From question to Telegram in just 30 seconds. The fastest automation experience in the industry.",
     highlight: true,
   },
   {
     icon: Send,
-    title: "Telegram Delivery",
-    description: "Auto-post quizzes to your channels on schedule. Students answer directly in Telegram with real-time feedback.",
+    title: "Native Telegram Experience",
+    description: "Students answer directly in Telegram. Interactive polls with real-time feedback and results.",
   },
   {
     icon: FileText,
-    title: "Instant PDF Reports",
-    description: "Generate detailed explanation PDFs after each quiz. Perfect for revision and sharing with students.",
+    title: "AI Question Generator",
+    description: "Upload your PDF or paste text, get questions instantly. No more manual typing hassle.",
   },
   {
     icon: BarChart3,
-    title: "Deep Analytics",
-    description: "Track student progress, identify weak topics, and get insights to improve your teaching.",
+    title: "Real-time Analytics",
+    description: "See who answered, track accuracy rates, all in real-time. Monitor student performance effortlessly.",
   },
   {
     icon: Database,
-    title: "Question Bank",
-    description: "Build and organize your question library. Tag, filter, and reuse questions across multiple quizzes.",
+    title: "Smart Question Bank",
+    description: "Organize questions by subject and topic. Create once, reuse forever across multiple quizzes.",
   },
   {
     icon: Users,
-    title: "Team Collaboration",
-    description: "Invite co-teachers and manage multiple channels. Perfect for coaching institutes and schools.",
+    title: "Multi-Channel Support",
+    description: "Manage multiple Telegram channels from one dashboard. Perfect for coaching institutes and schools.",
   },
 ];
 
@@ -39,26 +39,29 @@ export const Features = () => {
   const { ref, isInView } = useInView({ threshold: 0.1 });
 
   return (
-    <section 
-      id="features" 
+    <section
+      id="features"
       ref={ref as React.RefObject<HTMLElement>}
-      className="py-32 px-4 sm:px-6 lg:px-8 border-t border-border/50" 
+      className="py-32 px-4 sm:px-6 lg:px-8 border-t border-border/50"
       aria-labelledby="features-heading"
     >
       <div className="max-w-6xl mx-auto">
         {/* Section header */}
-        <div className={`text-center mb-20 transition-all duration-700 ${
-          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-        }`}>
-          <h2 
-            id="features-heading" 
+        <div className={`text-center mb-20 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 text-sm text-[#0088cc] mb-6">
+            <Zap className="w-4 h-4" />
+            <span>Powerful Features</span>
+          </div>
+          <h2
+            id="features-heading"
             className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6"
           >
-            Everything you need to
-            <span className="text-gradient-primary"> scale your teaching</span>
+            Everything You Need for
+            <span className="text-gradient-primary"> Telegram Automation</span>
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Powerful features designed to save you hours every week and increase student engagement
+            Save hours every week and skyrocket student engagement with powerful features
           </p>
         </div>
 
@@ -67,24 +70,29 @@ export const Features = () => {
           {features.map((feature, idx) => (
             <div
               key={idx}
-              className={`group relative p-8 rounded-3xl border border-border/50 bg-card/30 transition-all duration-500 cursor-default overflow-hidden ${
-                feature.highlight ? "lg:col-span-2 lg:row-span-1" : ""
-              } ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-              style={{ 
+              className={`group relative p-8 rounded-3xl border transition-all duration-500 cursor-default overflow-hidden ${feature.highlight
+                  ? "lg:col-span-2 lg:row-span-1 border-[#0088cc]/30 bg-gradient-to-br from-[#0088cc]/5 to-transparent"
+                  : "border-border/50 bg-card/30"
+                } ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              style={{
                 transitionDelay: isInView ? `${idx * 100}ms` : "0ms"
               }}
             >
               {/* Hover glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              
+              <div className="absolute inset-0 bg-gradient-to-br from-[#0088cc]/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
               {/* Icon with glow */}
               <div className="relative mb-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="w-7 h-7 text-primary" />
+                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl transition-colors ${feature.highlight
+                    ? "bg-[#0088cc]/20 group-hover:bg-[#0088cc]/30"
+                    : "bg-primary/10 group-hover:bg-primary/20"
+                  }`}>
+                  <feature.icon className={`w-7 h-7 ${feature.highlight ? "text-[#0088cc]" : "text-primary"}`} />
                 </div>
-                <div className="absolute inset-0 w-14 h-14 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className={`absolute inset-0 w-14 h-14 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${feature.highlight ? "bg-[#0088cc]/20" : "bg-primary/20"
+                  }`} />
               </div>
-              
+
               <h3 className="relative text-xl font-semibold text-foreground mb-3 group-hover:text-primary transition-colors duration-300">
                 {feature.title}
               </h3>
@@ -92,14 +100,19 @@ export const Features = () => {
                 {feature.description}
               </p>
 
-              {/* Learn more link */}
-              <div className="relative mt-6 inline-flex items-center text-sm text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                Learn more
-                <span className="ml-1 transition-transform group-hover:translate-x-1">→</span>
-              </div>
+              {/* Speed badge for highlighted feature */}
+              {feature.highlight && (
+                <div className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0088cc]/10 border border-[#0088cc]/20">
+                  <span className="w-2 h-2 bg-[#0088cc] rounded-full animate-pulse" />
+                  <span className="text-xs font-medium text-[#0088cc]">Fastest in Industry</span>
+                </div>
+              )}
 
               {/* Subtle border glow on hover */}
-              <div className="absolute inset-0 rounded-3xl border border-primary/0 group-hover:border-primary/20 transition-colors duration-500" />
+              <div className={`absolute inset-0 rounded-3xl border transition-colors duration-500 ${feature.highlight
+                  ? "border-[#0088cc]/0 group-hover:border-[#0088cc]/30"
+                  : "border-primary/0 group-hover:border-primary/20"
+                }`} />
             </div>
           ))}
         </div>

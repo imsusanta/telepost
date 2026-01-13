@@ -6,6 +6,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface AISettings {
+  provider: 'openrouter' | 'lovable';
+  model: string;
+  temperature: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getAISettings(supabase: any): Promise<AISettings> {
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'ai_settings')
+      .maybeSingle();
+
+    if (data?.setting_value) {
+      const settings = data.setting_value as AISettings;
+      // Force gpt-4o-mini if provider is lovable or using an old-style model
+      if (settings.provider === 'lovable' || settings.model.includes('gemini-2.0-flash-exp') || settings.model.includes('glm-4.5-air')) {
+        return {
+          ...settings,
+          provider: 'lovable',
+          model: 'openai/gpt-4o-mini'
+        };
+      }
+      return settings;
+    }
+  } catch (error) {
+    console.error("Failed to fetch AI settings:", error);
+  }
+
+  return {
+    provider: 'lovable',
+    model: 'openai/gpt-4o-mini',
+    temperature: 0.7,
+  };
+}
+
 interface ChannelSettings {
   auto_generate_quizzes: boolean;
   default_subject: string;
@@ -92,10 +130,12 @@ serve(async (req) => {
       quizId?: string;
     }> = [];
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
     }
+
+    const aiSettings = await getAISettings(supabase);
 
     // Process each channel
     for (const channel of channels as Channel[]) {
@@ -162,7 +202,8 @@ serve(async (req) => {
 
         // Generate quiz
         const quiz = await generateQuizForChannel(
-          LOVABLE_API_KEY,
+          aiSettings.model,
+          OPENROUTER_API_KEY,
           channel,
           topic,
           systemPrompt,
@@ -440,6 +481,7 @@ IMPORTANT: Base ALL questions on the Knowledge Base Content provided. Do not gen
  * Generate quiz using AI
  */
 async function generateQuizForChannel(
+  model: string,
   apiKey: string,
   channel: Channel,
   topic: string,
@@ -519,17 +561,18 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-  console.log(`Generating quiz for topic: ${topic} using model: google/gemini-2.5-flash`);
+  console.log(`Generating quiz for topic: ${topic} using model: ${model} via OpenRouter`);
   console.log(`User prompt length: ${userPrompt.length}`);
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "X-Title": "QuizMaker Auto-Gen",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: model,
       messages: [
         { role: "system", content: baseSystemPrompt },
         { role: "user", content: userPrompt },
@@ -546,8 +589,8 @@ ADDITIONAL RULES:
       throw new Error("Payment required. Please add credits to your workspace.");
     }
     const errorText = await response.text();
-    console.error("AI gateway error:", response.status, errorText);
-    throw new Error("Failed to generate quiz from AI");
+    console.error("OpenRouter error:", response.status, errorText);
+    throw new Error("Failed to generate quiz from OpenRouter");
   }
 
   const data = await response.json();
@@ -586,10 +629,28 @@ async function sendQuizToTelegram(
 ): Promise<void> {
   const baseUrl = `https://api.telegram.org/bot${botToken}`;
 
+  // Helper to send Telegram requests with retry logic for 429 errors
+  async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
+    let retries = 0;
+    while (retries < maxRetries) {
+      const response = await fetch(url, options);
+      if (response.status === 429) {
+        const data = await response.json();
+        const retryAfter = (data.parameters?.retry_after || 5) * 1000;
+        console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        retries++;
+        continue;
+      }
+      return response;
+    }
+    return fetch(url, options); // Final attempt
+  }
+
   // Send intro message
   const introMessage = `New Quiz: ${quiz.topic}\nQuestions: ${quiz.questions.length}\nDifficulty: ${quiz.metadata?.difficulty || 'medium'}`;
 
-  await fetch(`${baseUrl}/sendMessage`, {
+  await fetchWithRetry(`${baseUrl}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -599,19 +660,37 @@ async function sendQuizToTelegram(
   });
 
   // Send each question as a poll
+  // Helper to truncate text to Telegram limits with surrogate-pair safety
+  const safeTruncate = (str: string, limit: number): string => {
+    if (!str) return "";
+    // Use Array.from to correctly handle emojis and multi-unit characters
+    const chars = Array.from(str);
+    if (chars.length <= limit) return str;
+    return chars.slice(0, limit - 3).join("") + "...";
+  };
+
   for (let i = 0; i < quiz.questions.length; i++) {
-    const question = quiz.questions[i];
+    const q = quiz.questions[i];
+
+    // Telegram Poll Limits:
+    // Question: 300 chars (we use 290 for safety)
+    // Options: 100 chars each (we use 95 for safety)
+    // Explanation: 200 chars (we use 190 for safety)
+    const pollQuestion = safeTruncate(`Q${i + 1}. ${q.question}`, 290);
+    const pollOptions = (q.options || []).map(opt => safeTruncate(opt, 95));
+    const pollExplanation = safeTruncate(q.explanation || "Correct answer explanation", 190);
+
     const pollData = {
       chat_id: chatId,
-      question: `Q${i + 1}: ${question.question}`,
-      options: question.options,
+      question: pollQuestion,
+      options: pollOptions,
       type: "quiz",
-      correct_option_id: question.correct_option_index,
-      explanation: question.explanation || "",
+      correct_option_id: q.correct_option_index,
+      explanation: pollExplanation,
       is_anonymous: true,
     };
 
-    const pollResponse = await fetch(`${baseUrl}/sendPoll`, {
+    const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pollData),
@@ -623,7 +702,9 @@ async function sendQuizToTelegram(
       throw new Error(`Failed to send question ${i + 1} to Telegram: ${errorText}`);
     }
 
-    // Small delay between questions
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Standard 1000ms delay between polls to avoid rate limiting
+    if (i < quiz.questions.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Clock, Loader2, X, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { Check, Clock, Loader2, X, UserCheck, UserX, AlertCircle, CreditCard } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,9 @@ interface UserWithApproval {
     approval_status: 'pending' | 'approved' | 'rejected';
     approved_at: string | null;
     rejection_reason: string | null;
+    payment_status: 'pending' | 'paid' | 'locked';
+    payment_requested_at: string | null;
+    payment_amount: number | null;
 }
 
 export default function PendingUsers() {
@@ -106,6 +109,19 @@ export default function PendingUsers() {
         }
     };
 
+    const getPaymentBadge = (status: string) => {
+        switch (status) {
+            case 'pending':
+                return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><CreditCard className="w-3 h-3 mr-1" />Unpaid</Badge>;
+            case 'paid':
+                return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20"><Check className="w-3 h-3 mr-1" />Paid</Badge>;
+            case 'locked':
+                return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20"><Clock className="w-3 h-3 mr-1" />Awaiting Payment</Badge>;
+            default:
+                return <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">N/A</Badge>;
+        }
+    };
+
     const UserTable = ({ users: userList, showActions = false }: { users: UserWithApproval[], showActions?: boolean }) => (
         <Table>
             <TableHeader>
@@ -114,6 +130,7 @@ export default function PendingUsers() {
                     <TableHead>Email</TableHead>
                     <TableHead>Registered</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
                     {showActions && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
             </TableHeader>
@@ -124,6 +141,7 @@ export default function PendingUsers() {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{format(new Date(user.created_at), 'MMM d, yyyy')}</TableCell>
                         <TableCell>{getStatusBadge(user.approval_status)}</TableCell>
+                        <TableCell>{getPaymentBadge(user.payment_status)}</TableCell>
                         {showActions && (
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
@@ -152,7 +170,7 @@ export default function PendingUsers() {
                 ))}
                 {userList.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={showActions ? 5 : 4} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={showActions ? 6 : 5} className="text-center text-muted-foreground py-8">
                             No users found
                         </TableCell>
                     </TableRow>

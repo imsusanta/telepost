@@ -1,6 +1,6 @@
 import { AnimatedCounter } from "./AnimatedCounter";
 import { useInView } from "@/hooks/useInView";
-import { Users, BookOpen, Globe, Zap } from "lucide-react";
+import { Users, BookOpen, Zap } from "lucide-react";
 
 const stats = [
   {
@@ -16,13 +16,6 @@ const stats = [
     suffix: "+",
     label: "Students Engaged",
     description: "Across all channels",
-  },
-  {
-    icon: Globe,
-    value: 50,
-    suffix: "+",
-    label: "Countries",
-    description: "Global reach",
   },
   {
     icon: Zap,
@@ -49,9 +42,8 @@ export const StatsSection = () => {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Section header */}
         <div
-          className={`text-center mb-20 transition-all duration-700 ${
-            isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
+          className={`text-center mb-20 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
         >
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-4">
             Trusted by educators
@@ -68,11 +60,10 @@ export const StatsSection = () => {
           {stats.map((stat, idx) => (
             <div
               key={idx}
-              className={`group relative text-center p-8 rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 transition-all duration-500 hover:border-primary/30 hover:shadow-glow-sm ${
-                isInView
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
-              }`}
+              className={`group relative text-center p-8 rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 transition-all duration-500 hover:border-primary/30 hover:shadow-glow-sm ${isInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-8"
+                }`}
               style={{ transitionDelay: `${idx * 100 + 200}ms` }}
             >
               {/* Icon */}

@@ -16,8 +16,12 @@ serve(async (req) => {
         return new Response(null, { headers: corsHeaders });
     }
 
+    let currentPostId: string | null = null;
+
     try {
-        const { postId, instantPost = false }: TelegramPostRequest = await req.json();
+        const body = await req.json();
+        const { postId, instantPost = false }: TelegramPostRequest = body;
+        currentPostId = postId;
 
         if (!postId) {
             return new Response(
@@ -35,18 +39,19 @@ serve(async (req) => {
         const { data: post, error: postError } = await supabase
             .from('telegram_posts')
             .select(`
-        *,
-        channels (
-          telegram_channel_id,
-          telegram_bot_token,
-          user_id
-        )
-      `)
+                *,
+                channels (
+                    telegram_channel_id,
+                    telegram_bot_token,
+                    user_id
+                )
+            `)
             .eq('id', postId)
             .single();
 
         if (postError || !post) {
-            throw new Error(`Post not found: ${postError?.message}`);
+            console.error(`Post ${postId} not found:`, postError);
+            throw new Error(`Post not found: ${postError?.message || "Unknown error"}`);
         }
 
         // Check if post is ready
@@ -57,6 +62,12 @@ serve(async (req) => {
         if (instantPost && post.status !== 'draft' && post.status !== 'scheduled') {
             throw new Error(`Can only instantly post with 'draft' or 'scheduled' status (current: ${post.status})`);
         }
+
+        // Truncate helper
+        const truncate = (str: string, limit: number): string => {
+            if (!str) return "";
+            return str.length > limit ? str.substring(0, limit - 3) + "..." : str;
+        };
 
         // Get bot token
         const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
@@ -102,25 +113,39 @@ serve(async (req) => {
             throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
         }
 
-        // Validate chat ID format
-        if (!chatId.startsWith('@') && !chatId.startsWith('-')) {
-            throw new Error(`Invalid chat ID format: "${chatId}". Use @channelname for public or -100xxxxxxxxxx for private channels.`);
+        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
+        // Helper to send Telegram requests with retry logic for 429 errors
+        async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
+            let retries = 0;
+            while (retries < maxRetries) {
+                const response = await fetch(url, options);
+                if (response.status === 429) {
+                    const data = await response.json();
+                    const retryAfter = (data.parameters?.retry_after || 5) * 1000;
+                    console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryAfter));
+                    retries++;
+                    continue;
+                }
+                return response;
+            }
+            return fetch(url, options); // Final attempt
         }
 
-        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
         let messageId: string | null = null;
         let postSuccess = false;
 
         // Send post based on content type
         if (post.image_url) {
-            // Send photo with caption
-            const photoResponse = await fetch(`${baseUrl}/sendPhoto`, {
+            console.log(`Sending photo to ${chatId}...`);
+            const photoResponse = await fetchWithRetry(`${baseUrl}/sendPhoto`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     chat_id: chatId,
                     photo: post.image_url,
-                    caption: post.content || "",
+                    caption: truncate(post.content || "", 1024), // Telegram caption limit
                     parse_mode: "Markdown",
                 }),
             });
@@ -128,8 +153,8 @@ serve(async (req) => {
             const photoData = await photoResponse.json();
 
             if (!photoResponse.ok) {
-                const errorMsg = photoData.description || "Failed to send photo";
-                throw new Error(`Telegram Error: ${errorMsg}`);
+                console.error("Telegram sendPhoto error:", photoData);
+                throw new Error(`Telegram Error: ${photoData.description || "Failed to send photo"}`);
             }
 
             messageId = photoData.result?.message_id?.toString();
@@ -137,13 +162,13 @@ serve(async (req) => {
             console.log("Photo post sent successfully");
 
         } else {
-            // Send text message
-            const messageResponse = await fetch(`${baseUrl}/sendMessage`, {
+            console.log(`Sending text message to ${chatId}...`);
+            const messageResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     chat_id: chatId,
-                    text: post.content,
+                    text: truncate(post.content, 4096), // Telegram message limit
                     parse_mode: "Markdown",
                 }),
             });
@@ -151,8 +176,8 @@ serve(async (req) => {
             const messageData = await messageResponse.json();
 
             if (!messageResponse.ok) {
-                const errorMsg = messageData.description || "Failed to send message";
-                throw new Error(`Telegram Error: ${errorMsg}`);
+                console.error("Telegram sendMessage error:", messageData);
+                throw new Error(`Telegram Error: ${messageData.description || "Failed to send message"}`);
             }
 
             messageId = messageData.result?.message_id?.toString();
@@ -170,7 +195,7 @@ serve(async (req) => {
                     status: 'posted',
                     posted_at: now,
                     telegram_message_id: messageId,
-                    telegram_chat_id: chatId,
+                    telegram_chat_id: chatId.toString(),
                 })
                 .eq('id', postId);
 
@@ -193,10 +218,9 @@ serve(async (req) => {
     } catch (error) {
         console.error("Error sending post:", error);
 
-        // Try to update post status to failed
-        try {
-            const { postId } = await (await fetch(new Request(req.url, req))).json().catch(() => ({}));
-            if (postId) {
+        // Try to update post status to failed using the service role client
+        if (currentPostId) {
+            try {
                 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
                 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
                 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -207,10 +231,10 @@ serve(async (req) => {
                         status: 'failed',
                         error_message: error instanceof Error ? error.message : 'Unknown error',
                     })
-                    .eq('id', postId);
+                    .eq('id', currentPostId);
+            } catch (dbError) {
+                console.error("Failed to update post error status in DB:", dbError);
             }
-        } catch {
-            // Ignore error update failures
         }
 
         return new Response(

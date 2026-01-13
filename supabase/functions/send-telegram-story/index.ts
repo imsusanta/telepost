@@ -25,8 +25,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let currentStoryId: string | null = null;
+
   try {
-    const { storyId, instantPost = false }: TelegramStoryRequest = await req.json();
+    const body = await req.json();
+    const { storyId, instantPost = false }: TelegramStoryRequest = body;
+    currentStoryId = storyId;
 
     if (!storyId) {
       return new Response(
@@ -117,12 +121,26 @@ serve(async (req) => {
       throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
     }
 
-    // Validate chat ID format for private channels
-    if (!chatId.startsWith('@') && !chatId.startsWith('-')) {
-      throw new Error(`Invalid chat ID format: "${chatId}". For private channels use: -100xxxxxxxxxx, for public channels use: @channelname`);
+    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
+    // Helper to send Telegram requests with retry logic for 429 errors
+    async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
+      let retries = 0;
+      while (retries < maxRetries) {
+        const response = await fetch(url, options);
+        if (response.status === 429) {
+          const data = await response.json();
+          const retryAfter = (data.parameters?.retry_after || 5) * 1000;
+          console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+          retries++;
+          continue;
+        }
+        return response;
+      }
+      return fetch(url, options); // Final attempt
     }
 
-    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
     let messageId: string | null = null;
     let postSuccess = false;
 
@@ -131,7 +149,7 @@ serve(async (req) => {
       // Send photo story
       const caption = buildCaption(story);
 
-      const photoResponse = await fetch(`${baseUrl}/sendPhoto`, {
+      const photoResponse = await fetchWithRetry(`${baseUrl}/sendPhoto`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -155,7 +173,7 @@ serve(async (req) => {
       // Send video story
       const caption = buildCaption(story);
 
-      const videoResponse = await fetch(`${baseUrl}/sendVideo`, {
+      const videoResponse = await fetchWithRetry(`${baseUrl}/sendVideo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -181,7 +199,7 @@ serve(async (req) => {
       // Send text story (formatted message)
       const textContent = buildTextStory(story);
 
-      const messageResponse = await fetch(`${baseUrl}/sendMessage`, {
+      const messageResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -251,21 +269,22 @@ serve(async (req) => {
     console.error("Error sending Telegram story:", error);
 
     // Update story status to 'failed'
-    try {
-      const { storyId } = await req.json();
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    if (currentStoryId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-      await supabase
-        .from('telegram_stories')
-        .update({
-          status: 'failed',
-          error_message: error instanceof Error ? error.message : "Unknown error",
-        })
-        .eq('story_id', storyId);
-    } catch (updateError) {
-      console.error('Failed to update story status to failed:', updateError);
+        await supabase
+          .from('telegram_stories')
+          .update({
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : "Unknown error",
+          })
+          .eq('story_id', currentStoryId);
+      } catch (updateError) {
+        console.error('Failed to update story status to failed:', updateError);
+      }
     }
 
     return new Response(

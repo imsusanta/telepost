@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { QuestionBankItem } from "@/services/questionBankService";
+import { QuestionBankService, type QuestionBankItem } from "@/services/questionBankService";
 import type { Channel } from "@/types/channel";
 import { ChannelService } from "@/services/channelService";
 import {
@@ -23,11 +23,11 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface TelegramShareQuestionBankProps {
-  selectedQuestions: QuestionBankItem[];
+  selectedQuestionIds: Set<string>;
   onClearSelection?: () => void;
 }
 
-export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection }: TelegramShareQuestionBankProps) => {
+export const TelegramShareQuestionBank = ({ selectedQuestionIds, onClearSelection }: TelegramShareQuestionBankProps) => {
   const [chatId, setChatId] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -41,12 +41,39 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
   const [userChannels, setUserChannels] = useState<Channel[]>([]);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [customTopic, setCustomTopic] = useState("");
+  const [selectedQuestions, setSelectedQuestions] = useState<QuestionBankItem[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
+  // Reload questions when dialog opens or when selectedQuestionIds changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && selectedQuestionIds.size > 0) {
       loadUserChannels();
+      // Use the current value of selectedQuestionIds
+      const currentIds = Array.from(selectedQuestionIds);
+      console.log(`Dialog opened with ${currentIds.length} selected question IDs`);
+      loadSelectedQuestionsById(currentIds);
     }
-  }, [isOpen]);
+  }, [isOpen, selectedQuestionIds.size]);
+
+  // Fetch all selected questions by their IDs when dialog opens
+  const loadSelectedQuestionsById = async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    console.log(`Fetching ${ids.length} questions by IDs...`);
+    setIsLoadingQuestions(true);
+    try {
+      const questions = await QuestionBankService.getQuestionsByIds(ids);
+      console.log(`Fetched ${questions.length} questions from database`);
+      setSelectedQuestions(questions);
+    } catch (error) {
+      console.error("Error loading selected questions:", error);
+      toast.error("Failed to load selected questions");
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+
 
   const loadUserChannels = async () => {
     try {
@@ -126,6 +153,17 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
       return;
     }
 
+    // Ensure questions are loaded
+    if (isLoadingQuestions) {
+      toast.error("Please wait for questions to load");
+      return;
+    }
+
+    if (selectedQuestions.length === 0) {
+      toast.error("No questions loaded. Please close and reopen the dialog.");
+      return;
+    }
+
     if (isScheduled && !scheduleInterval) {
       toast.error("Please select a schedule interval");
       return;
@@ -169,6 +207,11 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
 
     setIsSending(true);
     try {
+      // Validate questions again before sending
+      if (selectedQuestions.length === 0) {
+        throw new Error("No questions available to send. Please reload the questions.");
+      }
+
       // Convert QuestionBankItems to the format expected by the edge function
       const questions = selectedQuestions.map(q => ({
         question: q.question,
@@ -177,17 +220,17 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
         explanation: q.explanation,
       }));
 
-      // Determine topic for the quiz (use most common topic or "Mixed")
-      const topicCounts: Record<string, number> = {};
-      selectedQuestions.forEach(q => {
-        topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1;
+      console.log(`Sending ${questions.length} questions to Telegram:`, {
+        chatId: correctedChatId,
+        isScheduled,
+        scheduleInterval,
+        minQuestions,
+        instantPoll,
+        questionsCount: questions.length,
       });
-      const mostCommonTopic = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Mixed Topics";
-      const topic = selectedQuestions.length === 1
-        ? selectedQuestions[0].topic
-        : topicCounts[mostCommonTopic] === selectedQuestions.length
-          ? mostCommonTopic
-          : "Mixed Topics";
+
+      // Determine topic for the quiz (manual input or default to General Knowledge)
+      const topic = customTopic.trim() || "General Knowledge";
 
       const { data, error } = await supabase.functions.invoke("send-telegram-quiz", {
         body: {
@@ -210,8 +253,8 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
         return;
       }
 
-      if (isScheduled) {
-        toast.success(`Questions scheduled to post every ${scheduleInterval} minute(s) 📅`);
+      if (isScheduled || data.isQueued) {
+        toast.success(data.message || "Questions queued for background delivery. It will appear in Telegram shortly. 📅");
       } else {
         toast.success(`Successfully sent ${data.pollsSent} quiz polls to Telegram! 🎉`);
       }
@@ -223,6 +266,7 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
       setCustomMinQuestions("");
       setIsScheduled(false);
       setInstantPoll(false);
+      setCustomTopic("");
 
       // Clear selection after successful send
       if (onClearSelection) {
@@ -245,19 +289,23 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
           <Button
             variant="default"
             className="gap-2"
-            disabled={selectedQuestions.length === 0}
+            disabled={selectedQuestionIds.size === 0}
           >
             <Send className="w-4 h-4" />
-            Send to Telegram ({selectedQuestions.length})
+            Send to Telegram ({selectedQuestionIds.size})
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Send Questions to Telegram</DialogTitle>
             <DialogDescription>
-              Send {selectedQuestions.length} selected question(s) as interactive polls to any Telegram chat or channel
+              {isLoadingQuestions
+                ? `Loading ${selectedQuestionIds.size} selected question(s)...`
+                : `Send ${selectedQuestions.length} selected question(s) as interactive polls to any Telegram chat or channel`
+              }
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="channelSelect">Select Channel</Label>
@@ -280,6 +328,20 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
               )}
               <p className="text-xs text-muted-foreground">
                 Optional: Selecting a channel will automatically fill its Chat ID.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customTopic">Quiz Topic</Label>
+              <Input
+                id="customTopic"
+                placeholder="e.g., General Knowledge, Science..."
+                value={customTopic}
+                onChange={(e) => setCustomTopic(e.target.value)}
+                disabled={isSending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to default to "General Knowledge".
               </p>
             </div>
 
@@ -455,7 +517,7 @@ export const TelegramShareQuestionBank = ({ selectedQuestions, onClearSelection 
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>

@@ -27,10 +27,12 @@ CREATE TABLE IF NOT EXISTS public.system_features (
 ALTER TABLE public.system_features ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for system_features
+DROP POLICY IF EXISTS "Anyone can view system features" ON public.system_features;
 CREATE POLICY "Anyone can view system features"
 ON public.system_features FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Only super admins can update system features" ON public.system_features;
 CREATE POLICY "Only super admins can update system features"
 ON public.system_features FOR UPDATE
 USING (
@@ -41,6 +43,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Only super admins can insert system features" ON public.system_features;
 CREATE POLICY "Only super admins can insert system features"
 ON public.system_features FOR INSERT
 WITH CHECK (
@@ -125,6 +128,7 @@ WHERE name = 'enterprise';
 -- 4. UPDATED_AT TRIGGER FOR SYSTEM_FEATURES
 -- ============================================
 
+DROP TRIGGER IF EXISTS update_system_features_updated_at ON public.system_features;
 CREATE TRIGGER update_system_features_updated_at 
 BEFORE UPDATE ON public.system_features
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

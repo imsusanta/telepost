@@ -46,7 +46,7 @@ serve(async (req) => {
 
     // Check if user is super admin
     const { data: isSuperAdmin } = await supabase.rpc('is_super_admin', { p_user_id: userId });
-    
+
     if (!isSuperAdmin) {
       return new Response(
         JSON.stringify({ error: "Super admin access required" }),
@@ -71,18 +71,19 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Testing AI connection with model: ${model}, temperature: ${temperature}`);
+    const testModel = model || 'openai/gpt-4o-mini';
+    console.log(`Testing AI connection with model: ${testModel}, temperature: ${temperature}`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": supabaseUrl,
+        "HTTP-Referer": "https://telepost.io",
         "X-Title": "QuizMaker AI Test",
       },
       body: JSON.stringify({
-        model: model,
+        model: testModel,
         messages: [
           { role: "user", content: "Say 'Hello! AI connection successful.' in 10 words or less." }
         ],
@@ -94,7 +95,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`OpenRouter error (${response.status}):`, errorText);
-      
+
       let errorMessage = "Failed to connect to OpenRouter";
       try {
         const errorJson = JSON.parse(errorText);
@@ -104,9 +105,9 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `OpenRouter API error: ${errorMessage}` 
+        JSON.stringify({
+          success: false,
+          error: `OpenRouter API error (${response.status}): ${errorMessage}`
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -118,19 +119,19 @@ serve(async (req) => {
     console.log("AI test successful:", content);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         response: content,
-        model: data.model 
+        model: data.model
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Test AI connection error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: error instanceof Error ? error.message : "Unknown error"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

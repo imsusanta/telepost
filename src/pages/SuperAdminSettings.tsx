@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  RefreshCcw,
   Save,
   Send,
   Shield,
@@ -85,8 +86,8 @@ export default function SuperAdminSettings() {
   });
 
   const [aiSettings, setAISettings] = useState<AISettings>({
-    provider: 'openrouter',
-    model: 'z-ai/glm-4.5-air:free',
+    provider: 'lovable',
+    model: 'openai/gpt-4o-mini',
     temperature: 0.7,
   });
 
@@ -633,7 +634,7 @@ export default function SuperAdminSettings() {
                     value={userDefaults.default_role}
                     onValueChange={(v) => setUserDefaults(prev => ({
                       ...prev,
-                      default_role: v as 'user' | 'admin',
+                      default_role: v as 'user',
                     }))}
                   >
                     <SelectTrigger className="w-[200px]">
@@ -641,7 +642,6 @@ export default function SuperAdminSettings() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -771,15 +771,15 @@ export default function SuperAdminSettings() {
                   AI Configuration
                 </CardTitle>
                 <CardDescription>
-                  Configure OpenRouter AI model for quiz generation and document processing
+                  Configure AI model for quiz generation and document processing
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <Alert>
                   <Zap className="h-4 w-4" />
-                  <AlertTitle>OpenRouter Integration</AlertTitle>
+                  <AlertTitle>AI Model Integration</AlertTitle>
                   <AlertDescription>
-                    Paste any OpenRouter model slug (e.g., <code className="bg-muted px-1 rounded">z-ai/glm-4.5-air:free</code>) to use it for AI features.
+                    Enter a model slug (e.g., <code className="bg-muted px-1 rounded">openai/gpt-4o-mini</code> for Lovable AI Gateway).
                     Find models at <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="underline">openrouter.ai/models</a>
                   </AlertDescription>
                 </Alert>
@@ -793,10 +793,10 @@ export default function SuperAdminSettings() {
                       ...prev,
                       model: e.target.value.trim(),
                     }))}
-                    placeholder="e.g., z-ai/glm-4.5-air:free"
+                    placeholder="e.g., openai/gpt-4o-mini"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enter the full model slug from OpenRouter
+                    Enter the full model slug
                   </p>
                 </div>
 
@@ -822,7 +822,7 @@ export default function SuperAdminSettings() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={handleTestAIConnection}
                     disabled={testingAI || !aiSettings.model}
@@ -831,6 +831,18 @@ export default function SuperAdminSettings() {
                   >
                     {testingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                     Test Connection
+                  </Button>
+                  <Button
+                    onClick={() => setAISettings({
+                      provider: 'lovable',
+                      model: 'openai/gpt-4o-mini',
+                      temperature: 0.7
+                    })}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    <RefreshCcw className="w-4 h-4" />
+                    Reset to Defaults
                   </Button>
                   <Button
                     onClick={handleSaveAISettings}

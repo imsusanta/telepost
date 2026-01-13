@@ -160,6 +160,7 @@ WITH CHECK (auth.uid() = user_id);
 -- ============================================
 
 -- Function to validate a coupon code
+DROP FUNCTION IF EXISTS validate_coupon(TEXT, UUID, TEXT, DECIMAL(10, 2));
 CREATE OR REPLACE FUNCTION validate_coupon(
   p_coupon_code TEXT,
   p_user_id UUID,
@@ -265,6 +266,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to apply a coupon (call after payment/subscription creation)
+DROP FUNCTION IF EXISTS apply_coupon(TEXT, UUID, UUID, DECIMAL(10, 2), DECIMAL(10, 2), DECIMAL(10, 2));
 CREATE OR REPLACE FUNCTION apply_coupon(
   p_coupon_code TEXT,
   p_user_id UUID,
@@ -314,6 +316,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to check if user is super admin
+DROP FUNCTION IF EXISTS is_super_admin(UUID);
 CREATE OR REPLACE FUNCTION is_super_admin(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -325,6 +328,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to check if user is admin or super admin
+DROP FUNCTION IF EXISTS is_admin(UUID);
 CREATE OR REPLACE FUNCTION is_admin(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN

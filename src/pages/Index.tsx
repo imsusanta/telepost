@@ -17,6 +17,7 @@ import { ProductShowcase } from "@/components/ProductShowcase";
 import { UseCases } from "@/components/UseCases";
 import { Testimonials } from "@/components/Testimonials";
 import { Integrations } from "@/components/Integrations";
+import { TelegramDemo } from "@/components/TelegramDemo";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -142,6 +143,7 @@ const Index = () => {
             <LogoCloud />
             <StatsSection />
             <ProductShowcase />
+            <TelegramDemo />
             <Features />
             <HowItWorks />
             <UseCases />

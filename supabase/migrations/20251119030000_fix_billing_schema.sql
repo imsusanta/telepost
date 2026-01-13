@@ -204,7 +204,7 @@ VALUES
   -- Agency Plan
   ('agency', 'Agency', 249.00, 'monthly', 10, 200, NULL, 100, 200000, true, true, true, true, true, true, true, true, true, true),
   -- Enterprise Plan
-  ('enterprise', 'Enterprise', 999.00, 'monthly', NULL, 1000, NULL, 1000, 1000000, true, true, true, true, true, true, true, true, true, true)
+  ('enterprise', 'Enterprise', 999.00, 'monthly', 999, 1000, NULL, 1000, 1000000, true, true, true, true, true, true, true, true, true, true)
 ON CONFLICT (name) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   price = EXCLUDED.price,
