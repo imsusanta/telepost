@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock } from "lucide-react";
+import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock, Activity, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -90,71 +90,84 @@ export default function Dashboard() {
       title: "Total Quizzes",
       value: stats?.totalQuizzes || 0,
       icon: Sparkles,
-      color: "bg-sky-500",
+      color: "from-sky-500 to-blue-600",
+      ring: "ring-sky-500/20",
     },
     {
       title: "Scheduled",
       value: stats?.scheduledPosts || 0,
       icon: Calendar,
-      color: "bg-amber-500",
+      color: "from-amber-500 to-orange-600",
+      ring: "ring-amber-500/20",
     },
     {
       title: "Responses",
       value: stats?.totalViews || 0,
       icon: BarChart3,
-      color: "bg-rose-500",
+      color: "from-rose-500 to-pink-600",
+      ring: "ring-rose-500/20",
     },
     {
       title: "Questions",
       value: stats?.totalQuestions || 0,
       icon: Database,
-      color: "bg-emerald-500",
+      color: "from-emerald-500 to-teal-600",
+      ring: "ring-emerald-500/20",
     },
   ], [stats]);
 
   const quickActions = [
-    { title: "Create Quiz", icon: Plus, path: "/dashboard/create-quiz", color: "bg-sky-500" },
-    { title: "Question Bank", icon: Database, path: "/dashboard/question-bank", color: "bg-emerald-500" },
-    { title: "Scheduler", icon: Clock, path: "/dashboard/scheduler", color: "bg-amber-500" },
+    { title: "Create Quiz", subtitle: "Generate with AI", icon: Plus, path: "/dashboard/create-quiz", color: "from-sky-500 to-blue-600" },
+    { title: "Question Bank", subtitle: "Manage your content", icon: Database, path: "/dashboard/question-bank", color: "from-emerald-500 to-teal-600" },
+    { title: "Scheduler", subtitle: "Automate publishing", icon: Clock, path: "/dashboard/scheduler", color: "from-amber-500 to-orange-600" },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 relative">
+        <div className="absolute inset-x-0 -top-16 h-40 bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 blur-3xl pointer-events-none" />
+
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Welcome back, {profile?.full_name || "User"}!
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Here's what's happening with your quizzes today.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading || isFetching}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <Card className="border-white/40 bg-card/70 backdrop-blur-xl shadow-[0_20px_60px_-30px_hsl(var(--foreground)/0.4)]">
+          <CardContent className="p-5 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs tracking-[0.18em] uppercase text-primary font-semibold mb-2">
+                <Activity className="w-3.5 h-3.5" />
+                Workspace Overview
+              </p>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Welcome back, {profile?.full_name || "User"}!
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground mt-2">
+                Here's what's happening with your quizzes today.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading || isFetching}
+              className="gap-2 rounded-full px-5 bg-background/80 backdrop-blur"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="h-24 rounded-xl bg-muted animate-pulse" />
+              <div key={idx} className="h-28 rounded-2xl bg-muted animate-pulse" />
             ))
           ) : (
             statsCards.map((stat, idx) => (
               <div
                 key={idx}
-                className="bg-card border rounded-xl p-4 hover:shadow-md transition-shadow"
+                className={`relative overflow-hidden bg-card/85 backdrop-blur-xl border border-white/30 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 ring-1 ${stat.ring}`}
               >
+                <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-gradient-to-br opacity-20 blur-xl pointer-events-none" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
@@ -162,7 +175,7 @@ export default function Dashboard() {
                       {stat.value.toLocaleString()}
                     </p>
                   </div>
-                  <div className={`w-10 h-10 ${stat.color} rounded-lg flex items-center justify-center`}>
+                  <div className={`w-11 h-11 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center shadow-lg`}>
                     <stat.icon className="w-5 h-5 text-white" />
                   </div>
                 </div>
@@ -172,34 +185,35 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" /> Quick Actions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {quickActions.map((action, idx) => (
-                <Button
+                <button
                   key={idx}
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col gap-2 hover:bg-muted/50"
+                  className="text-left rounded-2xl border border-white/30 bg-background/60 p-4 hover:bg-background transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
                   onClick={() => navigate(action.path)}
                 >
-                  <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
+                  <div className={`w-10 h-10 mb-3 bg-gradient-to-br ${action.color} rounded-lg flex items-center justify-center shadow-lg`}>
                     <action.icon className="w-5 h-5 text-white" />
                   </div>
-                  <span className="font-medium text-sm">{action.title}</span>
-                </Button>
+                  <p className="font-semibold text-sm">{action.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{action.subtitle}</p>
+                </button>
               ))}
             </div>
           </CardContent>
         </Card>
 
-
         {/* Info Cards Row */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Connected Channels */}
-          <Card>
+          <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Bot className="w-4 h-4 text-primary" />
@@ -220,7 +234,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Connected Bots */}
-          <Card>
+          <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Bot className="w-4 h-4 text-emerald-500" />
@@ -241,7 +255,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Documents */}
-          <Card>
+          <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
@@ -262,7 +276,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Pending Posts */}
-          <Card>
+          <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Clock className="w-4 h-4 text-primary" />
@@ -285,17 +299,17 @@ export default function Dashboard() {
 
         {/* Getting Started - Show only if no quizzes */}
         {(stats?.totalQuizzes || 0) === 0 && !isLoading && (
-          <Card className="border-dashed">
+          <Card className="border-dashed border-primary/30 bg-gradient-to-r from-primary/5 via-accent/5 to-secondary/5">
             <CardContent className="py-8">
               <div className="text-center max-w-md mx-auto">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-primary/5">
                   <Sparkles className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Create Your First Quiz</h3>
                 <p className="text-muted-foreground mb-4">
                   Start engaging your Telegram audience with AI-powered quizzes.
                 </p>
-                <Button onClick={() => navigate("/dashboard/create-quiz")} className="gap-2">
+                <Button onClick={() => navigate("/dashboard/create-quiz")} className="gap-2 rounded-full px-6">
                   <Plus className="w-4 h-4" />
                   Create Quiz
                 </Button>
