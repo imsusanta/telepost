@@ -70,7 +70,19 @@ serve(async (req) => {
             console.error("Failed to update payment record:", updatePaymentError);
         }
 
-        // Update user profile to paid status
+        // Get plan_id from subscription_payments
+        const { data: paymentData, error: paymentFetchError } = await supabaseClient
+            .from("subscription_payments")
+            .select("plan_id, amount")
+            .eq("razorpay_order_id", razorpay_order_id)
+            .single();
+
+        if (paymentFetchError || !paymentData) {
+            console.error("Failed to fetch payment data:", paymentFetchError);
+            throw new Error("Payment record not found");
+        }
+
+        // 1. Update user profile to paid status
         const { error: updateProfileError } = await supabaseClient
             .from("profiles")
             .update({
@@ -82,6 +94,28 @@ serve(async (req) => {
 
         if (updateProfileError) {
             throw new Error("Failed to update user status");
+        }
+
+        // 2. Update/Create entry in subscriptions table
+        const currentPeriodStart = new Date();
+        const currentPeriodEnd = new Date();
+        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+        const { error: subscriptionError } = await supabaseClient
+            .from("subscriptions")
+            .upsert({
+                user_id: user.id,
+                plan_id: paymentData.plan_id,
+                status: "active",
+                current_period_start: currentPeriodStart.toISOString(),
+                current_period_end: currentPeriodEnd.toISOString(),
+                cancel_at_period_end: false,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+
+        if (subscriptionError) {
+            console.error("Failed to update subscription:", subscriptionError);
+            // This is critical, but the profile is updated at least.
         }
 
         console.log(`Payment verified for user ${user.id}: ${razorpay_payment_id}`);

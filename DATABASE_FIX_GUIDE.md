@@ -20,7 +20,7 @@ This mismatch occurred because migrations used `CREATE TABLE IF NOT EXISTS`, whi
 ### Option 1: Run the Fix Script (Automated)
 
 1. Get your Supabase service role key:
-   - Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api
+   - Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api
    - Copy the **service_role** key (NOT the anon key)
 
 2. Run the fix script:
@@ -31,7 +31,7 @@ This mismatch occurred because migrations used `CREATE TABLE IF NOT EXISTS`, whi
 ### Option 2: Manual SQL Execution (Recommended)
 
 1. Go to the Supabase SQL Editor:
-   - URL: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+   - URL: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 
 2. Open the migration file:
    - File: `supabase/migrations/20251119030000_fix_billing_schema.sql`
@@ -52,13 +52,13 @@ npm install -g supabase
 supabase login
 
 # Link your project
-supabase link --project-ref cazrdevenbxdjussycfj
+supabase link --project-ref wpkxbrdgktmwnowvmwue
 
 # Apply migrations
 supabase db push
 
 # Generate TypeScript types
-supabase gen types typescript --project-id cazrdevenbxdjussycfj > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id wpkxbrdgktmwnowvmwue > src/integrations/supabase/types.ts
 ```
 
 ## What the Migration Does
@@ -186,7 +186,7 @@ CREATE TABLE usage_tracking (
 ### "permission denied" Error
 
 You need the service_role key, not the anon key. Get it from:
-https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api
+https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api
 
 ### "table already exists" Warnings
 
@@ -198,7 +198,7 @@ After running the migration, regenerate types:
 
 ```bash
 # Using Supabase CLI
-supabase gen types typescript --project-id cazrdevenbxdjussycfj > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id wpkxbrdgktmwnowvmwue > src/integrations/supabase/types.ts
 
 # Or manually update in Supabase Dashboard:
 # Settings → API → TypeScript types → Copy

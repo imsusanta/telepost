@@ -2,7 +2,7 @@
 -- ADD PUBLIC.SUBSCRIPTIONS TABLE
 -- =============================================
 -- Copy and paste this entire file into the Supabase SQL Editor
--- URL: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+-- URL: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 --
 -- This will create:
 -- - subscription_plans table (plan definitions)

@@ -9,8 +9,6 @@ import {
   Save,
   Send,
   Shield,
-  Ticket,
-  ToggleLeft,
   Users,
   Wrench,
   Zap
@@ -38,13 +36,11 @@ import { Slider } from '@/components/ui/slider';
 import { isSuperAdmin } from '@/services/couponService';
 import {
   getAllSettings,
-  updateInvitationDefaults,
   updateUserDefaults,
   updateSubscriptionDefaults,
   updateMaintenanceSettings,
   updateAISettings,
   updateTelegramSettings,
-  type InvitationDefaults,
   type UserDefaults,
   type SubscriptionDefaults,
   type SystemMaintenance,
@@ -52,7 +48,6 @@ import {
   type TelegramSettings,
 } from '@/services/systemSettingsService';
 import { supabase } from '@/integrations/supabase/client';
-import { getSystemFeatures, toggleFeature, type SystemFeature } from '@/services/featureService';
 
 export default function SuperAdminSettings() {
   const navigate = useNavigate();
@@ -60,13 +55,6 @@ export default function SuperAdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form states
-  const [invitationDefaults, setInvitationDefaults] = useState<InvitationDefaults>({
-    default_max_uses: 10,
-    default_expiry_days: 30,
-    allow_unlimited: true,
-    allow_custom_codes: true,
-  });
 
   const [userDefaults, setUserDefaults] = useState<UserDefaults>({
     auto_approve_signups: true,
@@ -89,6 +77,10 @@ export default function SuperAdminSettings() {
     provider: 'lovable',
     model: 'openai/gpt-4o-mini',
     temperature: 0.7,
+    system_prompt: '',
+    openrouter_api_key: '',
+    gemini_api_key: '',
+    openai_api_key: '',
   });
 
   const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>({
@@ -96,13 +88,13 @@ export default function SuperAdminSettings() {
     fallback_enabled: true,
   });
   const [showGlobalToken, setShowGlobalToken] = useState(false);
+  const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
 
   const [testingAI, setTestingAI] = useState(false);
 
-  // Feature toggles state
-  const [features, setFeatures] = useState<SystemFeature[]>([]);
-  const [loadingFeatures, setLoadingFeatures] = useState(true);
-  const [togglingFeature, setTogglingFeature] = useState<string | null>(null);
+
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -114,7 +106,6 @@ export default function SuperAdminSettings() {
 
       try {
         const data = await getAllSettings();
-        setInvitationDefaults(data.invitation_defaults);
         setUserDefaults(data.user_defaults);
         setSubscriptionDefaults(data.subscription_defaults);
         setMaintenanceSettings(data.system_maintenance);
@@ -137,61 +128,9 @@ export default function SuperAdminSettings() {
     loadSettings();
   }, [navigate, toast]);
 
-  // Load feature toggles
-  useEffect(() => {
-    const loadFeatures = async () => {
-      try {
-        const data = await getSystemFeatures();
-        setFeatures(data);
-      } catch (error) {
-        console.error('Failed to load features:', error);
-      } finally {
-        setLoadingFeatures(false);
-      }
-    };
-    loadFeatures();
-  }, []);
 
-  const handleToggleFeature = async (featureKey: string, enabled: boolean) => {
-    setTogglingFeature(featureKey);
-    try {
-      await toggleFeature(featureKey as 'telegram_quiz' | 'lms_attendance', enabled);
-      setFeatures(prev => prev.map(f =>
-        f.feature_key === featureKey ? { ...f, is_enabled: enabled } : f
-      ));
-      toast({
-        title: 'Feature Updated',
-        description: `${featureKey === 'lms_attendance' ? 'LMS & Attendance' : 'Telegram Quiz'} has been ${enabled ? 'enabled' : 'disabled'}`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update feature',
-        variant: 'destructive',
-      });
-    } finally {
-      setTogglingFeature(null);
-    }
-  };
 
-  const handleSaveInvitationDefaults = async () => {
-    try {
-      setSaving(true);
-      await updateInvitationDefaults(invitationDefaults);
-      toast({
-        title: 'Success',
-        description: 'Invitation settings saved',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   const handleSaveUserDefaults = async () => {
     try {
@@ -296,8 +235,13 @@ export default function SuperAdminSettings() {
 
       const { data, error } = await supabase.functions.invoke('test-ai-connection', {
         body: {
+          provider: aiSettings.provider,
           model: aiSettings.model,
-          temperature: aiSettings.temperature
+          temperature: aiSettings.temperature,
+          system_prompt: aiSettings.system_prompt,
+          openrouter_api_key: aiSettings.openrouter_api_key,
+          gemini_api_key: aiSettings.gemini_api_key,
+          openai_api_key: aiSettings.openai_api_key
         }
       });
 
@@ -359,19 +303,11 @@ export default function SuperAdminSettings() {
           </Alert>
         )}
 
-        <Tabs defaultValue="features" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-flex">
-            <TabsTrigger value="features" className="gap-2">
-              <ToggleLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Features</span>
-            </TabsTrigger>
+        <Tabs defaultValue="telegram" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="telegram" className="gap-2">
               <Send className="w-4 h-4" />
               <span className="hidden sm:inline">Telegram</span>
-            </TabsTrigger>
-            <TabsTrigger value="invitations" className="gap-2">
-              <Ticket className="w-4 h-4" />
-              <span className="hidden sm:inline">Invitations</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
@@ -391,65 +327,7 @@ export default function SuperAdminSettings() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Feature Toggles */}
-          <TabsContent value="features">
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ToggleLeft className="w-5 h-5" />
-                  Feature Toggles
-                </CardTitle>
-                <CardDescription>
-                  Enable or disable platform features globally
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {loadingFeatures ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading features...
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {features.map((feature) => (
-                      <div
-                        key={feature.id}
-                        className={`flex items-center justify-between p-4 rounded-lg border ${feature.is_core_feature
-                          ? 'bg-primary/5 border-primary/20'
-                          : 'bg-muted/50 border-border'
-                          }`}
-                      >
-                        <div>
-                          <Label className="font-medium">
-                            {feature.display_name}
-                            {feature.is_core_feature && (
-                              <span className="ml-2 text-xs text-primary">(Core Feature)</span>
-                            )}
-                          </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {feature.description}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={feature.is_enabled}
-                          onCheckedChange={(checked) => handleToggleFeature(feature.feature_key, checked)}
-                          disabled={feature.is_core_feature || togglingFeature === feature.feature_key}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
 
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Important</AlertTitle>
-                  <AlertDescription>
-                    Disabling a feature will hide it from all users. Core features cannot be disabled.
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Telegram Bot Settings */}
           <TabsContent value="telegram">
@@ -526,94 +404,7 @@ export default function SuperAdminSettings() {
             </Card>
           </TabsContent>
 
-          {/* Invitation Defaults */}
-          <TabsContent value="invitations">
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Ticket className="w-5 h-5" />
-                  Invitation Code Defaults
-                </CardTitle>
-                <CardDescription>
-                  Configure default settings for new invitation codes
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="default_max_uses">Default Max Uses</Label>
-                    <Input
-                      id="default_max_uses"
-                      type="number"
-                      value={invitationDefaults.default_max_uses}
-                      onChange={(e) => setInvitationDefaults(prev => ({
-                        ...prev,
-                        default_max_uses: parseInt(e.target.value) || 10,
-                      }))}
-                      min={1}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Default number of times a code can be used
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="default_expiry_days">Default Expiry Days</Label>
-                    <Input
-                      id="default_expiry_days"
-                      type="number"
-                      value={invitationDefaults.default_expiry_days}
-                      onChange={(e) => setInvitationDefaults(prev => ({
-                        ...prev,
-                        default_expiry_days: parseInt(e.target.value) || 30,
-                      }))}
-                      min={1}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Default number of days until code expires
-                    </p>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Allow Unlimited Uses</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Allow creating codes with no usage limit
-                      </p>
-                    </div>
-                    <Switch
-                      checked={invitationDefaults.allow_unlimited}
-                      onCheckedChange={(checked) => setInvitationDefaults(prev => ({
-                        ...prev,
-                        allow_unlimited: checked,
-                      }))}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Allow Custom Codes</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Allow admins to create custom invitation codes
-                      </p>
-                    </div>
-                    <Switch
-                      checked={invitationDefaults.allow_custom_codes}
-                      onCheckedChange={(checked) => setInvitationDefaults(prev => ({
-                        ...prev,
-                        allow_custom_codes: checked,
-                      }))}
-                    />
-                  </div>
-                </div>
-
-                <Button onClick={handleSaveInvitationDefaults} disabled={saving} className="gap-2">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Invitation Settings
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* User Defaults */}
           <TabsContent value="users">
@@ -784,20 +575,137 @@ export default function SuperAdminSettings() {
                   </AlertDescription>
                 </Alert>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ai_model">Model Name</Label>
-                  <Input
-                    id="ai_model"
-                    value={aiSettings.model}
-                    onChange={(e) => setAISettings(prev => ({
-                      ...prev,
-                      model: e.target.value.trim(),
-                    }))}
-                    placeholder="e.g., openai/gpt-4o-mini"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Enter the full model slug
-                  </p>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="openrouter_api_key">OpenRouter API Key</Label>
+                      <div className="relative">
+                        <Input
+                          id="openrouter_api_key"
+                          type={showOpenRouterKey ? "text" : "password"}
+                          value={aiSettings.openrouter_api_key}
+                          onChange={(e) => setAISettings(prev => ({
+                            ...prev,
+                            openrouter_api_key: e.target.value.trim(),
+                          }))}
+                          placeholder="Your OpenRouter API Key"
+                          className="pr-10 font-mono text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2"
+                          onClick={() => setShowOpenRouterKey(!showOpenRouterKey)}
+                        >
+                          {showOpenRouterKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Main gateway for AI quiz generation models
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gemini_api_key">Gemini API Key (Direct)</Label>
+                      <div className="relative">
+                        <Input
+                          id="gemini_api_key"
+                          type={showGeminiKey ? "text" : "password"}
+                          value={aiSettings.gemini_api_key}
+                          onChange={(e) => setAISettings(prev => ({
+                            ...prev,
+                            gemini_api_key: e.target.value.trim(),
+                          }))}
+                          placeholder="Your Gemini API Key"
+                          className="pr-10 font-mono text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2"
+                          onClick={() => setShowGeminiKey(!showGeminiKey)}
+                        >
+                          {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Used for direct Gemini model calls
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="openai_api_key">OpenAI API Key (Direct)</Label>
+                      <div className="relative">
+                        <Input
+                          id="openai_api_key"
+                          type={showOpenAIKey ? "text" : "password"}
+                          value={aiSettings.openai_api_key}
+                          onChange={(e) => setAISettings(prev => ({
+                            ...prev,
+                            openai_api_key: e.target.value.trim(),
+                          }))}
+                          placeholder="Your OpenAI API Key"
+                          className="pr-10 font-mono text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2"
+                          onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+                        >
+                          {showOpenAIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Used for direct OpenAI model calls
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ai_provider">AI Provider</Label>
+                      <Select
+                        value={aiSettings.provider}
+                        onValueChange={(v) => setAISettings(prev => ({
+                          ...prev,
+                          provider: v as 'openrouter' | 'lovable' | 'gemini' | 'openai',
+                        }))}
+                      >
+                        <SelectTrigger id="ai_provider">
+                          <SelectValue placeholder="Select Provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="openrouter">OpenRouter (Recommended)</SelectItem>
+                          <SelectItem value="gemini">Gemini (Direct)</SelectItem>
+                          <SelectItem value="openai">OpenAI (Direct)</SelectItem>
+                          <SelectItem value="lovable">Lovable Proxy</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Select the service to use for AI requests
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ai_model">Model Name</Label>
+                      <Input
+                        id="ai_model"
+                        value={aiSettings.model}
+                        onChange={(e) => setAISettings(prev => ({
+                          ...prev,
+                          model: e.target.value.trim(),
+                        }))}
+                        placeholder="e.g., openai/gpt-4o-mini"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter the full model slug
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -820,6 +728,24 @@ export default function SuperAdminSettings() {
                       Lower values = more focused, higher values = more creative
                     </p>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="system_prompt">Global System Prompt</Label>
+                    <Textarea
+                      id="system_prompt"
+                      value={aiSettings.system_prompt}
+                      onChange={(e) => setAISettings(prev => ({
+                        ...prev,
+                        system_prompt: e.target.value,
+                      }))}
+                      placeholder="Enter a global system prompt to improve AI output quality..."
+                      rows={6}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This prompt will be prepended to all AI requests to guide the model's behavior.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -834,9 +760,13 @@ export default function SuperAdminSettings() {
                   </Button>
                   <Button
                     onClick={() => setAISettings({
-                      provider: 'lovable',
+                      provider: 'openrouter',
                       model: 'openai/gpt-4o-mini',
-                      temperature: 0.7
+                      temperature: 0.7,
+                      system_prompt: '',
+                      openrouter_api_key: '',
+                      gemini_api_key: '',
+                      openai_api_key: ''
                     })}
                     variant="secondary"
                     className="gap-2"

@@ -23,19 +23,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://cazrdevenbxdjussycfj.supabase.co';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://wpkxbrdgktmwnowvmwue.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ Error: SUPABASE_SERVICE_ROLE_KEY environment variable is not set.');
   console.error('\nTo fix this:');
-  console.error('1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api');
+  console.error('1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api');
   console.error('2. Copy the "service_role" key (NOT the anon/public key)');
   console.error('3. Run this script with the key:');
   console.error('   SUPABASE_SERVICE_ROLE_KEY=your_key_here node scripts/setup-database.js');
   console.error('\n--- OR ---\n');
   console.error('Run the SQL manually in Supabase Dashboard:');
-  console.error('1. Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new');
+  console.error('1. Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new');
   console.error('2. Copy the contents of: supabase/consolidated_migrations.sql');
   console.error('3. Paste and run in the SQL Editor');
   process.exit(1);
@@ -97,14 +97,14 @@ async function runMigrations() {
   console.log(`\n⚠️  Found ${missingTables.length} missing table(s): ${missingTables.join(', ')}`);
   console.log('\n📋 To fix this, run the consolidated migration SQL:');
   console.log('\n--- OPTION 1: Run SQL in Supabase Dashboard (Recommended) ---');
-  console.log('1. Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new');
+  console.log('1. Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new');
   console.log('2. Open the file: supabase/consolidated_migrations.sql');
   console.log('3. Copy all contents and paste into the SQL Editor');
   console.log('4. Click "Run" to execute');
   console.log('\n--- OPTION 2: Use Supabase CLI ---');
   console.log('1. Install Supabase CLI: https://supabase.com/docs/guides/cli');
   console.log('2. Login: supabase login');
-  console.log('3. Link project: supabase link --project-ref cazrdevenbxdjussycfj');
+  console.log('3. Link project: supabase link --project-ref wpkxbrdgktmwnowvmwue');
   console.log('4. Push migrations: supabase db push');
 }
 

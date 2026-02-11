@@ -3,6 +3,9 @@ import { Quiz, QuizConfig } from "@/types/quiz";
 
 export class QuizService {
   static async generateQuiz(config: QuizConfig): Promise<Quiz> {
+    // First, try to refresh the session to get the latest token
+    await supabase.auth.refreshSession();
+
     // Verify we have an active session before invoking the function
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
@@ -18,7 +21,7 @@ export class QuizService {
     if (error) {
       // Try to extract detailed error from response context
       let errorMessage = error.message || "Failed to generate quiz";
-      
+
       // Check for specific HTTP status codes in the error
       if (error.message?.includes("429") || errorMessage.includes("Rate limit")) {
         throw new Error("Rate limit exceeded. Please wait 30 seconds and try again.");
@@ -32,7 +35,7 @@ export class QuizService {
       if (error.message?.includes("authorization") || error.message?.includes("401")) {
         throw new Error("Authentication failed. Please refresh the page and try again.");
       }
-      
+
       throw new Error(errorMessage);
     }
 

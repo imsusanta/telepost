@@ -6,7 +6,7 @@ This guide covers the entire database schema for Quiz Genie, including all table
 
 ### Method 1: Supabase Dashboard (Recommended)
 
-1. Go to [Supabase SQL Editor](https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new)
+1. Go to [Supabase SQL Editor](https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new)
 2. Run each migration file in chronological order (by timestamp in filename)
 3. Or run the latest fix migration: `supabase/migrations/20251119030000_fix_billing_schema.sql`
 
@@ -28,13 +28,13 @@ npm install -g supabase
 
 # Login and link project
 supabase login
-supabase link --project-ref cazrdevenbxdjussycfj
+supabase link --project-ref wpkxbrdgktmwnowvmwue
 
 # Apply all migrations
 supabase db push
 
 # Generate TypeScript types
-supabase gen types typescript --project-id cazrdevenbxdjussycfj > src/integrations/supabase/types.ts
+supabase gen types typescript --project-id wpkxbrdgktmwnowvmwue > src/integrations/supabase/types.ts
 ```
 
 ## Database Architecture
@@ -453,7 +453,7 @@ All tables with `updated_at` columns have triggers to automatically update the t
 ## Environment Variables Required
 
 ```env
-VITE_SUPABASE_URL=https://cazrdevenbxdjussycfj.supabase.co
+VITE_SUPABASE_URL=https://wpkxbrdgktmwnowvmwue.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key (for migrations)
 ```

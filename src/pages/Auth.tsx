@@ -20,6 +20,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [instituteName, setInstituteName] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -139,6 +140,7 @@ export default function Auth() {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: sanitizedFullName,
+            institute_name: sanitizeInput(instituteName.trim()),
           },
         },
       });
@@ -310,8 +312,8 @@ export default function Auth() {
               <button
                 onClick={() => setActiveTab("signin")}
                 className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === "signin"
-                    ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
+                  : "text-muted-foreground hover:text-foreground"
                   }`}
               >
                 Sign In
@@ -319,8 +321,8 @@ export default function Auth() {
               <button
                 onClick={() => setActiveTab("signup")}
                 className={`py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === "signup"
-                    ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-r from-primary to-accent text-white shadow-glow-sm"
+                  : "text-muted-foreground hover:text-foreground"
                   }`}
               >
                 Sign Up
@@ -423,6 +425,21 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="signup-institute" className="text-foreground font-medium">
+                  Institute Name
+                </Label>
+                <Input
+                  id="signup-institute"
+                  type="text"
+                  placeholder="Royal Coaching Classes"
+                  value={instituteName}
+                  onChange={(e) => setInstituteName(e.target.value)}
+                  required
+                  className="h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="signup-email" className="text-foreground font-medium">
                   Email
                 </Label>
@@ -484,7 +501,7 @@ export default function Auth() {
                       />
                     </div>
                     <p className={`text-xs ${passwordStrength.strength === "Strong" ? "text-success" :
-                        passwordStrength.strength === "Medium" ? "text-accent" : "text-destructive"
+                      passwordStrength.strength === "Medium" ? "text-accent" : "text-destructive"
                       }`}>
                       {passwordStrength.strength} password
                     </p>

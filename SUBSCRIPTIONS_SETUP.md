@@ -6,7 +6,7 @@ The `public.subscriptions` table needs to be added to your Supabase database.
 ## Quick Solution (2 minutes)
 
 ### Step 1: Open Supabase SQL Editor
-Click this link: [Supabase SQL Editor](https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new)
+Click this link: [Supabase SQL Editor](https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new)
 
 Or navigate to:
 - Supabase Dashboard → Your Project → SQL Editor → New Query
@@ -72,7 +72,7 @@ If you have the Supabase CLI installed:
 supabase login
 
 # Link your project
-supabase link --project-ref cazrdevenbxdjussycfj
+supabase link --project-ref wpkxbrdgktmwnowvmwue
 
 # Push migrations
 supabase db push
@@ -84,7 +84,7 @@ This will apply all migration files in `supabase/migrations/` including:
 ## Verify It Worked
 
 ### Option 1: Check in Supabase Dashboard
-1. Go to: [Table Editor](https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/editor)
+1. Go to: [Table Editor](https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/editor)
 2. Look for these tables in the sidebar:
    - ✓ subscriptions
    - ✓ subscription_plans

@@ -193,11 +193,11 @@ const decrypted = await decryptData(encrypted, masterKey);
 
 ```
 default-src 'self';
-script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cazrdevenbxdjussycfj.supabase.co;
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://wpkxbrdgktmwnowvmwue.supabase.co;
 style-src 'self' 'unsafe-inline';
 img-src 'self' data: https: blob:;
 font-src 'self' data:;
-connect-src 'self' https://cazrdevenbxdjussycfj.supabase.co wss://cazrdevenbxdjussycfj.supabase.co;
+connect-src 'self' https://wpkxbrdgktmwnowvmwue.supabase.co wss://wpkxbrdgktmwnowvmwue.supabase.co;
 frame-ancestors 'none';
 base-uri 'self';
 form-action 'self';

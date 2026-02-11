@@ -26,9 +26,13 @@ export interface SystemMaintenance {
 }
 
 export interface AISettings {
-  provider: 'openrouter' | 'lovable';
+  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
   temperature: number;
+  system_prompt?: string;
+  openrouter_api_key?: string;
+  gemini_api_key?: string;
+  openai_api_key?: string;
 }
 
 export interface TelegramSettings {
@@ -92,6 +96,10 @@ export async function getAllSettings(): Promise<SystemSettings> {
       provider: 'lovable',
       model: 'openai/gpt-4o-mini',
       temperature: 0.7,
+      system_prompt: '',
+      openrouter_api_key: '',
+      gemini_api_key: '',
+      openai_api_key: '',
     },
     telegram_settings: (settings.telegram_settings as TelegramSettings) || {
       global_bot_token: '',
@@ -204,6 +212,10 @@ export async function getAISettings(): Promise<AISettings> {
     provider: 'lovable',
     model: 'openai/gpt-4o-mini',
     temperature: 0.7,
+    system_prompt: '',
+    openrouter_api_key: '',
+    gemini_api_key: '',
+    openai_api_key: '',
   };
 }
 

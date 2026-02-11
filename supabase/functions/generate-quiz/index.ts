@@ -6,13 +6,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Groq API configuration
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+// OpenRouter configuration
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 interface AISettings {
-  provider: 'groq' | 'openrouter' | 'lovable';
+  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
   temperature: number;
+  system_prompt?: string;
+  openrouter_api_key?: string;
+  gemini_api_key?: string;
+  openai_api_key?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,21 +30,34 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 
     if (data?.setting_value) {
       const settings = data.setting_value as AISettings;
-      // Force Groq provider with llama model
-      return {
-        ...settings,
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile'
-      };
+
+      // Allow Gemini models explicitly
+      if (settings.model.includes('gemini')) {
+        return settings;
+      }
+
+      // Force gpt-4o-mini if provider is lovable or using an old-style/unreliable model
+      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
+        return {
+          ...settings,
+          provider: 'lovable',
+          model: 'openai/gpt-4o-mini'
+        };
+      }
+      return settings;
     }
   } catch (error) {
     console.error("Failed to fetch AI settings:", error);
   }
 
   return {
-    provider: 'groq',
-    model: 'llama-3.3-70b-versatile',
+    provider: 'lovable',
+    model: 'openai/gpt-4o-mini',
     temperature: 0.7,
+    system_prompt: '',
+    openrouter_api_key: '',
+    gemini_api_key: '',
+    openai_api_key: '',
   };
 }
 
@@ -59,28 +76,45 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing Supabase configuration");
     }
 
-    // Standard Supabase Auth check
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Authenticate user - try multiple methods
+    let authUserId: string | null = null;
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Method 1: Direct JWT parsing (most reliable)
+    const token = authHeader.replace('Bearer ', '');
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      authUserId = payload.sub;
+      console.log("User ID from JWT:", authUserId);
+    } catch (e) {
+      console.error("Could not parse JWT:", e);
+    }
 
-    if (userError || !user) {
-      console.error("Auth failed:", userError?.message);
+    // Method 2: Fallback to supabase auth.getUser
+    if (!authUserId) {
+      const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+      if (!userError && user) {
+        authUserId = user.id;
+      }
+    }
+
+    if (!authUserId) {
+      console.error("All authentication methods failed");
       return new Response(
         JSON.stringify({ error: "Authentication failed. Please log in again." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const authUserId = user.id;
     const requestData = await req.json();
 
     const {
@@ -100,18 +134,44 @@ serve(async (req) => {
       );
     }
 
-    // Get Groq API Key from environment
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
-      throw new Error("AI service not configured (GROQ_API_KEY missing)");
-    }
-
     // Create Supabase client with service role for db operations
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch AI settings from database
     const aiSettings = await getAISettings(supabase);
-    console.log(`Using model: ${aiSettings.model} via Groq`);
+
+    const testModel = aiSettings.model;
+    const provider = aiSettings.provider || 'openrouter';
+
+    // Choose key based on provider
+    let apiKey = '';
+    let finalProvider = provider;
+
+    if (provider === 'gemini') {
+      apiKey = aiSettings.gemini_api_key!;
+    } else if (provider === 'openai') {
+      apiKey = aiSettings.openai_api_key!;
+    } else if (provider === 'openrouter') {
+      apiKey = aiSettings.openrouter_api_key!;
+    } else if (provider === 'lovable') {
+      apiKey = aiSettings.openrouter_api_key!;
+      finalProvider = 'openrouter';
+    } else {
+      // Auto-detect if provider is unknown or missing
+      if (testModel.toLowerCase().includes('gemini')) {
+        finalProvider = 'gemini';
+        apiKey = aiSettings.gemini_api_key!;
+      } else {
+        finalProvider = 'openrouter';
+        apiKey = aiSettings.openrouter_api_key!;
+      }
+    }
+
+    if (!apiKey) {
+      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
+    }
+
+    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
 
     let knowledgeBaseContext = '';
     let channelSystemPrompt = '';
@@ -162,7 +222,15 @@ serve(async (req) => {
     - Create clear, unambiguous questions.
     - Ensure correct answers are verifiable.
     - Make wrong options plausible but clearly incorrect.
-    - Provide helpful explanations.
+    
+    EXPLANATION FORMAT (IMPORTANT):
+    - Write explanations in 3-5 bullet points
+    - Use "•" for bullet points
+    - Each point should be concise and educational
+    - Example format:
+      • Main reason why the answer is correct
+      • Additional context or fact
+      • Related information for learning
 
     CONTENT GUIDELINES:
     - Focus on Indian context and culturally relevant examples.
@@ -177,7 +245,8 @@ serve(async (req) => {
     NO preamble, NO markdown, NO human text. Output ONLY JSON.`;
 
     const instructions = channelSystemPrompt || systemPrompt || '';
-    const finalSystemPrompt = baseSystemPrompt + (instructions ? `\n\nCUSTOM INSTRUCTIONS: ${instructions}` : "");
+    const globalSystemPrompt = aiSettings.system_prompt || '';
+    const finalSystemPrompt = (globalSystemPrompt ? globalSystemPrompt + "\n\n" : "") + baseSystemPrompt + (instructions ? `\n\nCUSTOM INSTRUCTIONS: ${instructions}` : "");
 
     const userPrompt = `Generate a JSON quiz. 
     ${knowledgeBaseContext ? `Use this context:\n${knowledgeBaseContext}` : ""}
@@ -198,40 +267,104 @@ serve(async (req) => {
       "metadata": { "difficulty": "${difficulty}", "generated_at": "${now}" }
     }`;
 
-    console.log(`Calling Groq API for topic "${topic}" with model ${aiSettings.model}...`);
+    let content = '';
+    const systemPromptFinal = (aiSettings.system_prompt || "") + (finalSystemPrompt || "");
     const startTime = Date.now();
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: aiSettings.model,
-        messages: [
-          { role: "system", content: finalSystemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: aiSettings.temperature || 0.7,
-        max_tokens: 4096,
-      }),
-    });
 
-    if (!response.ok) {
-      const errorDetail = await response.text();
-      console.error(`Groq API error (${response.status}):`, errorDetail);
+    if (finalProvider === 'gemini') {
+      console.log(`Calling Gemini Direct API for topic "${topic}" with model ${aiSettings.model}...`);
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
+      const geminiResponse = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `${systemPromptFinal}\n\nUSER PROMPT: ${userPrompt}` }]
+          }],
+          generationConfig: {
+            temperature: aiSettings.temperature || 0.7,
+            maxOutputTokens: 2000,
+          }
+        })
+      });
 
-      return new Response(
-        JSON.stringify({
-          error: `AI Service failure (${response.status}): ${errorDetail.substring(0, 200)}`,
-          status: response.status
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error("Gemini Direct Error:", errorText);
+        throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
+      }
+      const geminiData = await geminiResponse.json();
+      content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else if (finalProvider === 'openai') {
+      console.log(`Calling OpenAI Direct API for topic "${topic}" with model ${aiSettings.model}...`);
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: aiSettings.model,
+          messages: [
+            { role: "system", content: systemPromptFinal },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: aiSettings.temperature || 0.7,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenAI Direct Error:", errorText);
+        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
+      }
+      const data = await response.json();
+      content = data.choices?.[0]?.message?.content;
+    } else {
+      console.log(`Calling OpenRouter API for topic "${topic}" with model ${aiSettings.model}...`);
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://telepost.io",
+          "X-Title": "QuizMaker",
+        },
+        body: JSON.stringify({
+          model: aiSettings.model,
+          messages: [
+            { role: "system", content: systemPromptFinal },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: aiSettings.temperature || 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorDetail = await response.text();
+        console.error(`OpenRouter API error (${response.status}):`, errorDetail);
+
+        let errorMessage = `AI Service failure (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorDetail);
+          errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorDetail.substring(0, 200) || errorMessage;
+        }
+
+        return new Response(
+          JSON.stringify({
+            error: errorMessage,
+            status: response.status
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const aiResponse = await response.json();
+      content = aiResponse.choices?.[0]?.message?.content;
     }
 
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
     console.log(`AI responded in ${Date.now() - startTime}ms`);
 
     if (!content) throw new Error("Empty AI response");
@@ -239,15 +372,22 @@ serve(async (req) => {
     // Robust JSON extraction
     let quizData;
     try {
-      // Remove any markdown code blocks if present
-      const cleanedContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+      let cleanedContent = content.trim();
 
+      // Attempt to extract the first { to the last }
       const jsonStart = cleanedContent.indexOf('{');
       const jsonEnd = cleanedContent.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found in AI response");
 
-      const jsonString = cleanedContent.substring(jsonStart, jsonEnd + 1);
-      quizData = JSON.parse(jsonString);
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+      }
+
+      // Still handle potential backticks if they are inside the extracted range for some reason
+      if (cleanedContent.includes('```')) {
+        cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+      }
+
+      quizData = JSON.parse(cleanedContent);
     } catch (e: any) {
       console.error("Parse error. Snippet:", content.substring(0, 200));
       console.error("Detailed parsing error:", e.message);

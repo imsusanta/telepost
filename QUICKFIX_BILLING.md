@@ -8,7 +8,7 @@ Failed to load billing information: column subscription_plans.price does not exi
 ## Quick Fix (2 minutes)
 
 ### Step 1: Go to Supabase SQL Editor
-https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 
 ### Step 2: Copy & Paste This SQL
 
@@ -35,7 +35,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_key npm run db:fix
 ```
 
 Get your service key from:
-https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api
+https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api
 
 ---
 

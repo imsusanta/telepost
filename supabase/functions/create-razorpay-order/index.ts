@@ -33,10 +33,10 @@ serve(async (req) => {
         }
 
         // Parse request body
-        const { amount } = await req.json();
+        const { amount, planId } = await req.json();
 
-        if (!amount || amount < 100) {
-            throw new Error("Invalid amount");
+        if (!amount || amount < 100 || !planId) {
+            throw new Error("Invalid amount or missing plan ID");
         }
 
         // Get Razorpay credentials from environment
@@ -61,6 +61,7 @@ serve(async (req) => {
                 notes: {
                     user_id: user.id,
                     email: user.email,
+                    plan_id: planId,
                 },
             }),
         });
@@ -78,11 +79,12 @@ serve(async (req) => {
             .from("subscription_payments")
             .insert({
                 user_id: user.id,
+                plan_id: planId,
                 amount: amount / 100, // Convert paise to rupees
                 currency: "INR",
                 razorpay_order_id: orderData.id,
                 payment_status: "pending",
-                description: "Premium Subscription",
+                description: `Payment for ${planId} plan`,
             });
 
         if (insertError) {

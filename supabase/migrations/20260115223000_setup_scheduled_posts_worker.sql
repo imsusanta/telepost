@@ -1,0 +1,60 @@
+-- =============================================
+-- SCHEDULER CRON JOB & EDGE FUNCTION FOR TELEGRAM POSTS
+-- =============================================
+-- This migration sets up the cron job to automatically
+-- send scheduled Telegram channel posts (text/image)
+-- =============================================
+
+-- Create function to process scheduled telegram posts by calling the edge function
+CREATE OR REPLACE FUNCTION process_scheduled_telegram_posts_worker()
+RETURNS void AS $$
+DECLARE
+  function_url TEXT;
+  supabase_url TEXT;
+  service_role_key TEXT;
+  request_id BIGINT;
+BEGIN
+  -- Get Supabase configuration
+  supabase_url := current_setting('app.supabase_url', true);
+  service_role_key := current_setting('app.supabase_service_role_key', true);
+
+  -- Build the edge function URL
+  function_url := supabase_url || '/functions/v1/process-scheduled-telegram-posts';
+
+  -- Log the cron execution
+  RAISE NOTICE 'Telegram Post Scheduler cron job started at %', now();
+
+  -- Call the edge function via HTTP POST
+  BEGIN
+    SELECT INTO request_id net.http_post(
+      url := function_url,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || service_role_key
+      ),
+      body := jsonb_build_object(
+        'triggered_by', 'cron',
+        'triggered_at', now()
+      )
+    );
+
+    RAISE NOTICE 'Edge function called successfully, request_id: %', request_id;
+
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Failed to call edge function: %', SQLERRM;
+  END;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to postgres role
+GRANT EXECUTE ON FUNCTION process_scheduled_telegram_posts_worker() TO postgres;
+
+-- Schedule the cron job to run every minute
+-- We use a distinct job name to avoid conflict with quiz scheduler
+SELECT cron.schedule(
+  'process-scheduled-telegram-posts-worker',  -- Job name
+  '* * * * *',                               -- Every minute
+  $$SELECT process_scheduled_telegram_posts_worker()$$
+);
+
+COMMENT ON FUNCTION process_scheduled_telegram_posts_worker() IS 'Triggers the Edge Function to process scheduled channel posts every minute';

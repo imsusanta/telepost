@@ -9,7 +9,7 @@ Your Quiz Genie application now has a comprehensive invitation code system that 
 ### Option 1: Using SQL (Easiest - Recommended)
 
 1. Go to your Supabase Dashboard SQL Editor:
-   https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+   https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 
 2. Copy and paste the contents of `scripts/create-telbot-code.sql`
 

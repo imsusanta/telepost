@@ -1,4 +1,4 @@
-project_id = "cazrdevenbxdjussycfj"
+project_id = "wpkxbrdgktmwnowvmwue"
 
 [functions.generate-quiz]
 verify_jwt = true
@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.send-telegram-post]
 verify_jwt = true
+
+[functions.process-auto-schedule]
+verify_jwt = false

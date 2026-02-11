@@ -183,6 +183,15 @@ export async function getPaginatedUsers(
     users = users.filter(u => u.role === roleFilter);
   }
 
+  // Sort users: regular users first (by created_at desc), then super_admins at the bottom
+  users.sort((a, b) => {
+    // If one is super_admin and other is not, super_admin goes to bottom
+    if (a.role === 'super_admin' && b.role !== 'super_admin') return 1;
+    if (a.role !== 'super_admin' && b.role === 'super_admin') return -1;
+    // Same role, sort by created_at descending (newest first)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   return {
     users,
     totalCount: count || 0,

@@ -87,12 +87,22 @@ export function useQuizGeneration() {
 
     setIsGenerating(true);
     try {
+      // First, try to refresh the session to ensure we have a valid token
+      const { error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError) {
+        console.warn("Session refresh warning:", refreshError.message);
+        // Continue anyway - getSession/getUser might still work
+      }
+
       // Verify both user and session are available
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
         console.error("Session error during quiz generation:", sessionError);
-        throw new Error("Authentication session expired. Please log in again.");
+        // Try signing out and asking user to re-login
+        await supabase.auth.signOut();
+        throw new Error("Session expired. Please log in again.");
       }
 
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -128,7 +138,7 @@ export function useQuizGeneration() {
       const isRateLimitMessage = message.includes("Rate limit") || message.includes("wait");
       const isAlreadyGenerating = message.includes("Already generating");
       const isInternalRateLimit = message === "Rate limited";
-      
+
       if (!isAlreadyGenerating && !isInternalRateLimit) {
         toast({
           title: isRateLimitMessage ? "Rate Limited" : "Generation Failed",

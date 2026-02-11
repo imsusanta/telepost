@@ -2,32 +2,23 @@ import { ReactNode, useState, useCallback, useEffect, useRef } from "react";
 import {
   BarChart3,
   Bell,
-  BookOpen,
-  Calendar,
-  CalendarCheck,
-  CreditCard,
   Database,
   FileText,
-  GraduationCap,
   Image,
   Keyboard,
   LayoutDashboard,
   LogOut,
   Radio,
-  Receipt,
   Settings,
   Shield,
   Sparkles,
   Tag,
-  UserCheck,
   Users,
-  UsersRound,
-  Video,
-  Mail,
   ChevronRight,
   ChevronLeft,
   User,
-  PenLine
+  PenLine,
+  Calendar
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { isSuperAdmin } from "@/services/couponService";
-import { isFeatureEnabled } from "@/services/featureService";
+
 import {
   Sidebar,
   SidebarContent,
@@ -90,7 +81,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   });
   const [profile, setProfile] = useState<Profile | null>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
-  const [lmsEnabled, setLmsEnabled] = useState(false); // Default to false - hidden until feature check
+
 
   // Restore sidebar scroll position
   useEffect(() => {
@@ -154,12 +145,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     const checkSuperAdminStatus = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          // Not logged in - clear cache
+          localStorage.removeItem('is_super_admin');
+          localStorage.removeItem('superAdminCheckTime');
+          localStorage.removeItem('superAdminUserId');
+          setIsUserSuperAdmin(false);
+          return;
+        }
+
+        // Check if this is a different user than last time
+        const lastUserId = localStorage.getItem('superAdminUserId');
         const cacheKey = 'superAdminCheckTime';
         const lastCheck = localStorage.getItem(cacheKey);
         const now = Date.now();
 
-        // Cache for 5 minutes to avoid excessive DB calls
-        if (lastCheck && now - parseInt(lastCheck) < 5 * 60 * 1000) {
+        // Force refresh if different user or cache expired (5 minutes)
+        const shouldRefresh = lastUserId !== user.id || !lastCheck || (now - parseInt(lastCheck)) > 5 * 60 * 1000;
+
+        if (!shouldRefresh) {
           return;
         }
 
@@ -167,33 +172,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         setIsUserSuperAdmin(superAdmin);
         localStorage.setItem('is_super_admin', String(superAdmin));
         localStorage.setItem(cacheKey, String(now));
+        localStorage.setItem('superAdminUserId', user.id);
       } catch (error) {
         console.error('Error checking super admin status:', error);
+        setIsUserSuperAdmin(false);
       }
     };
 
     checkSuperAdminStatus();
   }, []);
 
-  // Check feature toggles
-  useEffect(() => {
-    const checkFeatures = async () => {
-      try {
-        const lms = await isFeatureEnabled('lms_attendance');
-        setLmsEnabled(lms);
-      } catch (error) {
-        console.error('Failed to check feature status:', error);
-        setLmsEnabled(true); // Default to enabled on error
-      }
-    };
-    checkFeatures();
-  }, []);
+
 
   const handleSignOut = useCallback(async () => {
     try {
       // Clear all super admin cache
       localStorage.removeItem('is_super_admin');
       localStorage.removeItem('superAdminCheckTime');
+      localStorage.removeItem('superAdminUserId');
       sessionStorage.removeItem('isUserSuperAdmin');
       sessionStorage.removeItem('superAdminCheckTime');
       await supabase.auth.signOut();
@@ -223,28 +219,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
   ];
 
-  const lmsMenuItems = [
-    { icon: BookOpen, label: "Courses", path: "/dashboard/courses" },
-    { icon: UsersRound, label: "Batches", path: "/dashboard/batches" },
-    { icon: FileText, label: "Tests & Exams", path: "/dashboard/tests" },
-    { icon: Video, label: "Live Classes", path: "/dashboard/live-classes" },
-    { icon: Bell, label: "Notices", path: "/dashboard/notices" },
-    { icon: GraduationCap, label: "Student Portal", path: "/dashboard/student" },
-    { icon: UserCheck, label: "Teacher Portal", path: "/dashboard/teacher" },
-  ];
-
-  // Finance menu - Only super admins see Fee Plans
-  const financeMenuItems = isUserSuperAdmin ? [
-    { icon: CreditCard, label: "Fee Plans", path: "/dashboard/fee-plans" },
-    { icon: Receipt, label: "Payments", path: "/dashboard/payments" },
-  ] : [
-    { icon: Receipt, label: "Payments", path: "/dashboard/payments" },
-  ];
-
-  const attendanceMenuItems = [
-    { icon: CalendarCheck, label: "Attendance", path: "/dashboard/attendance" },
-    { icon: Calendar, label: "Leave Requests", path: "/dashboard/leaves" },
-  ];
 
   const settingsMenuItems = [
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
@@ -255,7 +229,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
     { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
     { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
-    { icon: Mail, label: "Manage Invitations", path: "/dashboard/super-admin/invitations" },
     { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
     { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },
   ];
@@ -272,15 +245,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <DashboardLayoutInner
         profile={profile}
         isUserSuperAdmin={isUserSuperAdmin}
-        lmsEnabled={lmsEnabled}
         handleSignOut={handleSignOut}
         sidebarScrollRef={sidebarScrollRef}
         handleSidebarScroll={handleSidebarScroll}
         getUserInitials={getUserInitials}
         telegramMenuItems={telegramMenuItems}
-        lmsMenuItems={lmsMenuItems}
-        financeMenuItems={financeMenuItems}
-        attendanceMenuItems={attendanceMenuItems}
         settingsMenuItems={settingsMenuItems}
         superAdminMenuItems={superAdminMenuItems}
       >
@@ -293,15 +262,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 interface DashboardLayoutInnerProps extends DashboardLayoutProps {
   profile: Profile | null;
   isUserSuperAdmin: boolean;
-  lmsEnabled: boolean;
   handleSignOut: () => Promise<void>;
   sidebarScrollRef: React.RefObject<HTMLDivElement>;
   handleSidebarScroll: (e: React.UIEvent<HTMLDivElement>) => void;
   getUserInitials: () => string;
   telegramMenuItems: any[];
-  lmsMenuItems: any[];
-  financeMenuItems: any[];
-  attendanceMenuItems: any[];
   settingsMenuItems: any[];
   superAdminMenuItems: any[];
 }
@@ -310,15 +275,11 @@ function DashboardLayoutInner({
   children,
   profile,
   isUserSuperAdmin,
-  lmsEnabled,
   handleSignOut,
   sidebarScrollRef,
   handleSidebarScroll,
   getUserInitials,
   telegramMenuItems,
-  lmsMenuItems,
-  financeMenuItems,
-  attendanceMenuItems,
   settingsMenuItems,
   superAdminMenuItems,
 }: DashboardLayoutInnerProps) {
@@ -366,18 +327,17 @@ function DashboardLayoutInner({
           <div className="absolute inset-0 sidebar-glass -z-10" />
           <SidebarHeader className="border-b border-white/5 py-4">
             <div className="flex items-center justify-between px-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary via-accent to-secondary rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                  <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent italic">
-                    TelePost
-                  </span>
-                  <span className="text-[8px] text-muted-foreground/60 font-black uppercase tracking-[0.2em] -mt-1">
-                    AI ENGINE
-                  </span>
-                </div>
+              <div className="flex items-center gap-2">
+                {/* Paper plane icon */}
+                <img
+                  src="/favicon.png"
+                  alt="TelePost"
+                  className="w-8 h-8 object-contain"
+                />
+                {/* TelePost text - hidden when collapsed */}
+                <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">
+                  TelePost
+                </span>
               </div>
               <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative hover:bg-primary/5 transition-all">
@@ -432,133 +392,8 @@ function DashboardLayoutInner({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {lmsEnabled && (
-              <>
-                <SidebarSeparator className="my-2" />
 
-                {/* LMS Section */}
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Learning Management</span>
-                  </SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu className="gap-1">
-                      {lmsMenuItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname === item.path;
 
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={isActive}
-                              tooltip={item.label}
-                              className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
-                                ? "bg-emerald-500/20 text-emerald-500 font-bold shadow-lg scale-[1.02] border border-emerald-500/20"
-                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                                }`}
-                            >
-                              <Link to={item.path} className="flex items-center gap-3 px-3">
-                                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                <span className="font-semibold text-sm">{item.label}</span>
-                                {isActive && (
-                                  <div className="absolute right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-in fade-in duration-500" />
-                                )}
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </>
-            )}
-
-            <SidebarSeparator className="my-2" />
-
-            {/* Finance Section */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Finance</span>
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {financeMenuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname === item.path;
-
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
-                            ? "bg-amber-500/20 text-amber-500 font-bold shadow-lg scale-[1.02] border border-amber-500/20"
-                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                            }`}
-                        >
-                          <Link to={item.path} className="flex items-center gap-3 px-3">
-                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                            <span className="font-semibold text-sm">{item.label}</span>
-                            {isActive && (
-                              <div className="absolute right-2 w-1.5 h-1.5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-in fade-in duration-500" />
-                            )}
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {lmsEnabled && (
-              <>
-                <SidebarSeparator className="my-2" />
-
-                {/* Attendance Section */}
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
-                    <CalendarCheck className="w-3.5 h-3.5" />
-                    <span>Attendance</span>
-                  </SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu className="gap-1">
-                      {attendanceMenuItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname === item.path;
-
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={isActive}
-                              tooltip={item.label}
-                              className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
-                                ? "bg-blue-500/20 text-blue-500 font-bold shadow-lg scale-[1.02] border border-blue-500/20"
-                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                                }`}
-                            >
-                              <Link to={item.path} className="flex items-center gap-3 px-3">
-                                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                <span className="font-semibold text-sm">{item.label}</span>
-                                {isActive && (
-                                  <div className="absolute right-2 w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-in fade-in duration-500" />
-                                )}
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </>
-            )}
 
             <SidebarSeparator className="my-2" />
 
@@ -711,10 +546,12 @@ function DashboardLayoutInner({
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg hover:bg-primary/10" />
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary via-accent to-secondary rounded-lg flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-lg font-black tracking-tight bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent italic">
+                <img
+                  src="/favicon.png"
+                  alt="TelePost"
+                  className="h-7 w-7 object-contain"
+                />
+                <span className="text-lg font-bold text-foreground">
                   TelePost
                 </span>
               </div>

@@ -22,19 +22,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://cazrdevenbxdjussycfj.supabase.co';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://wpkxbrdgktmwnowvmwue.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
   console.error('❌ Error: SUPABASE_SERVICE_ROLE_KEY environment variable is not set.');
   console.error('\nTo fix this:');
-  console.error('1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api');
+  console.error('1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api');
   console.error('2. Copy the "service_role" key (NOT the anon/public key)');
   console.error('3. Run this script with the key:');
   console.error('   SUPABASE_SERVICE_ROLE_KEY=your_key_here node scripts/fix-billing-schema.js');
   console.error('\n--- OR ---\n');
   console.error('Run the SQL manually in Supabase Dashboard:');
-  console.error('1. Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new');
+  console.error('1. Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new');
   console.error('2. Copy the contents of: supabase/migrations/20251119030000_fix_billing_schema.sql');
   console.error('3. Paste and run in the SQL Editor');
   process.exit(1);
@@ -131,7 +131,7 @@ async function applyMigration() {
   } catch (error) {
     console.error('\n❌ Error applying migration:', error.message);
     console.error('\nPlease apply the migration manually:');
-    console.error('1. Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new');
+    console.error('1. Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new');
     console.error('2. Copy the contents of: supabase/migrations/20251119030000_fix_billing_schema.sql');
     console.error('3. Paste and run in the SQL Editor');
     throw error;
@@ -184,7 +184,7 @@ async function main() {
     console.log('\n✨ All done! Your billing schema is now fixed.');
     console.log('\n📝 Next steps:');
     console.log('1. Regenerate TypeScript types (if using Supabase CLI):');
-    console.log('   supabase gen types typescript --project-id cazrdevenbxdjussycfj > src/integrations/supabase/types.ts');
+    console.log('   supabase gen types typescript --project-id wpkxbrdgktmwnowvmwue > src/integrations/supabase/types.ts');
     console.log('2. Test your billing page to ensure it loads correctly');
   } catch (error) {
     console.error('\n❌ Failed to fix billing schema');

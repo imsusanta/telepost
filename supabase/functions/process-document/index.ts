@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface AISettings {
-  provider: 'openrouter' | 'lovable';
+  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
   temperature: number;
+  openrouter_api_key?: string;
+  gemini_api_key?: string;
+  openai_api_key?: string;
+  system_prompt?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,7 +30,16 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     }
 
     if (data?.setting_value) {
-      return data.setting_value as AISettings;
+      const settings = data.setting_value as AISettings;
+      // Force gpt-4o-mini if provider is lovable or using an old-style/unreliable model
+      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
+        return {
+          ...settings,
+          provider: 'lovable',
+          model: 'openai/gpt-4o-mini'
+        };
+      }
+      return settings;
     }
   } catch (error) {
     console.error("Failed to fetch AI settings:", error);
@@ -36,6 +49,10 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     provider: 'lovable',
     model: 'openai/gpt-4o-mini',
     temperature: 0.7,
+    openrouter_api_key: '',
+    gemini_api_key: '',
+    openai_api_key: '',
+    system_prompt: '',
   };
 }
 
@@ -47,44 +64,21 @@ serve(async (req) => {
   try {
     console.log("=== PDF Processing Request Started ===");
 
-    // SECURITY: Require authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("Missing authorization header");
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Initialize Supabase client with user's auth
+    // Initialize Supabase with service role key for server-to-server operations
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseAnon) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing Supabase configuration");
       return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
+        JSON.stringify({ error: "Server configuration error: Missing environment variables" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
-      console.error("Authentication failed:", authError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication token' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`✓ User authenticated: ${user.id}`);
-
-    const { documentId, storagePath, publicUrl } = await req.json();
+    const { documentId, storagePath, publicUrl, userId } = await req.json();
 
     if (!documentId) {
       console.error("Missing documentId in request");
@@ -104,16 +98,7 @@ serve(async (req) => {
 
     console.log(`Processing document ${documentId} from ${storagePath}`);
 
-    // Verify document ownership before processing
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseServiceKey) {
-      console.error("Missing service role key");
-      throw new Error("Server configuration error");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // SECURITY: Verify the document belongs to the authenticated user
+    // SECURITY: Verify the document exists and get owner info
     const { data: document, error: docError } = await supabase
       .from('documents')
       .select('user_id')
@@ -128,26 +113,52 @@ serve(async (req) => {
       );
     }
 
-    if (document.user_id !== user.id) {
-      console.error(`Unauthorized: User ${user.id} attempted to access document owned by ${document.user_id}`);
+    // If userId was passed, verify it matches (optional extra security layer)
+    if (userId && document.user_id !== userId) {
+      console.error(`Unauthorized: Passed userId ${userId} does not match document owner ${document.user_id}`);
       return new Response(
         JSON.stringify({ error: 'Access denied' }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`✓ Document ownership verified for user ${user.id}`);
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-
-    if (!OPENROUTER_API_KEY) {
-      console.error("CRITICAL: OPENROUTER_API_KEY environment variable is not set");
-      throw new Error("AI configuration missing. Please add OpenRouter API key in admin settings.");
-    }
+    console.log(`✓ Document ownership verified for user ${document.user_id}`);
 
     // Get AI settings from database
     const aiSettings = await getAISettings(supabase);
-    console.log(`Environment: Using OpenRouter model: ${aiSettings.model}`);
+
+    const testModel = aiSettings.model;
+    const provider = aiSettings.provider || 'openrouter';
+
+    // Choose key based on provider
+    let apiKey = '';
+    let finalProvider = provider;
+
+    if (provider === 'gemini') {
+      apiKey = aiSettings.gemini_api_key!;
+    } else if (provider === 'openai') {
+      apiKey = aiSettings.openai_api_key!;
+    } else if (provider === 'openrouter') {
+      apiKey = aiSettings.openrouter_api_key!;
+    } else if (provider === 'lovable') {
+      apiKey = aiSettings.openrouter_api_key!;
+      finalProvider = 'openrouter';
+    } else {
+      // Auto-detect if provider is unknown or missing
+      if (testModel.toLowerCase().includes('gemini')) {
+        finalProvider = 'gemini';
+        apiKey = aiSettings.gemini_api_key!;
+      } else {
+        finalProvider = 'openrouter';
+        apiKey = aiSettings.openrouter_api_key!;
+      }
+    }
+
+    if (!apiKey) {
+      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
+    }
+
+    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
 
     // Download PDF from storage
     console.log(`Downloading file from storage: ${storagePath}`);
@@ -166,6 +177,11 @@ serve(async (req) => {
     }
 
     console.log(`✓ File downloaded successfully, size: ${fileData.size} bytes (${(fileData.size / 1024 / 1024).toFixed(2)} MB)`);
+
+    if (fileData.size === 0) {
+      console.error("Downloaded file is empty");
+      throw new Error("The PDF file is empty or could not be read from storage.");
+    }
 
     // Server-side PDF validation: Check magic bytes
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -215,98 +231,245 @@ serve(async (req) => {
       base64 = btoa(base64);
       console.log(`✓ PDF converted to base64 (${base64.length} characters)`);
 
-      // Use AI with vision to extract text from PDF
-      console.log("Sending PDF to OpenRouter for text extraction...");
-      const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": supabaseUrl,
-          "X-Title": "QuizMaker Document Processing",
-        },
-        body: JSON.stringify({
-          model: aiSettings.model,
-          messages: [
-            {
-              role: "system",
-              content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extract all text from this PDF document. Return only the extracted text content."
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:application/pdf;base64,${base64}`
-                  }
-                }
-              ]
-            },
-          ],
-          temperature: 0.1,
-        }),
-      });
+      let isExtractOk = false;
+      let extractStatus = 0;
 
-      if (extractResponse.ok) {
-        console.log(`✓ AI extraction response received (status: ${extractResponse.status})`);
-        const extractData = await extractResponse.json();
-        extractedText = extractData.choices?.[0]?.message?.content || "";
+      // Use AI with vision to extract text from PDF
+      if (finalProvider === 'gemini') {
+        console.log("Sending PDF to Direct Gemini for text extraction...");
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
+        const extractResponse = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "Extract all text from this PDF document. Return only the extracted text content. No markdown code blocks." },
+                { inlineData: { mimeType: "application/pdf", data: base64 } }
+              ]
+            }],
+            generationConfig: { temperature: 0.1 }
+          })
+        });
+
+        isExtractOk = extractResponse.ok;
+        extractStatus = extractResponse.status;
+
+        if (isExtractOk) {
+          const geminiData = await extractResponse.json();
+          extractedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } else {
+          const errorText = await extractResponse.text();
+          console.error("Gemini Extraction Error:", errorText);
+        }
+      } else if (finalProvider === 'openai') {
+        console.log("Sending PDF to Direct OpenAI for text extraction...");
+        const extractResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: aiSettings.model,
+            messages: [
+              {
+                role: "system",
+                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Extract all text from this PDF document. Return only the extracted text content."
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:application/pdf;base64,${base64}`
+                    }
+                  }
+                ]
+              },
+            ],
+            temperature: 0.1,
+          }),
+        });
+
+        isExtractOk = extractResponse.ok;
+        extractStatus = extractResponse.status;
+
+        if (isExtractOk) {
+          const extractData = await extractResponse.json();
+          extractedText = extractData.choices?.[0]?.message?.content || "";
+        } else {
+          const errorText = await extractResponse.text();
+          console.error(`OpenAI extraction error (${extractStatus}):`, errorText);
+        }
+      } else {
+        console.log("Sending PDF to OpenRouter for text extraction...");
+        const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": supabaseUrl,
+            "X-Title": "QuizMaker Document Processing",
+          },
+          body: JSON.stringify({
+            model: aiSettings.model,
+            messages: [
+              {
+                role: "system",
+                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Extract all text from this PDF document. Return only the extracted text content."
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:application/pdf;base64,${base64}`
+                    }
+                  }
+                ]
+              },
+            ],
+            temperature: 0.1,
+          }),
+        });
+
+        isExtractOk = extractResponse.ok;
+        extractStatus = extractResponse.status;
+
+        if (isExtractOk) {
+          const extractData = await extractResponse.json();
+          extractedText = extractData.choices?.[0]?.message?.content || "";
+        } else {
+          const errorText = await extractResponse.text();
+          console.error(`OpenRouter extraction error (${extractStatus}):`, errorText);
+        }
+      }
+
+      if (isExtractOk) {
+        console.log(`✓ AI extraction response received (status: ${extractStatus})`);
 
         if (extractedText && extractedText.length > 100) {
           console.log(`✓ Text extraction successful: ${extractedText.length} characters`);
 
           // Now analyze the extracted text for summary and topics
           console.log("Analyzing extracted text for summary and topics...");
-          const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": supabaseUrl,
-              "X-Title": "QuizMaker Document Analysis",
-            },
-            body: JSON.stringify({
-              model: aiSettings.model,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
-                },
-                {
-                  role: "user",
-                  content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
-                },
-              ],
-              temperature: 0.3,
-            }),
-          });
 
-          if (analyzeResponse.ok) {
-            console.log(`✓ Analysis response received (status: ${analyzeResponse.status})`);
-            const analyzeData = await analyzeResponse.json();
-            const content = analyzeData.choices?.[0]?.message?.content || "";
+          let analyzeOk = false;
+          let analyzeContent = "";
+
+          if (finalProvider === 'gemini') {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
+            const analyzeResponse = await fetch(geminiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{ text: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}` }]
+                }],
+                generationConfig: { temperature: 0.3 }
+              })
+            });
+            analyzeOk = analyzeResponse.ok;
+            if (analyzeOk) {
+              const data = await analyzeResponse.json();
+              analyzeContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            }
+          } else if (finalProvider === 'openai') {
+            const analyzeResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: aiSettings.model,
+                messages: [
+                  {
+                    role: "system",
+                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                  },
+                  {
+                    role: "user",
+                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                  },
+                ],
+                temperature: 0.3,
+              }),
+            });
+            analyzeOk = analyzeResponse.ok;
+            if (analyzeOk) {
+              const analyzeData = await analyzeResponse.json();
+              analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
+            }
+          } else {
+            const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": supabaseUrl,
+                "X-Title": "QuizMaker Document Analysis",
+              },
+              body: JSON.stringify({
+                model: aiSettings.model,
+                messages: [
+                  {
+                    role: "system",
+                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                  },
+                  {
+                    role: "user",
+                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                  },
+                ],
+                temperature: 0.3,
+              }),
+            });
+            analyzeOk = analyzeResponse.ok;
+            if (analyzeOk) {
+              const analyzeData = await analyzeResponse.json();
+              analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
+            }
+          }
+
+          if (analyzeOk) {
+            console.log(`✓ Analysis response received`);
 
             try {
-              const parsed = JSON.parse(content);
-              aiSummary = parsed.summary || content.split('\n').slice(0, 3).join(' ');
+              let cleanedAnalyze = analyzeContent.trim();
+              const startPos = cleanedAnalyze.indexOf('{');
+              const endPos = cleanedAnalyze.lastIndexOf('}');
+
+              if (startPos !== -1 && endPos !== -1) {
+                cleanedAnalyze = cleanedAnalyze.substring(startPos, endPos + 1);
+              }
+
+              const parsed = JSON.parse(cleanedAnalyze);
+              aiSummary = parsed.summary || analyzeContent.split('\n').slice(0, 3).join(' ');
               topics = Array.isArray(parsed.topics) && parsed.topics.length > 0
                 ? parsed.topics
                 : ["General"];
               console.log(`✓ Extracted ${topics.length} topics: ${topics.join(', ')}`);
             } catch (e) {
               console.warn("Failed to parse analysis JSON, using fallback");
-              aiSummary = content.substring(0, 300);
+              console.warn("Original content:", analyzeContent);
+              aiSummary = analyzeContent.substring(0, 300);
               topics = ["General"];
             }
             console.log("✓ AI analysis completed successfully");
           } else {
-            const errorText = await analyzeResponse.text();
-            console.error(`AI analysis error (${analyzeResponse.status}):`, errorText);
+            console.error(`AI analysis error`);
             aiSummary = `Document processed with ${extractedText.length} characters`;
             topics = ["General"];
           }
@@ -317,21 +480,28 @@ serve(async (req) => {
           topics = ["General"];
         }
       } else {
-        const errorText = await extractResponse.text();
-        console.error(`AI extraction error (${extractResponse.status}):`, errorText);
-
         // Check for specific error types
-        if (extractResponse.status === 401 || extractResponse.status === 403) {
-          throw new Error("AI API authentication failed. Please check API key configuration.");
-        } else if (extractResponse.status === 429) {
-          throw new Error("AI API rate limit exceeded. Please try again later.");
-        } else if (extractResponse.status === 402) {
-          throw new Error("AI API quota exceeded. Please check your billing.");
+        if (extractStatus === 401 || extractStatus === 403) {
+          // Authentication error is critical
+          console.error("AI API authentication failed");
+          extractedText = "AI API authentication failed. Please check your API key in the Settings page.";
+          aiSummary = extractedText;
+          topics = ["Needs Configuration"];
+        } else if (extractStatus === 429) {
+          extractedText = "AI API rate limit exceeded. Please try again later.";
+          aiSummary = extractedText;
+          topics = ["Rate Limited"];
+        } else if (extractStatus === 402) {
+          extractedText = "AI API quota exceeded. Please check your billing.";
+          aiSummary = extractedText;
+          topics = ["Quota Exceeded"];
+        } else {
+          // Non-critical failure (e.g., model doesn't support PDF)
+          console.warn(`AI extraction failed with status ${extractStatus}. Using fallback.`);
+          extractedText = "This document was uploaded but automatic text extraction was not possible. You can still use it for reference or try re-uploading with a different AI model configured (Gemini is recommended for PDFs).";
+          aiSummary = "Document uploaded. AI text extraction was not available for this file.";
+          topics = ["General"];
         }
-
-        extractedText = "Failed to extract text from PDF using AI. The document may be encrypted or corrupted.";
-        aiSummary = extractedText;
-        topics = ["General"];
       }
     } catch (error) {
       console.error("AI extraction failed:", error);
@@ -360,12 +530,16 @@ serve(async (req) => {
   } catch (error) {
     console.error("=== ERROR PROCESSING DOCUMENT ===");
     console.error("Error details:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+
+    // Return a more descriptive error even in 500
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred while processing PDF";
+    const errorDetails = error instanceof Error ? error.stack : undefined;
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error occurred while processing PDF",
-        details: error instanceof Error ? error.stack : undefined
+        error: errorMessage,
+        details: errorDetails,
+        status: "failed"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

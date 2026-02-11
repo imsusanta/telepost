@@ -17,14 +17,18 @@ export class SchedulerService {
   static async fetchScheduledPosts(
     userId: string,
     filters?: ScheduledPostFilters,
-    limit: number = 100
-  ): Promise<ScheduledPost[]> {
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<{ posts: ScheduledPost[]; totalCount: number }> {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     let query = supabase
       .from("scheduled_telegram_posts")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("user_id", userId)
       .order("scheduled_time", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     // Apply filters
     if (filters?.status) {
@@ -40,13 +44,16 @@ export class SchedulerService {
       query = query.eq("chat_id", filters.channelId);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       throw new Error(error.message || "Failed to fetch scheduled posts");
     }
 
-    return data || [];
+    return {
+      posts: data || [],
+      totalCount: count || 0
+    };
   }
 
   /**
@@ -117,17 +124,24 @@ export class SchedulerService {
     postId: string,
     userId: string
   ): Promise<void> {
-    const { error } = await supabase
+    // First try to delete pending posts
+    const { error, count } = await supabase
       .from("scheduled_telegram_posts")
-      .delete()
+      .delete({ count: 'exact' })
       .eq("id", postId)
       .eq("user_id", userId)
-      .eq("status", "pending"); // Only allow canceling pending posts
+      .in("status", ["pending", "processing"]); // Allow canceling pending or processing posts
 
     if (error) {
       throw new Error(error.message || "Failed to cancel scheduled post");
     }
+
+    if (count === 0) {
+      // Post was not in a cancellable state or doesn't exist
+      throw new Error("Cannot cancel: Post has already been sent or does not exist");
+    }
   }
+
 
   /**
    * Get scheduled post statistics for a user

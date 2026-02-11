@@ -66,6 +66,16 @@ export const TelegramShareQuestionBank = ({ selectedQuestionIds, onClearSelectio
       const questions = await QuestionBankService.getQuestionsByIds(ids);
       console.log(`Fetched ${questions.length} questions from database`);
       setSelectedQuestions(questions);
+
+      // Auto-fill Topic from the first question's subject or topic
+      if (questions.length > 0 && !customTopic) {
+        const firstQ = questions[0];
+        const autoTopic = firstQ.subject || firstQ.topic || '';
+        if (autoTopic) {
+          setCustomTopic(autoTopic);
+          console.log(`Auto-filled Topic: ${autoTopic}`);
+        }
+      }
     } catch (error) {
       console.error("Error loading selected questions:", error);
       toast.error("Failed to load selected questions");
@@ -88,6 +98,11 @@ export const TelegramShareQuestionBank = ({ selectedQuestionIds, onClearSelectio
         if (channels[0].telegram_channel_id) {
           setChatId(channels[0].telegram_channel_id);
         }
+        // Auto-fill Topic from channel's default_subject (from template)
+        if (channels[0].settings?.default_subject && !customTopic) {
+          setCustomTopic(channels[0].settings.default_subject);
+          console.log(`Auto-filled Topic from first channel: ${channels[0].settings.default_subject}`);
+        }
       }
     } catch (error) {
       console.error("Error loading channels:", error);
@@ -101,6 +116,11 @@ export const TelegramShareQuestionBank = ({ selectedQuestionIds, onClearSelectio
       const selectedChannel = userChannels.find(c => c.id === channelId);
       if (selectedChannel?.telegram_channel_id) {
         setChatId(selectedChannel.telegram_channel_id);
+      }
+      // Auto-fill Topic from channel's default_subject (from template)
+      if (selectedChannel?.settings?.default_subject) {
+        setCustomTopic(selectedChannel.settings.default_subject);
+        console.log(`Auto-filled Topic from channel template: ${selectedChannel.settings.default_subject}`);
       }
     }
   };

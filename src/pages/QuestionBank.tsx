@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AddQuestionDialog } from "@/components/AddQuestionDialog";
 import { AIQuestionGenerator } from "@/components/AIQuestionGenerator";
+import { AIGeneratedQuestionsList } from "@/components/AIGeneratedQuestionsList";
 import { PDFQuestionGenerator } from "@/components/PDFQuestionGenerator";
 import { QuestionSelectionDialog } from "@/components/QuestionSelectionDialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -77,6 +78,7 @@ export default function QuestionBank() {
   }
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
   const [showSelectionDialog, setShowSelectionDialog] = useState(false);
+  const [aiListRefreshKey, setAiListRefreshKey] = useState(0);
   const [defaultTopic, setDefaultTopic] = useState("");
   const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
   const [defaultLanguage, setDefaultLanguage] = useState("en");
@@ -460,7 +462,9 @@ export default function QuestionBank() {
     setDefaultTopic(topic || "");
     setDefaultDifficulty(difficulty || "medium");
     setDefaultLanguage(language || "en");
-    setShowSelectionDialog(true);
+    // Trigger refresh of AIGeneratedQuestionsList
+    setAiListRefreshKey(prev => prev + 1);
+    // setShowSelectionDialog(true); // Disabled for Quick Add experience
   };
 
   const handleQuestionsSaved = async () => {
@@ -1201,14 +1205,36 @@ export default function QuestionBank() {
           {/* AI Generate Tab */}
           <TabsContent value="ai-generate" className="space-y-6 mt-6">
             <AIQuestionGenerator
-              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+              onQuestionsGenerated={(questions, topic, difficulty, language) => {
+                handleQuestionsGenerated(questions, topic, difficulty, language);
+              }}
+            />
+            {/* Show AI generated questions with save option */}
+            <AIGeneratedQuestionsList
+              key={`ai-list-${aiListRefreshKey}`}
+              sourceType="ai_generator"
+              onQuestionsAdded={() => {
+                loadQuestions();
+                loadStats();
+              }}
             />
           </TabsContent>
 
           {/* PDF Generate Tab */}
           <TabsContent value="pdf-generate" className="space-y-6 mt-6">
             <PDFQuestionGenerator
-              onQuestionsGenerated={(questions) => handleQuestionsGenerated(questions)}
+              onQuestionsGenerated={(questions, topic, difficulty, language) => {
+                handleQuestionsGenerated(questions, topic, difficulty, language);
+              }}
+            />
+            {/* Show PDF generated questions with save option */}
+            <AIGeneratedQuestionsList
+              key={`pdf-list-${aiListRefreshKey}`}
+              sourceType="pdf_generator"
+              onQuestionsAdded={() => {
+                loadQuestions();
+                loadStats();
+              }}
             />
           </TabsContent>
         </Tabs>
@@ -1234,7 +1260,7 @@ export default function QuestionBank() {
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteQuestionId !== null} onOpenChange={(open) => !open && setDeleteQuestionId(null)}>
-          <AlertDialogContent className="clay-card border-none">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="text-xl font-black flex items-center gap-2">
                 <Trash2 className="w-5 h-5 text-destructive" />
@@ -1258,7 +1284,7 @@ export default function QuestionBank() {
 
         {/* Bulk Delete Confirmation Dialog */}
         <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-          <AlertDialogContent className="clay-card border-none">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="text-xl font-black flex items-center gap-2">
                 <Trash2 className="w-5 h-5 text-destructive" />
@@ -1285,7 +1311,7 @@ export default function QuestionBank() {
 
         {/* Bulk Move Dialog */}
         <AlertDialog open={isBulkMoveDialogOpen} onOpenChange={setIsBulkMoveDialogOpen}>
-          <AlertDialogContent className="clay-card border-none max-w-md">
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-xl font-black flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />

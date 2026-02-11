@@ -19,7 +19,7 @@ This is the quickest and most reliable method.
 ### Steps:
 
 1. **Go to Supabase SQL Editor:**
-   - Visit: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+   - Visit: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
    - Or navigate to: Dashboard → SQL Editor → New Query
 
 2. **Open the migration file:**
@@ -46,7 +46,7 @@ This is the quickest and most reliable method.
 ### Steps:
 
 1. **Get your Service Role Key:**
-   - Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api
+   - Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api
    - Copy the **service_role** key (NOT the anon/public key)
    - ⚠️  **Keep this key secret!** It has full database access
 
@@ -85,7 +85,7 @@ This is the quickest and most reliable method.
 
 3. **Link your project:**
    ```bash
-   supabase link --project-ref cazrdevenbxdjussycfj
+   supabase link --project-ref wpkxbrdgktmwnowvmwue
    ```
    - You'll be prompted for your database password
 
@@ -133,7 +133,7 @@ The migrations will create the following tables:
 After running the migrations, verify they worked:
 
 ### Method 1: Check in Supabase Dashboard
-1. Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/editor
+1. Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/editor
 2. Look for these tables in the left sidebar:
    - subscriptions
    - subscription_plans
@@ -170,8 +170,8 @@ It will show ✓ for existing tables.
 - Don't modify the SQL unless you know what you're doing
 
 ### Still having issues?
-- Check the Supabase Dashboard logs: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/logs/postgres-logs
-- Verify your database is healthy: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/database
+- Check the Supabase Dashboard logs: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/logs/postgres-logs
+- Verify your database is healthy: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/database
 - Contact support if needed
 
 ---

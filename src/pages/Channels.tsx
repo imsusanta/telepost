@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { systemPromptTemplates, getSystemPromptTemplate, generateChannelSystemPrompt } from "@/utils/systemPromptTemplates";
+import { TemplateManagementDialog } from "@/components/TemplateManagementDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -40,6 +41,7 @@ export default function Channels() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [limits, setLimits] = useState<{ max_telegram_channels: number }>({ max_telegram_channels: 1 });
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -284,6 +286,7 @@ export default function Channels() {
         name: channel.name.trim(),
         description: channel.description?.trim() || "",
         telegram_channel_id: channel.telegram_channel_id?.trim() || undefined,
+        telegram_bot_token: channel.telegram_bot_token?.trim() || undefined,
         settings: channel.settings,
       });
 
@@ -375,9 +378,14 @@ export default function Channels() {
     const template = getSystemPromptTemplate(templateId);
     if (!template) return;
 
+    // Use template's subject for the new default_subject
+    const newSubject = (template.id !== 'general' && template.id !== 'custom')
+      ? template.subject
+      : selectedChannel.settings.default_subject;
+
     // Generate a customized prompt based on the template and channel settings
     const customPrompt = generateChannelSystemPrompt(
-      selectedChannel.settings.default_subject || template.subject,
+      newSubject,
       selectedChannel.settings.default_language,
       "",
       templateId
@@ -388,7 +396,7 @@ export default function Channels() {
       settings: {
         ...selectedChannel.settings,
         system_prompt: customPrompt,
-        default_subject: selectedChannel.settings.default_subject || (template.id !== 'general' && template.id !== 'custom' ? template.subject : selectedChannel.settings.default_subject),
+        default_subject: newSubject,
       },
     });
 
@@ -452,7 +460,7 @@ export default function Channels() {
           <div>
             <h1 className="text-3xl font-bold">Channels</h1>
             <p className="text-muted-foreground">
-              {isSuperAdmin ? "Manage your Telegram channels" : `Manage your Telegram channels (${channels.length}/${limits.max_telegram_channels} used)`}
+              Manage your Telegram channels
             </p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
@@ -460,9 +468,9 @@ export default function Channels() {
             if (!open) resetCreateForm();
           }}>
             <DialogTrigger asChild>
-              <Button disabled={!isSuperAdmin && channels.length >= limits.max_telegram_channels}>
+              <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                {!isSuperAdmin && channels.length >= limits.max_telegram_channels ? "Limit Reached" : "Create Channel"}
+                Create Channel
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -495,7 +503,7 @@ export default function Channels() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="telegram_channel_id">Telegram Channel ID (Optional)</Label>
+                  <Label htmlFor="telegram_channel_id">Telegram Chat ID (Optional)</Label>
                   <Input
                     id="telegram_channel_id"
                     value={newChannel.telegram_channel_id}
@@ -754,7 +762,7 @@ export default function Channels() {
                   <h3 className="font-medium">Telegram Configuration</h3>
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <Label htmlFor="edit-telegram-channel-id">Telegram Channel ID</Label>
+                      <Label htmlFor="edit-telegram-channel-id">Telegram Chat ID</Label>
                       <Input
                         id="edit-telegram-channel-id"
                         value={selectedChannel.telegram_channel_id || ""}
@@ -950,6 +958,14 @@ export default function Channels() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTemplateDialogOpen(true)}
+                      >
+                        <Settings className="w-4 h-4 mr-1" />
+                        Manage
+                      </Button>
                     </div>
                   </div>
 
@@ -1053,6 +1069,13 @@ Example: Generate questions focused on practical applications and real-world exa
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Template Management Dialog */}
+        <TemplateManagementDialog
+          open={templateDialogOpen}
+          onOpenChange={setTemplateDialogOpen}
+          onTemplateSelect={(templateId) => handleApplyTemplate(templateId)}
+        />
       </div>
     </DashboardLayout>
   );

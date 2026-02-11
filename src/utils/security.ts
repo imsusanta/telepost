@@ -273,13 +273,16 @@ export const sanitizeFilename = (filename: string): string => {
 /**
  * Content Security Policy configuration
  */
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseDomain = supabaseUrl ? new URL(supabaseUrl).hostname : '';
+
 export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cazrdevenbxdjussycfj.supabase.co"],
+  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", supabaseUrl || ""],
   'style-src': ["'self'", "'unsafe-inline'"],
   'img-src': ["'self'", "data:", "https:", "blob:"],
   'font-src': ["'self'", "data:"],
-  'connect-src': ["'self'", "https://cazrdevenbxdjussycfj.supabase.co", "wss://cazrdevenbxdjussycfj.supabase.co"],
+  'connect-src': ["'self'", supabaseUrl || "", `wss://${supabaseDomain}`],
   'frame-ancestors': ["'none'"],
   'base-uri': ["'self'"],
   'form-action': ["'self'"],

@@ -7,6 +7,9 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
   const [statistics, setStatistics] = useState<{
     total: number;
     pending: number;
@@ -14,6 +17,8 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     failed: number;
   } | null>(null);
   const { toast } = useToast();
+
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   // Get user ID on mount
   useEffect(() => {
@@ -33,8 +38,9 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
 
     try {
       setIsLoading(true);
-      const posts = await SchedulerService.fetchScheduledPosts(userId, filters);
+      const { posts, totalCount: count } = await SchedulerService.fetchScheduledPosts(userId, filters, page, pageSize);
       setScheduledPosts(posts);
+      setTotalCount(count);
     } catch (error: unknown) {
       toast({
         title: "Error",
@@ -44,7 +50,7 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, filters, toast]);
+  }, [userId, filters, page, pageSize, toast]);
 
   const fetchStatistics = useCallback(async () => {
     if (!userId) return;
@@ -68,24 +74,9 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
 
     // Set up real-time subscription with user filtering
     const channel = SchedulerService.subscribeToScheduledPosts(userId, (post, eventType) => {
-      setScheduledPosts((prev) => {
-        if (eventType === "DELETE") {
-          return prev.filter((p) => p.id !== post.id);
-        }
-
-        const existingIndex = prev.findIndex((p) => p.id === post.id);
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = post;
-          return updated;
-        }
-        // Insert new posts at the beginning
-        return [post, ...prev].sort(
-          (a, b) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime()
-        );
-      });
-
-      // Update statistics on changes
+      // For simplicity in pagination, we'll refetch when real-time updates occur
+      // to ensure the list and pagination state stay in sync
+      fetchScheduledPosts();
       fetchStatistics();
     });
 
@@ -99,7 +90,8 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
 
     try {
       await SchedulerService.cancelScheduledPost(postId, userId);
-      setScheduledPosts((prev) => prev.filter((p) => p.id !== postId));
+      // We refetch to keep pagination correct
+      fetchScheduledPosts();
       toast({
         title: "Success",
         description: "Scheduled post cancelled",
@@ -112,16 +104,15 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
         variant: "destructive",
       });
     }
-  }, [userId, toast, fetchStatistics]);
+  }, [userId, toast, fetchStatistics, fetchScheduledPosts]);
 
   const retryPost = useCallback(async (postId: string, newTime?: Date) => {
     if (!userId) return;
 
     try {
-      const updatedPost = await SchedulerService.retryFailedPost(postId, userId, newTime);
-      setScheduledPosts((prev) =>
-        prev.map((p) => (p.id === postId ? updatedPost : p))
-      );
+      await SchedulerService.retryFailedPost(postId, userId, newTime);
+      // We refetch to keep pagination correct
+      fetchScheduledPosts();
       toast({
         title: "Success",
         description: "Failed post scheduled for retry",
@@ -134,12 +125,16 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
         variant: "destructive",
       });
     }
-  }, [userId, toast, fetchStatistics]);
+  }, [userId, toast, fetchStatistics, fetchScheduledPosts]);
 
   return {
     scheduledPosts,
     isLoading,
     statistics,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
     refetch: fetchScheduledPosts,
     cancelPost,
     retryPost,

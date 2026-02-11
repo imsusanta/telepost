@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface AISettings {
-  provider: 'openrouter' | 'lovable';
+  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
   temperature: number;
+  system_prompt?: string;
+  openrouter_api_key?: string;
+  gemini_api_key?: string;
+  openai_api_key?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,8 +27,14 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 
     if (data?.setting_value) {
       const settings = data.setting_value as AISettings;
+
+      // Allow Gemini models explicitly
+      if (settings.model.includes('gemini')) {
+        return settings;
+      }
+
       // Force gpt-4o-mini if provider is lovable or using an old-style model
-      if (settings.provider === 'lovable' || settings.model.includes('gemini-2.0-flash-exp') || settings.model.includes('glm-4.5-air')) {
+      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
         return {
           ...settings,
           provider: 'lovable',
@@ -41,6 +51,10 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     provider: 'lovable',
     model: 'openai/gpt-4o-mini',
     temperature: 0.7,
+    system_prompt: '',
+    openrouter_api_key: '',
+    gemini_api_key: '',
+    openai_api_key: '',
   };
 }
 
@@ -130,12 +144,40 @@ serve(async (req) => {
       quizId?: string;
     }> = [];
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    const aiSettings = await getAISettings(supabase);
+
+    const testModel = aiSettings.model;
+    const provider = aiSettings.provider || 'openrouter';
+
+    // Choose key based on provider
+    let apiKey = '';
+    let finalProvider = provider;
+
+    if (provider === 'gemini') {
+      apiKey = aiSettings.gemini_api_key!;
+    } else if (provider === 'openai') {
+      apiKey = aiSettings.openai_api_key!;
+    } else if (provider === 'openrouter') {
+      apiKey = aiSettings.openrouter_api_key!;
+    } else if (provider === 'lovable') {
+      apiKey = aiSettings.openrouter_api_key!;
+      finalProvider = 'openrouter';
+    } else {
+      // Auto-detect if provider is unknown or missing
+      if (testModel.toLowerCase().includes('gemini')) {
+        finalProvider = 'gemini';
+        apiKey = aiSettings.gemini_api_key!;
+      } else {
+        finalProvider = 'openrouter';
+        apiKey = aiSettings.openrouter_api_key!;
+      }
     }
 
-    const aiSettings = await getAISettings(supabase);
+    if (!apiKey) {
+      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
+    }
+
+    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
 
     // Process each channel
     for (const channel of channels as Channel[]) {
@@ -203,11 +245,13 @@ serve(async (req) => {
         // Generate quiz
         const quiz = await generateQuizForChannel(
           aiSettings.model,
-          OPENROUTER_API_KEY,
+          apiKey,
+          finalProvider,
           channel,
           topic,
           systemPrompt,
-          knowledgeBaseContext
+          knowledgeBaseContext,
+          aiSettings.system_prompt
         );
 
         // Validate quiz response
@@ -246,14 +290,34 @@ serve(async (req) => {
           throw new Error("Quiz generation failed: No valid questions");
         }
 
-        // Get bot token - prefer channel-specific, fallback to global
-        const channelBotToken = channel.telegram_bot_token || GLOBAL_TELEGRAM_BOT_TOKEN;
+        // Get bot token - prefer channel-specific, then user profile, then global
+        let channelBotToken = channel.telegram_bot_token;
 
+        // Fallback 1: Try to get from user's profile settings
         if (!channelBotToken) {
-          throw new Error("No bot token configured for this channel. Please add a bot token to channel settings or configure TELEGRAM_BOT_TOKEN.");
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('telegram_bot_token')
+            .eq('id', channel.user_id)
+            .single();
+
+          if (profile?.telegram_bot_token) {
+            channelBotToken = profile.telegram_bot_token;
+            console.log(`Using profile bot token for channel: ${channel.name}`);
+          }
         }
 
-        console.log(`Using ${channel.telegram_bot_token ? 'channel-specific' : 'global'} bot token for channel: ${channel.name}`);
+        // Fallback 2: Use global environment variable
+        if (!channelBotToken) {
+          channelBotToken = GLOBAL_TELEGRAM_BOT_TOKEN;
+        }
+
+        if (!channelBotToken) {
+          throw new Error("No bot token configured. Please add a bot token to channel settings or in the Settings page.");
+        }
+
+        console.log(`Using ${channel.telegram_bot_token ? 'channel-specific' : 'profile/global'} bot token for channel: ${channel.name}`);
+        console.log(`DEBUG: Channel ID: ${channel.id}, Chat ID from DB: "${channel.telegram_channel_id}", Bot Token length: ${channelBotToken?.length || 0}`);
 
         // Send to Telegram
         await sendQuizToTelegram(
@@ -483,10 +547,12 @@ IMPORTANT: Base ALL questions on the Knowledge Base Content provided. Do not gen
 async function generateQuizForChannel(
   model: string,
   apiKey: string,
+  provider: string,
   channel: Channel,
   topic: string,
   systemPrompt: string,
-  knowledgeBase: string
+  knowledgeBase: string,
+  globalSystemPrompt?: string
 ): Promise<{ questions?: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: Record<string, unknown>; topic?: string; error?: string }> {
   const requestId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -495,7 +561,7 @@ async function generateQuizForChannel(
   const difficulty = channel.settings.default_difficulty || "medium";
   const language = channel.settings.default_language || "en";
 
-  const baseSystemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
+  const baseSystemPrompt = `${globalSystemPrompt ? globalSystemPrompt + "\n\n" : ""}You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
 You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON.
 If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.
 
@@ -526,7 +592,7 @@ REQUIREMENTS:
 1. Number of questions: ${questionCount}.
 2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
 3. ${langInstruction}
-4. Each question must have 3–5 options.
+4. Each question must have EXACTLY 4 options.
 5. Use zero-based indexing for the correct option: "correct_option_index".
 6. Keep each question under 120 characters.
 7. Keep each option under 80 characters.
@@ -561,51 +627,120 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-  console.log(`Generating quiz for topic: ${topic} using model: ${model} via OpenRouter`);
-  console.log(`User prompt length: ${userPrompt.length}`);
+  let content = '';
+  const finalSystemPromptCombined = (globalSystemPrompt ? globalSystemPrompt + "\n\n" : "") + baseSystemPrompt;
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "X-Title": "QuizMaker Auto-Gen",
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: baseSystemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-    }),
-  });
+  if (provider === 'gemini') {
+    console.log(`Generating quiz for topic: ${topic} using model: ${model} via Direct Gemini`);
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const geminiResponse = await fetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `${finalSystemPromptCombined}\n\nUSER PROMPT: ${userPrompt}` }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
 
-  if (!response.ok) {
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again later.");
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error("Gemini Direct Error:", errorText);
+      throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
     }
-    if (response.status === 402) {
-      throw new Error("Payment required. Please add credits to your workspace.");
+    const geminiData = await geminiResponse.json();
+    content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  } else if (provider === 'openai') {
+    console.log(`Generating quiz for topic: ${topic} using model: ${model} via Direct OpenAI`);
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: finalSystemPromptCombined },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI Direct Error:", errorText);
+      throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
     }
-    const errorText = await response.text();
-    console.error("OpenRouter error:", response.status, errorText);
-    throw new Error("Failed to generate quiz from OpenRouter");
+    const data = await response.json();
+    content = data.choices?.[0]?.message?.content;
+  } else {
+    console.log(`Generating quiz for topic: ${topic} using model: ${model} via OpenRouter`);
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://telepost.io",
+        "X-Title": "QuizMaker Auto-Gen",
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: finalSystemPromptCombined },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again later.");
+      }
+      if (response.status === 402) {
+        throw new Error("Payment required. Please add credits to your workspace.");
+      }
+      const errorText = await response.text();
+      console.error("OpenRouter error:", response.status, errorText);
+      throw new Error("Failed to generate quiz from OpenRouter");
+    }
+
+    const aiData = await response.json();
+    content = aiData.choices?.[0]?.message?.content;
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
 
   if (!content) {
     throw new Error("No content in AI response");
   }
 
-  // Parse the JSON response
+  // Robust JSON extraction
   let quizData;
   try {
-    quizData = JSON.parse(content);
+    let cleanedContent = content.trim();
+
+    // Attempt to extract the first { to the last }
+    const jsonStart = cleanedContent.indexOf('{');
+    const jsonEnd = cleanedContent.lastIndexOf('}');
+
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+    }
+
+    // Still handle potential backticks if they are inside the extracted range for some reason
+    if (cleanedContent.includes('```')) {
+      cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+    }
+
+    quizData = JSON.parse(cleanedContent);
   } catch (e) {
-    console.error("Failed to parse AI response:", content);
+    console.error("Failed to parse AI response. Content length:", content.length);
+    console.error("Content start:", content.substring(0, 100));
     console.error("Parse error:", e);
     throw new Error(`Invalid JSON format received from AI: ${e instanceof Error ? e.message : 'Parse failed'}`);
   }
@@ -627,6 +762,17 @@ async function sendQuizToTelegram(
   chatId: string,
   quiz: { topic?: string; questions: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: { difficulty?: string } }
 ): Promise<void> {
+  // Normalize chat ID - add -100 prefix for channels/supergroups if needed
+  let normalizedChatId = chatId;
+  if (chatId && !chatId.startsWith('@') && !chatId.startsWith('-100')) {
+    // If it's a numeric ID without -100 prefix, add it
+    const numericId = chatId.replace(/^-/, '');
+    if (/^\d+$/.test(numericId)) {
+      normalizedChatId = `-100${numericId}`;
+      console.log(`Normalized chat ID from ${chatId} to ${normalizedChatId}`);
+    }
+  }
+
   const baseUrl = `https://api.telegram.org/bot${botToken}`;
 
   // Helper to send Telegram requests with retry logic for 429 errors
@@ -654,7 +800,7 @@ async function sendQuizToTelegram(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: normalizedChatId,
       text: introMessage,
     }),
   });
@@ -681,7 +827,7 @@ async function sendQuizToTelegram(
     const pollExplanation = safeTruncate(q.explanation || "Correct answer explanation", 190);
 
     const pollData = {
-      chat_id: chatId,
+      chat_id: normalizedChatId,
       question: pollQuestion,
       options: pollOptions,
       type: "quiz",

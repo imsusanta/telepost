@@ -67,8 +67,8 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
       <div className="mx-4 mt-4">
         <nav
           className={`max-w-5xl mx-auto px-6 py-3 rounded-full border transition-all duration-300 ${isScrolled
-              ? "bg-background/80 backdrop-blur-lg border-border/50 shadow-sm"
-              : "bg-transparent border-transparent"
+            ? "bg-background/80 backdrop-blur-lg border-border/50 shadow-sm"
+            : "bg-transparent border-transparent"
             }`}
           role="navigation"
           aria-label="Main navigation"
@@ -77,9 +77,12 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
             {/* Logo - Minimal */}
             <a
               href="/"
-              className="text-lg font-display font-semibold text-foreground hover:text-primary transition-colors"
+              className="flex items-center gap-2.5 text-lg font-display font-semibold text-foreground hover:text-primary transition-colors group"
               aria-label="TelePost - Home"
             >
+              <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
+                <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
+              </div>
               TelePost
             </a>
 

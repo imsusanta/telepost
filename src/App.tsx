@@ -30,19 +30,20 @@ const LiveClasses = lazy(() => import("./pages/LiveClasses"));
 const Notices = lazy(() => import("./pages/Notices"));
 const Tests = lazy(() => import("./pages/Tests"));
 const TestEditor = lazy(() => import("./pages/TestEditor"));
-const FeePlans = lazy(() => import("./pages/FeePlans"));
-const Payments = lazy(() => import("./pages/Payments"));
-const Attendance = lazy(() => import("./pages/Attendance"));
-const LeaveRequests = lazy(() => import("./pages/LeaveRequests"));
+
+
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
-const SuperAdminInvitations = lazy(() => import("./pages/SuperAdminInvitations"));
+
 const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
 const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
 const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
 const Install = lazy(() => import("./pages/Install"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Documentation = lazy(() => import("./pages/Documentation"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -98,18 +99,19 @@ const App = () => (
               <Route path="/dashboard/notices" element={<ProtectedRoute><Notices /></ProtectedRoute>} />
               <Route path="/dashboard/tests" element={<ProtectedRoute><Tests /></ProtectedRoute>} />
               <Route path="/dashboard/tests/:testId" element={<ProtectedRoute><TestEditor /></ProtectedRoute>} />
-              <Route path="/dashboard/fee-plans" element={<ProtectedRoute><FeePlans /></ProtectedRoute>} />
-              <Route path="/dashboard/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-              <Route path="/dashboard/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-              <Route path="/dashboard/leaves" element={<ProtectedRoute><LeaveRequests /></ProtectedRoute>} />
+
+
               <Route path="/dashboard/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
               <Route path="/dashboard/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
               <Route path="/dashboard/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/users" element={<SuperAdminRoute><SuperAdminUsers /></SuperAdminRoute>} />
-              <Route path="/dashboard/super-admin/invitations" element={<SuperAdminRoute><SuperAdminInvitations /></SuperAdminRoute>} />
+
               <Route path="/dashboard/super-admin/audit-logs" element={<SuperAdminRoute><SuperAdminAuditLogs /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/documentation" element={<Documentation />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

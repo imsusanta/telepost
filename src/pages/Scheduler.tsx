@@ -16,7 +16,9 @@ import {
   History,
   MoreVertical,
   ArrowRight,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,21 +31,169 @@ import { formatDateTime } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Quiz } from "@/types/quiz";
+import { AutoScheduleCard } from "@/components/AutoScheduleCard";
+import { supabase } from "@/integrations/supabase/client";
+import { Send } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Scheduler() {
-  const { scheduledPosts, isLoading, statistics, refetch, cancelPost, retryPost } = useScheduledPosts();
+  const {
+    scheduledPosts,
+    isLoading,
+    statistics,
+    refetch,
+    cancelPost,
+    retryPost,
+    page,
+    setPage,
+    totalPages,
+    totalCount
+  } = useScheduledPosts();
+
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [autoProcessEnabled, setAutoProcessEnabled] = useState(true);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const lastAutoProcessRef = useRef<Date | null>(null);
+  const lastScheduleCheckRef = useRef<string | null>(null);
 
-  const handleCancel = async (postId: string) => {
-    if (window.confirm("Are you sure you want to cancel this scheduled post?")) {
-      await cancelPost(postId);
+  // Auto-poll: Process pending posts every 30 seconds
+  useEffect(() => {
+    if (!autoProcessEnabled) return;
+
+    const autoProcessPendingPosts = async () => {
+      // Only process if there are pending posts and not currently processing
+      if ((statistics?.pending ?? 0) > 0 && !isProcessing) {
+        try {
+          console.log('[Auto-Scheduler] Processing pending posts...');
+          const { data, error } = await supabase.functions.invoke('process-scheduled-posts', {
+            body: { triggered_by: 'auto-poll' }
+          });
+
+          if (!error && (data?.sent || 0) > 0) {
+            console.log(`[Auto-Scheduler] Sent ${data.sent} post(s)`);
+            lastAutoProcessRef.current = new Date();
+            await refetch();
+          }
+        } catch (err) {
+          console.error('[Auto-Scheduler] Post processing error:', err);
+        }
+      }
+    };
+
+    // Initial check after 5 seconds
+    const initialTimeout = setTimeout(autoProcessPendingPosts, 5000);
+
+    // Then check every 30 seconds
+    const interval = setInterval(autoProcessPendingPosts, 30000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [autoProcessEnabled, statistics?.pending, isProcessing, refetch]);
+
+  // Auto-poll: Check scheduled times and create new posts every minute (for daily loop)
+  useEffect(() => {
+    if (!autoProcessEnabled) return;
+
+    const checkScheduledTimes = async () => {
+      // Get current minute to avoid duplicate calls within the same minute
+      const now = new Date();
+      const currentMinuteKey = `${now.getHours()}:${now.getMinutes()}`;
+
+      if (lastScheduleCheckRef.current === currentMinuteKey) {
+        return; // Already checked this minute
+      }
+
+      try {
+        console.log(`[Daily-Loop] Checking schedules at ${currentMinuteKey}...`);
+        const { data, error } = await supabase.functions.invoke('process-auto-schedule', {
+          body: { triggered_by: 'daily-loop' }
+        });
+
+        lastScheduleCheckRef.current = currentMinuteKey;
+
+        if (!error && data?.processed > 0) {
+          console.log(`[Daily-Loop] Created ${data.processed} scheduled post(s)`);
+          toast({
+            title: "Auto-Scheduler",
+            description: `Created ${data.processed} new quiz post(s)`,
+          });
+          await refetch();
+        }
+      } catch (err) {
+        console.error('[Daily-Loop] Schedule check error:', err);
+      }
+    };
+
+    // Initial check after 10 seconds
+    const initialTimeout = setTimeout(checkScheduledTimes, 10000);
+
+    // Then check every 60 seconds (minutely)
+    const interval = setInterval(checkScheduledTimes, 60000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [autoProcessEnabled, refetch, toast]);
+
+  const handleProcessPending = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-scheduled-posts', {
+        body: { triggered_by: 'manual' }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Posts Processed",
+        description: `Successfully processed ${data?.sent || 0} post(s). ${data?.failed || 0} failed.`,
+      });
+
+      // Refresh the list
+      await refetch();
+    } catch (error: any) {
+      console.error('Error processing posts:', error);
+      toast({
+        title: "Processing Failed",
+        description: error.message || "Failed to process pending posts.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
+  };
+
+  const handleCancel = (postId: string) => {
+    setCancelTargetId(postId);
+    setCancelDialogOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (cancelTargetId) {
+      await cancelPost(cancelTargetId);
+    }
+    setCancelDialogOpen(false);
+    setCancelTargetId(null);
   };
 
   const handleRetry = async (postId: string) => {
@@ -117,6 +267,16 @@ export default function Scheduler() {
           </div>
           <div className="flex items-center gap-3">
             <Button
+              variant="default"
+              size="lg"
+              onClick={handleProcessPending}
+              disabled={isProcessing || (statistics?.pending ?? 0) === 0}
+              className="gap-2 shadow-glow-primary transition-all duration-300 rounded-xl px-6"
+            >
+              <Send className={`w-4 h-4 ${isProcessing ? 'animate-pulse' : ''}`} />
+              {isProcessing ? 'Sending...' : `Send ${statistics?.pending ?? 0} Pending`}
+            </Button>
+            <Button
               variant="outline"
               size="lg"
               onClick={handleRefresh}
@@ -127,6 +287,9 @@ export default function Scheduler() {
             </Button>
           </div>
         </div>
+
+
+        <AutoScheduleCard />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -299,7 +462,7 @@ export default function Scheduler() {
                           </div>
                         </CardContent>
                         <CardFooter className="p-5 pt-0 flex gap-2">
-                          {post.status === 'pending' && (
+                          {(post.status === 'pending' || post.status === 'processing') && (
                             <Button
                               variant="ghost"
                               className="flex-1 gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold rounded-xl"
@@ -361,7 +524,7 @@ export default function Scheduler() {
                             </TableCell>
                             <TableCell className="pr-6 text-right">
                               <div className="flex gap-2 justify-end">
-                                {post.status === 'pending' && (
+                                {(post.status === 'pending' || post.status === 'processing') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -392,10 +555,100 @@ export default function Scheduler() {
                   </Table>
                 </div>
               )}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 px-2">
+                  <p className="text-sm font-bold text-slate-500 italic">
+                    Showing <span className="text-slate-800">{(page - 1) * 50 + 1}</span> to <span className="text-slate-800">{Math.min(page * 50, totalCount)}</span> of <span className="text-slate-800">{totalCount}</span> posts
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="gap-1 rounded-xl clay-button shadow-clay-sm"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+
+                    <div className="flex items-center gap-1 mx-2">
+                      {[...Array(totalPages)].map((_, i) => {
+                        const pageNum = i + 1;
+                        // Only show first, last, and pages around current
+                        if (
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          (pageNum >= page - 1 && pageNum <= page + 1)
+                        ) {
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={page === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setPage(pageNum)}
+                              className={`w-9 h-9 rounded-xl font-bold transition-all ${page === pageNum
+                                  ? "shadow-glow-primary scale-110"
+                                  : "clay-button shadow-clay-sm"
+                                }`}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        } else if (
+                          (pageNum === 2 && page > 3) ||
+                          (pageNum === totalPages - 1 && page < totalPages - 2)
+                        ) {
+                          return <span key={pageNum} className="text-slate-400 font-black px-1">...</span>;
+                        }
+                        return null;
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="gap-1 rounded-xl clay-button shadow-clay-sm"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-white/95 backdrop-blur-xl max-w-md">
+          <AlertDialogHeader className="text-center space-y-3">
+            <div className="mx-auto w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center">
+              <Trash2 className="w-7 h-7 text-rose-500" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold">Cancel Scheduled Post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will permanently remove the post from the schedule. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 sm:gap-3 pt-2">
+            <AlertDialogCancel className="rounded-xl font-bold border-gray-200 hover:bg-gray-50 flex-1">
+              Keep It
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancel}
+              className="rounded-xl font-bold bg-rose-500 hover:bg-rose-600 text-white flex-1 shadow-lg"
+            >
+              Yes, Cancel Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

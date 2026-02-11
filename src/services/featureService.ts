@@ -4,17 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 // TYPES
 // ==========================================
 
-export interface SystemFeature {
-    id: string;
-    feature_key: string;
-    display_name: string;
-    description: string | null;
-    is_enabled: boolean;
-    is_core_feature: boolean;
-    updated_by: string | null;
-    updated_at: string;
-}
-
 export interface UserApprovalStatus {
     status: 'pending' | 'approved' | 'rejected';
     approved_at: string | null;
@@ -33,63 +22,6 @@ export interface UserFullStatus {
     approval: UserApprovalStatus;
     payment: UserPaymentStatus;
     canAccessFeatures: boolean;
-}
-
-export type FeatureKey = 'telegram_quiz' | 'lms_attendance';
-
-// ==========================================
-// SYSTEM FEATURES (Global Toggles)
-// ==========================================
-
-/**
- * Get all system features
- * Note: Uses 'any' to bypass TypeScript until Supabase types are regenerated
- */
-export async function getSystemFeatures(): Promise<SystemFeature[]> {
-    const { data, error } = await (supabase as any)
-        .from('system_features')
-        .select('*')
-        .order('feature_key');
-
-    if (error) throw new Error(`Failed to load system features: ${error.message}`);
-    return (data || []) as SystemFeature[];
-}
-
-/**
- * Check if a specific feature is enabled
- */
-export async function isFeatureEnabled(featureKey: FeatureKey): Promise<boolean> {
-    const { data, error } = await (supabase as any)
-        .from('system_features')
-        .select('is_enabled')
-        .eq('feature_key', featureKey)
-        .single();
-
-    if (error) {
-        console.error(`Failed to check feature ${featureKey}:`, error);
-        return true; // Default to enabled if check fails
-    }
-
-    return data?.is_enabled ?? true;
-}
-
-/**
- * Toggle a system feature (admin only)
- */
-export async function toggleFeature(featureKey: FeatureKey, enabled: boolean): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const { error } = await (supabase as any)
-        .from('system_features')
-        .update({
-            is_enabled: enabled,
-            updated_by: user.id,
-            updated_at: new Date().toISOString()
-        })
-        .eq('feature_key', featureKey);
-
-    if (error) throw new Error(`Failed to toggle feature: ${error.message}`);
 }
 
 // ==========================================
@@ -194,27 +126,6 @@ export async function getAllUsersWithApproval() {
 
     if (error) throw new Error(`Failed to load users: ${error.message}`);
     return data || [];
-}
-
-// ==========================================
-// FEATURE-BASED ACCESS CONTROL
-// ==========================================
-
-/**
- * Check if user has access to a feature (based on global toggle AND subscription)
- */
-export async function hasFeatureAccess(featureKey: FeatureKey): Promise<boolean> {
-    // First check if feature is globally enabled
-    const globallyEnabled = await isFeatureEnabled(featureKey);
-    if (!globallyEnabled) return false;
-
-    // Then check user's subscription plan
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    // Check if user is approved AND has paid
-    const fullStatus = await getUserFullStatus();
-    return fullStatus?.canAccessFeatures ?? false;
 }
 
 // ==========================================

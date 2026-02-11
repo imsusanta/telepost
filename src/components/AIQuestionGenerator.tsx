@@ -41,10 +41,10 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
       return;
     }
 
-    if (questionCount < 1 || questionCount > 20) {
+    if (questionCount < 1 || questionCount > 50) {
       toast({
         title: "Error",
-        description: "Question count must be between 1 and 20",
+        description: "Question count must be between 1 and 50",
         variant: "destructive",
       });
       return;
@@ -128,7 +128,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
                 id="questionCount"
                 type="number"
                 min={1}
-                max={20}
+                max={50}
                 value={questionCount}
                 onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                 disabled={isGenerating}

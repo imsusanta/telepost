@@ -3,7 +3,7 @@
 -- =============================================
 -- This script creates the "telbot" invitation code
 -- Run this in your Supabase Dashboard SQL Editor:
--- https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+-- https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 -- =============================================
 
 -- First, let's check if the code already exists

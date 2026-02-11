@@ -26,6 +26,7 @@ export interface Channel {
 export interface CreateChannelRequest {
   name: string;
   telegram_channel_id?: string;
+  telegram_bot_token?: string;
   description?: string;
   settings?: Partial<ChannelSettings>;
 }
@@ -33,6 +34,7 @@ export interface CreateChannelRequest {
 export interface UpdateChannelRequest {
   name?: string;
   telegram_channel_id?: string;
+  telegram_bot_token?: string;
   description?: string;
   settings?: Partial<ChannelSettings>;
 }

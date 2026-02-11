@@ -222,6 +222,17 @@ serve(async (req) => {
       }
     }
 
+    // Normalize chat ID - add -100 prefix for channels/supergroups if needed
+    let normalizedChatId = chatId;
+    if (chatId && !chatId.startsWith('@') && !chatId.startsWith('-100')) {
+      // If it's a numeric ID without -100 prefix, add it
+      const numericId = chatId.replace(/^-/, '');
+      if (/^\d+$/.test(numericId)) {
+        normalizedChatId = `-100${numericId}`;
+        console.log(`Normalized chat ID from ${chatId} to ${normalizedChatId}`);
+      }
+    }
+
     // Send immediately using the channel-specific bot token
     const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
@@ -253,7 +264,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: normalizedChatId,
         text: safeTruncate(introText, 4000),
         parse_mode: "Markdown",
       }),
@@ -320,7 +331,7 @@ serve(async (req) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              chat_id: chatId,
+              chat_id: normalizedChatId,
               text: safeTruncate(`*Question ${i + 1}:*\n${q.question}`, 4000),
               parse_mode: "Markdown",
             }),
@@ -348,7 +359,7 @@ serve(async (req) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chat_id: chatId,
+            chat_id: normalizedChatId,
             question: pollQuestion,
             options: pollOptions,
             type: "quiz",
@@ -390,6 +401,31 @@ serve(async (req) => {
     }
 
     console.log(`Sent ${results.length} polls, ${failures.length} failed`);
+
+    // Record the quiz generation in the database for stats tracking
+    if (results.length > 0) {
+      try {
+        const { error: insertError } = await supabaseAdmin
+          .from('quiz_generations')
+          .insert({
+            user_id: user.id,
+            channel_id: channelId || null,
+            topic: quiz.topic || 'Untitled Quiz',
+            question_count: results.length,
+            difficulty: 'medium',
+            questions: quiz.questions.slice(0, results.length),
+            status: 'completed',
+          });
+
+        if (insertError) {
+          console.error('Failed to record quiz generation:', insertError);
+        } else {
+          console.log('Quiz generation recorded successfully');
+        }
+      } catch (recordError) {
+        console.error('Exception recording quiz generation:', recordError);
+      }
+    }
 
     return new Response(
       JSON.stringify({

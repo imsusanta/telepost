@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, Shield, Ticket, TrendingUp, Activity, Settings, 
-  BarChart3, DollarSign, Lock, AlertCircle, CheckCircle 
+import {
+  Users, Shield, TrendingUp, Activity, Settings,
+  BarChart3, DollarSign, Lock, AlertCircle, CheckCircle
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { isSuperAdmin } from '@/services/couponService';
 import { getPaginatedUsers, getSubscriptionStats, getCouponStats } from '@/services/superAdminService';
-import { getAllInvitationCodes } from '@/services/invitationService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 
@@ -21,11 +20,6 @@ interface DashboardStats {
     active: number;
     subscribed: number;
     suspended: number;
-  };
-  invitations: {
-    total: number;
-    active: number;
-    used: number;
   };
   subscriptions: {
     total: number;
@@ -45,7 +39,6 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     users: { total: 0, active: 0, subscribed: 0, suspended: 0 },
-    invitations: { total: 0, active: 0, used: 0 },
     subscriptions: { total: 0, active: 0, revenue: 0 },
     coupons: { total: 0, active: 0, totalDiscount: 0 },
   });
@@ -77,9 +70,8 @@ export default function SuperAdminDashboard() {
     try {
       setLoading(true);
 
-      const [usersData, invitationsData, subscriptionData, couponData] = await Promise.all([
+      const [usersData, subscriptionData, couponData] = await Promise.all([
         getPaginatedUsers(1, 1000),
-        getAllInvitationCodes(),
         getSubscriptionStats(),
         getCouponStats(),
       ]);
@@ -90,11 +82,6 @@ export default function SuperAdminDashboard() {
           active: usersData.users.filter(u => u.status === 'active').length,
           subscribed: usersData.users.filter(u => u.subscription).length,
           suspended: usersData.users.filter(u => u.status === 'suspended').length,
-        },
-        invitations: {
-          total: invitationsData.length,
-          active: invitationsData.filter(i => i.is_active && !isExpired(i.expires_at) && i.current_uses < i.max_uses).length,
-          used: invitationsData.reduce((sum, i) => sum + i.current_uses, 0),
         },
         subscriptions: {
           total: subscriptionData.totalUsers,
@@ -119,10 +106,7 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const isExpired = (expiresAt: string | null) => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
-  };
+
 
   if (loading) {
     return (
@@ -155,7 +139,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Main Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-3">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -190,21 +174,6 @@ export default function SuperAdminDashboard() {
               <div className="text-sm font-semibold text-green-600 mt-2">
                 ${stats.subscriptions.revenue}/mo revenue
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Invitation Codes</CardTitle>
-              <Ticket className="h-5 w-5 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.invitations.total}</div>
-              <div className="flex gap-4 mt-2 text-xs">
-                <span className="text-green-600">{stats.invitations.active} Active</span>
-                <span className="text-muted-foreground">{stats.invitations.used} Used</span>
-              </div>
-              <Progress value={(stats.invitations.active / stats.invitations.total) * 100} className="mt-2" />
             </CardContent>
           </Card>
 
@@ -253,14 +222,6 @@ export default function SuperAdminDashboard() {
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Manage Users
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/dashboard/super-admin/invitations')}
-                  >
-                    <Ticket className="w-4 h-4 mr-2" />
-                    Manage Invitation Codes
                   </Button>
                   <Button
                     variant="outline"
@@ -349,61 +310,32 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="access" className="space-y-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Invitation Codes</CardTitle>
-                  <CardDescription>Control user registration access</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Total Codes</span>
-                      <span className="font-bold">{stats.invitations.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Active Codes</span>
-                      <span className="font-bold text-green-600">{stats.invitations.active}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Total Uses</span>
-                      <span className="font-bold">{stats.invitations.used}</span>
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Discount Coupons</CardTitle>
+                <CardDescription>Promotional and discount management</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Total Coupons</span>
+                    <span className="font-bold">{stats.coupons.total}</span>
                   </div>
-                  <Button onClick={() => navigate('/dashboard/super-admin/invitations')} className="w-full">
-                    <Ticket className="w-4 h-4 mr-2" />
-                    Manage Codes
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Discount Coupons</CardTitle>
-                  <CardDescription>Promotional and discount management</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Total Coupons</span>
-                      <span className="font-bold">{stats.coupons.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Active Coupons</span>
-                      <span className="font-bold text-green-600">{stats.coupons.active}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Total Discount</span>
-                      <span className="font-bold text-yellow-600">${stats.coupons.totalDiscount.toFixed(2)}</span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Active Coupons</span>
+                    <span className="font-bold text-green-600">{stats.coupons.active}</span>
                   </div>
-                  <Button onClick={() => navigate('/dashboard/super-admin/coupons')} className="w-full">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Manage Coupons
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Total Discount</span>
+                    <span className="font-bold text-yellow-600">${stats.coupons.totalDiscount.toFixed(2)}</span>
+                  </div>
+                </div>
+                <Button onClick={() => navigate('/dashboard/super-admin/coupons')} className="w-full">
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Manage Coupons
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">

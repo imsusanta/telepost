@@ -10,43 +10,144 @@ import { useNavigate } from "react-router-dom";
 
 // Fetch dashboard data with React Query for caching and auto-refetch
 async function fetchDashboardData() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) {
+    console.error("Auth error in fetchDashboardData:", authError);
+    throw new Error("Authentication failed");
+  }
   if (!user) throw new Error("No user found");
 
-  const [
-    profileResult,
-    quizzesResult,
-    scheduledResult,
-    pendingResult,
-    responsesResult,
-    documentsResult,
-    questionsResult,
-    channelsResult,
-    connectedBotsResult
-  ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("quiz_generations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
-    supabase.from("quiz_responses").select("id, quiz_generations!inner(user_id)", { count: "exact", head: true }).eq("quiz_generations.user_id", user.id),
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    // Count channels with bot tokens (connected bots)
-    (supabase as any).from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id).not("telegram_bot_token", "is", null)
-  ]);
+  // Fetch all data individually to prevent one failure from breaking all stats
+  const results = {
+    profile: null as any,
+    totalQuizzes: 0,
+    scheduledPosts: 0,
+    pendingPosts: 0,
+    totalViews: 0,
+    totalDocuments: 0,
+    totalQuestions: 0,
+    totalChannels: 0
+  };
+
+  // Profile
+  try {
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    results.profile = data;
+  } catch (e) {
+    console.error("Error fetching profile:", e);
+  }
+
+  // Total Quizzes count - from all sources
+  try {
+    // Count completed quiz generations
+    const { count: completedQuizzes, error: qgError } = await supabase
+      .from("quiz_generations")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "completed");
+    if (qgError) console.error("Error fetching quiz_generations count:", qgError);
+
+    // Count sent scheduled posts
+    const { count: sentPosts, error: spError } = await supabase
+      .from("scheduled_telegram_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "sent");
+    if (spError) console.error("Error fetching sent scheduled_posts count:", spError);
+
+    // Count posted telegram posts
+    const { count: postedPosts, error: tpError } = await supabase
+      .from("telegram_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "posted");
+    if (tpError) console.error("Error fetching posted telegram_posts count:", tpError);
+
+    results.totalQuizzes = (completedQuizzes || 0) + (sentPosts || 0) + (postedPosts || 0);
+  } catch (e) {
+    console.error("Error fetching total quizzes:", e);
+  }
+
+  // Scheduled posts count
+  try {
+    const { count, error } = await supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+    if (error) console.error("Error fetching scheduled_posts count:", error);
+    results.scheduledPosts = count || 0;
+  } catch (e) {
+    console.error("Error fetching scheduled_posts:", e);
+  }
+
+  // Pending posts count
+  try {
+    const { count, error } = await supabase.from("scheduled_telegram_posts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending");
+    if (error) console.error("Error fetching pending_posts count:", error);
+    results.pendingPosts = count || 0;
+  } catch (e) {
+    console.error("Error fetching pending_posts:", e);
+  }
+
+  // Quiz responses count - Get quiz IDs first, then count responses
+  try {
+    // First get the user's quiz IDs
+    const { data: quizzes, error: quizError } = await supabase
+      .from("quiz_generations")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (quizError) {
+      console.error("Error fetching user quizzes for responses:", quizError);
+    } else if (quizzes && quizzes.length > 0) {
+      const quizIds = quizzes.map(q => q.id);
+      const { count, error } = await supabase
+        .from("quiz_responses")
+        .select("*", { count: "exact", head: true })
+        .in("quiz_generation_id", quizIds);
+      if (error) console.error("Error fetching quiz_responses count:", error);
+      results.totalViews = count || 0;
+    }
+  } catch (e) {
+    console.error("Error fetching quiz_responses:", e);
+  }
+
+  // Documents count
+  try {
+    const { count, error } = await supabase.from("documents").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+    if (error) console.error("Error fetching documents count:", error);
+    results.totalDocuments = count || 0;
+  } catch (e) {
+    console.error("Error fetching documents:", e);
+  }
+
+  // Questions count
+  try {
+    const { count, error } = await supabase.from("question_banks").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+    if (error) console.error("Error fetching question_banks count:", error);
+    results.totalQuestions = count || 0;
+  } catch (e) {
+    console.error("Error fetching question_banks:", e);
+  }
+
+  // Channels count
+  try {
+    const { count, error } = await supabase.from("channels").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+    if (error) console.error("Error fetching channels count:", error);
+    results.totalChannels = count || 0;
+  } catch (e) {
+    console.error("Error fetching channels:", e);
+  }
+
+
 
   return {
-    profile: profileResult.data,
+    profile: results.profile,
     stats: {
-      totalQuizzes: quizzesResult.count || 0,
-      scheduledPosts: scheduledResult.count || 0,
-      pendingPosts: pendingResult.count || 0,
-      totalViews: responsesResult.count || 0,
-      totalDocuments: documentsResult.count || 0,
-      totalQuestions: questionsResult.count || 0,
-      connectedBots: connectedBotsResult.count || 0,
-      totalChannels: channelsResult.count || 0
+      totalQuizzes: results.totalQuizzes,
+      scheduledPosts: results.scheduledPosts,
+      pendingPosts: results.pendingPosts,
+      totalViews: results.totalViews,
+      totalDocuments: results.totalDocuments,
+      totalQuestions: results.totalQuestions,
+      totalChannels: results.totalChannels
     }
   };
 }
@@ -233,26 +334,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Connected Bots */}
-          <Card className="border-white/40 bg-card/80 backdrop-blur-xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Bot className="w-4 h-4 text-emerald-500" />
-                Connected Bots
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-4xl font-bold">{stats?.connectedBots || 0}</p>
-                  <p className="text-sm text-muted-foreground">Bot tokens configured</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/channels")}>
-                  Manage <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+
+
 
           {/* Documents */}
           <Card className="border-white/40 bg-card/80 backdrop-blur-xl">

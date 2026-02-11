@@ -112,39 +112,119 @@ export default function Billing() {
 
   const handleUpgrade = async (planName: string) => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // 1. Get the plan details to get the price
+      const plans = await SubscriptionService.getPlans();
+      const selectedPlan = plans.find(p => p.name.toLowerCase() === planName.toLowerCase());
+
+      if (!selectedPlan) throw new Error("Plan not found");
+
+      // 2. Handle coupon discount calculation
+      let amountToPay = selectedPlan.price;
       const couponToApply = appliedCoupon && appliedCoupon.plan_name === planName.toLowerCase()
         ? appliedCoupon.code
         : undefined;
 
-      if (currentSubscription) {
-        await SubscriptionService.upgradeSubscription(user.id, planName);
-        toast({
-          title: "Plan Upgraded",
-          description: `Successfully upgraded to ${planName}`,
-        });
-      } else {
-        await SubscriptionService.createSubscription(user.id, planName, couponToApply);
-        toast({
-          title: "Subscription Created",
-          description: couponToApply
-            ? `Successfully subscribed to ${planName} with coupon ${couponToApply}`
-            : `Successfully subscribed to ${planName}`,
-        });
+      if (appliedCoupon && appliedCoupon.plan_name === planName.toLowerCase()) {
+        amountToPay = appliedCoupon.final_amount;
       }
 
-      // Clear coupon after successful purchase
-      setAppliedCoupon(null);
-      setCouponCode("");
-      loadBillingInfo();
+      // If price is 0 (Free plan), just subscribe directly
+      if (amountToPay <= 0) {
+        await SubscriptionService.createSubscription(user.id, planName, couponToApply);
+        toast({
+          title: "Plan Activated",
+          description: `Successfully activated ${planName} plan`,
+        });
+        loadBillingInfo();
+        return;
+      }
+
+      // 3. Create Razorpay Order via Edge Function
+      const { data: orderData, error: orderError } = await supabase.functions.invoke("create-razorpay-order", {
+        body: {
+          amount: Math.round(amountToPay * 100), // Convert to paise
+          planId: selectedPlan.name.toLowerCase()
+        },
+      });
+
+      if (orderError || !orderData) throw new Error(orderError?.message || "Failed to create payment order");
+
+      // 4. Initialize Razorpay Checkout
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "TelePost SaaS",
+        description: `Upgrade to ${planName} Plan`,
+        order_id: orderData.order_id,
+        handler: async (response: any) => {
+          try {
+            setLoading(true);
+            toast({
+              title: "Payment Successful",
+              description: "Verifying your payment, please wait...",
+            });
+
+            // 5. Verify Payment via Edge Function
+            const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-razorpay-payment", {
+              body: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            });
+
+            if (verifyError || !verifyData?.success) {
+              throw new Error(verifyError?.message || "Payment verification failed");
+            }
+
+            toast({
+              title: "Subscription Activated",
+              description: `You are now on the ${planName} plan!`,
+            });
+
+            // Clear coupon and refresh
+            setAppliedCoupon(null);
+            setCouponCode("");
+            loadBillingInfo();
+          } catch (err: any) {
+            toast({
+              title: "Verification Error",
+              description: err.message || "Failed to verify payment",
+              variant: "destructive",
+            });
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          email: user.email,
+          name: user.user_metadata?.full_name || "",
+        },
+        theme: {
+          color: "#7E69AB", // matches primary purple
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
     } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to upgrade",
+        description: error instanceof Error ? error.message : "Failed to initiate upgrade",
         variant: "destructive",
       });
+      setLoading(false);
     }
   };
 
@@ -350,9 +430,8 @@ export default function Billing() {
           {plansWithCurrentStatus.map((plan, idx) => (
             <Card
               key={plan.name}
-              className={`clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in relative ${
-                plan.popular ? "ring-2 ring-primary shadow-clay-lg scale-105" : ""
-              }`}
+              className={`clay-card-hover bg-card/50 backdrop-blur-sm border-border animate-scale-in relative ${plan.popular ? "ring-2 ring-primary shadow-clay-lg scale-105" : ""
+                }`}
               style={{ animationDelay: `${idx * 0.1}s` }}
             >
               {plan.popular && (
@@ -415,11 +494,10 @@ export default function Billing() {
                   </Button>
                 )}
                 <Button
-                  className={`w-full clay-button rounded-2xl py-6 font-semibold ${
-                    plan.popular
+                  className={`w-full clay-button rounded-2xl py-6 font-semibold ${plan.popular
                       ? "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
                       : ""
-                  }`}
+                    }`}
                   variant={plan.current ? "secondary" : "default"}
                   disabled={plan.current || loading || !canPurchase}
                   onClick={() => handleUpgrade(plan.name.toLowerCase())}

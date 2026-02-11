@@ -7,8 +7,10 @@ import {
     Loader2,
     PenLine,
     Send,
+    Sparkles,
     Trash2,
     Upload,
+    Wand2,
     X,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -56,6 +58,9 @@ export default function CreatePost() {
     const [isUploading, setIsUploading] = useState(false);
     const [isPosting, setIsPosting] = useState(false);
     const [activeTab, setActiveTab] = useState("create");
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [isAiGenerating, setIsAiGenerating] = useState(false);
+    const [showAiInput, setShowAiInput] = useState(false);
 
     // Recent posts state
     const [recentPosts, setRecentPosts] = useState<Post[]>([]);
@@ -151,7 +156,49 @@ export default function CreatePost() {
         setIsScheduled(false);
     };
 
+    const handleGenerateWithAi = async () => {
+        if (!aiPrompt.trim()) {
+            toast({
+                title: "Prompt required",
+                description: "Please enter what you want the AI to write about",
+                variant: "destructive",
+            });
+            return;
+        }
 
+        try {
+            setIsAiGenerating(true);
+            const { data, error } = await supabase.functions.invoke('ai-generate-text', {
+                body: {
+                    prompt: aiPrompt.trim(),
+                    systemPrompt: "You are a social media copywriter. Write a compelling post based on the user's prompt. Keep it concise and engaging. Supports Markdown: *bold* _italic_ `code` and emojis 😊. Do not include any title or preamble, just the post content."
+                }
+            });
+
+            if (error) throw error;
+
+            if (data?.text) {
+                setContent(data.text);
+                toast({
+                    title: "Content generated! ✨",
+                    description: "AI has written a post for you. You can now edit it manually.",
+                });
+                setShowAiInput(false);
+                setAiPrompt("");
+            } else {
+                throw new Error(data?.error || "Failed to generate content");
+            }
+        } catch (error) {
+            console.error("AI Generation error:", error);
+            toast({
+                title: "Generation failed",
+                description: error instanceof Error ? error.message : "An error occurred",
+                variant: "destructive",
+            });
+        } finally {
+            setIsAiGenerating(false);
+        }
+    };
 
     const handleSubmit = async (postNow: boolean = false) => {
         if (!selectedChannel) {
@@ -362,8 +409,54 @@ export default function CreatePost() {
                                             </Select>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <Label htmlFor="content">Message</Label>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="content">Message</Label>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className={`gap-2 text-xs h-8 ${showAiInput ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                                                    onClick={() => setShowAiInput(!showAiInput)}
+                                                >
+                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                    {showAiInput ? "Close AI Assistant" : "Write with AI"}
+                                                </Button>
+                                            </div>
+
+                                            {showAiInput && (
+                                                <div className="bg-gradient-to-br from-primary/5 to-purple-500/5 rounded-xl p-4 border border-primary/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Wand2 className="h-4 w-4 text-primary" />
+                                                        <span className="text-sm font-semibold text-primary">AI Assistant</span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            placeholder="What should this post be about? (e.g., 'A welcome post for my new study group')"
+                                                            value={aiPrompt}
+                                                            onChange={(e) => setAiPrompt(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleGenerateWithAi()}
+                                                            className="flex-1 bg-white dark:bg-slate-950 border-primary/20"
+                                                            disabled={isAiGenerating}
+                                                        />
+                                                        <Button
+                                                            onClick={handleGenerateWithAi}
+                                                            disabled={isAiGenerating || !aiPrompt.trim()}
+                                                            className="bg-primary hover:bg-primary/90 shadow-sm"
+                                                        >
+                                                            {isAiGenerating ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                "Generate"
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground italic">
+                                                        Tip: Be specific for better results. The generated text will replace your current message.
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             <Textarea
                                                 id="content"
                                                 placeholder="Write your post here... Supports Markdown: *bold* _italic_ `code` and emojis 😊"

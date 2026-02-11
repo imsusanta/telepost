@@ -8,7 +8,7 @@ export class ChannelService {
   static async getUserChannels(userId: string): Promise<Channel[]> {
     const { data, error } = await supabase
       .from("channels")
-      .select("id, user_id, name, telegram_channel_id, description, settings, last_auto_generated_at, created_at, updated_at")
+      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -29,7 +29,7 @@ export class ChannelService {
   static async getChannel(channelId: string, userId: string): Promise<Channel> {
     const { data, error } = await supabase
       .from("channels")
-      .select("id, user_id, name, telegram_channel_id, description, settings, last_auto_generated_at, created_at, updated_at")
+      .select("id, user_id, name, telegram_channel_id, telegram_bot_token, description, settings, last_auto_generated_at, created_at, updated_at")
       .eq("id", channelId)
       .eq("user_id", userId)
       .single();
@@ -52,9 +52,9 @@ export class ChannelService {
     userId: string,
     request: CreateChannelRequest
   ): Promise<Channel> {
-    // Check user's channel limit
+    // Check user's channel limit (effectively unlimited)
     const userChannels = await this.getUserChannels(userId);
-    if (userChannels.length >= 10) {
+    if (userChannels.length >= 10000) {
       throw new Error("Channel limit reached");
     }
 
@@ -112,6 +112,8 @@ export class ChannelService {
       updates.telegram_channel_id = request.telegram_channel_id;
     if (request.description !== undefined)
       updates.description = request.description;
+    if (request.telegram_bot_token !== undefined)
+      updates.telegram_bot_token = request.telegram_bot_token;
     if (request.settings !== undefined) {
       updates.settings = { ...existingChannel.settings, ...request.settings };
     }

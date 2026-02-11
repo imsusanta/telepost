@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { DocumentService } from "@/services/documentService";
+import { DocumentService, Document } from "@/services/documentService";
 import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
+import { KnowledgeBaseSelector } from "./KnowledgeBaseSelector";
 
 interface Question {
   question: string;
@@ -24,6 +25,7 @@ interface PDFQuestionGeneratorProps {
 
 export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGeneratorProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [selectedLibraryDoc, setSelectedLibraryDoc] = useState<Document | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
@@ -55,27 +57,36 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
       }
 
       setFile(selectedFile);
+      setSelectedLibraryDoc(null);
+      if (!topic) setTopic(selectedFile.name.replace(".pdf", ""));
     }
   };
 
-  const handleRemoveFile = () => {
+  const handleLibraryDocSelect = (doc: Document) => {
+    setSelectedLibraryDoc(doc);
     setFile(null);
+    setTopic(doc.title || doc.file_name.replace(".pdf", ""));
+  };
+
+  const handleRemoveSelection = () => {
+    setFile(null);
+    setSelectedLibraryDoc(null);
   };
 
   const handleGenerate = async () => {
-    if (!file) {
+    if (!file && !selectedLibraryDoc) {
       toast({
         title: "Error",
-        description: "Please upload a PDF file",
+        description: "Please upload a PDF file or select one from your library",
         variant: "destructive",
       });
       return;
     }
 
-    if (questionCount < 1 || questionCount > 20) {
+    if (questionCount < 1 || questionCount > 50) {
       toast({
         title: "Error",
-        description: "Question count must be between 1 and 20",
+        description: "Question count must be between 1 and 50",
         variant: "destructive",
       });
       return;
@@ -87,28 +98,44 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         throw new Error("You must be logged in");
       }
 
-      // Step 1: Upload PDF
-      setIsUploading(true);
-      toast({
-        title: "Uploading PDF",
-        description: "Please wait...",
-      });
+      let processedDoc: Document;
 
-      const document = await DocumentService.uploadDocument(user.id, file, {
-        title: topic || file.name,
-        language,
-      });
+      if (file) {
+        // Step 1: Upload PDF
+        setIsUploading(true);
+        toast({
+          title: "Uploading PDF",
+          description: "Please wait...",
+        });
 
-      setIsUploading(false);
+        const uploadedDoc = await DocumentService.uploadDocument(user.id, file, {
+          title: topic || file.name,
+          language,
+        });
 
-      // Step 2: Wait for processing (poll for completion)
-      setIsProcessing(true);
-      toast({
-        title: "Processing PDF",
-        description: "Extracting text from document...",
-      });
+        setIsUploading(false);
 
-      const processedDoc = await waitForDocumentProcessing(document.id);
+        // Step 2: Wait for processing (poll for completion)
+        setIsProcessing(true);
+        toast({
+          title: "Processing PDF",
+          description: "Extracting text from document...",
+        });
+
+        processedDoc = await waitForDocumentProcessing(uploadedDoc.id);
+      } else {
+        // Use existing library document
+        processedDoc = selectedLibraryDoc!;
+
+        if (processedDoc.processing_status !== "completed") {
+          setIsProcessing(true);
+          toast({
+            title: "Processing Document",
+            description: "Existing document is still processing...",
+          });
+          processedDoc = await waitForDocumentProcessing(processedDoc.id);
+        }
+      }
 
       if (!processedDoc.extracted_text) {
         throw new Error("Could not extract text from PDF. The PDF might be empty or corrupted.");
@@ -116,7 +143,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
       // Check if the extracted text indicates an error
       if (processedDoc.extracted_text.startsWith("Error:") ||
-          processedDoc.extracted_text.startsWith("No text could be extracted")) {
+        processedDoc.extracted_text.startsWith("No text could be extracted")) {
         throw new Error(processedDoc.extracted_text);
       }
 
@@ -138,10 +165,11 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
       // Limit extracted text to 8000 characters for better API performance
       const textForGeneration = processedDoc.extracted_text.substring(0, 8000);
+      const documentName = topic || (selectedLibraryDoc ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name) : file?.name || "Document");
 
       const quiz = await QuizService.generateQuizFromDocument({
         documentText: textForGeneration,
-        topic: topic || file.name,
+        topic: documentName,
         questionCount,
         difficulty,
         language,
@@ -153,14 +181,14 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
       // Store questions temporarily
       TempQuestionStorageService.addQuestions(quiz.questions, {
-        topic: topic || file.name,
+        topic: documentName,
         difficulty,
         language,
         source_type: 'pdf_generator',
       });
 
       // Pass generated questions to parent with metadata (for backward compatibility)
-      onQuestionsGenerated(quiz.questions, topic || file.name, difficulty, language);
+      onQuestionsGenerated(quiz.questions, documentName, difficulty, language);
 
       toast({
         title: "Success",
@@ -183,12 +211,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
     }
   };
 
-  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 30): Promise<{
-    id: string;
-    processing_status: string;
-    processing_error?: string | null;
-    extracted_text?: string | null;
-  }> => {
+  const waitForDocumentProcessing = async (documentId: string, maxAttempts = 30): Promise<Document> => {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
@@ -225,8 +248,13 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         <div className="space-y-4">
           {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="pdf-upload">Upload PDF *</Label>
-            {!file ? (
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pdf-upload">Upload PDF or Select from Library *</Label>
+              {!isLoading && (
+                <KnowledgeBaseSelector onSelect={handleLibraryDocSelect} />
+              )}
+            </div>
+            {!file && !selectedLibraryDoc ? (
               <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors">
                 <input
                   id="pdf-upload"
@@ -246,22 +274,30 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
                 </label>
               </div>
             ) : (
-              <div className="border rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
+              <div className="border rounded-lg p-4 flex items-center justify-between bg-primary/5 border-primary/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <FileText className="w-6 h-6" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-sm font-semibold truncate max-w-[200px] sm:max-w-md">
+                      {selectedLibraryDoc ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name) : file?.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                      {selectedLibraryDoc ? (
+                        <>Library Document • {(selectedLibraryDoc.file_size_bytes / 1024 / 1024).toFixed(2)} MB</>
+                      ) : (
+                        <>Local File • {(file!.size / 1024 / 1024).toFixed(2)} MB</>
+                      )}
                     </p>
                   </div>
                 </div>
                 {!isLoading && (
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={handleRemoveFile}
-                    className="text-red-500"
+                    size="icon"
+                    onClick={handleRemoveSelection}
+                    className="text-muted-foreground hover:text-red-500 hover:bg-red-50"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -288,7 +324,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
                 id="questionCount"
                 type="number"
                 min={1}
-                max={20}
+                max={50}
                 value={questionCount}
                 onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                 disabled={isLoading}
@@ -334,9 +370,8 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
           <Button
             onClick={handleGenerate}
-            disabled={isLoading || !file}
-            className="w-full gap-2"
-            size="lg"
+            disabled={isLoading || (!file && !selectedLibraryDoc)}
+            className="w-full gap-2 h-12 text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             {isLoading ? (
               <>

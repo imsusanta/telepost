@@ -36,7 +36,7 @@ This is the easiest and most reliable method:
 ### Steps:
 
 1. **Open Supabase SQL Editor**
-   - Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+   - Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
    - Or navigate: Dashboard → SQL Editor → New Query
 
 2. **Copy Migration SQL**
@@ -105,7 +105,7 @@ If you have Supabase CLI installed:
 
 3. **Link to Your Project**
    ```bash
-   supabase link --project-ref cazrdevenbxdjussycfj
+   supabase link --project-ref wpkxbrdgktmwnowvmwue
    ```
 
 4. **Push Migration**
@@ -129,7 +129,7 @@ If you have the Supabase service role key:
 ### Steps:
 
 1. **Get Service Role Key**
-   - Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/settings/api
+   - Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/settings/api
    - Copy the "service_role" key (NOT the anon key)
    - **Important**: Keep this key secure! Never commit it to version control.
 

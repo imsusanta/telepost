@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentService, Document } from "@/services/documentService";
 import { SubscriptionService } from "@/services/subscriptionService";
@@ -237,50 +236,33 @@ export default function Documents() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-start flex-wrap gap-4">
-          <div>
-            <h1 className="text-4xl font-bold flex items-center gap-2">
-              <FileText className="w-10 h-10" />
+      <div className="space-y-8 animate-in fade-in duration-500">
+        {/* Header Section */}
+        <div className="flex justify-between items-end flex-wrap gap-6">
+          <div className="space-y-1">
+            <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <FileText className="w-8 h-8" />
+              </div>
               Document Library
             </h1>
-            <p className="text-muted-foreground">
-              Upload PDFs to your channel's knowledge base
-              {searchQuery && ` (${filteredDocuments.length} matching)`}
+            <p className="text-muted-foreground text-lg ml-1">
+              Manage your knowledge base for AI quiz generation
             </p>
           </div>
-          <div className="flex gap-3 items-end flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-48"
-              />
-            </div>
-            <div className="w-48">
-              <Label htmlFor="channel-select" className="text-sm mb-2 block">
-                Channel
-              </Label>
-              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-                <SelectTrigger id="channel-select">
-                  <SelectValue placeholder="Select channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Channels</SelectItem>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+
+          <div className="flex gap-3 items-center flex-wrap">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-10 w-10 rounded-xl hover:bg-primary/5 transition-colors"
+            >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <div>
+
+            <div className="relative group">
               <Input
                 type="file"
                 accept=".pdf"
@@ -289,116 +271,206 @@ export default function Documents() {
                 className="hidden"
                 id="pdf-upload"
               />
-              <Button asChild disabled={uploading || !selectedChannel || selectedChannel === "all"} className="gap-2">
-                <label htmlFor="pdf-upload" className="cursor-pointer">
-                  <Upload className="w-4 h-4" />
-                  {uploading ? "Uploading..." : "Upload PDF"}
+              <Button
+                asChild
+                disabled={uploading || !selectedChannel || selectedChannel === "all"}
+                className="gap-2 h-10 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <label htmlFor="pdf-upload" className="cursor-pointer flex items-center">
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploading ? "Uploading..." : "Upload New PDF"}
                 </label>
               </Button>
             </div>
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Usage</CardTitle>
-            <CardDescription>
-              {storageUsed.current.toFixed(2)} GB / {storageUsed.limit} GB used
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full bg-muted rounded-full h-4">
-              <div
-                className="bg-primary h-4 rounded-full transition-all"
-                style={{ width: `${(storageUsed.current / storageUsed.limit) * 100}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Stats & Search Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="md:col-span-1 border-none bg-gradient-to-br from-primary/5 via-transparent to-transparent shadow-sm border border-primary/10">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase tracking-wider font-semibold">Storage Capacity</CardDescription>
+              <CardTitle className="text-2xl font-bold">
+                {storageUsed.current.toFixed(2)} <span className="text-sm font-medium text-muted-foreground">/ {storageUsed.limit} GB</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full bg-muted rounded-full h-2 mt-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-1000"
+                  style={{ width: `${Math.min(100, (storageUsed.current / storageUsed.limit) * 100)}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
+          <Card className="md:col-span-3 border-none bg-muted/30 shadow-none flex flex-col justify-center px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  placeholder="Search in Library..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-11 border-none shadow-sm rounded-xl focus-visible:ring-primary/20"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                  <SelectTrigger className="h-11 border-none shadow-sm rounded-xl focus-visible:ring-primary/20 bg-background">
+                    <SelectValue placeholder="Filter by Channel" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all">All Channels</SelectItem>
+                    {channels.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Documents Grid */}
         {loading ? (
-          <div className="grid gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="rounded-2xl border-none bg-muted/20">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-3">
-                      <Skeleton className="w-10 h-10 rounded" />
-                      <div>
-                        <Skeleton className="h-6 w-48 mb-2" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
+                  <div className="flex gap-4">
+                    <Skeleton className="w-12 h-12 rounded-xl" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
                     </div>
-                    <Skeleton className="h-8 w-24" />
                   </div>
                 </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-20 w-full rounded-xl" />
+                </CardContent>
               </Card>
             ))}
           </div>
         ) : filteredDocuments.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">
-                {searchQuery ? "No matching documents" : "No documents yet"}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery
-                  ? "Try adjusting your search query"
-                  : "Upload your first PDF to generate AI-powered quizzes"}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 rounded-3xl border-2 border-dashed border-muted/50 bg-muted/5">
+            <div className="p-6 rounded-full bg-muted/50 text-muted-foreground mb-4">
+              <FileText className="w-16 h-16" />
+            </div>
+            <h3 className="text-2xl font-bold tracking-tight">
+              {searchQuery ? "No results found" : "Your library is empty"}
+            </h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              {searchQuery
+                ? `We couldn't find anything matching "${searchQuery}". Try another keyword.`
+                : "Upload study materials or guides in PDF format to start generating intelligent quizzes."}
+            </p>
+            {!searchQuery && (
+              <Button asChild variant="outline" className="mt-4 rounded-xl">
+                <label htmlFor="pdf-upload" className="cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload your first PDF
+                </label>
+              </Button>
+            )}
+          </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDocuments.map((doc) => (
-              <Card key={doc.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-3">
-                      <FileText className="w-10 h-10 text-primary" />
-                      <div>
-                        <CardTitle className="text-lg">{doc.title || doc.file_name}</CardTitle>
-                        <CardDescription>
-                          {formatFileSize(doc.file_size_bytes)} • {doc.page_count || "?"} pages •{" "}
-                          {new Date(doc.created_at).toLocaleDateString()}
-                        </CardDescription>
-                      </div>
+              <Card
+                key={doc.id}
+                className="group relative rounded-2xl border-none shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden bg-card hover:-translate-y-1 border border-transparent hover:border-primary/10"
+              >
+                {/* Status Indicator Bar */}
+                {doc.processing_status !== "completed" ? (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-muted">
+                    <div className="h-full bg-primary animate-pulse" style={{ width: doc.processing_status === "processing" ? "60%" : "20%" }} />
+                  </div>
+                ) : (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 group-hover:bg-primary transition-colors" />
+                )}
+
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                      <FileText className="w-6 h-6" />
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => handleGenerateQuiz(doc)}
-                        disabled={doc.processing_status !== "completed"}
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Generate Quiz
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors"
                         onClick={() => handleDelete(doc.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
-                </CardHeader>
-                {doc.processing_status !== "completed" && (
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      Status: {doc.processing_status}
-                      {doc.processing_error && ` - ${doc.processing_error}`}
+
+                  <div className="mt-3">
+                    <CardTitle className="text-lg font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                      {doc.title || doc.file_name}
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs font-medium text-muted-foreground/80">
+                      <span className="flex items-center gap-1">
+                        {formatFileSize(doc.file_size_bytes)}
+                      </span>
+                      <span>•</span>
+                      <span>{doc.page_count || "?"} pages</span>
+                      <span>•</span>
+                      <span>{new Date(doc.created_at).toLocaleDateString()}</span>
                     </div>
-                  </CardContent>
-                )}
-                {doc.ai_summary && (
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{doc.ai_summary}</p>
-                  </CardContent>
-                )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {doc.ai_summary ? (
+                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 italic">
+                      "{doc.ai_summary}"
+                    </p>
+                  ) : doc.processing_status === "completed" ? (
+                    <p className="text-sm text-muted-foreground/50 leading-relaxed italic">
+                      No summary available for this document.
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-primary font-medium animate-pulse">
+                      <Sparkles className="w-4 h-4" />
+                      AI is analyzing content...
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex items-center justify-between gap-3">
+                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${doc.processing_status === 'completed'
+                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : doc.processing_status === 'failed'
+                        ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                        : 'bg-primary/10 text-primary border border-primary/20'
+                      }`}>
+                      {doc.processing_status}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary hover:text-primary hover:bg-primary/10 gap-2 h-9 px-4 rounded-xl font-bold transition-all"
+                      onClick={() => handleGenerateQuiz(doc)}
+                      disabled={doc.processing_status !== "completed"}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Generate Quiz
+                    </Button>
+                  </div>
+
+                  {doc.processing_error && (
+                    <div className="p-2 rounded-lg bg-destructive/5 text-[10px] text-destructive border border-destructive/10 break-words">
+                      {doc.processing_error}
+                    </div>
+                  )}
+                </CardContent>
               </Card>
             ))}
           </div>

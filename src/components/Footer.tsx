@@ -1,106 +1,107 @@
 import { Twitter, Github, Linkedin, Mail } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
-import { Button } from "./ui/button";
 
 export const Footer = () => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
 
   const footerLinks = {
-    Product: ["Features", "Pricing", "Integrations", "Changelog"],
-    Resources: ["Documentation", "API Reference", "Blog", "Community"],
-    Company: ["About", "Careers", "Contact", "Partners"],
-    Legal: ["Privacy", "Terms", "Security", "GDPR"],
+    Company: [
+      { label: "Features", href: "#features" },
+      { label: "How it Works", href: "#how-it-works" },
+      { label: "About Us", href: "#" },
+      { label: "Contact Information", href: "#" },
+    ],
+    Legal: [
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms & Conditions", href: "/terms" },
+    ],
+    Support: [
+      { label: "Documentation", href: "/documentation" },
+    ],
   };
 
   return (
-    <footer 
+    <footer
       ref={ref as React.RefObject<HTMLElement>}
-      className="py-20 px-4 border-t border-border/50" 
+      className="py-20 px-4 border-t border-border/50 bg-gradient-to-b from-transparent to-muted/20"
       role="contentinfo"
     >
-      <div className={`max-w-6xl mx-auto transition-all duration-700 ${
-        isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-      }`}>
-        {/* Newsletter signup */}
-        <div className="text-center mb-16 pb-16 border-b border-border/50">
-          <h3 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-4">
-            Stay in the loop
-          </h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Get the latest updates on features, tips, and education technology trends.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 h-12 px-4 rounded-full border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <Button className="h-12 px-8 rounded-full bg-foreground text-background hover:bg-foreground/90">
-              Subscribe
-            </Button>
-          </div>
-        </div>
+      <div className={`max-w-6xl mx-auto transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}>
 
-        {/* Links grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
           {/* Logo and description */}
-          <div className="col-span-2 md:col-span-1">
-            <div className="text-2xl font-display font-bold text-foreground mb-4">
-              TelePost
+          <div className="md:col-span-4 space-y-6">
+            <div>
+              <div className="text-2xl font-display font-bold text-foreground mb-3 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center">
+                  <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
+                </div>
+                TelePost
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                Empowering educators with AI-driven telegram automation and engagement tools.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              AI-powered quiz platform for modern educators.
-            </p>
+
             {/* Social links */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {[
                 { icon: Twitter, label: "Twitter" },
                 { icon: Github, label: "GitHub" },
                 { icon: Linkedin, label: "LinkedIn" },
                 { icon: Mail, label: "Email" },
               ].map(({ icon: Icon, label }) => (
-                <a 
+                <a
                   key={label}
-                  href="#" 
-                  className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full transition-all duration-300"
+                  href="#"
+                  className="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 border border-transparent hover:border-primary/10"
                   aria-label={label}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4.5 h-4.5" />
                 </a>
               ))}
             </div>
           </div>
 
           {/* Link columns */}
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="font-semibold text-foreground mb-4">{category}</h4>
-              <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link}>
-                    <a 
-                      href="#" 
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group"
-                    >
-                      {link}
-                      <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground transition-all group-hover:w-full" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
+            {Object.entries(footerLinks).map(([category, links]) => (
+              <div key={category} className="space-y-5">
+                <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider">{category}</h4>
+                <ul className="space-y-3">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <a
+                        href={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-all duration-200 inline-flex items-center group"
+                      >
+                        <span className="relative">
+                          {link.label}
+                          <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-primary transition-all duration-300 group-hover:w-full" />
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-border/50">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} TelePost. All rights reserved.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-border/50">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} TelePost Inc.</p>
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-border" />
+              <span>Built for the future of education</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground group cursor-default">
             <span>Made with</span>
-            <span className="text-destructive">❤️</span>
-            <span>for educators worldwide</span>
+            <span className="text-destructive transition-transform duration-300 group-hover:scale-125 inline-block">❤️</span>
+            <span>by educators</span>
           </div>
         </div>
       </div>

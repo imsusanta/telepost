@@ -63,7 +63,7 @@ Added convenience scripts:
 ### Recommended Method: Supabase Dashboard
 
 1. **Open SQL Editor**
-   - Go to: https://supabase.com/dashboard/project/cazrdevenbxdjussycfj/sql/new
+   - Go to: https://supabase.com/dashboard/project/wpkxbrdgktmwnowvmwue/sql/new
 
 2. **Copy Migration SQL**
    - Open file: `supabase/migrations/20251119060000_telegram_stories_feature.sql`

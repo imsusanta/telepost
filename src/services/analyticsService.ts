@@ -69,7 +69,9 @@ export class AnalyticsService {
 
     // Fetch all counts and data in parallel for better performance
     const [
-      quizzesCountResult,
+      quizGenerationsResult,
+      sentScheduledQuizzesResult,
+      postedTelegramPostsResult,
       pdfsCountResult,
       questionsCountResult,
       quizzesResult,
@@ -78,7 +80,18 @@ export class AnalyticsService {
       supabase
         .from("quiz_generations")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId),
+        .eq("user_id", userId)
+        .eq("status", "completed"),
+      supabase
+        .from("scheduled_telegram_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "sent"),
+      supabase
+        .from("telegram_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "posted"),
       supabase
         .from("documents")
         .select("*", { count: "exact", head: true })
@@ -95,6 +108,9 @@ export class AnalyticsService {
         .order("created_at", { ascending: false })
         .limit(20)
     ]);
+
+    // Calculate total quizzes sent to Telegram (from all sources)
+    const totalQuizzesSent = (quizGenerationsResult.count || 0) + (sentScheduledQuizzesResult.count || 0) + (postedTelegramPostsResult.count || 0);
 
     const quizzes = quizzesResult.data || [];
     const quizIds = quizzes.map((q) => q.id);
@@ -136,7 +152,7 @@ export class AnalyticsService {
     const topTopics = quizzesByTopic.slice(0, 5);
 
     return {
-      totalQuizzes: quizzesCountResult.count || 0,
+      totalQuizzes: totalQuizzesSent,
       totalPdfsUploaded: pdfsCountResult.count || 0,
       totalQuestions: questionsCountResult.count || 0,
       totalResponses,

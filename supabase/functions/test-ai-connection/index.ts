@@ -7,133 +7,78 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const body = await req.json();
+    console.log("[DEBUG test-ai-connection] Received body:", body);
+
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing Supabase configuration");
-    }
-
-    // Verify user is super admin
-    const token = authHeader.replace("Bearer ", "").trim();
-    const payloadBase64 = token.split(".")[1];
-    const normalized = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
-    const payloadJson = atob(normalized);
-    const payload = JSON.parse(payloadJson);
-    const userId = payload.sub;
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "Authentication failed" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user is super admin
-    const { data: isSuperAdmin } = await supabase.rpc('is_super_admin', { p_user_id: userId });
+    const { model, provider: reqProvider, openrouter_api_key, gemini_api_key, openai_api_key } = body;
 
-    if (!isSuperAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Super admin access required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const { data: envData } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
+    const dbSettings = envData?.setting_value || {};
+
+    const testModel = (model || dbSettings.model || '').trim();
+    const provider = reqProvider || dbSettings.provider || 'openrouter';
+
+    let apiKey = '';
+    let finalProvider = '';
+
+    // RULE 1: If model has "gemini", force gemini direct
+    if (testModel.toLowerCase().includes('gemini')) {
+      apiKey = gemini_api_key || dbSettings.gemini_api_key;
+      finalProvider = 'gemini';
+    } else if (provider === 'gemini') {
+      apiKey = gemini_api_key || dbSettings.gemini_api_key;
+      finalProvider = 'gemini';
+    } else if (provider === 'openai') {
+      apiKey = openai_api_key || dbSettings.openai_api_key;
+      finalProvider = 'openai';
+    } else {
+      apiKey = openrouter_api_key || dbSettings.openrouter_api_key;
+      finalProvider = 'openrouter';
     }
 
-    const { model, temperature } = await req.json();
-
-    if (!model) {
-      return new Response(
-        JSON.stringify({ error: "Model is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OPENROUTER_API_KEY is not configured. Please add it in secrets." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const testModel = model || 'openai/gpt-4o-mini';
-    console.log(`Testing AI connection with model: ${testModel}, temperature: ${temperature}`);
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://telepost.io",
-        "X-Title": "QuizMaker AI Test",
-      },
-      body: JSON.stringify({
-        model: testModel,
-        messages: [
-          { role: "user", content: "Say 'Hello! AI connection successful.' in 10 words or less." }
-        ],
-        temperature: temperature || 0.7,
-        max_tokens: 50,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OpenRouter error (${response.status}):`, errorText);
-
-      let errorMessage = "Failed to connect to OpenRouter";
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-      } catch {
-        errorMessage = errorText || errorMessage;
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `OpenRouter API error (${response.status}): ${errorMessage}`
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    console.log("AI test successful:", content);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        response: content,
-        model: data.model
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Test AI connection error:", error);
-    return new Response(
-      JSON.stringify({
+    if (!apiKey) {
+      return new Response(JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+        error: `[test-ai-connection] API Key missing for ${finalProvider}. Received Provider: ${reqProvider}, DB Provider: ${dbSettings.provider}`,
+        debug: { body, dbSettings }
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (finalProvider === 'gemini') {
+      const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey}`;
+      const res = await fetch(gUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: "Say 'Direct Gemini OK'" }] }] })
+      });
+      const resText = await res.text();
+      if (!res.ok) {
+        return new Response(JSON.stringify({ success: false, error: `[Direct Gemini Error] ${res.status}: ${resText.substring(0, 150)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ success: true, response: "Direct Gemini working!", model: testModel }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Default to OpenRouter for everything else
+    const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: testModel, messages: [{ role: "user", content: "Say OK" }] })
+    });
+    const orText = await orRes.text();
+    if (!orRes.ok) {
+      return new Response(JSON.stringify({ success: false, error: `[OpenRouter Error] ${orRes.status}: ${orText.substring(0, 150)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ success: true, response: "OpenRouter working!", model: testModel }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

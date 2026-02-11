@@ -57,7 +57,7 @@ export class DocumentService {
     try {
       const headerBytes = await file.slice(0, 4).arrayBuffer();
       const header = new Uint8Array(headerBytes);
-      
+
       const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
       if (!isPDF) {
         return { valid: false, error: 'File does not appear to be a valid PDF (invalid file signature)' };
@@ -169,6 +169,7 @@ export class DocumentService {
           documentId: documentId,
           storagePath: doc.storage_path,
           publicUrl: urlData.publicUrl,
+          userId: doc.user_id, // Pass userId for ownership verification
         },
       });
 
@@ -176,7 +177,21 @@ export class DocumentService {
 
       if (error) {
         console.error(`Document processing error for ${documentId}:`, error);
-        throw error;
+
+        // Try to extract a more descriptive error from the response body if possible
+        let detailedError = error.message;
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const body = await error.context.json();
+            if (body && body.error) {
+              detailedError = body.error;
+            }
+          } catch {
+            // Fallback to original message
+          }
+        }
+
+        throw new Error(detailedError || "Edge Function returned a non-2xx status code");
       }
 
       if (!data) {

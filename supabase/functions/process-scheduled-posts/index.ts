@@ -18,21 +18,21 @@ serve(async (req) => {
 
     const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-    // Get all pending posts that are due (limit to 50 per run to avoid timeouts)
+    // Get all pending posts that are due (limit to 5 per run to avoid timeouts as quizzes have delays)
     const { data: pendingPosts, error: fetchError } = await supabase
       .from('scheduled_telegram_posts')
       .select('*')
       .eq('status', 'pending')
       .lte('scheduled_time', new Date().toISOString())
       .order('scheduled_time', { ascending: true })
-      .limit(50);
+      .limit(5);
 
     if (fetchError) {
       console.error("Error fetching scheduled posts:", fetchError);
       throw fetchError;
     }
 
-    console.log(`Found ${pendingPosts?.length || 0} pending posts to process`);
+    console.log(`[process-scheduled-posts] Found ${pendingPosts?.length || 0} pending posts to process at ${new Date().toISOString()}`);
 
     if (!pendingPosts || pendingPosts.length === 0) {
       return new Response(
@@ -40,6 +40,7 @@ serve(async (req) => {
           success: true,
           processed: 0,
           message: "No pending posts to process",
+          now: new Date().toISOString()
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -47,24 +48,43 @@ serve(async (req) => {
 
     // Mark all posts as processing to prevent duplicate processing
     const postIds = pendingPosts.map(p => p.id);
-    await supabase
+    const { error: updateError } = await supabase
       .from('scheduled_telegram_posts')
-      .update({ status: 'processing' })
+      .update({ status: 'processing', updated_at: new Date().toISOString() })
       .in('id', postIds);
+
+    if (updateError) {
+      console.error("[process-scheduled-posts] Error marking posts as processing:", updateError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Failed to mark posts as processing: " + updateError.message,
+          postIds
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[process-scheduled-posts] Successfully marked ${postIds.length} posts as 'processing'`);
 
     const results = [];
 
     for (const post of pendingPosts || []) {
       try {
-        // Fetch channel-specific bot token based on chat_id
-        const { data: channel, error: channelError } = await supabase
-          .from('channels')
-          .select('telegram_bot_token, name')
-          .eq('telegram_channel_id', post.chat_id)
-          .maybeSingle();
+        // Fetch channel-specific bot token
+        // Use channel_id primarily if available, otherwise fallback to chat_id
+        let channelQuery = supabase.from('channels').select('telegram_bot_token, name');
+
+        if (post.channel_id) {
+          channelQuery = channelQuery.eq('id', post.channel_id);
+        } else {
+          channelQuery = channelQuery.eq('telegram_channel_id', post.chat_id);
+        }
+
+        const { data: channel, error: channelError } = await channelQuery.maybeSingle();
 
         if (channelError) {
-          console.error(`Error fetching channel for chat_id ${post.chat_id}:`, channelError);
+          console.error(`Error fetching channel for post ${post.id}:`, channelError);
         }
 
         // Use channel-specific token, fallback to global token
@@ -97,14 +117,18 @@ serve(async (req) => {
         }
 
         // Detect if questions contain Bengali text
+        if (!post.quiz_data || !post.quiz_data.questions) {
+          throw new Error("Invalid quiz data: Missing questions");
+        }
+
         const hasBengaliText = post.quiz_data.questions.some((q: any) =>
           /[\u0980-\u09FF]/.test(q.question || '')
         );
 
         // Language-aware intro message
         const introText = hasBengaliText
-          ? `📝 *কুইজ: ${post.quiz_data.topic}*\n\n📊 আপনার জন্য ${post.quiz_data.questions.length}টি প্রশ্ন! নীচের প্রশ্নগুলির উত্তর দিন:`
-          : `📝 *Quiz: ${post.quiz_data.topic}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
+          ? `📝 *কুইজ: ${post.quiz_data.topic || "সাধারণ"}*\n\n📊 আপনার জন্য ${post.quiz_data.questions.length}টি প্রশ্ন! নীচের প্রশ্নগুলির উত্তর দিন:`
+          : `📝 *Quiz: ${post.quiz_data.topic || "General"}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
 
         // Send intro message
         const introResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
@@ -120,7 +144,7 @@ serve(async (req) => {
         if (!introResponse.ok) {
           const introData = await introResponse.json();
           console.error(`Failed to send intro message:`, introData);
-          throw new Error(`Bot access error: ${introData.description || "Failed to send message"}. Make sure the bot is added as an admin to the channel with 'Post Messages' permission.`);
+          throw new Error(`Bot access error: ${introData.description || "Failed to send message"}.`);
         }
 
         // Send each question as a poll
@@ -135,12 +159,7 @@ serve(async (req) => {
         for (let i = 0; i < post.quiz_data.questions.length; i++) {
           const q = post.quiz_data.questions[i];
 
-          // Telegram Poll Limits (ULTRA STRICT for Bengali/emoji safety):
-          // Question: 300 chars max (we use 200 for maximum safety)
-          // Options: 100 chars each max (we use 80 for maximum safety)
-          // Explanation: 200 chars max (we use 150 for maximum safety)
-          // Max 10 options allowed
-
+          // Telegram Poll Limits: Question 300, Options 100, Explanation 200
           const questionCharCount = Array.from(q.question || "").length;
           const requiresFallback = questionCharCount > 200;
           const pollQuestion = requiresFallback
@@ -166,7 +185,6 @@ serve(async (req) => {
             .map(opt => safeTruncate(String(opt || "Option"), 80))
             .filter(opt => opt.length > 0);
 
-          // Telegram requires at least 2 options
           while (pollOptions.length < 2) {
             pollOptions.push("Option " + (pollOptions.length + 1));
           }
@@ -194,7 +212,6 @@ serve(async (req) => {
           }
 
           // Delay between polls to avoid rate limiting
-          // Increased to 2s for better compliance in background batches
           if (i < post.quiz_data.questions.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
@@ -206,6 +223,7 @@ serve(async (req) => {
           .update({
             status: 'sent',
             sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           })
           .eq('id', post.id);
 
@@ -221,6 +239,7 @@ serve(async (req) => {
           .update({
             status: 'failed',
             error_message: error instanceof Error ? error.message : "Unknown error",
+            updated_at: new Date().toISOString(),
           })
           .eq('id', post.id);
 
