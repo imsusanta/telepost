@@ -289,7 +289,7 @@ function DashboardLayoutInner({
 
   return (
     <>
-      <div className="flex min-h-screen w-full relative bg-background">
+      <div className="flex min-h-screen w-full relative bg-background overflow-x-hidden">
         <KeyboardShortcuts />
 
         {/* Persistent Edge Arrow Toggle - Outside Sidebar to prevent clipping */}
@@ -540,7 +540,7 @@ function DashboardLayoutInner({
         </Sidebar>
 
         {/* Main Content */}
-        <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 overflow-hidden flex flex-col">
+        <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 flex flex-col min-w-0 max-w-full overflow-x-hidden">
           {/* Mobile Navigation Header - Only visible on mobile */}
           <header className="md:hidden flex items-center justify-between p-3 border-b bg-background/80 backdrop-blur-lg sticky top-0 z-40">
             <div className="flex items-center gap-2">
@@ -562,7 +562,7 @@ function DashboardLayoutInner({
             </Button>
           </header>
 
-          <main className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out flex-1" id="main-content">
+          <main className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">
             {children}
           </main>
         </SidebarInset>

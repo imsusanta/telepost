@@ -133,6 +133,34 @@ serve(async (req) => {
             return fetch(url, options); // Final attempt
         }
 
+        // HTML Escaping and Markdown to HTML conversion
+        const escapeHtml = (text: string): string => {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        };
+
+        const markdownToHtml = (text: string): string => {
+            if (!text) return "";
+
+            // First escape basic HTML characters
+            let html = escapeHtml(text);
+
+            // Convert bold *text* or **text** to <b>text</b>
+            // We use a non-greedy match to handle multiple instances correctly
+            html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+            html = html.replace(/\*(.*?)\*/g, "<b>$1</b>");
+
+            // Convert italic _text_ to <i>text</i>
+            html = html.replace(/_(.*?)_/g, "<i>$1</i>");
+
+            // Convert code `text` to <code>text</code>
+            html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+
+            return html;
+        };
+
         let messageId: string | null = null;
         let postSuccess = false;
 
@@ -145,8 +173,8 @@ serve(async (req) => {
                 body: JSON.stringify({
                     chat_id: chatId,
                     photo: post.image_url,
-                    caption: truncate(post.content || "", 1024), // Telegram caption limit
-                    parse_mode: "Markdown",
+                    caption: truncate(markdownToHtml(post.content || ""), 1024),
+                    parse_mode: "HTML",
                 }),
             });
 
@@ -168,8 +196,8 @@ serve(async (req) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     chat_id: chatId,
-                    text: truncate(post.content, 4096), // Telegram message limit
-                    parse_mode: "Markdown",
+                    text: truncate(markdownToHtml(post.content), 4096),
+                    parse_mode: "HTML",
                 }),
             });
 

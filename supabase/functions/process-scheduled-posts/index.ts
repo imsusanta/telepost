@@ -16,6 +16,48 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // --- SELF-REPAIR CONFIGURATION BLOCK ---
+    const repairSecret = req.headers.get("X-Telepost-Repair-Secret");
+    const isRepairRequest = repairSecret === "fix-my-config-2026";
+
+    try {
+      const { data: configData } = await supabase
+        .from('system_config')
+        .select('key, value')
+        .in('key', ['supabase_url', 'supabase_service_role_key']);
+
+      const currentKey = configData?.find(c => c.key === 'supabase_service_role_key')?.value;
+
+      // Repair if missing OR if explicitly requested via secret OR if key looks like a placeholder
+      const needsRepair = !configData || configData.length < 2 ||
+        isRepairRequest ||
+        (currentKey && !currentKey.includes('.'));
+
+      if (needsRepair) {
+        console.log(`Self-repairing system_config entries... (Request: ${isRepairRequest})`);
+        await supabase.rpc('set_system_config', {
+          config_key: 'supabase_url',
+          config_value: supabaseUrl,
+          config_description: 'Supabase project URL for calling edge functions'
+        });
+        await supabase.rpc('set_system_config', {
+          config_key: 'supabase_service_role_key',
+          config_value: supabaseKey,
+          config_description: 'Supabase service role key for authenticating edge function calls'
+        });
+        console.log("system_config restoration complete.");
+
+        if (isRepairRequest) {
+          return new Response(JSON.stringify({ message: "Configuration repaired successfully" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    } catch (repairError) {
+      console.error("Self-repair of system_config failed:", repairError);
+    }
+    // ----------------------------------------
+
     const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
     // Get all pending posts that are due (limit to 5 per run to avoid timeouts as quizzes have delays)
@@ -131,6 +173,7 @@ serve(async (req) => {
           : `📝 *Quiz: ${post.quiz_data.topic || "General"}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
 
         // Send intro message
+        console.log(`[Post ${post.id}] Sending intro message to ${post.chat_id}`);
         const introResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -190,7 +233,7 @@ serve(async (req) => {
           }
 
           const pollExplanation = safeTruncate(q.explanation || "Correct", 150);
-
+          console.log(`[Post ${post.id}] Sending poll for question ${i + 1}/${post.quiz_data.questions.length}`);
           const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -199,17 +242,18 @@ serve(async (req) => {
               question: pollQuestion,
               options: pollOptions,
               type: "quiz",
-              correct_option_id: q.correct_option_index,
+              correct_option_id: parseInt(String(q.correct_option_index)),
               explanation: pollExplanation,
               is_anonymous: true,
             }),
           });
 
           if (!pollResponse.ok) {
-            const pollData = await pollResponse.json();
-            console.error(`Failed to send poll ${i + 1}:`, pollData);
+            const pollData = await pollResponse.json().catch(() => ({ description: "Failed to parse error response" }));
+            console.error(`[Post ${post.id}] Failed to send poll ${i + 1}:`, pollData);
             throw new Error(`Failed to send poll: ${pollData.description || "Unknown error"}`);
           }
+          console.log(`[Post ${post.id}] Poll ${i + 1} sent successfully`);
 
           // Delay between polls to avoid rate limiting
           if (i < post.quiz_data.questions.length - 1) {

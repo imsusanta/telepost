@@ -361,7 +361,8 @@
 
   /* Claymorphism - Premium Tactile Glass */
   .clay-card {
-    @apply backdrop-blur-xl border-t border-l rounded-4xl transition-all duration-500;
+    @apply backdrop-blur-xl border-t border-l rounded-4xl;
+    transition: opacity 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease, border-color 0.5s ease;
     background: linear-gradient(135deg, hsla(var(--card), 0.7) 0%, hsla(var(--card), 0.4) 100%);
     border-top-color: hsla(var(--foreground), 0.1);
     border-left-color: hsla(var(--foreground), 0.1);

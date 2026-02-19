@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# TelePost - AI-Powered Quiz Generator
 
 ## Project info
 

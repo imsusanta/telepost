@@ -171,7 +171,7 @@ export default function CreatePost() {
             const { data, error } = await supabase.functions.invoke('ai-generate-text', {
                 body: {
                     prompt: aiPrompt.trim(),
-                    systemPrompt: "You are a social media copywriter. Write a compelling post based on the user's prompt. Keep it concise and engaging. Supports Markdown: *bold* _italic_ `code` and emojis 😊. Do not include any title or preamble, just the post content."
+                    systemPrompt: "You are a social media copywriter. Write a compelling post based on the user's prompt. Keep it concise and engaging. You can use bold (*text*) and italics (_text_) sparingly. Use bullet points (*) for lists. Supports Markdown-style formatting which will be converted for Telegram. Do not include any title or preamble, just the post content."
                 }
             });
 

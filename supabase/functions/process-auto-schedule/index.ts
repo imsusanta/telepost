@@ -49,6 +49,49 @@ Deno.serve(async (req) => {
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
+        // --- SELF-REPAIR CONFIGURATION BLOCK ---
+        const repairSecret = req.headers.get("X-Telepost-Repair-Secret");
+        const isRepairRequest = repairSecret === "fix-my-config-2026";
+
+        try {
+            const { data: configData } = await supabaseAdmin
+                .from('system_config')
+                .select('key, value')
+                .in('key', ['supabase_url', 'supabase_service_role_key']);
+
+            const currentUrl = configData?.find(c => c.key === 'supabase_url')?.value;
+            const currentKey = configData?.find(c => c.key === 'supabase_service_role_key')?.value;
+
+            // Repair if missing OR if explicitly requested via secret OR if key looks like a placeholder
+            const needsRepair = !configData || configData.length < 2 ||
+                isRepairRequest ||
+                (currentKey && !currentKey.includes('.')); // Simple check for "not a JWT"
+
+            if (needsRepair) {
+                console.log(`Self-repairing system_config entries... (Request: ${isRepairRequest})`);
+                await supabaseAdmin.rpc('set_system_config', {
+                    config_key: 'supabase_url',
+                    config_value: supabaseUrl,
+                    config_description: 'Supabase project URL for calling edge functions'
+                });
+                await supabaseAdmin.rpc('set_system_config', {
+                    config_key: 'supabase_service_role_key',
+                    config_value: supabaseKey,
+                    config_description: 'Supabase service role key for authenticating edge function calls'
+                });
+                console.log("system_config restoration complete.");
+
+                if (isRepairRequest) {
+                    return new Response(JSON.stringify({ message: "Configuration repaired successfully" }), {
+                        headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    });
+                }
+            }
+        } catch (repairError) {
+            console.error("Self-repair of system_config failed:", repairError);
+        }
+        // ----------------------------------------
+
         // Parse request body for manual triggers
         let force = false;
         let targetUserId = null;
@@ -109,18 +152,34 @@ Deno.serve(async (req) => {
         };
 
         // Helper: compute the actual scheduled Date from a "HH:MM" string in a timezone
+        // Uses the current UTC time as an anchor to find the correct offset,
+        // avoiding cross-midnight miscalculations.
         const computeScheduledDate = (timeStr: string, tz: string): Date => {
             const [hh, mm] = timeStr.split(':').map(Number);
-            // Build a date for today in the target timezone
+            // Get today's date in the target timezone
             const todayInTZ = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-            // todayInTZ is "YYYY-MM-DD"
-            const isoStr = `${todayInTZ}T${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}:00`;
-            // Parse in the timezone by computing the offset
-            const utcGuess = new Date(isoStr + 'Z');
-            const localInTZ = getLocalHHMM(utcGuess, tz);
-            const [lh, lm] = localInTZ.split(':').map(Number);
-            const diffMinutes = (lh * 60 + lm) - (hh * 60 + mm);
-            return new Date(utcGuess.getTime() - diffMinutes * 60000);
+            // Get the current timezone offset using "now" (which is always valid for today)
+            const nowLocalHHMM = getLocalHHMM(now, tz);
+            const [nowLH, nowLM] = nowLocalHHMM.split(':').map(Number);
+            const nowLocalMinutes = nowLH * 60 + nowLM;
+            const nowUTCMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+            // Offset = local - UTC (handles both positive and negative offsets)
+            let offsetMinutes = nowLocalMinutes - nowUTCMinutes;
+            // Normalize for day boundary crossings (e.g., UTC 23:00 = IST 04:30 next day)
+            if (offsetMinutes > 720) offsetMinutes -= 1440;
+            if (offsetMinutes < -720) offsetMinutes += 1440;
+
+            // Target time in local minutes since midnight
+            const targetLocalMinutes = hh * 60 + mm;
+            // Convert to UTC minutes
+            const targetUTCMinutes = targetLocalMinutes - offsetMinutes;
+
+            // Build the final UTC date using today's date in the target timezone
+            const [year, month, day] = todayInTZ.split('-').map(Number);
+            const result = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+            result.setUTCMinutes(targetUTCMinutes);
+
+            return result;
         };
 
         // Filter matching settings: match if current time is within ±1 minute of a scheduled time
@@ -194,60 +253,64 @@ Deno.serve(async (req) => {
                     continue;
                 }
 
-                // Check if topics are defined - skip if no topics
-                if (!setting.topics || setting.topics.length === 0) {
-                    console.log(`Skipping channel ${setting.channel_id}: No topics defined`);
-                    results.push({
-                        channel_id: setting.channel_id,
-                        success: false,
-                        error: "No topics defined - please add topics in Settings"
-                    });
-                    continue;
-                }
 
                 let quizQuestions = [];
                 // Sort schedule times and topics for predictable sequential selection
                 const sortedTimes = [...setting.schedule_times].sort();
-                const sortedTopics = [...setting.topics].sort();
 
-                // Select topic SEQUENTIALLY based on the index of the matched time slot
-                // This ensures that at Slot 1 -> Topic 1, Slot 2 -> Topic 2 etc.
+                // Select topic SEQUENTIALLY based on global cycle
+                // This ensures rotation across multiple days
+                const dayCount = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
                 const slotIndex = sortedTimes.findIndex((t: string) => t.startsWith(matchedTime));
-                const topicIndex = slotIndex >= 0 ? slotIndex % sortedTopics.length : 0;
-                let finalTopic = sortedTopics[topicIndex];
 
-                console.log(`Setting ${setting.channel_id}: Matched ${matchedTime}, SlotIndex ${slotIndex}, TopicIndex ${topicIndex}, Topic: ${finalTopic}`);
+                let finalTopic = "";
+                let topicsExist = setting.topics && Array.isArray(setting.topics) && setting.topics.length > 0;
 
-                if (setting.source_type === "question_bank") {
-                    // Fetch random questions from question bank
+                if (topicsExist) {
+                    const sortedTopics = [...setting.topics].sort();
+                    const globalSlotIndex = (dayCount * sortedTimes.length) + (slotIndex >= 0 ? slotIndex : 0);
+                    const topicIndex = globalSlotIndex % sortedTopics.length;
+                    finalTopic = sortedTopics[topicIndex];
+                    console.log(`Setting ${setting.channel_id}: Matched ${matchedTime}, DayCount ${dayCount}, GlobalIndex ${globalSlotIndex}, TopicIndex ${topicIndex}, Topic: ${finalTopic}`);
+                } else {
+                    // AI Generated Topic if none provided
+                    console.log(`Setting ${setting.channel_id}: No topics provided. Generating topic with AI...`);
+                    finalTopic = await generateAITopic(setting, aiSettings);
+                    console.log(`Setting ${setting.channel_id}: AI Generated Topic: ${finalTopic}`);
+                }
+
+                if (setting.source_type === "question_bank" && topicsExist) {
+                    // Fetch questions from bank based on topic if topics exist
                     const { data: questions, error: qError } = await supabaseAdmin
                         .from("question_banks")
                         .select("*")
                         .eq("user_id", setting.user_id)
                         .eq("channel_id", setting.channel_id)
+                        .ilike("topic", `%${finalTopic}%`)
                         .limit(setting.questions_per_post);
 
                     if (qError) throw qError;
 
                     if (!questions || questions.length === 0) {
+                        // Fallback to random if topic not found in bank
                         const { data: anyQuestions } = await supabaseAdmin
                             .from("question_banks")
                             .select("*")
                             .eq("user_id", setting.user_id)
                             .limit(setting.questions_per_post);
-
                         quizQuestions = anyQuestions || [];
                     } else {
                         quizQuestions = questions;
                     }
 
                     if (quizQuestions.length === 0) {
-                        throw new Error("No questions found in question bank");
+                        // If still no questions, fallback to AI generation
+                        console.log("No questions in bank, falling back to AI generation");
+                        const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
+                        quizQuestions = aiResponse.questions;
                     }
-
-                    quizQuestions = quizQuestions.sort(() => Math.random() - 0.5);
                 } else {
-                    // AI Generated Source
+                    // AI Generated Source (Default if bank is empty or source_type is ai)
                     const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
                     quizQuestions = aiResponse.questions;
                 }
@@ -269,6 +332,7 @@ Deno.serve(async (req) => {
                         generated_at: new Date().toISOString(),
                         source: setting.source_type,
                         language: quizLanguage,
+                        ai_generated_topic: !topicsExist
                     },
                 };
 
@@ -362,6 +426,7 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
   1. Number of questions: ${questionCount}.
   2. Each question must have EXACTLY 4 options.
   3. Use zero-based indexing for "correct_option_index".
+  4. Don't generate Bangladesh related questions. If the question is related to India, then you can generate it.
   ${languageRequirement}`;
 
     if (customPrompt) {
@@ -422,4 +487,68 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
         console.error("Failed to parse AI response:", content);
         throw new Error("AI failed to return valid JSON");
     }
+}
+
+async function generateAITopic(setting: any, aiSettings: AISettings): Promise<string> {
+    const model = aiSettings.model;
+    const provider = aiSettings.provider || 'openrouter';
+
+    let apiKey = "";
+    if (provider === 'gemini') apiKey = aiSettings.gemini_api_key!;
+    else if (provider === 'openai') apiKey = aiSettings.openai_api_key!;
+    else apiKey = aiSettings.openrouter_api_key!;
+
+    if (!apiKey) throw new Error(`AI API Key missing for ${provider}`);
+
+    const channelName = setting.channels?.name || "Educational Channel";
+    const language = setting.language || 'English';
+
+    const prompt = `Suggest ONE short, specific, and engaging quiz topic (max 4-5 words) suitable for a Telegram channel named "${channelName}".
+    The topic MUST be related to one of these categories: General Knowledge (GK), History, Geography, General Science, or Static GK.
+    The topic should be exam-oriented and appropriate for an audience preparing for competitive educational exams.
+    CONTENT GUIDELINES: Do not suggest Bangladesh-related topics unless they have a strong connection to India (e.g., India-Bangladesh relations).
+    REQUIRED LANGUAGE: ${language}.
+    Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
+
+    let content = "";
+    try {
+        if (provider === 'gemini') {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
+            content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } else {
+            const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+            const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{ role: "user", content: prompt }]
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+            content = data.choices?.[0]?.message?.content || "";
+        }
+    } catch (apiErr) {
+        console.error(`AI Topic Generation API Error (${provider}):`, apiErr);
+        throw apiErr;
+    }
+
+    if (!content) {
+        console.error(`AI Topic Generation returned empty content for model: ${model}`);
+    }
+
+    return content.trim().replace(/^"|"$/g, '');
 }

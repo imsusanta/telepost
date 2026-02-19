@@ -251,7 +251,7 @@ export default function Scheduler() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="space-y-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-2">
@@ -265,22 +265,22 @@ export default function Scheduler() {
               Manage your automated Telegram quiz broadcasts
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
             <Button
               variant="default"
               size="lg"
               onClick={handleProcessPending}
               disabled={isProcessing || (statistics?.pending ?? 0) === 0}
-              className="gap-2 shadow-glow-primary transition-all duration-300 rounded-xl px-6"
+              className="gap-2 shadow-glow-primary transition-all duration-300 rounded-xl px-4 sm:px-6 flex-1 sm:flex-initial text-sm"
             >
               <Send className={`w-4 h-4 ${isProcessing ? 'animate-pulse' : ''}`} />
-              {isProcessing ? 'Sending...' : `Send ${statistics?.pending ?? 0} Pending`}
+              <span className="whitespace-nowrap">{isProcessing ? 'Sending...' : `Send ${statistics?.pending ?? 0} Pending`}</span>
             </Button>
             <Button
               variant="outline"
               size="lg"
               onClick={handleRefresh}
-              className="gap-2 clay-button shadow-clay-sm hover:shadow-glow-primary transition-all duration-300 rounded-xl px-6"
+              className="gap-2 clay-button shadow-clay-sm hover:shadow-glow-primary transition-all duration-300 rounded-xl px-4 sm:px-6 flex-1 sm:flex-initial text-sm"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -493,66 +493,68 @@ export default function Scheduler() {
                 </div>
               ) : (
                 <div className="clay-card overflow-hidden border-none p-0 bg-white/40 backdrop-blur-lg">
-                  <Table>
-                    <TableHeader className="bg-black/5">
-                      <TableRow className="hover:bg-transparent border-white/20">
-                        <TableHead className="font-black text-foreground/70 pl-6 h-14">Quiz Topic</TableHead>
-                        <TableHead className="font-black text-foreground/70 h-14">Target Chat</TableHead>
-                        <TableHead className="font-black text-foreground/70 h-14">Scheduled For</TableHead>
-                        <TableHead className="font-black text-foreground/70 h-14">Status</TableHead>
-                        <TableHead className="font-black text-foreground/70 h-14">Execution</TableHead>
-                        <TableHead className="font-black text-foreground/70 pr-6 h-14 text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPosts.map((post) => {
-                        const quizData = post.quiz_data as unknown as Quiz;
-                        return (
-                          <TableRow key={post.id} className="group hover:bg-white/40 border-white/20 transition-colors h-16">
-                            <TableCell className="font-bold pl-6">
-                              {quizData?.topic || 'N/A'}
-                            </TableCell>
-                            <TableCell className="font-medium text-muted-foreground">
-                              {post.chat_id}
-                            </TableCell>
-                            <TableCell className="font-semibold text-foreground/80">
-                              {formatDateTime(post.scheduled_time)}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(post)}</TableCell>
-                            <TableCell className="text-sm font-medium text-muted-foreground">
-                              {post.sent_at ? formatDateTime(post.sent_at) : '-'}
-                            </TableCell>
-                            <TableCell className="pr-6 text-right">
-                              <div className="flex gap-2 justify-end">
-                                {(post.status === 'pending' || post.status === 'processing') && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleCancel(post.id)}
-                                    className="h-8 px-3 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                                    Cancel
-                                  </Button>
-                                )}
-                                {post.status === 'failed' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRetry(post.id)}
-                                    className="h-8 px-3 text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                                    Retry
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto scrollbar-thin">
+                    <Table>
+                      <TableHeader className="bg-black/5">
+                        <TableRow className="hover:bg-transparent border-white/20">
+                          <TableHead className="font-black text-foreground/70 pl-6 h-14 whitespace-nowrap">Quiz Topic</TableHead>
+                          <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Target Chat</TableHead>
+                          <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Scheduled For</TableHead>
+                          <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Status</TableHead>
+                          <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Execution</TableHead>
+                          <TableHead className="font-black text-foreground/70 pr-6 h-14 text-right whitespace-nowrap">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPosts.map((post) => {
+                          const quizData = post.quiz_data as unknown as Quiz;
+                          return (
+                            <TableRow key={post.id} className="group hover:bg-white/40 border-white/20 transition-colors h-16">
+                              <TableCell className="font-bold pl-6 whitespace-nowrap">
+                                {quizData?.topic || 'N/A'}
+                              </TableCell>
+                              <TableCell className="font-medium text-muted-foreground whitespace-nowrap">
+                                {post.chat_id}
+                              </TableCell>
+                              <TableCell className="font-semibold text-foreground/80 whitespace-nowrap">
+                                {formatDateTime(post.scheduled_time)}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">{getStatusBadge(post)}</TableCell>
+                              <TableCell className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                                {post.sent_at ? formatDateTime(post.sent_at) : '-'}
+                              </TableCell>
+                              <TableCell className="pr-6 text-right whitespace-nowrap">
+                                <div className="flex gap-2 justify-end">
+                                  {(post.status === 'pending' || post.status === 'processing') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleCancel(post.id)}
+                                      className="h-8 px-3 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                                      Cancel
+                                    </Button>
+                                  )}
+                                  {post.status === 'failed' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleRetry(post.id)}
+                                      className="h-8 px-3 text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                                      Retry
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
 
@@ -590,8 +592,8 @@ export default function Scheduler() {
                               size="sm"
                               onClick={() => setPage(pageNum)}
                               className={`w-9 h-9 rounded-xl font-bold transition-all ${page === pageNum
-                                  ? "shadow-glow-primary scale-110"
-                                  : "clay-button shadow-clay-sm"
+                                ? "shadow-glow-primary scale-110"
+                                : "clay-button shadow-clay-sm"
                                 }`}
                             >
                               {pageNum}

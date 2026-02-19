@@ -211,15 +211,7 @@ export function AutoScheduleCard() {
             return;
         }
 
-        // Require topics for AI generated quizzes
-        if (isEnabled && sourceType === "ai_generated" && topics.length === 0) {
-            toast({
-                title: "No topics defined",
-                description: "Please add at least one topic for AI quiz generation",
-                variant: "destructive",
-            });
-            return;
-        }
+        // Topics are now optional - empty topics trigger "Full Auto Mode" (Exam-oriented GK/History/etc)
 
         setIsSaving(true);
         try {
@@ -385,7 +377,7 @@ export function AutoScheduleCard() {
 
             <CardContent className="p-0" id="scheduler-settings-anchor">
                 {showSettings && (
-                    <div className="animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
+                    <div className="">
                         {!isEnabled && (
                             <div className="px-8 py-4 bg-amber-50/50 border-b border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="p-1.5 bg-amber-500/10 rounded-lg">
@@ -541,7 +533,7 @@ export function AutoScheduleCard() {
                                                         </Badge>
                                                     </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-[350px] p-0 rounded-3xl shadow-2xl border-white/40 backdrop-blur-3xl bg-white/95" align="start">
+                                                <PopoverContent className="w-[calc(100vw-32px)] sm:w-[350px] max-w-[350px] p-0 rounded-3xl shadow-2xl border-white/40 backdrop-blur-3xl bg-white/95" align="start">
                                                     <div className="p-4 bg-gradient-to-br from-violet-600 to-purple-700 rounded-t-3xl text-white">
                                                         {/* Current Time Display */}
                                                         <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/20">
@@ -697,7 +689,13 @@ export function AutoScheduleCard() {
                                                     </Badge>
                                                 ))}
                                                 {topics.length === 0 && (
-                                                    <p className="text-xs text-slate-400 font-medium py-2">No topics defined</p>
+                                                    <div className="flex flex-col items-center justify-center py-6 w-full bg-violet-50/50 rounded-2xl border border-dashed border-violet-200 animate-pulse">
+                                                        <Sparkles className="w-5 h-5 text-violet-500 mb-2" />
+                                                        <p className="text-[11px] font-black text-violet-600 uppercase tracking-widest">✨ Full Auto Mode Enabled</p>
+                                                        <p className="text-[9px] text-slate-400 font-medium mt-1 text-center px-4 max-w-[200px]">
+                                                            AI will automatically curate exam-oriented topics from GK, History, Geography & Science categories.
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                             <div className="flex gap-2">
