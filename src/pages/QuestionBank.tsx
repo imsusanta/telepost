@@ -132,6 +132,17 @@ export default function QuestionBank() {
       // Include public questions in stats (always true to show complete stats)
       const statistics = await QuestionBankService.getStatistics(user.id, true);
       setStats(statistics);
+
+      // Derive topic and subject counts directly from stats (most reliable source)
+      const topicCounts = Object.entries(statistics.byTopic)
+        .map(([topic, count]) => ({ topic, count }))
+        .sort((a, b) => b.count - a.count);
+      setTopicsWithCounts(topicCounts);
+
+      const subjectCounts = Object.entries(statistics.bySubject)
+        .map(([subject, count]) => ({ subject, count }))
+        .sort((a, b) => b.count - a.count);
+      setSubjectsWithCounts(subjectCounts);
     } catch (error: unknown) {
       toast({
         title: "Warning",
