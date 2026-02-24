@@ -158,15 +158,11 @@ export default function QuestionBank() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [subjectsRes, topicsRes, allSubjectsRes, allTopicsRes] = await Promise.allSettled([
-        ClassificationService.getSubjectsWithCounts(user.id),
-        ClassificationService.getTopicsWithCounts(user.id),
+      const [allSubjectsRes, allTopicsRes] = await Promise.allSettled([
         ClassificationMetadataService.getSubjects(),
         ClassificationMetadataService.getAllTopics()
       ]);
 
-      const subjects = subjectsRes.status === 'fulfilled' ? subjectsRes.value : [];
-      const topics = topicsRes.status === 'fulfilled' ? topicsRes.value : [];
       const allSubjects = allSubjectsRes.status === 'fulfilled' ? allSubjectsRes.value : [];
       const allTopics = allTopicsRes.status === 'fulfilled' ? allTopicsRes.value : [];
 
@@ -185,10 +181,8 @@ export default function QuestionBank() {
         });
       }
 
-      setSubjectsWithCounts(subjects);
       setFullSubjects(allSubjects);
       setFullTopics(allTopics);
-      setTopicsWithCounts(topics);
       const admin = await isSuperAdmin();
       setIsSuperUser(admin);
     } catch (error: any) {
