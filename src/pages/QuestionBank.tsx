@@ -944,12 +944,12 @@ export default function QuestionBank() {
               fullTopics={fullTopics}
               totalCount={totalCount}
               filteredCount={filteredQuestions.length}
-              onAddSubject={isSuperUser ? handleAddSubject : undefined}
-              onEditSubject={isSuperUser ? handleEditSubject : undefined}
-              onDeleteSubject={isSuperUser ? handleDeleteSubject : undefined}
-              onAddTopic={isSuperUser ? handleAddTopic : undefined}
-              onEditTopic={isSuperUser ? handleEditTopic : undefined}
-              onDeleteTopic={isSuperUser ? handleDeleteTopic : undefined}
+              onAddSubject={handleAddSubject}
+              onEditSubject={handleEditSubject}
+              onDeleteSubject={handleDeleteSubject}
+              onAddTopic={handleAddTopic}
+              onEditTopic={handleEditTopic}
+              onDeleteTopic={handleDeleteTopic}
             />
 
             {/* Statistics */}
