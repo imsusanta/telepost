@@ -123,22 +123,23 @@ export class ClassificationService {
     }
 
     /**
-     * Get unique subjects from user's question bank with counts
+     * Get unique subjects from user's question bank with counts (includes public questions)
      */
     static async getSubjectsWithCounts(userId: string): Promise<Array<{ subject: string; count: number }>> {
         try {
             const { data, error } = await supabase
                 .from('question_banks')
                 .select('subject')
-                .eq('user_id', userId)
-                .not('subject', 'is', null);
+                .or(`user_id.eq.${userId},is_public.eq.true`)
+                .not('subject', 'is', null)
+                .neq('subject', '');
 
             if (error) throw error;
 
             // Count subjects
             const counts: Record<string, number> = {};
             data?.forEach(item => {
-                if (item.subject) {
+                if (item.subject && item.subject.trim()) {
                     counts[item.subject] = (counts[item.subject] || 0) + 1;
                 }
             });
@@ -212,21 +213,23 @@ export class ClassificationService {
     }
 
     /**
-     * Get all unique topics from user's question bank with counts
+     * Get all unique topics from user's question bank with counts (includes public questions)
      */
     static async getTopicsWithCounts(userId: string): Promise<Array<{ topic: string; count: number }>> {
         try {
+            // Query user's own questions + public questions (matching what Question Bank displays)
             const { data, error } = await supabase
                 .from('question_banks')
                 .select('topic')
-                .eq('user_id', userId)
-                .not('topic', 'is', null);
+                .or(`user_id.eq.${userId},is_public.eq.true`)
+                .not('topic', 'is', null)
+                .neq('topic', '');
 
             if (error) throw error;
 
             const counts: Record<string, number> = {};
             data?.forEach(item => {
-                if (item.topic) {
+                if (item.topic && item.topic.trim()) {
                     counts[item.topic] = (counts[item.topic] || 0) + 1;
                 }
             });

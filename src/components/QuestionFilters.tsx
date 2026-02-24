@@ -132,15 +132,10 @@ export function QuestionFilters({
                 count: topicsWithCounts.find((twc: any) => twc.topic === t.name)?.count || 0
             }));
 
-        // Add topics from usage that are NOT in metadata (legacy)
-        // Only if they match the selected subject's name (basic heuristic)
+        // Always add topics from actual usage that are NOT in metadata
         topicsWithCounts.forEach((twc: any) => {
             if (!topics.find((t: any) => t.topic === twc.topic)) {
-                // For legacy, we don't have subject mapping, so we show it if no subject selected 
-                // or if we're not filtering topics strictly
-                if (selectedSubjects.length === 0) {
-                    topics.push(twc);
-                }
+                topics.push(twc);
             }
         });
 
