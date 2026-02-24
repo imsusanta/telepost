@@ -212,6 +212,35 @@ export class ClassificationService {
     }
 
     /**
+     * Get all unique topics from user's question bank with counts
+     */
+    static async getTopicsWithCounts(userId: string): Promise<Array<{ topic: string; count: number }>> {
+        try {
+            const { data, error } = await supabase
+                .from('question_banks')
+                .select('topic')
+                .eq('user_id', userId)
+                .not('topic', 'is', null);
+
+            if (error) throw error;
+
+            const counts: Record<string, number> = {};
+            data?.forEach(item => {
+                if (item.topic) {
+                    counts[item.topic] = (counts[item.topic] || 0) + 1;
+                }
+            });
+
+            return Object.entries(counts)
+                .map(([topic, count]) => ({ topic, count }))
+                .sort((a, b) => b.count - a.count);
+        } catch (error) {
+            console.error('Error fetching topics with counts:', error);
+            return [];
+        }
+    }
+
+    /**
      * Update classification for a question
      */
     static async updateQuestionClassification(

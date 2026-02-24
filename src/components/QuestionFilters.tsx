@@ -202,10 +202,22 @@ export function QuestionFilters({
         const newFilters = { ...filters };
 
         if (updates.subjects !== undefined) {
-            newFilters.subject = updates.subjects.length === 1 ? updates.subjects[0] : undefined;
+            if (updates.subjects.length === 0) {
+                newFilters.subject = undefined;
+            } else if (updates.subjects.length === 1) {
+                newFilters.subject = updates.subjects[0];
+            } else {
+                newFilters.subject = updates.subjects;
+            }
         }
         if (updates.topics !== undefined) {
-            newFilters.topic = updates.topics.length === 1 ? updates.topics[0] : undefined;
+            if (updates.topics.length === 0) {
+                newFilters.topic = undefined;
+            } else if (updates.topics.length === 1) {
+                newFilters.topic = updates.topics[0];
+            } else {
+                newFilters.topic = updates.topics;
+            }
         }
         if (updates.difficulties !== undefined) {
             newFilters.difficulty = updates.difficulties.length === 1 ? updates.difficulties[0] : undefined;
@@ -619,8 +631,8 @@ export function QuestionFilters({
                         variant={visibilityFilter === 'all' ? "default" : "ghost"}
                         size="sm"
                         className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out ${visibilityFilter === 'all'
-                                ? 'bg-slate-700 text-white shadow-md scale-[1.02]'
-                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            ? 'bg-slate-700 text-white shadow-md scale-[1.02]'
+                            : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => handleVisibilityChange('all')}
                     >
@@ -630,8 +642,8 @@ export function QuestionFilters({
                         variant={visibilityFilter === 'private' ? "default" : "ghost"}
                         size="sm"
                         className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out gap-1.5 ${visibilityFilter === 'private'
-                                ? 'bg-slate-600 text-white shadow-md scale-[1.02]'
-                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            ? 'bg-slate-600 text-white shadow-md scale-[1.02]'
+                            : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => handleVisibilityChange('private')}
                     >
@@ -642,8 +654,8 @@ export function QuestionFilters({
                         variant={visibilityFilter === 'public' ? "default" : "ghost"}
                         size="sm"
                         className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out gap-1.5 ${visibilityFilter === 'public'
-                                ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
-                                : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                            ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
+                            : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => handleVisibilityChange('public')}
                     >

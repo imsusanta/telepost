@@ -149,7 +149,7 @@ export default function QuestionBank() {
 
       const [subjectsRes, topicsRes, allSubjectsRes, allTopicsRes] = await Promise.allSettled([
         ClassificationService.getSubjectsWithCounts(user.id),
-        ClassificationService.getAllTopics(user.id),
+        ClassificationService.getTopicsWithCounts(user.id),
         ClassificationMetadataService.getSubjects(),
         ClassificationMetadataService.getAllTopics()
       ]);
@@ -177,7 +177,7 @@ export default function QuestionBank() {
       setSubjectsWithCounts(subjects);
       setFullSubjects(allSubjects);
       setFullTopics(allTopics);
-      setTopicsWithCounts(topics.map(t => ({ topic: t, count: 0 })));
+      setTopicsWithCounts(topics);
       const admin = await isSuperAdmin();
       setIsSuperUser(admin);
     } catch (error: any) {
@@ -490,9 +490,10 @@ export default function QuestionBank() {
         options: q.options,
         correct_option_index: q.correct_option_index,
         explanation: q.explanation || undefined,
-        topic: "Bulk Upload",
-        difficulty: "medium",
-        language: "bn", // Default as per parser support for bilingual text
+        subject: q.subject || "GK",
+        topic: q.topic || "",
+        difficulty: q.difficulty || "medium",
+        language: "bn",
         is_public: false,
         is_active: true
       }));

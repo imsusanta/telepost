@@ -275,7 +275,7 @@ export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] 
 
                         <div className="relative group">
                             <Textarea
-                                placeholder={"Paste your questions here...\n\nExample Format:\n1. Indian National Congress কবে প্রতিষ্ঠিত হয়?\na) 1880\nb) 1885\nc) 1890\nd) 1895\nAns: b) 1885\nShort Notes: এটি 1885 সালে বোম্বেতে প্রতিষ্ঠিত হয়।"}
+                                placeholder={"Paste your questions here...\n\nSupported Formats:\n\n1. Question text here?\na) Option 1\nb) Option 2\nc) Option 3\nd) Option 4\nAns: b) Option 2\nShort Notes: Explanation here.\n\n১. প্রশ্ন এখানে লিখুন?\n(a) বিকল্প ১\n(b) বিকল্প ২\n(c) বিকল্প ৩\n(d) বিকল্প ৪\nAns:(b) বিকল্প ২\nShort Notes:\n• নোট ১\n• নোট ২"}
                                 value={rawText}
                                 onChange={(e) => setRawText(e.target.value)}
                                 className="min-h-[250px] p-6 text-base font-medium rounded-2xl border-2 border-slate-200 dark:border-slate-700/50 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 bg-slate-50/50 dark:bg-slate-800/80 transition-all resize-none shadow-inner"

@@ -28,10 +28,10 @@ export interface QuestionBankItem {
 }
 
 export interface QuestionBankFilters {
-  topic?: string;
+  topic?: string | string[];
   difficulty?: string;
   language?: string;
-  subject?: string;
+  subject?: string | string[];
   source?: string;
   tags?: string[];
   channelId?: string;
