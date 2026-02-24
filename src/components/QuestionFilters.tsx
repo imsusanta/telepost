@@ -355,7 +355,7 @@ export function QuestionFilters({
                                                     </div>
 
                                                     {(onEditSubject || onDeleteSubject) && (
-                                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center gap-0.5">
                                                             {onEditSubject && (
                                                                 <Button
                                                                     size="icon"
@@ -538,7 +538,7 @@ export function QuestionFilters({
                                                     </div>
 
                                                     {(onEditTopic || onDeleteTopic) && (
-                                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center gap-0.5">
                                                             {onEditTopic && (
                                                                 <Button
                                                                     size="icon"
