@@ -40,6 +40,12 @@ export interface TelegramSettings {
   fallback_enabled: boolean;
 }
 
+export interface PaymentSettings {
+  razorpay_key_id: string;
+  razorpay_key_secret: string;
+  razorpay_webhook_secret: string;
+}
+
 export interface SystemSettings {
   invitation_defaults: InvitationDefaults;
   user_defaults: UserDefaults;
@@ -47,6 +53,7 @@ export interface SystemSettings {
   system_maintenance: SystemMaintenance;
   ai_settings: AISettings;
   telegram_settings: TelegramSettings;
+  payment_settings: PaymentSettings;
 }
 
 type SettingKey = keyof SystemSettings;
@@ -104,6 +111,11 @@ export async function getAllSettings(): Promise<SystemSettings> {
     telegram_settings: (settings.telegram_settings as TelegramSettings) || {
       global_bot_token: '',
       fallback_enabled: true,
+    },
+    payment_settings: (settings.payment_settings as PaymentSettings) || {
+      razorpay_key_id: '',
+      razorpay_key_secret: '',
+      razorpay_webhook_secret: '',
     },
   };
 }
@@ -242,4 +254,23 @@ export async function getTelegramSettings(): Promise<TelegramSettings> {
  */
 export async function updateTelegramSettings(settings: TelegramSettings): Promise<void> {
   return updateSetting('telegram_settings', settings);
+}
+
+/**
+ * Get Payment settings
+ */
+export async function getPaymentSettings(): Promise<PaymentSettings> {
+  const settings = await getSetting('payment_settings');
+  return settings || {
+    razorpay_key_id: '',
+    razorpay_key_secret: '',
+    razorpay_webhook_secret: '',
+  };
+}
+
+/**
+ * Update Payment settings
+ */
+export async function updatePaymentSettings(settings: PaymentSettings): Promise<void> {
+  return updateSetting('payment_settings', settings);
 }

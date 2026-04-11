@@ -3,9 +3,12 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
+    FileText,
     Image,
+    LayoutPanelLeft,
     Loader2,
     PenLine,
+    Search,
     Send,
     Sparkles,
     Trash2,
@@ -33,8 +36,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ChannelService } from "@/services/channelService";
 import { PostService, Post } from "@/services/postService";
+import { QuestionBankService, QuestionBankItem } from "@/services/questionBankService";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Channel } from "@/types/channel";
 import { LoadingState } from "@/components/LoadingState";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 export default function CreatePost() {
     const { toast } = useToast();
@@ -62,9 +70,43 @@ export default function CreatePost() {
     const [isAiGenerating, setIsAiGenerating] = useState(false);
     const [showAiInput, setShowAiInput] = useState(false);
 
+
     // Recent posts state
     const [recentPosts, setRecentPosts] = useState<Post[]>([]);
     const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+
+    // Source selection state
+    const [postSource, setPostSource] = useState<"manual" | "question-bank" | "ai-generate" | "documents">("manual");
+    
+    // Question Bank selection state
+    const [qbSearch, setQbSearch] = useState("");
+    const [qbQuestions, setQbQuestions] = useState<QuestionBankItem[]>([]);
+    const [isLoadingQb, setIsLoadingQb] = useState(false);
+    const [selectedQbQuestionId, setSelectedQbQuestionId] = useState<string | null>(null);
+
+    // Subscription hook
+    const { 
+        canAccess, 
+        loading: isLoadingSubscription,
+        isSuperAdmin
+    } = useSubscription();
+
+    // Question Bank interaction
+    const handleSelectQuestion = (question: QuestionBankItem) => {
+        setSelectedQbQuestionId(question.id);
+        let selectedContent = question.question || "";
+        if (question.options && Array.isArray(question.options)) {
+            const optionsList = question.options
+                .map((val, idx) => `${String.fromCharCode(65 + idx)}. ${val}`)
+                .join("\n");
+            selectedContent += `\n\n${optionsList}`;
+        }
+        if (typeof question.correct_option_index === 'number') {
+            const correctLetter = String.fromCharCode(65 + question.correct_option_index);
+            selectedContent += `\n\nCorrect Option: ${correctLetter}`;
+        }
+        setContent(selectedContent);
+    };
 
 
 
@@ -77,8 +119,6 @@ export default function CreatePost() {
                     setUserId(user.id);
                     const userChannels = await ChannelService.getUserChannels(user.id);
                     setChannels(userChannels);
-
-
                 }
             } catch (error) {
                 console.error("Error loading user data:", error);
@@ -94,6 +134,39 @@ export default function CreatePost() {
 
         loadUserData();
     }, [toast]);
+
+    // Fetch Question Bank questions
+    const fetchQbQuestions = useCallback(async () => {
+        if (!userId || postSource !== "question-bank") return;
+
+        try {
+            setIsLoadingQb(true);
+            const { data } = await QuestionBankService.getQuestions(
+                userId,
+                { 
+                    includePublic: true,
+                    isPublicOnly: false
+                },
+                50,
+                0,
+                qbSearch
+            );
+            setQbQuestions(data);
+        } catch (error) {
+            console.error("Error loading questions:", error);
+        } finally {
+            setIsLoadingQb(false);
+        }
+    }, [userId, postSource, qbSearch]);
+
+    useEffect(() => {
+        if (postSource === "question-bank") {
+            const timer = setTimeout(() => {
+                fetchQbQuestions();
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [fetchQbQuestions, postSource, qbSearch]);
 
     // Load recent posts
     const loadRecentPosts = useCallback(async () => {
@@ -332,13 +405,20 @@ export default function CreatePost() {
         return now.toISOString().slice(0, 16);
     };
 
-    if (isLoadingChannels) {
+    if (isLoadingChannels || isLoadingSubscription) {
         return (
             <DashboardLayout>
-                <LoadingState />
+                <div className="flex h-[80vh] items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
             </DashboardLayout>
         );
     }
+
+    const hasAiWritingAccess = canAccess('create_post', 'write_with_ai');
+    const hasAiGenerateAccess = canAccess('create_post', 'write_with_ai');
+    const hasDocumentsAccess = canAccess('knowledge_base');
+    const hasSchedulerAccess = canAccess('scheduler');
 
     return (
         <DashboardLayout>
@@ -417,12 +497,157 @@ export default function CreatePost() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className={`gap-2 text-xs h-8 ${showAiInput ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
-                                                    onClick={() => setShowAiInput(!showAiInput)}
+                                                    onClick={() => {
+                                                        if (!hasAiWritingAccess) {
+                                                            toast({
+                                                                title: "Premium Feature",
+                                                                description: "AI writing is only available on Pro plans. Please upgrade to use this feature.",
+                                                                variant: "destructive",
+                                                            });
+                                                            return;
+                                                        }
+                                                        setShowAiInput(!showAiInput);
+                                                    }}
                                                 >
                                                     <Sparkles className="h-3.5 w-3.5" />
                                                     {showAiInput ? "Close AI Assistant" : "Write with AI"}
+                                                    {!hasAiWritingAccess && !isSuperAdmin && (
+                                                        <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1 bg-amber-100 text-amber-700 border-amber-200">PRO</Badge>
+                                                    )}
                                                 </Button>
                                             </div>
+
+                                            <Tabs 
+                                                value={postSource} 
+                                                onValueChange={(val) => setPostSource(val as any)}
+                                                className="w-full"
+                                            >
+                                                <TabsList className="grid w-full grid-cols-4 mb-4">
+                                                    <TabsTrigger value="manual" className="text-xs">Manual</TabsTrigger>
+                                                    <TabsTrigger value="question-bank" className="text-xs">Q-Bank</TabsTrigger>
+                                                    <TabsTrigger 
+                                                        value="ai-generate" 
+                                                        className="text-xs flex items-center gap-1"
+                                                        disabled={!hasAiGenerateAccess && !isSuperAdmin}
+                                                    >
+                                                        AI {!hasAiGenerateAccess && !isSuperAdmin && <Badge variant="secondary" className="text-[8px] h-3 px-1">BASIC</Badge>}
+                                                    </TabsTrigger>
+                                                    <TabsTrigger 
+                                                        value="documents" 
+                                                        className="text-xs flex items-center gap-1"
+                                                        disabled={!hasDocumentsAccess && !isSuperAdmin}
+                                                    >
+                                                        Docs {!hasDocumentsAccess && !isSuperAdmin && <Badge variant="secondary" className="text-[8px] h-3 px-1">PRO</Badge>}
+                                                    </TabsTrigger>
+                                                </TabsList>
+
+                                                <TabsContent value="manual" className="space-y-4 mt-0">
+                                                    {!hasAiWritingAccess && showAiInput && (
+                                                        <Alert className="bg-amber-50 border-amber-200 text-amber-800 mb-4">
+                                                            <Info className="h-4 w-4 text-amber-600" />
+                                                            <AlertTitle>Upgrade Required</AlertTitle>
+                                                            <AlertDescription>
+                                                                Write with AI is a Pro feature. Upgrade your plan to use the AI Assistant.
+                                                            </AlertDescription>
+                                                        </Alert>
+                                                    )}
+                                                </TabsContent>
+
+                                                <TabsContent value="question-bank" className="space-y-4 mt-0">
+                                                    <div className="space-y-3">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                            <Input
+                                                                placeholder="Search your questions..."
+                                                                className="pl-9"
+                                                                value={qbSearch}
+                                                                onChange={(e) => setQbSearch(e.target.value)}
+                                                            />
+                                                        </div>
+                                                        <ScrollArea className="h-[250px] border rounded-md p-2 bg-slate-50/50 dark:bg-slate-900/50">
+                                                            {isLoadingQb ? (
+                                                                <div className="flex items-center justify-center h-full">
+                                                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                                </div>
+                                                            ) : qbQuestions.length === 0 ? (
+                                                                <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
+                                                                    <LayoutPanelLeft className="h-8 w-8 mb-2 opacity-20" />
+                                                                    <p className="text-sm">No questions found</p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-2">
+                                                                    {qbQuestions.map((q) => (
+                                                                        <div
+                                                                            key={q.id}
+                                                                            onClick={() => handleSelectQuestion(q)}
+                                                                            className={`p-3 rounded-lg border cursor-pointer transition-all hover:border-primary/50 hover:bg-white dark:hover:bg-slate-950 ${
+                                                                                selectedQbQuestionId === q.id 
+                                                                                ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+                                                                                : "bg-white/50 dark:bg-slate-950/50"
+                                                                            }`}
+                                                                        >
+                                                                            <p className="text-xs font-medium line-clamp-2">{q.question}</p>
+                                                                            <div className="flex items-center gap-2 mt-2">
+                                                                                <Badge variant="outline" className="text-[10px] py-0 h-4">
+                                                                                    {q.topic}
+                                                                                </Badge>
+                                                                                {q.is_public && (
+                                                                                    <Badge className="text-[10px] py-0 h-4 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                                                                        Public
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </ScrollArea>
+                                                        {selectedQbQuestionId && (
+                                                            <p className="text-[10px] text-primary font-medium animate-in fade-in slide-in-from-left-1">
+                                                                Question selected! It has been pre-filled in the message box below.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </TabsContent>
+
+                                                <TabsContent value="ai-generate" className="space-y-4 mt-0">
+                                                    <div className="p-8 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center space-y-3 bg-primary/5 border-primary/20">
+                                                        <Sparkles className="h-10 w-10 text-primary animate-pulse" />
+                                                        <div>
+                                                            <h4 className="font-semibold">AI Generated Post</h4>
+                                                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                                                                Generate a complete post with images and formatting using advanced AI.
+                                                            </p>
+                                                        </div>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            className="border-primary/30 text-primary hover:bg-primary/10"
+                                                            onClick={() => toast({ title: "Coming Soon", description: "Advanced AI Generation is being finalized." })}
+                                                        >
+                                                            Launch Generator
+                                                        </Button>
+                                                    </div>
+                                                </TabsContent>
+
+                                                <TabsContent value="documents" className="space-y-4 mt-0">
+                                                    <div className="p-8 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center space-y-3 bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-900">
+                                                        <FileText className="h-10 w-10 text-purple-600 animate-bounce" />
+                                                        <div>
+                                                            <h4 className="font-semibold text-purple-900 dark:text-purple-300">Generate from Documents</h4>
+                                                            <p className="text-sm text-purple-700/70 dark:text-purple-400 max-w-xs mx-auto text-balance">
+                                                                Extract key points from your PDFs and documents to create engaging posts.
+                                                            </p>
+                                                        </div>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            className="border-purple-300 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:text-purple-400"
+                                                            onClick={() => toast({ title: "Coming Soon", description: "Document integration is being finalized." })}
+                                                        >
+                                                            Select Document
+                                                        </Button>
+                                                    </div>
+                                                </TabsContent>
+                                            </Tabs>
 
                                             {showAiInput && (
                                                 <div className="bg-gradient-to-br from-primary/5 to-purple-500/5 rounded-xl p-4 border border-primary/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -534,13 +759,26 @@ export default function CreatePost() {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <Label htmlFor="schedule-toggle" className="cursor-pointer">
+                                            <Label htmlFor="schedule-toggle" className={`cursor-pointer ${!hasSchedulerAccess ? 'opacity-50' : ''}`}>
                                                 Schedule for later
+                                                {!hasSchedulerAccess && (
+                                                    <Badge variant="secondary" className="ml-2 text-[10px] h-4 px-1 bg-amber-100 text-amber-700 border-amber-200 uppercase tracking-tight">Basic</Badge>
+                                                )}
                                             </Label>
                                             <Switch
                                                 id="schedule-toggle"
                                                 checked={isScheduled}
-                                                onCheckedChange={setIsScheduled}
+                                                onCheckedChange={(checked) => {
+                                                    if (!hasSchedulerAccess && checked) {
+                                                        toast({
+                                                            title: "Basic Feature",
+                                                            description: "Auto scheduling is available on Basic and Pro plans. Free users can only post manually for now.",
+                                                            variant: "destructive",
+                                                        });
+                                                        return;
+                                                    }
+                                                    setIsScheduled(checked);
+                                                }}
                                             />
                                         </div>
                                         {isScheduled && (

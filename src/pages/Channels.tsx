@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "@/types/channel";
 import { ChannelService } from "@/services/channelService";
+import { useSubscription } from "@/hooks/useSubscription";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +43,7 @@ export default function Channels() {
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [limits, setLimits] = useState<{ max_telegram_channels: number }>({ max_telegram_channels: 1 });
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,41 +78,31 @@ export default function Channels() {
 
   useEffect(() => {
     loadChannels();
-    fetchLimits();
   }, [loadChannels]);
 
-  const fetchLimits = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  // Subscription hook
+  const { 
+    canAccess: _canAccess, 
+    getLimit, 
+    isSuperAdmin: superAdminRole, 
+  } = useSubscription();
 
-      console.log("Checking super admin status for user:", user.id);
-
-      // Check if user is Super Admin
-      const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('role, max_telegram_channels')
-        .eq('id', user.id)
-        .single();
-
-      const superAdminStatus = profile?.role === 'super_admin';
-      setIsSuperAdmin(superAdminStatus);
-
-      if (!superAdminStatus) {
-        setLimits({ max_telegram_channels: profile?.max_telegram_channels || 1 });
-      } else {
-        console.log("User is Admin - no limits applied");
-      }
-    } catch (error) {
-      console.error("Error fetching limits:", error);
-    }
-  };
+  const maxChannels = getLimit('max_telegram_channels') || 1;
 
   const handleCreateChannel = async () => {
     if (!newChannel.name.trim()) {
       toast({
         title: "Validation Error",
         description: "Channel name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!superAdminRole && channels.length >= maxChannels) {
+      toast({
+        title: "Limit Reached",
+        description: `Your current plan allows max ${maxChannels} channel(s). Please upgrade for more.`,
         variant: "destructive",
       });
       return;
@@ -460,7 +450,7 @@ export default function Channels() {
           <div>
             <h1 className="text-3xl font-bold">Channels</h1>
             <p className="text-muted-foreground">
-              Manage your Telegram channels
+              Manage your Telegram channels {superAdminRole ? `(${channels.length} active)` : `(${channels.length} / ${maxChannels} used)`}
             </p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {

@@ -9,7 +9,7 @@
 -- Replace 'your-email@example.com' with the actual super admin email
 UPDATE public.profiles
 SET role = 'super_admin'
-WHERE email = 'your-email@example.com';
+WHERE email = 'susantalohr@gmail.com';
 
 -- Alternative: If you want to set the first registered user as super admin
 -- Uncomment the following lines and comment out the above UPDATE

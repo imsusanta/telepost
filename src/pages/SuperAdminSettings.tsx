@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   Bot,
+  CreditCard,
   Eye,
   EyeOff,
   Loader2,
   RefreshCcw,
   Save,
   Send,
-  Shield,
   Users,
   Wrench,
   Zap
@@ -37,15 +37,15 @@ import { isSuperAdmin } from '@/services/couponService';
 import {
   getAllSettings,
   updateUserDefaults,
-  updateSubscriptionDefaults,
   updateMaintenanceSettings,
   updateAISettings,
   updateTelegramSettings,
+  updatePaymentSettings,
   type UserDefaults,
-  type SubscriptionDefaults,
   type SystemMaintenance,
   type AISettings,
   type TelegramSettings,
+  type PaymentSettings,
 } from '@/services/systemSettingsService';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -62,11 +62,6 @@ export default function SuperAdminSettings() {
     email_verification_required: true,
   });
 
-  const [subscriptionDefaults, setSubscriptionDefaults] = useState<SubscriptionDefaults>({
-    trial_days: 7,
-    grace_period_days: 3,
-    auto_cancel_expired: false,
-  });
 
   const [maintenanceSettings, setMaintenanceSettings] = useState<SystemMaintenance>({
     maintenance_mode: false,
@@ -91,6 +86,15 @@ export default function SuperAdminSettings() {
   const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
+  const [showRazorpayKeyId, setShowRazorpayKeyId] = useState(false);
+  const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
+  const [showRazorpayWebhook, setShowRazorpayWebhook] = useState(false);
+
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({
+    razorpay_key_id: '',
+    razorpay_key_secret: '',
+    razorpay_webhook_secret: '',
+  });
 
   const [testingAI, setTestingAI] = useState(false);
 
@@ -107,12 +111,16 @@ export default function SuperAdminSettings() {
       try {
         const data = await getAllSettings();
         setUserDefaults(data.user_defaults);
-        setSubscriptionDefaults(data.subscription_defaults);
         setMaintenanceSettings(data.system_maintenance);
         setAISettings(data.ai_settings);
         setTelegramSettings(data.telegram_settings || {
           global_bot_token: '',
           fallback_enabled: true,
+        });
+        setPaymentSettings(data.payment_settings || {
+          razorpay_key_id: '',
+          razorpay_key_secret: '',
+          razorpay_webhook_secret: '',
         });
       } catch (error) {
         toast({
@@ -151,24 +159,6 @@ export default function SuperAdminSettings() {
     }
   };
 
-  const handleSaveSubscriptionDefaults = async () => {
-    try {
-      setSaving(true);
-      await updateSubscriptionDefaults(subscriptionDefaults);
-      toast({
-        title: 'Success',
-        description: 'Subscription settings saved',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleSaveMaintenanceSettings = async () => {
     try {
@@ -222,6 +212,25 @@ export default function SuperAdminSettings() {
       toast({
         title: 'Error',
         description: 'Failed to save Telegram settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePaymentSettings = async () => {
+    try {
+      setSaving(true);
+      await updatePaymentSettings(paymentSettings);
+      toast({
+        title: 'Success',
+        description: 'Payment gateway settings saved successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save payment settings',
         variant: 'destructive',
       });
     } finally {
@@ -309,13 +318,13 @@ export default function SuperAdminSettings() {
               <Send className="w-4 h-4" />
               <span className="hidden sm:inline">Telegram</span>
             </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Payments</span>
+            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="gap-2">
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Subscriptions</span>
             </TabsTrigger>
             <TabsTrigger value="ai" className="gap-2">
               <Bot className="w-4 h-4" />
@@ -404,7 +413,125 @@ export default function SuperAdminSettings() {
             </Card>
           </TabsContent>
 
+          {/* Payment Gateway Settings */}
+          <TabsContent value="payments">
+            <Card className="border-0 shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Razorpay Payment Gateway
+                </CardTitle>
+                <CardDescription>
+                  Configure Razorpay credentials for subscription payments
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <CreditCard className="h-4 w-4" />
+                  <AlertTitle>Razorpay API Keys</AlertTitle>
+                  <AlertDescription>
+                    Get your API keys from the{' '}
+                    <a href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Razorpay Dashboard</a>.
+                    Use <strong>Test Mode</strong> keys for development and <strong>Live Mode</strong> keys for production.
+                  </AlertDescription>
+                </Alert>
 
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="razorpay_key_id">Razorpay Key ID</Label>
+                    <div className="relative">
+                      <Input
+                        id="razorpay_key_id"
+                        type={showRazorpayKeyId ? "text" : "password"}
+                        value={paymentSettings.razorpay_key_id}
+                        onChange={(e) => setPaymentSettings(prev => ({
+                          ...prev,
+                          razorpay_key_id: e.target.value.trim(),
+                        }))}
+                        placeholder="rzp_test_... or rzp_live_..."
+                        className="pr-10 font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2"
+                        onClick={() => setShowRazorpayKeyId(!showRazorpayKeyId)}
+                      >
+                        {showRazorpayKeyId ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Public key used in the checkout form (starts with rzp_test_ or rzp_live_)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="razorpay_key_secret">Razorpay Key Secret</Label>
+                    <div className="relative">
+                      <Input
+                        id="razorpay_key_secret"
+                        type={showRazorpaySecret ? "text" : "password"}
+                        value={paymentSettings.razorpay_key_secret}
+                        onChange={(e) => setPaymentSettings(prev => ({
+                          ...prev,
+                          razorpay_key_secret: e.target.value.trim(),
+                        }))}
+                        placeholder="Your Razorpay Secret Key"
+                        className="pr-10 font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2"
+                        onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
+                      >
+                        {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Secret key used for server-side order creation and payment verification
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="razorpay_webhook_secret">Webhook Secret (Optional)</Label>
+                    <div className="relative">
+                      <Input
+                        id="razorpay_webhook_secret"
+                        type={showRazorpayWebhook ? "text" : "password"}
+                        value={paymentSettings.razorpay_webhook_secret}
+                        onChange={(e) => setPaymentSettings(prev => ({
+                          ...prev,
+                          razorpay_webhook_secret: e.target.value.trim(),
+                        }))}
+                        placeholder="Your Webhook Secret"
+                        className="pr-10 font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2"
+                        onClick={() => setShowRazorpayWebhook(!showRazorpayWebhook)}
+                      >
+                        {showRazorpayWebhook ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Used to verify webhook events from Razorpay (set in Razorpay Dashboard → Webhooks)
+                    </p>
+                  </div>
+                </div>
+
+                <Button onClick={handleSavePaymentSettings} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Payment Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* User Defaults */}
           <TabsContent value="users">
@@ -481,77 +608,6 @@ export default function SuperAdminSettings() {
             </Card>
           </TabsContent>
 
-          {/* Subscription Defaults */}
-          <TabsContent value="subscriptions">
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Subscription Defaults
-                </CardTitle>
-                <CardDescription>
-                  Configure default settings for subscriptions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="trial_days">Trial Period (Days)</Label>
-                    <Input
-                      id="trial_days"
-                      type="number"
-                      value={subscriptionDefaults.trial_days}
-                      onChange={(e) => setSubscriptionDefaults(prev => ({
-                        ...prev,
-                        trial_days: parseInt(e.target.value) || 7,
-                      }))}
-                      min={0}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Free trial period for new subscriptions
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="grace_period_days">Grace Period (Days)</Label>
-                    <Input
-                      id="grace_period_days"
-                      type="number"
-                      value={subscriptionDefaults.grace_period_days}
-                      onChange={(e) => setSubscriptionDefaults(prev => ({
-                        ...prev,
-                        grace_period_days: parseInt(e.target.value) || 3,
-                      }))}
-                      min={0}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Grace period after subscription expires
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Auto-Cancel Expired</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Automatically cancel subscriptions after grace period
-                    </p>
-                  </div>
-                  <Switch
-                    checked={subscriptionDefaults.auto_cancel_expired}
-                    onCheckedChange={(checked) => setSubscriptionDefaults(prev => ({
-                      ...prev,
-                      auto_cancel_expired: checked,
-                    }))}
-                  />
-                </div>
-
-                <Button onClick={handleSaveSubscriptionDefaults} disabled={saving} className="gap-2">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Subscription Settings
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* AI Configuration */}
           <TabsContent value="ai">

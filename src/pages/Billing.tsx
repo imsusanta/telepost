@@ -239,99 +239,55 @@ export default function Billing() {
   const plans = [
     {
       name: "Free",
-      price: "$0",
+      price: "₹0",
       numericPrice: 0,
-      period: "/month",
+      period: "/7 days",
       features: [
         "1 Telegram Channel",
-        "Upload PDFs (Up to 1GB)",
-        "Basic AI Quiz Generation",
-        "10 Quizzes/month",
-        "Question Bank (100 questions)"
+        "Create Quiz (Manual Input Only)",
+        "No AI Post Writing",
+        "Story Access",
+        "Question Bank (Private Only)",
+        "Knowledge Base & Scheduler"
       ],
       current: false,
       gradient: "from-gray-400 to-gray-600",
-      description: "Perfect for trying out TelePost"
+      description: "7-day trial of TelePost features"
     },
     {
-      name: "Starter",
-      price: "$29",
-      numericPrice: 29,
-      period: "/month",
+      name: "Basic",
+      price: "₹999",
+      numericPrice: 999,
+      period: "/year",
       features: [
-        "1 Telegram Channel",
-        "Upload PDFs (Up to 10GB)",
-        "AI Quiz Generation",
-        "50 Quizzes/month",
-        "Basic Scheduling",
-        "PDF Explanations",
-        "Question Bank (10K questions)"
+        "5 Telegram Channels",
+        "Create Quiz (Manual Input Only)",
+        "No AI Post Writing",
+        "Story Access",
+        "Question Bank (Private Only)",
+        "Knowledge Base & Scheduler"
       ],
       current: false,
       gradient: "from-primary to-accent",
-      description: "Perfect for small coaching classes"
+      description: "Perfect for growing channels"
     },
     {
       name: "Pro",
-      price: "$99",
-      numericPrice: 99,
-      period: "/month",
+      price: "₹2999",
+      numericPrice: 2999,
+      period: "/year",
       features: [
-        "3 Telegram Channels",
-        "Unlimited PDF Uploads (50GB)",
-        "Advanced AI from Documents",
-        "Unlimited Quizzes",
-        "Auto-Post Scheduling (Set & Forget)",
-        "Auto PDF Explanations",
-        "Batch Generate 30 Quizzes at Once",
-        "Question Bank (50K+ questions)",
-        "Engagement Analytics Dashboard",
-        "Custom Branding on PDFs",
-        "Multi-Language Support"
+        "Unlimited Telegram Channels",
+        "Full AI Quiz Generation",
+        "AI Content Writing",
+        "Story & Video Generation",
+        "Public & Private Question Bank",
+        "Everything in Basic"
       ],
-      current: true,
+      current: false,
       gradient: "from-accent to-secondary",
       popular: true,
-      description: "Best for coaching institutes"
-    },
-    {
-      name: "Agency",
-      price: "$249",
-      numericPrice: 249,
-      period: "/month",
-      features: [
-        "10 Telegram Channels",
-        "Unlimited Everything",
-        "White-Label Solution",
-        "API Access",
-        "Dedicated Account Manager",
-        "Custom Quiz Templates",
-        "Advanced Analytics & Reporting",
-        "Multi-Admin Access",
-        "Custom Integrations"
-      ],
-      current: false,
-      gradient: "from-secondary to-success",
-      description: "For multi-branch institutes"
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      numericPrice: 999,
-      period: "pricing",
-      features: [
-        "Unlimited Channels",
-        "Everything in Agency",
-        "On-premise Deployment",
-        "Custom Development",
-        "SLA Guarantee",
-        "Training & Onboarding",
-        "Dedicated Infrastructure",
-        "Advanced Security & Compliance"
-      ],
-      current: false,
-      gradient: "from-success to-primary",
-      description: "For large organizations"
+      description: "Full power of TelePost SaaS"
     },
   ];
 

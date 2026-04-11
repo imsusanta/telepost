@@ -787,7 +787,6 @@ export default function SuperAdminUsers() {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1080,12 +1079,49 @@ export default function SuperAdminUsers() {
                     <SelectContent>
                       {plans.map((plan) => (
                         <SelectItem key={plan.id} value={plan.id}>
-                          {plan.display_name} - ${plan.price}/mo
+                          {plan.display_name} - {plan.price === 0 ? 'Free' : `₹${plan.price}/mo`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Feature summary for the selected plan */}
+                {selectedPlanId && (() => {
+                  const selectedPlan = plans.find(p => p.id === selectedPlanId);
+                  if (!selectedPlan?.features) return null;
+                  const f = selectedPlan.features as any;
+
+                  const featureList = [
+                    { label: `${selectedPlan.max_telegram_channels ?? 1} Telegram Channel${(selectedPlan.max_telegram_channels ?? 1) > 1 ? 's' : ''} Access`, enabled: f.channels ?? true },
+                    { label: `${selectedPlan.max_pdf_storage_gb ?? 0 > 0 ? selectedPlan.max_pdf_storage_gb + 'GB' : 'No'} Storage`, enabled: (selectedPlan.max_pdf_storage_gb ?? 0) > 0 },
+                    { label: `${selectedPlan.max_quizzes_per_month === null || selectedPlan.max_quizzes_per_month === -1 ? 'Unlimited' : selectedPlan.max_quizzes_per_month} Quizzes`, enabled: true },
+                    { label: `${selectedPlan.max_question_bank_size === null || selectedPlan.max_question_bank_size === -1 ? 'Unlimited' : selectedPlan.max_question_bank_size} Questions Capacity`, enabled: true },
+                    { label: 'Create Quiz', enabled: f.create_quiz?.enabled ?? false },
+                    { label: 'Create Post', enabled: f.create_post?.enabled ?? false },
+                    { label: 'Question Bank', enabled: f.question_bank?.enabled ?? false },
+                    { label: 'Telegram Stories', enabled: f.stories ?? false },
+                    { label: 'Knowledge Base', enabled: f.knowledge_base ?? false },
+                    { label: 'Auto Scheduling', enabled: f.scheduler ?? false },
+                  ];
+
+                  return (
+                    <div className="rounded-lg border p-3 space-y-1.5 bg-muted/30 max-h-48 overflow-y-auto">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Plan Features</p>
+                      {featureList.map((item, idx) => (
+                        <div key={idx} className={`flex items-center gap-2 text-sm ${!item.enabled ? 'text-muted-foreground line-through opacity-50' : ''}`}>
+                          {item.enabled ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          ) : (
+                            <X className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <Button
                   onClick={handleUpdateSubscription}
                   disabled={isUpdating || !selectedPlanId}
@@ -1194,12 +1230,6 @@ export default function SuperAdminUsers() {
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         User
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" />
-                        Admin
                       </div>
                     </SelectItem>
                     <SelectItem value="super_admin">

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { SubscriptionService } from "./subscriptionService";
 
 export interface Document {
   id: string;
@@ -129,6 +130,13 @@ export class DocumentService {
       console.error(`Failed to process document ${data.id}:`, error);
       // Error is already handled in processDocument by setting status to 'failed'
     });
+
+    // Track usage
+    try {
+      await SubscriptionService.trackPdfUpload(userId, file.size);
+    } catch (trackError) {
+      console.error("Failed to track PDF upload usage:", trackError);
+    }
 
     return data as Document;
   }

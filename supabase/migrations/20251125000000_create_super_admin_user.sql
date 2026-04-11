@@ -12,7 +12,7 @@ SELECT
   p.id,
   'super_admin'::app_role
 FROM public.profiles p
-WHERE p.email = 'your-super-admin@example.com'  -- REPLACE THIS WITH YOUR SUPER ADMIN EMAIL
+WHERE p.email = 'susantalohr@gmail.com'  -- REPLACED PLACEHOLDER
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role = 'super_admin'::app_role
@@ -21,7 +21,7 @@ WHERE p.email = 'your-super-admin@example.com'  -- REPLACE THIS WITH YOUR SUPER 
 -- Step 2: Also update the legacy role column in profiles table for backwards compatibility
 UPDATE public.profiles
 SET role = 'super_admin'
-WHERE email = 'your-super-admin@example.com'  -- REPLACE THIS WITH YOUR SUPER ADMIN EMAIL
+WHERE email = 'susantalohr@gmail.com'  -- REPLACED PLACEHOLDER
   AND role != 'super_admin';
 
 -- Alternative: Set the first registered user as super admin (uncomment if needed)

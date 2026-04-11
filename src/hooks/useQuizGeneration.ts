@@ -4,6 +4,8 @@ import { QuizService } from "@/services/quizService";
 import { Quiz, QuizConfig } from "@/types/quiz";
 import { useToast } from "@/hooks/use-toast";
 
+import { SubscriptionService } from "@/services/subscriptionService";
+
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 5;
@@ -112,6 +114,24 @@ export function useQuizGeneration() {
         throw new Error("You must be logged in to generate quizzes");
       }
 
+      // Verify limits before generating
+      try {
+        const canGenerate = await SubscriptionService.canUserPerformAction(user.id, "generate_quiz");
+        if (!canGenerate) {
+          toast({
+            title: "Limit Reached",
+            description: "Monthly quiz generation limit reached for your plan. Please upgrade to generate more quizzes.",
+            variant: "destructive",
+          });
+          throw new Error("Quiz generation limit reached");
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message === "Quiz generation limit reached") {
+          throw error;
+        }
+        console.warn("Limit check failed, proceeding anyway", error);
+      }
+
       // Record this request for rate limiting
       requestTimestamps.current.push(Date.now());
 
@@ -121,6 +141,14 @@ export function useQuizGeneration() {
       });
 
       setQuiz(generatedQuiz);
+      
+      // Track usage
+      try {
+        await SubscriptionService.trackQuizGeneration(user.id);
+      } catch (trackError) {
+        console.error("Failed to track quiz generation usage:", trackError);
+      }
+
       setGenerationCount((prev) => prev + 1);
 
       const knowledgeBaseNote = config.useChannelKnowledgeBase

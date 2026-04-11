@@ -426,7 +426,11 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
   1. Number of questions: ${questionCount}.
   2. Each question must have EXACTLY 4 options.
   3. Use zero-based indexing for "correct_option_index".
-  4. Don't generate Bangladesh related questions. If the question is related to India, then you can generate it.
+  4. The questions MUST be exam-oriented, high-yield, and MOST FREQUENTLY ASKED in competitive exams like UPSC, SSC CGL/CHSL/MTS, Banking IBPS/SBI, Railways RRB, State PSC, WBCS, CTET, NDA, CDS.
+  5. Focus on IMPORTANT facts, dates, figures, and concepts that are repeatedly tested in previous year papers.
+  6. Include a mix of easy, moderate, and tricky questions to match real exam patterns.
+  7. Each explanation should be concise but include the KEY FACT that makes the answer correct (useful for revision).
+  8. Don't generate Bangladesh related questions. If the question is related to India, then you can generate it.
   ${languageRequirement}`;
 
     if (customPrompt) {
@@ -504,11 +508,31 @@ async function generateAITopic(setting: any, aiSettings: AISettings): Promise<st
     const language = setting.language || 'English';
 
     const prompt = `Suggest ONE short, specific, and engaging quiz topic (max 4-5 words) suitable for a Telegram channel named "${channelName}".
-    The topic MUST be related to one of these categories: General Knowledge (GK), History, Geography, General Science, or Static GK.
-    The topic should be exam-oriented and appropriate for an audience preparing for competitive educational exams.
-    CONTENT GUIDELINES: Do not suggest Bangladesh-related topics unless they have a strong connection to India (e.g., India-Bangladesh relations).
-    REQUIRED LANGUAGE: ${language}.
-    Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
+The topic MUST be highly relevant to competitive government job exams (e.g., SSC CGL, CHSL, MTS, UPSC, Railways RRB, Banking IBPS/SBI, State PSC, WBCS, CTET, NDA, CDS).
+
+You MUST randomly pick from ALL of these subject areas (do NOT repeat the same subject frequently):
+- Indian History (Ancient, Medieval, Modern, Freedom Struggle)
+- Indian Geography (Rivers, Mountains, Climate, Agriculture, Minerals)
+- Indian Polity & Constitution (Articles, Amendments, Fundamental Rights, Parliament, Judiciary)
+- Indian Economy (Five Year Plans, Budget, Banking System, Fiscal Policy, GDP, RBI)
+- General Science - Physics (Laws of Motion, Light, Sound, Electricity, Units)
+- General Science - Chemistry (Elements, Acids & Bases, Chemical Reactions, Periodic Table)
+- General Science - Biology (Human Body, Diseases, Nutrition, Cell Biology, Ecology)
+- Static GK (First in India/World, National Symbols, Important Dates, Awards, Books & Authors, Organizations like UN/WHO/IMF)
+- Current Affairs (Recent Government Schemes, International Events, Summits, Appointments)
+- Quantitative Aptitude (Percentage, Profit & Loss, SI/CI, Ratio, Time & Work, Number System)
+- Reasoning & Logic (Series, Coding-Decoding, Blood Relations, Direction, Syllogism, Analogy)
+- Computer Awareness (MS Office, Networking, Operating Systems, Internet, Shortcuts)
+- English Grammar & Vocabulary (Idioms, Synonyms, Antonyms, One Word Substitution, Error Spotting)
+- Environmental Studies & Ecology (Biodiversity, Climate Change, National Parks, Wildlife)
+
+CONTENT GUIDELINES:
+- Make it dynamic and specific. Example: "Mughal Empire Architecture" instead of just "History", or "RBI Monetary Policy Tools" instead of just "Economy".
+- Focus on topics that are MOST FREQUENTLY ASKED in actual exams.
+- Do NOT suggest Bangladesh-related topics unless strongly connected to India.
+
+REQUIRED LANGUAGE: ${language}.
+Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
 
     let content = "";
     try {

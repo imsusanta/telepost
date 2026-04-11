@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
 import { DocumentService, Document } from "@/services/documentService";
-import { SubscriptionService } from "@/services/subscriptionService";
 import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,27 @@ export default function Documents() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const { canAccess, getLimit, isSuperAdmin } = useSubscription();
+  const hasAccess = canAccess('knowledge_base');
+  const hasUploadAccess = canAccess('knowledge_base');
+
+  if (!hasAccess && !loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <FileText className="w-16 h-16 text-muted-foreground opacity-20" />
+          <h2 className="text-2xl font-bold">Premium Feature</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            The Knowledge Base is available for Basic and Pro users. Store PDFs and generate intelligent quizzes from your own documents.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings")}>
+            Upgrade to Pro
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const loadChannels = useCallback(async () => {
     try {
@@ -66,10 +87,13 @@ export default function Documents() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
-      if (canUpload.limit && canUpload.current !== undefined) {
-        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
-      }
+      const storageLimitGB = getLimit('max_pdf_storage_gb') || 0;
+      
+      const { data } = await supabase.rpc('get_user_storage_usage', { user_id: user.id });
+      setStorageUsed({ 
+        current: (data?.total_bytes || 0) / (1024 * 1024 * 1024), 
+        limit: storageLimitGB 
+      });
     } catch (error: unknown) {
       toast({
         title: "Warning",
@@ -273,12 +297,28 @@ export default function Documents() {
               />
               <Button
                 asChild
-                disabled={uploading || !selectedChannel || selectedChannel === "all"}
+                disabled={uploading || !selectedChannel || selectedChannel === "all" || (!hasUploadAccess && !isSuperAdmin)}
                 className="gap-2 h-10 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <label htmlFor="pdf-upload" className="cursor-pointer flex items-center">
+                <label 
+                  htmlFor="pdf-upload" 
+                  className={`flex items-center ${uploading || !selectedChannel || selectedChannel === "all" || (!hasUploadAccess && !isSuperAdmin) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                  onClick={(e) => {
+                    if (!hasUploadAccess && !isSuperAdmin) {
+                      e.preventDefault();
+                      toast({
+                        title: "Pro Feature",
+                        description: "PDF upload is only available for Pro users.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                >
                   <Upload className="w-4 h-4 mr-2" />
                   {uploading ? "Uploading..." : "Upload New PDF"}
+                  {!hasUploadAccess && !isSuperAdmin && (
+                    <span className="ml-2 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-md font-bold">PRO</span>
+                  )}
                 </label>
               </Button>
             </div>

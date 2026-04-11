@@ -14,6 +14,7 @@ import { StatsSection } from "@/components/StatsSection";
 import { UseCases } from "@/components/UseCases";
 import { Testimonials } from "@/components/Testimonials";
 import { Features } from "@/components/Features";
+import { Pricing } from "@/components/Pricing";
 import { TelegramDemo } from "@/components/TelegramDemo";
 import { ManualQuizInput } from "@/components/ManualQuizInput";
 import { Button } from "@/components/ui/button";
@@ -138,9 +139,9 @@ const Index = () => {
           <main>
             <Hero onGetStarted={handleGetStarted} />
             <StatsSection />
-            <StatsSection />
             <TelegramDemo />
             <Features />
+            <Pricing onGetStarted={handleGetStarted} />
             <HowItWorks />
             <UseCases />
             <Testimonials />

@@ -1,10 +1,90 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Feature toggle interfaces
+export interface CreateQuizFeatures {
+  enabled: boolean;
+  ai_generated: boolean;
+  manual_input: boolean;
+  question_bank: boolean;
+  documents: boolean;
+}
+
+export interface CreatePostFeatures {
+  enabled: boolean;
+  write_with_ai: boolean;
+}
+
+export interface QuestionBankFeatures {
+  enabled: boolean;
+  my_questions: boolean;
+  ai_generate: boolean;
+  pdf_generate: boolean;
+}
+
+export interface PlanFeatures {
+  create_quiz: CreateQuizFeatures;
+  create_post: CreatePostFeatures;
+  channels: boolean;
+  stories: boolean;
+  question_bank: QuestionBankFeatures;
+  knowledge_base: boolean;
+  scheduler: boolean;
+}
+
+export const DEFAULT_FREE_FEATURES: PlanFeatures = {
+  create_quiz: {
+    enabled: true,
+    ai_generated: false,
+    manual_input: true,
+    question_bank: true,
+    documents: false,
+  },
+  create_post: {
+    enabled: true,
+    write_with_ai: false,
+  },
+  channels: true,
+  stories: true,
+  question_bank: {
+    enabled: true,
+    my_questions: true,
+    ai_generate: false,
+    pdf_generate: false,
+  },
+  knowledge_base: false,
+  scheduler: false,
+};
+
+export const ALL_FEATURES_ENABLED: PlanFeatures = {
+  create_quiz: {
+    enabled: true,
+    ai_generated: true,
+    manual_input: true,
+    question_bank: true,
+    documents: true,
+  },
+  create_post: {
+    enabled: true,
+    write_with_ai: true,
+  },
+  channels: true,
+  stories: true,
+  question_bank: {
+    enabled: true,
+    my_questions: true,
+    ai_generate: true,
+    pdf_generate: true,
+  },
+  knowledge_base: true,
+  scheduler: true,
+};
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
   display_name: string;
   price: number;
+  yearly_price: number;
   billing_period: string;
 
   // Limits
@@ -13,17 +93,35 @@ export interface SubscriptionPlan {
   max_quizzes_per_month: number | null;
   max_batch_quiz_generation: number;
   max_question_bank_size: number;
+  max_questions_per_quiz: number;
+  max_kb_docs: number;
 
-  // Features
-  has_advanced_ai: boolean;
-  has_auto_scheduling: boolean;
-  has_auto_pdf_explanations: boolean;
-  has_analytics_dashboard: boolean;
-  has_custom_branding: boolean;
-  has_multi_language: boolean;
-  has_api_access: boolean;
-  has_white_label: boolean;
+  // Structured feature toggles
+  features: PlanFeatures;
+
+  // Legacy fields (kept for backward compat, not actively used)
+  has_advanced_ai?: boolean;
+  has_auto_scheduling?: boolean;
+  has_auto_pdf_explanations?: boolean;
+  has_analytics_dashboard?: boolean;
+  has_custom_branding?: boolean;
+  has_multi_language?: boolean;
+  has_api_access?: boolean;
+  has_white_label?: boolean;
+  has_story?: boolean;
+  has_ai_writing?: boolean;
+  has_write_with_ai?: boolean;
+  has_documents_access?: boolean;
+  has_ai_quiz?: boolean;
+  has_pdf_quiz?: boolean;
+  has_ai_post_gen?: boolean;
+  quiz_manual_only?: boolean;
+  question_bank_private_only?: boolean;
+  has_kb_access?: boolean;
+  kb_view_only?: boolean;
+  has_manual_input?: boolean;
 }
+
 
 export interface UserSubscription {
   id: string;
@@ -173,7 +271,14 @@ export class SubscriptionService {
     // Create subscription
     const currentPeriodStart = new Date();
     const currentPeriodEnd = new Date();
-    currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+    
+    if (plan.billing_period === 'yearly') {
+      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
+    } else if (plan.billing_period === 'trial') {
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 7);
+    } else {
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+    }
 
     const { data, error } = await supabase
       .from("subscriptions")
@@ -469,13 +574,33 @@ export class SubscriptionService {
       | "has_multi_language"
       | "has_api_access"
       | "has_white_label"
+      | "has_story"
+      | "has_ai_writing"
+      | "has_documents_access"
+      | "quiz_manual_only"
+      | "question_bank_private_only"
     >
   ): Promise<boolean> {
     const subscription = await this.getUserSubscription(userId);
 
-    // If no subscription found, grant access to all features (free tier)
+    // If no subscription found, use free tier defaults
     if (!subscription || !subscription.plan) {
-      return true; // Allow all features for development/testing
+      const freeDefaults: Record<string, boolean> = {
+        has_advanced_ai: false,
+        has_auto_scheduling: false,
+        has_auto_pdf_explanations: false,
+        has_analytics_dashboard: false,
+        has_custom_branding: false,
+        has_multi_language: false,
+        has_api_access: false,
+        has_white_label: false,
+        has_story: true,
+        has_ai_writing: false,
+        has_documents_access: false,
+        quiz_manual_only: true,
+        question_bank_private_only: true,
+      };
+      return freeDefaults[feature] ?? false;
     }
 
     if (typeof subscription.plan !== 'object') {

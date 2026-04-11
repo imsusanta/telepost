@@ -10,6 +10,9 @@ import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
+import { useSubscription } from "@/hooks/useSubscription";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Question {
   question: string;
@@ -20,9 +23,10 @@ interface Question {
 
 interface AIQuestionGeneratorProps {
   onQuestionsGenerated: (questions: Question[], topic?: string, difficulty?: string, language?: string) => void;
+  currentCount?: number;
 }
 
-export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGeneratorProps) {
+export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: AIQuestionGeneratorProps) {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
@@ -30,6 +34,9 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
   const [customPrompt, setCustomPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const { getLimit, isSuperAdmin } = useSubscription();
+  const maxLimit = getLimit('max_question_bank_size');
+  const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -45,6 +52,24 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
       toast({
         title: "Error",
         description: "Question count must be between 1 and 50",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isLimitReached && !isSuperAdmin) {
+      toast({
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to generate more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (maxLimit !== null && !isSuperAdmin && currentCount + questionCount > maxLimit) {
+      toast({
+        title: "Limit Exceeded",
+        description: `Generating ${questionCount} questions would exceed your limit of ${maxLimit}. You can add ${maxLimit - currentCount} more.`,
         variant: "destructive",
       });
       return;
@@ -109,6 +134,16 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isLimitReached && !isSuperAdmin && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Limit Reached</AlertTitle>
+            <AlertDescription>
+              You have {currentCount} questions. Your {maxLimit}-question limit is reached.
+              Please upgrade your plan to generate more.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="topic">Topic *</Label>
@@ -186,7 +221,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated }: AIQuestionGenerato
 
           <Button
             onClick={handleGenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || (isLimitReached && !isSuperAdmin)}
             className="w-full gap-2"
             size="lg"
           >

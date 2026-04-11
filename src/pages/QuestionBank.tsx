@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
 import { ClassificationMetadataService } from "@/services/classificationMetadataService";
-import { isSuperAdmin } from "@/services/couponService";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -31,7 +31,6 @@ import { ParsedQuestion } from "@/utils/questionParser";
 import { EditQuestionDialog } from "@/components/EditQuestionDialog";
 import { ClassificationBadges } from "@/components/ClassificationBadges";
 import { QuestionFilters } from "@/components/QuestionFilters";
-import { ClassificationService } from "@/services/classificationService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,13 +91,16 @@ export default function QuestionBank() {
   const [subjectsWithCounts, setSubjectsWithCounts] = useState<{ subject: string; count: number }[]>([]);
   const [fullSubjects, setFullSubjects] = useState<any[]>([]);
   const [fullTopics, setFullTopics] = useState<any[]>([]);
-  const [isSuperUser, setIsSuperUser] = useState(false);
   const [topicsWithCounts, setTopicsWithCounts] = useState<{ topic: string; count: number }[]>([]);
   const [isBulkMoveDialogOpen, setIsBulkMoveDialogOpen] = useState(false);
   const [bulkMoveSubject, setBulkMoveSubject] = useState("");
   const [bulkMoveTopic, setBulkMoveTopic] = useState("");
   const [isBulkMoving, setIsBulkMoving] = useState(false);
   const { toast } = useToast();
+  const { canAccess } = useSubscription();
+
+  const hasAIAccess = canAccess('question_bank', 'ai_generate');
+  const hasPDFAccess = canAccess('question_bank', 'pdf_generate');
 
   const loadQuestions = useCallback(async (page = currentPage, query = searchQuery) => {
     try {
@@ -183,8 +185,6 @@ export default function QuestionBank() {
 
       setFullSubjects(allSubjects);
       setFullTopics(allTopics);
-      const admin = await isSuperAdmin();
-      setIsSuperUser(admin);
     } catch (error: any) {
       console.error("Failed to load classification data:", error);
       toast({
@@ -719,19 +719,23 @@ export default function QuestionBank() {
         </div>
 
         <Tabs defaultValue="questions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className={`grid w-full h-auto ${hasAIAccess && hasPDFAccess ? 'grid-cols-3' : hasAIAccess ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <TabsTrigger value="questions" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
               <List className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">My</span> Questions
             </TabsTrigger>
-            <TabsTrigger value="ai-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
-              <Zap className="w-3 h-3 md:w-4 md:h-4" />
-              AI <span className="hidden sm:inline">Generate</span>
-            </TabsTrigger>
-            <TabsTrigger value="pdf-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
-              <FileText className="w-3 h-3 md:w-4 md:h-4" />
-              PDF <span className="hidden sm:inline">Generate</span>
-            </TabsTrigger>
+            {hasAIAccess && (
+              <TabsTrigger value="ai-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                <Zap className="w-3 h-3 md:w-4 md:h-4" />
+                AI <span className="hidden sm:inline">Generate</span>
+              </TabsTrigger>
+            )}
+            {hasPDFAccess && (
+              <TabsTrigger value="pdf-generate" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                <FileText className="w-3 h-3 md:w-4 md:h-4" />
+                PDF <span className="hidden sm:inline">Generate</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* My Questions Tab */}
@@ -751,8 +755,12 @@ export default function QuestionBank() {
                   onUpload={handleBulkUpload}
                   fullSubjects={fullSubjects}
                   fullTopics={fullTopics}
+                  currentCount={stats?.total || 0}
                 />
-                <AddQuestionDialog onQuestionAdded={handleRefresh} />
+                <AddQuestionDialog 
+                  onQuestionAdded={handleRefresh} 
+                  currentCount={stats?.total || 0} 
+                />
                 <TelegramShareQuestionBank
                   selectedQuestionIds={selectedQuestionIds}
                   onClearSelection={handleClearSelection}
@@ -944,6 +952,7 @@ export default function QuestionBank() {
               onAddTopic={handleAddTopic}
               onEditTopic={handleEditTopic}
               onDeleteTopic={handleDeleteTopic}
+              privateOnly={false}
             />
 
             {/* Statistics */}
@@ -1211,6 +1220,7 @@ export default function QuestionBank() {
           {/* AI Generate Tab */}
           <TabsContent value="ai-generate" className="space-y-6 mt-6">
             <AIQuestionGenerator
+              currentCount={totalCount}
               onQuestionsGenerated={(questions, topic, difficulty, language) => {
                 handleQuestionsGenerated(questions, topic, difficulty, language);
               }}
@@ -1219,6 +1229,7 @@ export default function QuestionBank() {
             <AIGeneratedQuestionsList
               key={`ai-list-${aiListRefreshKey}`}
               sourceType="ai_generator"
+              currentCount={totalCount}
               onQuestionsAdded={() => {
                 loadQuestions();
                 loadStats();
@@ -1229,6 +1240,7 @@ export default function QuestionBank() {
           {/* PDF Generate Tab */}
           <TabsContent value="pdf-generate" className="space-y-6 mt-6">
             <PDFQuestionGenerator
+              currentCount={totalCount}
               onQuestionsGenerated={(questions, topic, difficulty, language) => {
                 handleQuestionsGenerated(questions, topic, difficulty, language);
               }}
@@ -1237,6 +1249,7 @@ export default function QuestionBank() {
             <AIGeneratedQuestionsList
               key={`pdf-list-${aiListRefreshKey}`}
               sourceType="pdf_generator"
+              currentCount={totalCount}
               onQuestionsAdded={() => {
                 loadQuestions();
                 loadStats();

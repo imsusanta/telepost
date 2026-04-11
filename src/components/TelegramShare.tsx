@@ -40,34 +40,52 @@ export const TelegramShare = ({ quiz, initialChatId, initialChannelId }: Telegra
   const loadChannels = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.warn("No authenticated user found while loading channels for sharing");
+        return;
+      }
 
-      const { data, error } = await (supabase
+      console.log("Loading channels for user:", user.id);
+      const { data, error } = await supabase
         .from("channels")
         .select("id, name, telegram_channel_id, telegram_bot_token")
-        .eq("user_id", user.id) as any);
+        .eq("user_id", user.id);
 
       if (error) throw error;
-      setChannels(data || []);
+      
+      const userChannels = data || [];
+      console.log("Found channels:", userChannels.length);
+      setChannels(userChannels);
 
-      // If initialChannelId is provided, set it
-      if (initialChannelId) {
-        setChannelId(initialChannelId);
-        const channel = data?.find((c: any) => c.id === initialChannelId);
-        if (channel?.telegram_channel_id) {
-          setChatId(channel.telegram_channel_id);
+      // Priority 1: Use initialChannelId if provided
+      if (initialChannelId && initialChannelId !== "all") {
+        const channel = userChannels.find((c: any) => c.id === initialChannelId);
+        if (channel) {
+          setChannelId(channel.id);
+          if (channel.telegram_channel_id) {
+            setChatId(channel.telegram_channel_id);
+          }
         }
-      } else if (initialChatId) {
+      } 
+      // Priority 2: Use initialChatId if provided
+      else if (initialChatId) {
         setChatId(initialChatId);
-      } else if (data && data.length > 0) {
-        // Default to the first channel if no initial ID provided
-        setChannelId(data[0].id);
-        if (data[0].telegram_channel_id) {
-          setChatId(data[0].telegram_channel_id);
+        // Try to find matching channelId
+        const channel = userChannels.find((c: any) => c.telegram_channel_id === initialChatId);
+        if (channel) {
+          setChannelId(channel.id);
+        }
+      } 
+      // Priority 3: Default to first channel
+      else if (userChannels.length > 0) {
+        setChannelId(userChannels[0].id);
+        if (userChannels[0].telegram_channel_id) {
+          setChatId(userChannels[0].telegram_channel_id);
         }
       }
     } catch (error) {
-      console.error("Error loading channels:", error);
+      console.error("Error loading channels in TelegramShare:", error);
+      toast.error("Failed to load your Telegram channels");
     }
   };
 

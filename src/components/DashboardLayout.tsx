@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   User,
   PenLine,
-  Calendar
+  Calendar,
+  CreditCard
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { isSuperAdmin } from "@/services/couponService";
+import { useSubscription } from "@/hooks/useSubscription";
 
 import {
   Sidebar,
@@ -208,15 +210,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [navigate, toast]);
 
+  const { canAccess } = useSubscription();
+
   const telegramMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" },
-    { icon: PenLine, label: "Create Post", path: "/dashboard/create-post" },
-    { icon: Radio, label: "Channels", path: "/dashboard/channels" },
-    { icon: Image, label: "Stories", path: "/dashboard/stories" },
-    { icon: Database, label: "Question Bank", path: "/dashboard/question-bank" },
-    { icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" },
-    { icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" },
+    ...(canAccess('create_quiz') ? [{ icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" }] : []),
+    ...(canAccess('create_post') ? [{ icon: PenLine, label: "Create Post", path: "/dashboard/create-post" }] : []),
+    ...(canAccess('channels') ? [{ icon: Radio, label: "Channels", path: "/dashboard/channels" }] : []),
+    ...(canAccess('stories') ? [{ icon: Image, label: "Stories", path: "/dashboard/stories" }] : []),
+    ...(canAccess('question_bank') ? [{ icon: Database, label: "Question Bank", path: "/dashboard/question-bank" }] : []),
+    ...(canAccess('knowledge_base') ? [{ icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" }] : []),
+    ...(canAccess('scheduler') ? [{ icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" }] : []),
   ];
 
 
@@ -228,6 +232,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const superAdminMenuItems = [
     { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
     { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
+    { icon: CreditCard, label: "Subscriptions", path: "/dashboard/super-admin/subscriptions" },
     { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
     { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
     { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },

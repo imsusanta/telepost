@@ -36,6 +36,7 @@ const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
 const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
+const SuperAdminSubscriptions = lazy(() => import("./pages/SuperAdminSubscriptions"));
 
 const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
 const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
@@ -106,7 +107,7 @@ const App = () => (
               <Route path="/dashboard/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/coupons" element={<SuperAdminRoute><SuperAdminCoupons /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/users" element={<SuperAdminRoute><SuperAdminUsers /></SuperAdminRoute>} />
-
+              <Route path="/dashboard/super-admin/subscriptions" element={<SuperAdminRoute><SuperAdminSubscriptions /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/audit-logs" element={<SuperAdminRoute><SuperAdminAuditLogs /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
               <Route path="/privacy" element={<Privacy />} />

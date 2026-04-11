@@ -11,6 +11,9 @@ import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
 import { KnowledgeBaseSelector } from "./KnowledgeBaseSelector";
+import { useSubscription } from "@/hooks/useSubscription";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Question {
   question: string;
@@ -21,9 +24,10 @@ interface Question {
 
 interface PDFQuestionGeneratorProps {
   onQuestionsGenerated: (questions: Question[], topic?: string, difficulty?: string, language?: string) => void;
+  currentCount?: number;
 }
 
-export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGeneratorProps) {
+export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: PDFQuestionGeneratorProps) {
   const [file, setFile] = useState<File | null>(null);
   const [selectedLibraryDoc, setSelectedLibraryDoc] = useState<Document | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
@@ -34,6 +38,9 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const { getLimit, isSuperAdmin } = useSubscription();
+  const maxLimit = getLimit('max_question_bank_size');
+  const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -87,6 +94,24 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
       toast({
         title: "Error",
         description: "Question count must be between 1 and 50",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isLimitReached && !isSuperAdmin) {
+      toast({
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to generate more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (maxLimit !== null && !isSuperAdmin && currentCount + questionCount > maxLimit) {
+      toast({
+        title: "Limit Exceeded",
+        description: `Generating ${questionCount} questions would exceed your limit of ${maxLimit}. You can add ${maxLimit - currentCount} more.`,
         variant: "destructive",
       });
       return;
@@ -245,6 +270,16 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isLimitReached && !isSuperAdmin && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Limit Reached</AlertTitle>
+            <AlertDescription>
+              You have {currentCount} questions. Your {maxLimit}-question limit is reached.
+              Please upgrade your plan to generate more.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="space-y-4">
           {/* File Upload */}
           <div className="space-y-2">
@@ -370,7 +405,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated }: PDFQuestionGenera
 
           <Button
             onClick={handleGenerate}
-            disabled={isLoading || (!file && !selectedLibraryDoc)}
+            disabled={isLoading || (!file && !selectedLibraryDoc) || (isLimitReached && !isSuperAdmin)}
             className="w-full gap-2 h-12 text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             {isLoading ? (

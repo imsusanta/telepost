@@ -20,14 +20,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { QuestionBankService } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AddQuestionDialogProps {
   onQuestionAdded?: () => void;
+  currentCount?: number;
 }
 
-export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
+export function AddQuestionDialog({ onQuestionAdded, currentCount = 0 }: AddQuestionDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { getLimit, isSuperAdmin: adminStatus } = useSubscription();
+  const maxLimit = getLimit('max_question_bank_size');
+  const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
+
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", "", "", ""]);
   const [correctIndex, setCorrectIndex] = useState(0);
@@ -40,7 +48,7 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
   const [isPublic, setIsPublic] = useState(false);
   const [existingTopics, setExistingTopics] = useState<string[]>([]);
   const [dbSubjects, setDbSubjects] = useState<ClassificationSubject[]>([]);
-  const [isSuperUser, setIsSuperUser] = useState(false);
+  const [isSuperUser, setIsSuperUser] = useState(adminStatus);
   const { toast } = useToast();
 
   const loadExistingData = async () => {
@@ -48,9 +56,8 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if super admin
-      const superAdminStatus = await isSuperAdmin();
-      setIsSuperUser(superAdminStatus);
+      // Update super user status from hook value
+      setIsSuperUser(adminStatus);
 
       // Refresh cache and load subjects
       await refreshSubjectsCache();
@@ -140,6 +147,15 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
       return;
     }
 
+    if (isLimitReached && !isSuperUser) {
+      toast({
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -201,6 +217,18 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
             Manually add a question to your question bank
           </DialogDescription>
         </DialogHeader>
+
+        {isLimitReached && !isSuperUser && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Limit Reached</AlertTitle>
+            <AlertDescription>
+              You have {currentCount} questions. Your {maxLimit}-question limit is reached.
+              Please upgrade your plan to add more.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="question">Question *</Label>
@@ -395,7 +423,7 @@ export function AddQuestionDialog({ onQuestionAdded }: AddQuestionDialogProps) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || (isLimitReached && !isSuperUser)}>
               {loading ? "Adding..." : "Add Question"}
             </Button>
           </DialogFooter>

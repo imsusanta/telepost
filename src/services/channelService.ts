@@ -52,10 +52,40 @@ export class ChannelService {
     userId: string,
     request: CreateChannelRequest
   ): Promise<Channel> {
-    // Check user's channel limit (effectively unlimited)
+    // Check user's channel limit based on subscription
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Auth user not found");
+
+    const subscription = await supabase
+      .from("subscriptions")
+      .select(`
+        *,
+        plan:subscription_plans(*)
+      `)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .single();
+
+    let maxChannels = 1; // Default for free/unknown
+    
+    if (subscription.data && subscription.data.plan) {
+      maxChannels = (subscription.data.plan as any).max_telegram_channels || 10000;
+    } else {
+      // Check if super admin
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      
+      if (profile?.role === 'super_admin') {
+        maxChannels = 10000;
+      }
+    }
+
     const userChannels = await this.getUserChannels(userId);
-    if (userChannels.length >= 10000) {
-      throw new Error("Channel limit reached");
+    if (userChannels.length >= maxChannels) {
+      throw new Error(`Channel limit reached. Your current plan allows up to ${maxChannels} channels. Please upgrade to add more.`);
     }
 
     // Default settings

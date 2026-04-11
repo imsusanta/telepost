@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { SubscriptionPlan } from './subscriptionService';
 
 export type AppRole = 'user' | 'super_admin';
 
@@ -25,6 +26,10 @@ export interface UserWithSubscription extends UserProfile {
       name: string;
       display_name: string;
       price: number;
+      max_telegram_channels: number;
+      quiz_manual_only: boolean;
+      has_ai_writing: boolean;
+      question_bank_private_only: boolean;
     };
   } | null;
   usage?: {
@@ -108,7 +113,11 @@ export async function getPaginatedUsers(
         subscription_plans (
           name,
           display_name,
-          price
+          price,
+          max_telegram_channels,
+          quiz_manual_only,
+          has_ai_writing,
+          question_bank_private_only
         )
       `)
       .in('user_id', userIds)
@@ -169,9 +178,13 @@ export async function getPaginatedUsers(
         current_period_start: userSub.current_period_start,
         current_period_end: userSub.current_period_end,
         plan: {
-          name: (userSub.subscription_plans as { name: string }).name || '',
-          display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
-          price: (userSub.subscription_plans as { price: number }).price || 0,
+          name: (userSub.subscription_plans as any).name || '',
+          display_name: (userSub.subscription_plans as any).display_name || '',
+          price: (userSub.subscription_plans as any).price || 0,
+          max_telegram_channels: (userSub.subscription_plans as any).max_telegram_channels || 1,
+          quiz_manual_only: (userSub.subscription_plans as any).quiz_manual_only ?? false,
+          has_ai_writing: (userSub.subscription_plans as any).has_ai_writing ?? false,
+          question_bank_private_only: (userSub.subscription_plans as any).question_bank_private_only ?? false,
         },
       } : null,
       usage: userUsage || null,
@@ -428,32 +441,131 @@ export async function toggleUserPurchaseAbility(
  * Get subscription statistics (super admin only)
  */
 export async function getSubscriptionStats() {
-  const { data: plans } = await supabase
-    .from('subscription_plans')
-    .select('id, name, display_name');
+  const [plansResult, subsResult, paymentsResult] = await Promise.all([
+    supabase.from('subscription_plans').select('id, name, display_name, price'),
+    supabase.from('subscriptions').select('plan_id, status'),
+    supabase.from('subscription_payments').select('amount, payment_status')
+  ]);
 
-  const { data: subscriptions } = await supabase
-    .from('subscriptions')
-    .select('plan_id, status');
-
-  if (!plans || !subscriptions) {
+  if (!plansResult.data || !subsResult.data) {
     return {
       totalUsers: 0,
       activeSubscriptions: 0,
+      totalRevenue: 0,
       planDistribution: [],
+      recentActivity: []
     };
   }
 
+  const plans = plansResult.data;
+  const subscriptions = subsResult.data;
+  const payments = paymentsResult.data || [];
+
+  const totalRevenue = payments
+    .filter(p => p.payment_status === 'captured' || p.payment_status === 'completed' || p.payment_status === 'success')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
   const planCounts = plans.map(plan => ({
+    planId: plan.id,
     planName: plan.display_name,
     count: subscriptions.filter(s => s.plan_id === plan.id && s.status === 'active').length,
+    price: plan.price
   }));
+
+  // Fetch 5 most recent activities
+  const { data: recentActivity } = await supabase
+    .from('subscriptions')
+    .select(`
+      id,
+      created_at,
+      status,
+      profiles (full_name, email),
+      subscription_plans (display_name)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(5);
 
   return {
     totalUsers: subscriptions.length,
     activeSubscriptions: subscriptions.filter(s => s.status === 'active').length,
+    totalRevenue,
     planDistribution: planCounts,
+    recentActivity: recentActivity || []
   };
+}
+
+/**
+ * Get all available subscription plans (super admin only)
+ */
+export async function getSubscriptionPlans() {
+  const { data, error } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .order('price', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching subscription plans:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Update a subscription plan (super admin only)
+ */
+export async function updateSubscriptionPlan(
+  planId: string,
+  updates: Record<string, any>
+) {
+  const { data, error } = await supabase
+    .from('subscription_plans')
+    .update(updates)
+    .eq('id', planId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating subscription plan:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Create a new subscription plan (super admin only)
+ */
+export async function createSubscriptionPlan(
+  plan: Record<string, any>
+) {
+  const { data, error } = await supabase
+    .from('subscription_plans')
+    .insert(plan)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating subscription plan:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Delete a subscription plan (super admin only)
+ */
+export async function deleteSubscriptionPlan(planId: string) {
+  const { error } = await supabase
+    .from('subscription_plans')
+    .delete()
+    .eq('id', planId);
+
+  if (error) {
+    console.error('Error deleting subscription plan:', error);
+    throw new Error(error.message);
+  }
 }
 
 /**
@@ -541,7 +653,11 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
         subscription_plans (
           name,
           display_name,
-          price
+          price,
+          max_telegram_channels,
+          quiz_manual_only,
+          has_ai_writing,
+          question_bank_private_only
         )
       `)
       .eq('user_id', userId)
@@ -578,9 +694,13 @@ export async function getUserDetails(userId: string): Promise<UserWithSubscripti
       current_period_start: userSub.current_period_start,
       current_period_end: userSub.current_period_end,
       plan: {
-        name: (userSub.subscription_plans as { name: string }).name || '',
-        display_name: (userSub.subscription_plans as { display_name: string }).display_name || '',
-        price: (userSub.subscription_plans as { price: number }).price || 0,
+        name: (userSub.subscription_plans as any).name || '',
+        display_name: (userSub.subscription_plans as any).display_name || '',
+        price: (userSub.subscription_plans as any).price || 0,
+        max_telegram_channels: (userSub.subscription_plans as any).max_telegram_channels || 1,
+        quiz_manual_only: (userSub.subscription_plans as any).quiz_manual_only ?? false,
+        has_ai_writing: (userSub.subscription_plans as any).has_ai_writing ?? false,
+        question_bank_private_only: (userSub.subscription_plans as any).question_bank_private_only ?? false,
       },
     } : null,
     usage: usageResult.data || null,

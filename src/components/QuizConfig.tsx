@@ -15,9 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 interface QuizConfigProps {
   onStartQuiz: (config: QuizConfig) => void;
   isGenerating: boolean;
+  maxQuestions?: number;
 }
 
-export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) => {
+export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }: QuizConfigProps) => {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
   const [customQuestionCount, setCustomQuestionCount] = useState("");
@@ -109,14 +110,21 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
         });
         return;
       }
-      if (actualQuestionCount < 1 || actualQuestionCount > 50) {
+      if (actualQuestionCount < 1 || actualQuestionCount > maxQuestions) {
         toast({
           title: "Invalid Range",
-          description: "Number of questions must be between 1 and 50",
+          description: `Number of questions must be between 1 and ${maxQuestions}`,
           variant: "destructive",
         });
         return;
       }
+    } else if (actualQuestionCount > maxQuestions) {
+      toast({
+        title: "Limit Exceeded",
+        description: `Your plan allows maximum ${maxQuestions} questions per quiz.`,
+        variant: "destructive",
+      });
+      return;
     }
 
     onStartQuiz({
@@ -256,11 +264,11 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating }: QuizConfigProps) =
             {questionCount === "custom" && (
               <Input
                 type="number"
-                placeholder="Enter number (1-50)"
+                placeholder={`Enter number (1-${maxQuestions})`}
                 value={customQuestionCount}
                 onChange={(e) => setCustomQuestionCount(e.target.value)}
                 min="1"
-                max="50"
+                max={maxQuestions}
                 className="h-12 mt-2"
               />
             )}

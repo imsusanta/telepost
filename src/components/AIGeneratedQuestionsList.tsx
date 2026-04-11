@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { TempQuestionStorageService, TempQuestion } from "@/services/tempQuestionStorage";
+import { useSubscription } from "@/hooks/useSubscription";
 import { QuestionBankService } from "@/services/questionBankService";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,12 +24,16 @@ import {
 interface AIGeneratedQuestionsListProps {
   onQuestionsAdded?: () => void;
   sourceType?: 'ai_generator' | 'pdf_generator'; // Optional: filter by source type
+  currentCount?: number;
 }
 
-export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType }: AIGeneratedQuestionsListProps) {
+export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, currentCount = 0 }: AIGeneratedQuestionsListProps) {
   const [questions, setQuestions] = useState<TempQuestion[]>([]);
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
   const [addingAll, setAddingAll] = useState(false);
+  const { getLimit, isSuperAdmin } = useSubscription();
+  const maxLimit = getLimit('max_question_bank_size');
+  const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [filterSource, setFilterSource] = useState<string>(sourceType || "all");
@@ -77,6 +82,15 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType }: AIGen
   }, [filterSource, filterTopic, filterDifficulty, filterLanguage, sourceType]);
 
   const handleAddToBank = async (question: TempQuestion) => {
+    if (isLimitReached && !isSuperAdmin) {
+      toast({
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setAddingIds((prev) => new Set(prev).add(question.id));
 
     try {
@@ -124,10 +138,19 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType }: AIGen
   };
 
   const handleAddAllToBank = async () => {
-    if (questions.length === 0) {
+    if (isLimitReached && !isSuperAdmin) {
       toast({
-        title: "No Questions",
-        description: "There are no AI generated questions to add",
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (maxLimit !== null && !isSuperAdmin && currentCount + questions.length > maxLimit) {
+      toast({
+        title: "Limit Exceeded",
+        description: `Adding ${questions.length} questions would exceed your limit of ${maxLimit}. You can add ${maxLimit - currentCount} more.`,
         variant: "destructive",
       });
       return;
@@ -273,7 +296,23 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType }: AIGen
   };
 
   const handleBulkAddToBank = async () => {
-    if (selectedIds.size === 0) return;
+    if (isLimitReached && !isSuperAdmin) {
+      toast({
+        title: "Limit Reached",
+        description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to add more.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (maxLimit !== null && !isSuperAdmin && currentCount + selectedIds.size > maxLimit) {
+      toast({
+        title: "Limit Exceeded",
+        description: `Adding ${selectedIds.size} questions would exceed your limit of ${maxLimit}. You can add ${maxLimit - currentCount} more.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaveTarget('bulk');
     setSaveConfirmOpen(true);

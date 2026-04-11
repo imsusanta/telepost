@@ -9,7 +9,7 @@ import { QuizOverview } from "@/components/QuizOverview";
 import { QuizConfig as QuizConfigType, QuizQuestion } from "@/types/quiz";
 import { useQuizGeneration } from "@/hooks/useQuizGeneration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingState } from "@/components/LoadingState";
 import { DocumentService, Document } from "@/services/documentService";
 import { QuestionBankService, QuestionBankItem, QuestionBankFilters } from "@/services/questionBankService";
-import { SubscriptionService } from "@/services/subscriptionService";
+import { isSuperAdmin as checkSuperAdminStatus } from "@/services/couponService";
 import { ChannelService } from "@/services/channelService";
 import { Channel } from "@/types/channel";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { QuestionFilters } from "@/components/QuestionFilters";
 import { ClassificationService } from "@/services/classificationService";
 import { ClassificationMetadataService } from "@/services/classificationMetadataService";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Badge } from "@/components/ui/badge";
 
 export default function CreateQuizPage() {
   const { quiz, isGenerating, generateQuiz, resetQuiz, setQuiz } = useQuizGeneration();
@@ -61,6 +63,30 @@ export default function CreateQuizPage() {
     publicCount: number;
     privateCount: number;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState("ai");
+
+  // Subscription hook
+  const { 
+    canAccess, 
+    getLimit,
+    loading: isLoadingSubscription,
+    isSuperAdmin: superAdminRole,
+  } = useSubscription();
+
+  const hasAiQuiz = canAccess('create_quiz', 'ai_generated');
+  const hasManualInput = canAccess('create_quiz', 'manual_input');
+  const hasQuestionBank = canAccess('create_quiz', 'question_bank');
+  const hasDocuments = canAccess('create_quiz', 'documents');
+
+  // Set default tab based on access
+  useEffect(() => {
+    if (!isLoadingSubscription) {
+      if (!hasAiQuiz && activeTab === "ai") {
+        if (hasManualInput) setActiveTab("manual");
+        else if (hasQuestionBank) setActiveTab("question-bank");
+      }
+    }
+  }, [hasAiQuiz, hasManualInput, hasQuestionBank, activeTab, isLoadingSubscription]);
 
   // Selection states
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
@@ -88,7 +114,7 @@ export default function CreateQuizPage() {
       setChannels(userChannels);
       setCurrentUserId(user.id);
 
-      const adminStatus = await ChannelService.checkIsSuperAdmin(user.id);
+      const adminStatus = await checkSuperAdminStatus();
       setIsSuperAdmin(adminStatus);
     } catch (error) {
       console.error("Failed to load channels:", error);
@@ -130,25 +156,20 @@ export default function CreateQuizPage() {
 
   const loadStorageInfo = useCallback(async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) {
-        console.error("Auth error loading storage:", authError);
-        return;
-      }
-      if (!user) {
-        console.error("No user found when loading storage info");
-        return;
-      }
-
-      const canUpload = await SubscriptionService.canUserPerformAction(user.id, "upload_pdf");
-      if (canUpload.limit && canUpload.current !== undefined) {
-        setStorageUsed({ current: canUpload.current, limit: canUpload.limit });
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data } = await supabase.rpc('get_user_storage_usage', { user_id: user.id });
+      const storageLimitGB = getLimit('max_pdf_storage_gb') || 0.05; // Default 50MB if null
+      
+      setStorageUsed({
+        current: data.total_bytes || 0,
+        limit: storageLimitGB * 1024 * 1024 * 1024 // Convert GB to bytes
+      });
     } catch (error) {
       console.error("Failed to load storage info:", error);
-      // Don't show toast for storage info as it's not critical
     }
-  }, []);
+  }, [getLimit]);
 
   const loadQuestions = useCallback(async () => {
     try {
@@ -597,30 +618,78 @@ export default function CreateQuizPage() {
               </div>
             </div>
 
-            <Tabs defaultValue="ai" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto">
-                <TabsTrigger value="ai" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
-                  <Sparkles className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">AI</span> Generated
-                </TabsTrigger>
-                <TabsTrigger value="manual" className="text-xs md:text-sm py-2">Manual Input</TabsTrigger>
-                <TabsTrigger value="documents" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
-                  <FileText className="h-3 w-3 md:h-4 md:w-4" />
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger value="question-bank" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
-                  <Database className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Question</span> Bank
-                </TabsTrigger>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className={`grid w-full mb-6 h-auto grid-cols-${[hasAiQuiz, hasManualInput, hasQuestionBank, hasDocuments].filter(Boolean).length || 1} md:grid-cols-${[hasAiQuiz, hasManualInput, hasQuestionBank, hasDocuments].filter(Boolean).length || 1}`}>
+                {(hasAiQuiz || superAdminRole) && (
+                  <TabsTrigger 
+                    value="ai" 
+                    className="gap-1 md:gap-2 text-xs md:text-sm py-2"
+                  >
+                    <Sparkles className="h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">AI</span> Generated
+                  </TabsTrigger>
+                )}
+                {(hasManualInput || superAdminRole) && (
+                  <TabsTrigger value="manual" className="text-xs md:text-sm py-2">Manual Input</TabsTrigger>
+                )}
+                {(hasQuestionBank || superAdminRole) && (
+                  <TabsTrigger value="question-bank" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                    <Database className="h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Question</span> Bank
+                  </TabsTrigger>
+                )}
+                {(hasDocuments || superAdminRole) && (
+                  <TabsTrigger value="documents" className="gap-1 md:gap-2 text-xs md:text-sm py-2">
+                    <FileText className="h-3 w-3 md:h-4 md:w-4" />
+                    Documents
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="ai" className="animate-in fade-in duration-300">
-                <QuizConfigForm onStartQuiz={handleStartQuiz} isGenerating={isGenerating} />
+                <QuizConfigForm
+                  onStartQuiz={handleStartQuiz}
+                  isGenerating={isGenerating}
+                  maxQuestions={getLimit("max_questions_per_quiz") ?? undefined}
+                />
               </TabsContent>
 
-              <TabsContent value="manual" className="animate-in fade-in duration-300">
-                <ManualQuizInput onQuizCreated={handleQuizCreated} isGenerating={false} />
-              </TabsContent>
+              {(hasManualInput || superAdminRole) && (
+                <TabsContent value="manual" className="animate-in fade-in duration-300">
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center flex-wrap gap-4">
+                      <div>
+                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                          <Plus className="w-6 h-6" />
+                          Manual Quiz Input
+                        </h2>
+                        <p className="text-muted-foreground">
+                          Create quizzes manually by adding questions one by one
+                        </p>
+                      </div>
+                      <div className="w-48">
+                        <Label htmlFor="manual-channel-select" className="text-sm mb-2 block">
+                          Target Channel
+                        </Label>
+                        <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                          <SelectTrigger id="manual-channel-select">
+                            <SelectValue placeholder="Select channel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Channels</SelectItem>
+                            {channels.map((channel) => (
+                              <SelectItem key={channel.id} value={channel.id}>
+                                {channel.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <ManualQuizInput onQuizCreated={handleQuizCreated} isGenerating={false} />
+                  </div>
+                </TabsContent>
+              )}
 
               <TabsContent value="documents" className="animate-in fade-in duration-300">
                 <div className="space-y-6">
@@ -675,8 +744,8 @@ export default function CreateQuizPage() {
                           className="hidden"
                           id="pdf-upload"
                         />
-                        <Button asChild disabled={uploading || !selectedChannel || selectedChannel === "all"} className="gap-2">
-                          <label htmlFor="pdf-upload" className="cursor-pointer">
+                        <Button asChild disabled={uploading || !selectedChannel || selectedChannel === "all" || !hasDocuments} className="gap-2">
+                          <label htmlFor="pdf-upload" className={uploading || !selectedChannel || selectedChannel === "all" || !hasDocuments ? "cursor-not-allowed opacity-50" : "cursor-pointer"}>
                             <Upload className="w-4 h-4" />
                             {uploading ? "Uploading..." : "Upload PDF"}
                           </label>
@@ -689,7 +758,7 @@ export default function CreateQuizPage() {
                     <CardHeader>
                       <CardTitle>Storage Usage</CardTitle>
                       <CardDescription>
-                        {storageUsed.current.toFixed(2)} GB / {storageUsed.limit} GB used
+                        {formatFileSize(storageUsed.current)} / {getLimit('max_pdf_storage_gb') || 0} GB used
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

@@ -6,8 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { parseBulkQuestions, ParsedQuestion } from "@/utils/questionParser";
 import { QuestionPreviewList } from "./QuestionPreviewList";
 import { Upload, ClipboardPaste, BookOpen, AlertCircle, FileUp, Loader2, Database, Layers } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-
     Select,
     SelectContent,
     SelectItem,
@@ -19,14 +20,18 @@ interface BulkUploadDialogProps {
     onUpload: (questions: ParsedQuestion[]) => Promise<void>;
     fullSubjects?: any[];
     fullTopics?: any[];
+    currentCount?: number;
 }
 
-export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] }: BulkUploadDialogProps) {
+export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] , currentCount = 0}: BulkUploadDialogProps) {
     const [open, setOpen] = useState(false);
     const [rawText, setRawText] = useState("");
     const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([]);
     const [isParsing, setIsParsing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const { getLimit, isSuperAdmin } = useSubscription();
+    const maxLimit = getLimit('max_question_bank_size');
+    const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
 
     // Taxonomy Selection - default to GK
     const [selectedSubject, setSelectedSubject] = useState<string>("GK");
@@ -123,6 +128,24 @@ export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] 
     const handleFinalUpload = async () => {
         if (parsedQuestions.length === 0) return;
 
+        if (isLimitReached && !isSuperAdmin) {
+            toast({
+                title: "Limit Reached",
+                description: `Your plan allows up to ${maxLimit} questions in the bank. Please upgrade to add more.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (maxLimit !== null && !isSuperAdmin && currentCount + parsedQuestions.length > maxLimit) {
+            toast({
+                title: "Limit Exceeded",
+                description: `Adding ${parsedQuestions.length} questions would exceed your limit of ${maxLimit}. You can add ${maxLimit - currentCount} more.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
         setIsUploading(true);
         try {
             let finalQuestions = [...parsedQuestions];
@@ -190,6 +213,17 @@ export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] 
                         </div>
                     </DialogHeader>
                 </div>
+
+                {isLimitReached && !isSuperAdmin && (
+                    <Alert variant="destructive" className="mx-6 mt-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Limit Reached</AlertTitle>
+                        <AlertDescription>
+                            You have {currentCount} questions. Your {maxLimit}-question limit is reached.
+                            Please upgrade your plan to upload more.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
                     {/* Inline Subject & Topic Selection */}
@@ -352,7 +386,7 @@ export function BulkUploadDialog({ onUpload, fullSubjects = [], fullTopics = [] 
                             </Button>
                             <Button
                                 onClick={handleFinalUpload}
-                                disabled={parsedQuestions.length === 0 || isUploading}
+                                disabled={isUploading || parsedQuestions.length === 0 || (isLimitReached && !isSuperAdmin)}
                                 className="h-12 px-10 text-base font-black bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-xl shadow-emerald-500/20 rounded-xl gap-3"
                             >
                                 {isUploading ? (

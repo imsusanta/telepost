@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -54,6 +54,7 @@ interface QuestionFiltersProps {
     onAddTopic?: (subjectId: string, name: string) => void;
     onEditTopic?: (oldName: string, newName: string) => void;
     onDeleteTopic?: (name: string) => void;
+    privateOnly?: boolean;
 }
 
 type SortOption = 'latest' | 'oldest' | 'a-z' | 'difficulty';
@@ -73,6 +74,7 @@ export function QuestionFilters({
     onAddTopic,
     onEditTopic,
     onDeleteTopic,
+    privateOnly = false,
 }: QuestionFiltersProps) {
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -86,6 +88,13 @@ export function QuestionFilters({
     const [editSubjectName, setEditSubjectName] = useState("");
     const [editingTopic, setEditingTopic] = useState<string | null>(null);
     const [editTopicName, setEditTopicName] = useState("");
+
+    // Effect to enforce private visibility for restricted plans
+    useEffect(() => {
+        if (privateOnly && visibilityFilter !== 'private') {
+            handleVisibilityChange('private');
+        }
+    }, [privateOnly, visibilityFilter]);
 
     // Build combined subject list (metadata + usage)
     const allDisplaySubjects = useMemo(() => {
@@ -167,6 +176,8 @@ export function QuestionFilters({
 
     // Handle visibility filter change
     const handleVisibilityChange = (value: 'all' | 'private' | 'public') => {
+        if (privateOnly && (value === 'all' || value === 'public')) return;
+        
         setVisibilityFilter(value);
         // Update the parent filters based on visibility selection
         const newFilters = { ...filters };
@@ -625,6 +636,7 @@ export function QuestionFilters({
                     <Button
                         variant={visibilityFilter === 'all' ? "default" : "ghost"}
                         size="sm"
+                        disabled={privateOnly}
                         className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out ${visibilityFilter === 'all'
                             ? 'bg-slate-700 text-white shadow-md scale-[1.02]'
                             : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
@@ -648,6 +660,7 @@ export function QuestionFilters({
                     <Button
                         variant={visibilityFilter === 'public' ? "default" : "ghost"}
                         size="sm"
+                        disabled={privateOnly}
                         className={`h-8 px-4 text-xs font-semibold transition-all duration-200 ease-out gap-1.5 ${visibilityFilter === 'public'
                             ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
                             : 'hover:bg-muted/70 text-muted-foreground hover:text-foreground'
