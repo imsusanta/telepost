@@ -97,13 +97,18 @@ export default function Scheduler() {
   const lastScheduleCheckRef = useRef<string | null>(null);
 
   // Auto-poll: Process pending posts every 30 seconds
+  // State to track if we're currently processing in background
+  const isBackgroundProcessing = useRef(false);
+
+  // Auto-poll: Process pending posts every 30 seconds
   useEffect(() => {
     if (!autoProcessEnabled) return;
 
     const autoProcessPendingPosts = async () => {
       // Only process if there are pending posts and not currently processing
-      if ((statistics?.pending ?? 0) > 0 && !isProcessing) {
+      if ((statistics?.pending ?? 0) > 0 && !isProcessing && !isBackgroundProcessing.current) {
         try {
+          isBackgroundProcessing.current = true;
           console.log('[Auto-Scheduler] Processing pending posts...');
           const { data, error } = await supabase.functions.invoke('process-scheduled-posts', {
             body: { triggered_by: 'auto-poll' }
@@ -116,6 +121,8 @@ export default function Scheduler() {
           }
         } catch (err) {
           console.error('[Auto-Scheduler] Post processing error:', err);
+        } finally {
+          isBackgroundProcessing.current = false;
         }
       }
     };
@@ -135,6 +142,44 @@ export default function Scheduler() {
   // Auto-poll: Check scheduled times and create new posts every minute (for daily loop)
   useEffect(() => {
     if (!autoProcessEnabled) return;
+
+    // One-time catch-up on page load: create posts for today if any were missed
+    const catchUpMissedPosts = async () => {
+      if (isBackgroundProcessing.current) return;
+
+      try {
+        isBackgroundProcessing.current = true;
+        console.log('[Daily-Loop] Page loaded — running catch-up for today...');
+        const { data, error } = await supabase.functions.invoke('process-auto-schedule', {
+          body: { force: true, triggered_by: 'page-load-catchup' }
+        });
+
+        if (!error && data?.processed > 0) {
+          const created = data.results?.filter((r: any) => r.success && !r.skipped).length || 0;
+          if (created > 0) {
+            console.log(`[Daily-Loop] Catch-up created ${created} post(s)`);
+            toast({
+              title: "Auto-Scheduler",
+              description: `Created ${created} new quiz post(s) (catch-up)`,
+            });
+
+            // Immediately trigger the sender for catch-up posts
+            await supabase.functions.invoke('process-scheduled-posts', {
+              body: { triggered_by: 'catchup-sender' }
+            });
+
+            await refetch();
+          }
+        }
+      } catch (err) {
+        console.error('[Daily-Loop] Catch-up error:', err);
+      } finally {
+        isBackgroundProcessing.current = false;
+      }
+    };
+
+    // Fire catch-up after a short delay so the page renders first
+    const catchUpTimeout = setTimeout(catchUpMissedPosts, 3000);
 
     const checkScheduledTimes = async () => {
       // Get current minute to avoid duplicate calls within the same minute
@@ -166,14 +211,11 @@ export default function Scheduler() {
       }
     };
 
-    // Initial check after 10 seconds
-    const initialTimeout = setTimeout(checkScheduledTimes, 10000);
-
-    // Then check every 60 seconds (minutely)
+    // Regular minutely check (starts after 60s, then repeats)
     const interval = setInterval(checkScheduledTimes, 60000);
 
     return () => {
-      clearTimeout(initialTimeout);
+      clearTimeout(catchUpTimeout);
       clearInterval(interval);
     };
   }, [autoProcessEnabled, refetch, toast]);

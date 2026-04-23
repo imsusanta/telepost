@@ -63,12 +63,13 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+import { useAuth } from "@/contexts/AuthContext";
+import { useMemo } from "react";
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isUserSuperAdmin, setIsUserSuperAdmin] = useState(() => {
-    return localStorage.getItem('is_super_admin') === 'true';
-  });
+  const { profile, isUserSuperAdmin, signOut } = useAuth();
 
   // Read sidebar state from cookie for persistence across navigation
   const [initialSidebarOpen] = useState(() => {
@@ -81,9 +82,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
     return true; // Default to open
   });
-  const [profile, setProfile] = useState<Profile | null>(null);
+  
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
-
 
   // Restore sidebar scroll position
   useEffect(() => {
@@ -98,103 +98,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     sessionStorage.setItem('sidebarScrollPosition', String(scrollTop));
   };
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) return;
-
-        const { data, error } = await (supabase as any)
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error loading profile from DB:', error);
-        }
-
-        // Use metadata as fallback for full_name and avatar_url
-        const metadata = user.user_metadata || {};
-        const profileName = data?.full_name || metadata.full_name || metadata.name || null;
-        const profileAvatar = data?.avatar_url || metadata.avatar_url || metadata.picture || null;
-
-        const updatedProfile = {
-          ...data,
-          id: user.id,
-          email: data?.email || user.email,
-          full_name: profileName,
-          avatar_url: profileAvatar,
-        } as Profile;
-
-        setProfile(updatedProfile);
-
-        // Check if user is super admin
-        // No longer needed for account_locked logic
-
-      } catch (error) {
-        console.error('Exception loading profile:', error);
-      }
-    };
-
-    loadProfile();
-
-    // Listen for custom event to reload profile
-    window.addEventListener("profile-updated", loadProfile);
-    return () => window.removeEventListener("profile-updated", loadProfile);
-  }, []);
-
-  useEffect(() => {
-    const checkSuperAdminStatus = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          // Not logged in - clear cache
-          localStorage.removeItem('is_super_admin');
-          localStorage.removeItem('superAdminCheckTime');
-          localStorage.removeItem('superAdminUserId');
-          setIsUserSuperAdmin(false);
-          return;
-        }
-
-        // Check if this is a different user than last time
-        const lastUserId = localStorage.getItem('superAdminUserId');
-        const cacheKey = 'superAdminCheckTime';
-        const lastCheck = localStorage.getItem(cacheKey);
-        const now = Date.now();
-
-        // Force refresh if different user or cache expired (5 minutes)
-        const shouldRefresh = lastUserId !== user.id || !lastCheck || (now - parseInt(lastCheck)) > 5 * 60 * 1000;
-
-        if (!shouldRefresh) {
-          return;
-        }
-
-        const superAdmin = await isSuperAdmin();
-        setIsUserSuperAdmin(superAdmin);
-        localStorage.setItem('is_super_admin', String(superAdmin));
-        localStorage.setItem(cacheKey, String(now));
-        localStorage.setItem('superAdminUserId', user.id);
-      } catch (error) {
-        console.error('Error checking super admin status:', error);
-        setIsUserSuperAdmin(false);
-      }
-    };
-
-    checkSuperAdminStatus();
-  }, []);
-
-
-
   const handleSignOut = useCallback(async () => {
     try {
-      // Clear all super admin cache
-      localStorage.removeItem('is_super_admin');
-      localStorage.removeItem('superAdminCheckTime');
-      localStorage.removeItem('superAdminUserId');
-      sessionStorage.removeItem('isUserSuperAdmin');
-      sessionStorage.removeItem('superAdminCheckTime');
-      await supabase.auth.signOut();
+      await signOut();
       navigate("/");
       toast({
         title: "Signed out successfully",
@@ -208,11 +114,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         variant: "destructive",
       });
     }
-  }, [navigate, toast]);
+  }, [navigate, toast, signOut]);
 
   const { canAccess } = useSubscription();
 
-  const telegramMenuItems = [
+  const telegramMenuItems = useMemo(() => [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     ...(canAccess('create_quiz') ? [{ icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" }] : []),
     ...(canAccess('create_post') ? [{ icon: PenLine, label: "Create Post", path: "/dashboard/create-post" }] : []),
@@ -221,29 +127,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ...(canAccess('question_bank') ? [{ icon: Database, label: "Question Bank", path: "/dashboard/question-bank" }] : []),
     ...(canAccess('knowledge_base') ? [{ icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" }] : []),
     ...(canAccess('scheduler') ? [{ icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" }] : []),
-  ];
+  ], [canAccess]);
 
-
-  const settingsMenuItems = [
+  const settingsMenuItems = useMemo(() => [
     { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
-  ];
+  ], []);
 
-  const superAdminMenuItems = [
+  const superAdminMenuItems = useMemo(() => [
     { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
     { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
     { icon: CreditCard, label: "Subscriptions", path: "/dashboard/super-admin/subscriptions" },
     { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
     { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
     { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },
-  ];
+  ], []);
 
-  const getUserInitials = () => {
+  const getUserInitials = useCallback(() => {
     if (profile?.full_name) {
       return profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
     }
     return profile?.email?.slice(0, 2).toUpperCase() || 'U';
-  };
+  }, [profile]);
 
   return (
     <SidebarProvider defaultOpen={initialSidebarOpen}>
@@ -547,9 +452,9 @@ function DashboardLayoutInner({
         {/* Main Content */}
         <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 flex flex-col min-w-0 max-w-full overflow-x-hidden">
           {/* Mobile Navigation Header - Only visible on mobile */}
-          <header className="md:hidden flex items-center justify-between p-3 border-b bg-background/80 backdrop-blur-lg sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg hover:bg-primary/10" />
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl sticky top-0 z-40 shadow-sm">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
               <div className="flex items-center gap-2">
                 <img
                   src="/favicon.png"
@@ -567,9 +472,9 @@ function DashboardLayoutInner({
             </Button>
           </header>
 
-          <main className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">
+          <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">
             {children}
-          </main>
+          </div>
         </SidebarInset>
       </div>
     </>

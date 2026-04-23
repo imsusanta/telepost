@@ -3,20 +3,43 @@ import { Quiz, QuizConfig } from "@/types/quiz";
 
 export class QuizService {
   static async generateQuiz(config: QuizConfig): Promise<Quiz> {
-    // First, try to refresh the session to get the latest token
-    await supabase.auth.refreshSession();
-
     // Verify we have an active session before invoking the function
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    // We already handle refresh internally in the Supabase client if configured, 
+    // but explicit refresh here adds a safety layer against stale tokens.
+    try {
+      await supabase.auth.refreshSession();
+    } catch (e) {
+      console.warn("Auth refresh failed, attempting to continue anyway:", e);
+    }
 
     if (sessionError || !session) {
       console.error("No active session when invoking generate-quiz function:", sessionError);
       throw new Error("Authentication session not available. Please try logging in again.");
     }
 
-    const { data, error } = await supabase.functions.invoke("generate-quiz", {
-      body: config,
-    });
+    // Use a promise race to implement a timeout on the function call
+    // The edge function itself has inner timeouts, but this handles network hangs
+    const fetchWithTimeout = async () => {
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: config,
+      });
+      return { data, error };
+    };
+
+    const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((_, reject) =>
+      setTimeout(() => reject(new Error("Quiz generation timed out (client-side). Your quiz might still be generating, please check your dashboard in a moment.")), 60000)
+    );
+
+    let result;
+    try {
+      result = await Promise.race([fetchWithTimeout(), timeoutPromise]);
+    } catch (err: any) {
+      throw new Error(err.message || "Request timed out");
+    }
+
+    const { data, error } = result;
 
     if (error) {
       // Try to extract detailed error from response context

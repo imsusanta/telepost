@@ -59,7 +59,11 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
     const hasCreateQuiz = !!(f?.create_quiz?.ai_generated || f?.create_quiz?.manual_input || f?.create_quiz?.documents || f?.create_quiz?.question_bank);
     checklist.push({ label: 'Create Quiz', enabled: hasCreateQuiz });
     
-    checklist.push({ label: 'Create Post', enabled: !!f?.create_post?.write_with_ai });
+    checklist.push({ label: 'Create Post', enabled: !!f?.create_post?.enabled });
+    
+    if (f?.create_post?.enabled && f?.create_post?.write_with_ai) {
+      checklist.push({ label: 'AI Writing Assistant', enabled: true });
+    }
     
     const hasQuestionBank = !!(f?.question_bank?.my_questions || f?.question_bank?.ai_generate || f?.question_bank?.pdf_generate);
     checklist.push({ label: 'Question Bank', enabled: hasQuestionBank });

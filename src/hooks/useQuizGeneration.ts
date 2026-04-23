@@ -89,14 +89,6 @@ export function useQuizGeneration() {
 
     setIsGenerating(true);
     try {
-      // First, try to refresh the session to ensure we have a valid token
-      const { error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError) {
-        console.warn("Session refresh warning:", refreshError.message);
-        // Continue anyway - getSession/getUser might still work
-      }
-
       // Verify both user and session are available
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
@@ -116,11 +108,11 @@ export function useQuizGeneration() {
 
       // Verify limits before generating
       try {
-        const canGenerate = await SubscriptionService.canUserPerformAction(user.id, "generate_quiz");
-        if (!canGenerate) {
+        const canGenerateObj = await SubscriptionService.canUserPerformAction(user.id, "generate_quiz");
+        if (!canGenerateObj.allowed) {
           toast({
             title: "Limit Reached",
-            description: "Monthly quiz generation limit reached for your plan. Please upgrade to generate more quizzes.",
+            description: canGenerateObj.reason || "Monthly quiz generation limit reached for your plan. Please upgrade to generate more quizzes.",
             variant: "destructive",
           });
           throw new Error("Quiz generation limit reached");

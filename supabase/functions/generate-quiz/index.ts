@@ -8,6 +8,17 @@ const corsHeaders = {
 
 // OpenRouter configuration
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_FALLBACK_MODEL = 'google/gemini-2.0-flash-exp:free';
+const RELIABLE_FREE_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/pixtral-12b:free',
+  'deepseek/deepseek-chat:free'
+];
+
+// Models known to be dead/removed from OpenRouter
+const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
 
 interface AISettings {
   provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
@@ -17,6 +28,24 @@ interface AISettings {
   openrouter_api_key?: string;
   gemini_api_key?: string;
   openai_api_key?: string;
+}
+
+// Timeout helper for fetch
+async function fetchWithTimeout(resource: string | URL | Request, options: RequestInit & { timeout?: number } = {}) {
+  const { timeout = 45000 } = options;
+  
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,36 +58,79 @@ async function getAISettings(supabase: any): Promise<AISettings> {
       .maybeSingle();
 
     if (data?.setting_value) {
-      const settings = data.setting_value as AISettings;
-
-      // Allow Gemini models explicitly
-      if (settings.model.includes('gemini')) {
-        return settings;
-      }
-
-      // Force gpt-4o-mini if provider is lovable or using an old-style/unreliable model
-      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
-        return {
-          ...settings,
-          provider: 'lovable',
-          model: 'openai/gpt-4o-mini'
-        };
-      }
-      return settings;
+      return data.setting_value as AISettings;
     }
   } catch (error) {
     console.error("Failed to fetch AI settings:", error);
   }
 
   return {
-    provider: 'lovable',
-    model: 'openai/gpt-4o-mini',
+    provider: 'openrouter',
+    model: 'google/gemini-2.0-flash-exp:free',
     temperature: 0.7,
     system_prompt: '',
     openrouter_api_key: '',
     gemini_api_key: '',
     openai_api_key: '',
   };
+}
+
+/**
+ * Resolve the best available provider + API key + model.
+ * Priority: user-selected provider → fallback to any provider with a key.
+ */
+function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKey: string; model: string } {
+  const provider = aiSettings.provider || 'openrouter';
+  let apiKey = '';
+  let finalProvider = provider;
+  let model = aiSettings.model;
+
+  // Map lovable → openrouter
+  const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
+
+  // Try the user's selected provider first
+  if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
+    apiKey = aiSettings.gemini_api_key;
+    finalProvider = 'gemini';
+  } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
+    apiKey = aiSettings.openai_api_key;
+    finalProvider = 'openai';
+  } else if ((effectiveProvider === 'openrouter' || effectiveProvider === 'lovable') && aiSettings.openrouter_api_key) {
+    apiKey = aiSettings.openrouter_api_key;
+    finalProvider = 'openrouter';
+  }
+
+  // FALLBACK: if no key found for the selected provider, try others
+  if (!apiKey) {
+    console.warn(`[generate-quiz] No API key for ${effectiveProvider}, trying fallbacks...`);
+    if (aiSettings.openrouter_api_key) {
+      apiKey = aiSettings.openrouter_api_key;
+      finalProvider = 'openrouter';
+      // Keep the model as-is if it looks like an OpenRouter model, otherwise use a free default
+      if (!model.includes('/')) {
+        model = 'google/gemini-2.0-flash-exp:free';
+      }
+    } else if (aiSettings.gemini_api_key) {
+      apiKey = aiSettings.gemini_api_key;
+      finalProvider = 'gemini';
+      model = 'gemini-2.0-flash';
+    } else if (aiSettings.openai_api_key) {
+      apiKey = aiSettings.openai_api_key;
+      finalProvider = 'openai';
+      model = 'gpt-4o-mini';
+    }
+  }
+
+  // Validate OpenRouter model — fallback if dead
+  if (finalProvider === 'openrouter') {
+    const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
+    if (isDead) {
+      console.warn(`[generate-quiz] Model "${model}" is dead, using fallback: ${OPENROUTER_FALLBACK_MODEL}`);
+      model = OPENROUTER_FALLBACK_MODEL;
+    }
+  }
+
+  return { finalProvider, apiKey, model };
 }
 
 serve(async (req) => {
@@ -140,38 +212,19 @@ serve(async (req) => {
     // Fetch AI settings from database
     const aiSettings = await getAISettings(supabase);
 
-    const testModel = aiSettings.model;
-    const provider = aiSettings.provider || 'openrouter';
-
-    // Choose key based on provider
-    let apiKey = '';
-    let finalProvider = provider;
-
-    if (provider === 'gemini') {
-      apiKey = aiSettings.gemini_api_key!;
-    } else if (provider === 'openai') {
-      apiKey = aiSettings.openai_api_key!;
-    } else if (provider === 'openrouter') {
-      apiKey = aiSettings.openrouter_api_key!;
-    } else if (provider === 'lovable') {
-      apiKey = aiSettings.openrouter_api_key!;
-      finalProvider = 'openrouter';
-    } else {
-      // Auto-detect if provider is unknown or missing
-      if (testModel.toLowerCase().includes('gemini')) {
-        finalProvider = 'gemini';
-        apiKey = aiSettings.gemini_api_key!;
-      } else {
-        finalProvider = 'openrouter';
-        apiKey = aiSettings.openrouter_api_key!;
-      }
-    }
+    // Resolve provider with fallback logic
+    const { finalProvider, apiKey, model: resolvedModel } = resolveProvider(aiSettings);
 
     if (!apiKey) {
-      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
+      return new Response(
+        JSON.stringify({
+          error: `AI সার্ভিস কনফিগার করা হয়নি। Super Admin Settings → AI ট্যাবে গিয়ে আপনার OpenRouter / Gemini / OpenAI API Key সেট করুন।`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
+    console.log(`[generate-quiz] Using provider=${finalProvider}, model=${resolvedModel}, hasKey=${!!apiKey}`);
 
     let knowledgeBaseContext = '';
     let channelSystemPrompt = '';
@@ -272,9 +325,9 @@ serve(async (req) => {
     const startTime = Date.now();
 
     if (finalProvider === 'gemini') {
-      console.log(`Calling Gemini Direct API for topic "${topic}" with model ${aiSettings.model}...`);
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
-      const geminiResponse = await fetch(geminiUrl, {
+      console.log(`Calling Gemini Direct API for topic "${topic}" with model ${resolvedModel}...`);
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
+      const geminiResponse = await fetchWithTimeout(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -285,89 +338,114 @@ serve(async (req) => {
             temperature: aiSettings.temperature || 0.7,
             maxOutputTokens: 2000,
           }
-        })
+        }),
+        timeout: 45000,
       });
 
       if (!geminiResponse.ok) {
         const errorText = await geminiResponse.text();
         console.error("Gemini Direct Error:", errorText);
-        throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
+        throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 200)}`);
       }
       const geminiData = await geminiResponse.json();
       content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } else if (finalProvider === 'openai') {
-      console.log(`Calling OpenAI Direct API for topic "${topic}" with model ${aiSettings.model}...`);
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      console.log(`Calling OpenAI Direct API for topic "${topic}" with model ${resolvedModel}...`);
+      const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: aiSettings.model,
+          model: resolvedModel,
           messages: [
             { role: "system", content: systemPromptFinal },
             { role: "user", content: userPrompt }
           ],
           temperature: aiSettings.temperature || 0.7,
         }),
+        timeout: 45000,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("OpenAI Direct Error:", errorText);
-        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
+        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 200)}`);
       }
       const data = await response.json();
       content = data.choices?.[0]?.message?.content;
     } else {
-      console.log(`Calling OpenRouter API for topic "${topic}" with model ${aiSettings.model}...`);
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://telepost.io",
-          "X-Title": "QuizMaker",
-        },
-        body: JSON.stringify({
-          model: aiSettings.model,
-          messages: [
-            { role: "system", content: systemPromptFinal },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: aiSettings.temperature || 0.7,
-        }),
-      });
+      console.log(`Calling OpenRouter API for topic "${topic}" with model ${resolvedModel}...`);
 
-      if (!response.ok) {
-        const errorDetail = await response.text();
-        console.error(`OpenRouter API error (${response.status}):`, errorDetail);
+      const makeOpenRouterRequest = async (useModel: string) => {
+        const response = await fetchWithTimeout(OPENROUTER_API_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": supabaseUrl,
+            "X-Title": "TelePost QuizMaker",
+          },
+          body: JSON.stringify({
+            model: useModel,
+            messages: [
+              { role: "system", content: systemPromptFinal },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: aiSettings.temperature || 0.7,
+          }),
+          timeout: 45000,
+        });
 
-        let errorMessage = `AI Service failure (${response.status})`;
-        try {
-          const errorJson = JSON.parse(errorDetail);
-          errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-        } catch {
-          errorMessage = errorDetail.substring(0, 200) || errorMessage;
+        if (!response.ok) {
+          const errorDetail = await response.text();
+          let errorMessage = `AI Service failure (${response.status})`;
+          try {
+            const errorJson = JSON.parse(errorDetail);
+            errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorDetail.substring(0, 300) || errorMessage;
+          }
+          return { ok: false as const, errorMessage };
         }
 
+        const aiResponse = await response.json();
+        return { ok: true as const, content: aiResponse.choices?.[0]?.message?.content || '' };
+      };
+
+      let result = await makeOpenRouterRequest(resolvedModel);
+
+      // Auto-retry with fallback if model is dead or no endpoints found
+      if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
+        console.warn(`[generate-quiz] Model "${resolvedModel}" failed/dead. Trying reliable fallbacks...`);
+        
+        for (const fallbackModel of RELIABLE_FREE_MODELS) {
+          if (fallbackModel === resolvedModel) continue;
+          console.log(`[generate-quiz] Retrying with fallback: ${fallbackModel}`);
+          result = await makeOpenRouterRequest(fallbackModel);
+          if (result.ok) {
+            console.log(`[generate-quiz] Fallback success: ${fallbackModel}`);
+            break;
+          }
+        }
+      }
+
+      if (!result.ok) {
         return new Response(
           JSON.stringify({
-            error: errorMessage,
-            status: response.status
+            error: `${result.errorMessage} [Model: ${resolvedModel}, Provider: openrouter]`,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const aiResponse = await response.json();
-      content = aiResponse.choices?.[0]?.message?.content;
+      content = result.content;
     }
 
     console.log(`AI responded in ${Date.now() - startTime}ms`);
 
-    if (!content) throw new Error("Empty AI response");
+    if (!content) throw new Error("Empty AI response — the model returned no content. Try a different model.");
 
     // Robust JSON extraction
     let quizData;
@@ -422,8 +500,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Quiz generation error:", error);
+    
+    let errorMessage = error instanceof Error ? error.message : "Internal error";
+    if (errorMessage.includes("Aborted") || errorMessage.includes("timeout")) {
+      errorMessage = "AI generation timed out after 45 seconds. Please try again or use a shorter quiz.";
+    }
+
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal error" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

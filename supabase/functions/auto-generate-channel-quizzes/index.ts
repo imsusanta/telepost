@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -5,6 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const OPENROUTER_FALLBACK_MODEL = 'google/gemini-2.0-flash-exp:free';
+const RELIABLE_FREE_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/pixtral-12b:free',
+  'deepseek/deepseek-chat:free'
+];
+const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
 
 interface AISettings {
   provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
@@ -680,39 +691,78 @@ ADDITIONAL RULES:
     const data = await response.json();
     content = data.choices?.[0]?.message?.content;
   } else {
-    console.log(`Generating quiz for topic: ${topic} using model: ${model} via OpenRouter`);
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://telepost.io",
-        "X-Title": "QuizMaker Auto-Gen",
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: finalSystemPromptCombined },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again later.");
-      }
-      if (response.status === 402) {
-        throw new Error("Payment required. Please add credits to your workspace.");
-      }
-      const errorText = await response.text();
-      console.error("OpenRouter error:", response.status, errorText);
-      throw new Error("Failed to generate quiz from OpenRouter");
+    // Validate model isn't dead
+    let openRouterModel = model;
+    const isDead = DEAD_OPENROUTER_MODELS.some(dead => openRouterModel.startsWith(dead) || openRouterModel === dead);
+    if (isDead) {
+      console.warn(`[auto-generate-channel-quizzes] Model "${openRouterModel}" dead, using fallback`);
+      openRouterModel = OPENROUTER_FALLBACK_MODEL;
     }
 
-    const aiData = await response.json();
-    content = aiData.choices?.[0]?.message?.content;
+    console.log(`Generating quiz for topic: ${topic} using model: ${openRouterModel} via OpenRouter`);
+
+    const makeRequest = async (useModel: string) => {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://telepost.io",
+          "X-Title": "QuizMaker Auto-Gen",
+        },
+        body: JSON.stringify({
+          model: useModel,
+          messages: [
+            { role: "system", content: finalSystemPromptCombined },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return { ok: false as const, errorMessage: "Rate limit exceeded. Please try again later." };
+        }
+        if (response.status === 402) {
+          return { ok: false as const, errorMessage: "Payment required. Please add credits to your workspace." };
+        }
+        const errorText = await response.text();
+        let errorMsg = `OpenRouter error (${response.status})`;
+        try {
+          const errJson = JSON.parse(errorText);
+          errorMsg = errJson.error?.message || errorMsg;
+        } catch { errorMsg = errorText.substring(0, 200); }
+        return { ok: false as const, errorMessage: errorMsg };
+      }
+
+      const aiData = await response.json();
+      return { ok: true as const, content: aiData.choices?.[0]?.message?.content || '' };
+    };
+
+    let result = await makeRequest(openRouterModel);
+
+    // Auto-retry with fallback if model is dead
+    // Auto-retry with fallback if model is dead or no endpoints found
+    if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
+      console.warn(`[auto-generate-channel-quizzes] Model "${openRouterModel}" failed/dead. Trying reliable fallbacks...`);
+      
+      for (const fallbackModel of RELIABLE_FREE_MODELS) {
+        if (fallbackModel === openRouterModel) continue;
+        console.log(`[auto-generate-channel-quizzes] Retrying with fallback: ${fallbackModel}`);
+        result = await makeRequest(fallbackModel);
+        if (result.ok) {
+          console.log(`[auto-generate-channel-quizzes] Fallback success: ${fallbackModel}`);
+          break;
+        }
+      }
+    }
+
+    if (!result.ok) {
+      throw new Error(result.errorMessage);
+    }
+
+    content = result.content;
   }
 
   if (!content) {

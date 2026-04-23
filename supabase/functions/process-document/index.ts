@@ -16,6 +16,17 @@ interface AISettings {
   system_prompt?: string;
 }
 
+const RELIABLE_FREE_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/pixtral-12b:free',
+  'deepseek/deepseek-chat:free'
+];
+
+// Models known to be dead/removed from OpenRouter
+const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAISettings(supabase: any): Promise<AISettings> {
   try {
@@ -30,30 +41,73 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     }
 
     if (data?.setting_value) {
-      const settings = data.setting_value as AISettings;
-      // Force gpt-4o-mini if provider is lovable or using an old-style/unreliable model
-      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
-        return {
-          ...settings,
-          provider: 'lovable',
-          model: 'openai/gpt-4o-mini'
-        };
-      }
-      return settings;
+      return data.setting_value as AISettings;
     }
   } catch (error) {
     console.error("Failed to fetch AI settings:", error);
   }
 
   return {
-    provider: 'lovable',
-    model: 'openai/gpt-4o-mini',
+    provider: 'openrouter',
+    model: 'google/gemini-2.0-flash-exp:free',
     temperature: 0.7,
     openrouter_api_key: '',
     gemini_api_key: '',
     openai_api_key: '',
     system_prompt: '',
   };
+}
+
+/**
+ * Resolve the best available provider + API key + model with fallback.
+ */
+function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKey: string; model: string } {
+  const provider = aiSettings.provider || 'openrouter';
+  let apiKey = '';
+  let finalProvider = provider;
+  let model = aiSettings.model;
+
+  const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
+
+  if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
+    apiKey = aiSettings.gemini_api_key;
+    finalProvider = 'gemini';
+  } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
+    apiKey = aiSettings.openai_api_key;
+    finalProvider = 'openai';
+  } else if ((effectiveProvider === 'openrouter' || effectiveProvider === 'lovable') && aiSettings.openrouter_api_key) {
+    apiKey = aiSettings.openrouter_api_key;
+    finalProvider = 'openrouter';
+  }
+
+  // FALLBACK: if no key found for the selected provider, try others
+  if (!apiKey) {
+    console.warn(`[process-document] No API key for ${effectiveProvider}, trying fallbacks...`);
+    if (aiSettings.openrouter_api_key) {
+      apiKey = aiSettings.openrouter_api_key;
+      finalProvider = 'openrouter';
+      if (!model.includes('/')) model = 'google/gemini-2.0-flash-exp:free';
+    } else if (aiSettings.gemini_api_key) {
+      apiKey = aiSettings.gemini_api_key;
+      finalProvider = 'gemini';
+      model = 'gemini-2.0-flash';
+    } else if (aiSettings.openai_api_key) {
+      apiKey = aiSettings.openai_api_key;
+      finalProvider = 'openai';
+      model = 'gpt-4o-mini';
+    }
+  }
+
+  // Validation: if using OpenRouter and model is dead
+  if (finalProvider === 'openrouter') {
+    const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
+    if (isDead) {
+      console.warn(`[process-document] Model "${model}" is dead, using fallback`);
+      model = 'google/gemini-2.0-flash-exp:free';
+    }
+  }
+
+  return { finalProvider, apiKey, model };
 }
 
 serve(async (req) => {
@@ -127,38 +181,14 @@ serve(async (req) => {
     // Get AI settings from database
     const aiSettings = await getAISettings(supabase);
 
-    const testModel = aiSettings.model;
-    const provider = aiSettings.provider || 'openrouter';
-
-    // Choose key based on provider
-    let apiKey = '';
-    let finalProvider = provider;
-
-    if (provider === 'gemini') {
-      apiKey = aiSettings.gemini_api_key!;
-    } else if (provider === 'openai') {
-      apiKey = aiSettings.openai_api_key!;
-    } else if (provider === 'openrouter') {
-      apiKey = aiSettings.openrouter_api_key!;
-    } else if (provider === 'lovable') {
-      apiKey = aiSettings.openrouter_api_key!;
-      finalProvider = 'openrouter';
-    } else {
-      // Auto-detect if provider is unknown or missing
-      if (testModel.toLowerCase().includes('gemini')) {
-        finalProvider = 'gemini';
-        apiKey = aiSettings.gemini_api_key!;
-      } else {
-        finalProvider = 'openrouter';
-        apiKey = aiSettings.openrouter_api_key!;
-      }
-    }
+    // Resolve provider with fallback logic
+    const { finalProvider, apiKey, model: resolvedModel } = resolveProvider(aiSettings);
 
     if (!apiKey) {
-      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
+      throw new Error(`AI service not configured. Please set an API Key in Super Admin → Settings → AI tab.`);
     }
 
-    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
+    console.log(`[process-document] Using provider=${finalProvider}, model=${resolvedModel}, hasKey=${!!apiKey}`);
 
     // Download PDF from storage
     console.log(`Downloading file from storage: ${storagePath}`);
@@ -234,125 +264,144 @@ serve(async (req) => {
       let isExtractOk = false;
       let extractStatus = 0;
 
-      // Use AI with vision to extract text from PDF
-      if (finalProvider === 'gemini') {
-        console.log("Sending PDF to Direct Gemini for text extraction...");
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
-        const extractResponse = await fetch(geminiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: "Extract all text from this PDF document. Return only the extracted text content. No markdown code blocks." },
-                { inlineData: { mimeType: "application/pdf", data: base64 } }
-              ]
-            }],
-            generationConfig: { temperature: 0.1 }
-          })
-        });
+      // --- EXTRACTION LOOP ---
+      const extractionModels = [resolvedModel, ...RELIABLE_FREE_MODELS.filter(m => m !== resolvedModel)];
+      
+      for (const currentModel of extractionModels) {
+        try {
+          console.log(`[process-document] Attempting extraction with model=${currentModel}...`);
+          
+          if (finalProvider === 'gemini') {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+            const extractResponse = await fetch(geminiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: "Extract all text from this PDF document. Return only the extracted text content. No markdown code blocks." },
+                    { inlineData: { mimeType: "application/pdf", data: base64 } }
+                  ]
+                }],
+                generationConfig: { temperature: 0.1 }
+              })
+            });
 
-        isExtractOk = extractResponse.ok;
-        extractStatus = extractResponse.status;
+            isExtractOk = extractResponse.ok;
+            extractStatus = extractResponse.status;
 
-        if (isExtractOk) {
-          const geminiData = await extractResponse.json();
-          extractedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        } else {
-          const errorText = await extractResponse.text();
-          console.error("Gemini Extraction Error:", errorText);
-        }
-      } else if (finalProvider === 'openai') {
-        console.log("Sending PDF to Direct OpenAI for text extraction...");
-        const extractResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: aiSettings.model,
-            messages: [
-              {
-                role: "system",
-                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
+            if (isExtractOk) {
+              const geminiData = await extractResponse.json();
+              extractedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            } else {
+              const errorText = await extractResponse.text();
+              console.error(`Gemini Extraction Error (${currentModel}):`, errorText);
+            }
+          } else if (finalProvider === 'openai') {
+            const extractResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
               },
-              {
-                role: "user",
-                content: [
+              body: JSON.stringify({
+                model: currentModel,
+                messages: [
                   {
-                    type: "text",
-                    text: "Extract all text from this PDF document. Return only the extracted text content."
+                    role: "system",
+                    content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
                   },
                   {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:application/pdf;base64,${base64}`
-                    }
-                  }
-                ]
-              },
-            ],
-            temperature: 0.1,
-          }),
-        });
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: "Extract all text from this PDF document. Return only the extracted text content."
+                      },
+                      {
+                        type: "image_url",
+                        image_url: {
+                          url: `data:application/pdf;base64,${base64}`
+                        }
+                      }
+                    ]
+                  },
+                ],
+                temperature: 0.1,
+              }),
+            });
 
-        isExtractOk = extractResponse.ok;
-        extractStatus = extractResponse.status;
+            isExtractOk = extractResponse.ok;
+            extractStatus = extractResponse.status;
 
-        if (isExtractOk) {
-          const extractData = await extractResponse.json();
-          extractedText = extractData.choices?.[0]?.message?.content || "";
-        } else {
-          const errorText = await extractResponse.text();
-          console.error(`OpenAI extraction error (${extractStatus}):`, errorText);
-        }
-      } else {
-        console.log("Sending PDF to OpenRouter for text extraction...");
-        const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": supabaseUrl,
-            "X-Title": "QuizMaker Document Processing",
-          },
-          body: JSON.stringify({
-            model: aiSettings.model,
-            messages: [
-              {
-                role: "system",
-                content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
+            if (isExtractOk) {
+              const extractData = await extractResponse.json();
+              extractedText = extractData.choices?.[0]?.message?.content || "";
+            } else {
+              const errorText = await extractResponse.text();
+              console.error(`OpenAI extraction error (${currentModel}, status ${extractStatus}):`, errorText);
+            }
+          } else {
+            // OpenRouter
+            const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": supabaseUrl,
+                "X-Title": "QuizMaker Document Processing",
               },
-              {
-                role: "user",
-                content: [
+              body: JSON.stringify({
+                model: currentModel,
+                messages: [
                   {
-                    type: "text",
-                    text: "Extract all text from this PDF document. Return only the extracted text content."
+                    role: "system",
+                    content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
                   },
                   {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:application/pdf;base64,${base64}`
-                    }
-                  }
-                ]
-              },
-            ],
-            temperature: 0.1,
-          }),
-        });
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: "Extract all text from this PDF document. Return only the extracted text content."
+                      },
+                      {
+                        type: "image_url",
+                        image_url: {
+                          url: `data:application/pdf;base64,${base64}`
+                        }
+                      }
+                    ]
+                  },
+                ],
+                temperature: 0.1,
+              }),
+            });
 
-        isExtractOk = extractResponse.ok;
-        extractStatus = extractResponse.status;
+            isExtractOk = extractResponse.ok;
+            extractStatus = extractResponse.status;
 
-        if (isExtractOk) {
-          const extractData = await extractResponse.json();
-          extractedText = extractData.choices?.[0]?.message?.content || "";
-        } else {
-          const errorText = await extractResponse.text();
-          console.error(`OpenRouter extraction error (${extractStatus}):`, errorText);
+            if (isExtractOk) {
+              const extractData = await extractResponse.json();
+              extractedText = extractData.choices?.[0]?.message?.content || "";
+            } else {
+              const errorText = await extractResponse.text();
+              console.error(`OpenRouter extraction error (${currentModel}, status ${extractStatus}):`, errorText);
+              
+              // If it's a model-not-found or endpoint error, we continue to next model in loop
+              if (errorText.includes("No endpoints found") || extractStatus === 404 || extractStatus === 403 || extractStatus === 502) {
+                console.warn(`Model ${currentModel} failed, trying next...`);
+                continue;
+              }
+            }
+          }
+
+          if (isExtractOk && extractedText && extractedText.length > 50) {
+            console.log(`✓ Successful extraction with ${currentModel}`);
+            break; // Exit the loop
+          }
+        } catch (err) {
+          console.error(`[process-document] Error during extraction with ${currentModel}:`, err);
         }
       }
 
@@ -368,78 +417,92 @@ serve(async (req) => {
           let analyzeOk = false;
           let analyzeContent = "";
 
-          if (finalProvider === 'gemini') {
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.model}:generateContent?key=${apiKey}`;
-            const analyzeResponse = await fetch(geminiUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{ text: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}` }]
-                }],
-                generationConfig: { temperature: 0.3 }
-              })
-            });
-            analyzeOk = analyzeResponse.ok;
-            if (analyzeOk) {
-              const data = await analyzeResponse.json();
-              analyzeContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            }
-          } else if (finalProvider === 'openai') {
-            const analyzeResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: aiSettings.model,
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+          // --- ANALYSIS LOOP ---
+          for (const currentModel of extractionModels) {
+            try {
+              console.log(`[process-document] Attempting analysis with model=${currentModel}...`);
+              
+              if (finalProvider === 'gemini') {
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+                const analyzeResponse = await fetch(geminiUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [{
+                      parts: [{ text: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}` }]
+                    }],
+                    generationConfig: { temperature: 0.3 }
+                  })
+                });
+                analyzeOk = analyzeResponse.ok;
+                if (analyzeOk) {
+                  const data = await analyzeResponse.json();
+                  analyzeContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                }
+              } else if (finalProvider === 'openai') {
+                const analyzeResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
                   },
-                  {
-                    role: "user",
-                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                  body: JSON.stringify({
+                    model: currentModel,
+                    messages: [
+                      {
+                        role: "system",
+                        content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                      },
+                      {
+                        role: "user",
+                        content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                      },
+                    ],
+                    temperature: 0.3,
+                  }),
+                });
+                analyzeOk = analyzeResponse.ok;
+                if (analyzeOk) {
+                  const analyzeData = await analyzeResponse.json();
+                  analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
+                }
+              } else {
+                const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": supabaseUrl,
+                    "X-Title": "QuizMaker Document Analysis",
                   },
-                ],
-                temperature: 0.3,
-              }),
-            });
-            analyzeOk = analyzeResponse.ok;
-            if (analyzeOk) {
-              const analyzeData = await analyzeResponse.json();
-              analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
-            }
-          } else {
-            const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": supabaseUrl,
-                "X-Title": "QuizMaker Document Analysis",
-              },
-              body: JSON.stringify({
-                model: aiSettings.model,
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
-                  },
-                  {
-                    role: "user",
-                    content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
-                  },
-                ],
-                temperature: 0.3,
-              }),
-            });
-            analyzeOk = analyzeResponse.ok;
-            if (analyzeOk) {
-              const analyzeData = await analyzeResponse.json();
-              analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
+                  body: JSON.stringify({
+                    model: currentModel,
+                    messages: [
+                      {
+                        role: "system",
+                        content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
+                      },
+                      {
+                        role: "user",
+                        content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
+                      },
+                    ],
+                    temperature: 0.3,
+                  }),
+                });
+                analyzeOk = analyzeResponse.ok;
+                if (analyzeOk) {
+                  const analyzeData = await analyzeResponse.json();
+                  analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
+                }
+              }
+
+              if (analyzeOk && analyzeContent) {
+                console.log(`✓ Successful analysis with ${currentModel}`);
+                break;
+              }
+            } catch (err) {
+              console.error(`[process-document] Error during analysis with ${currentModel}:`, err);
             }
           }
 

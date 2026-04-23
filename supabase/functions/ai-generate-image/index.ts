@@ -13,6 +13,14 @@ interface ImageGenerationRequest {
     colorScheme: "vibrant" | "pastel" | "dark" | "auto";
 }
 
+const RELIABLE_FREE_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/pixtral-12b:free',
+  'deepseek/deepseek-chat:free'
+];
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
@@ -79,19 +87,39 @@ Output ONLY the enhanced prompt, nothing else.`;
         const startTime = Date.now();
 
         if (isOpenRouter) {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: "google/gemini-2.0-flash-exp:free",
-                    messages: [{ role: "user", content: systemPrompt }],
-                })
-            });
-            const data = await response.json();
-            enhancedPrompt = data.choices?.[0]?.message?.content;
+            const makeRequest = async (model: string) => {
+                try {
+                    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${apiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [{ role: "user", content: systemPrompt }],
+                        })
+                    });
+                    if (!response.ok) return { ok: false };
+                    const data = await response.json();
+                    return { ok: true, content: data.choices?.[0]?.message?.content };
+                } catch {
+                    return { ok: false };
+                }
+            };
+
+            let result = await makeRequest("google/gemini-2.0-flash-exp:free");
+            
+            if (!result.ok) {
+                console.warn("[ai-generate-image] Primary model failed, trying fallbacks...");
+                for (const fallbackModel of RELIABLE_FREE_MODELS) {
+                    if (fallbackModel === "google/gemini-2.0-flash-exp:free") continue;
+                    result = await makeRequest(fallbackModel);
+                    if (result.ok) break;
+                }
+            }
+            
+            enhancedPrompt = result.content || "";
         } else {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                 method: "POST",

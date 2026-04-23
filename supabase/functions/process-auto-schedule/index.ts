@@ -32,8 +32,8 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     }
 
     return {
-        provider: 'lovable',
-        model: 'openai/gpt-4o-mini',
+        provider: 'openrouter',
+        model: 'google/gemini-2.0-flash-exp:free',
         temperature: 0.7,
         system_prompt: '',
     } as AISettings;
@@ -233,24 +233,29 @@ Deno.serve(async (req) => {
             try {
                 console.log(`Processing schedule for user ${setting.user_id}, channel ${setting.channel_id}, time=${matchedTime}`);
 
-                // DEDUP: Check if a post was already created for this SPECIFIC scheduled time (within ±2 min window)
-                const schedWindowStart = new Date(scheduledDate.getTime() - 2 * 60000);
-                const schedWindowEnd = new Date(scheduledDate.getTime() + 2 * 60000);
+                // Skip dedup check for forced/manual broadcasts — always allow them
+                if (!force) {
+                    // DEDUP: Check if a post was already created for this SPECIFIC scheduled time (within ±2 min window)
+                    const schedWindowStart = new Date(scheduledDate.getTime() - 2 * 60000);
+                    const schedWindowEnd = new Date(scheduledDate.getTime() + 2 * 60000);
 
-                const { data: existingPosts } = await supabaseAdmin
-                    .from("scheduled_telegram_posts")
-                    .select("id")
-                    .eq("user_id", setting.user_id)
-                    .eq("channel_id", setting.channel_id)
-                    .gte("scheduled_time", schedWindowStart.toISOString())
-                    .lte("scheduled_time", schedWindowEnd.toISOString())
-                    .in("status", ["pending", "processing", "sent"])
-                    .limit(1);
+                    const { data: existingPosts } = await supabaseAdmin
+                        .from("scheduled_telegram_posts")
+                        .select("id")
+                        .eq("user_id", setting.user_id)
+                        .eq("channel_id", setting.channel_id)
+                        .gte("scheduled_time", schedWindowStart.toISOString())
+                        .lte("scheduled_time", schedWindowEnd.toISOString())
+                        .in("status", ["pending", "processing", "sent"])
+                        .limit(1);
 
-                if (existingPosts && existingPosts.length > 0) {
-                    console.log(`Skipping channel ${setting.channel_id}: Post already exists for scheduled time ${matchedTime}`);
-                    results.push({ channel_id: setting.channel_id, success: true, skipped: true, reason: `Already created for time ${matchedTime}` });
-                    continue;
+                    if (existingPosts && existingPosts.length > 0) {
+                        console.log(`Skipping channel ${setting.channel_id}: Post already exists for scheduled time ${matchedTime}`);
+                        results.push({ channel_id: setting.channel_id, success: true, skipped: true, reason: `Already created for time ${matchedTime}` });
+                        continue;
+                    }
+                } else {
+                    console.log(`[FORCE] Skipping dedup check for channel ${setting.channel_id} — forced broadcast`);
                 }
 
 
@@ -272,45 +277,69 @@ Deno.serve(async (req) => {
                     const topicIndex = globalSlotIndex % sortedTopics.length;
                     finalTopic = sortedTopics[topicIndex];
                     console.log(`Setting ${setting.channel_id}: Matched ${matchedTime}, DayCount ${dayCount}, GlobalIndex ${globalSlotIndex}, TopicIndex ${topicIndex}, Topic: ${finalTopic}`);
+                } else if (setting.source_type === "question_bank") {
+                    // No topic needed for random bank selection — skip AI call
+                    finalTopic = "Question Bank";
+                    console.log(`Setting ${setting.channel_id}: Source=question_bank, no topics — will pick random from bank`);
                 } else {
                     // AI Generated Topic if none provided
                     console.log(`Setting ${setting.channel_id}: No topics provided. Generating topic with AI...`);
-                    finalTopic = await generateAITopic(setting, aiSettings);
+                    finalTopic = await generateAITopic(setting, aiSettings, supabaseAdmin);
                     console.log(`Setting ${setting.channel_id}: AI Generated Topic: ${finalTopic}`);
                 }
 
-                if (setting.source_type === "question_bank" && topicsExist) {
-                    // Fetch questions from bank based on topic if topics exist
-                    const { data: questions, error: qError } = await supabaseAdmin
-                        .from("question_banks")
-                        .select("*")
-                        .eq("user_id", setting.user_id)
-                        .eq("channel_id", setting.channel_id)
-                        .ilike("topic", `%${finalTopic}%`)
-                        .limit(setting.questions_per_post);
-
-                    if (qError) throw qError;
-
-                    if (!questions || questions.length === 0) {
-                        // Fallback to random if topic not found in bank
-                        const { data: anyQuestions } = await supabaseAdmin
+                if (setting.source_type === "question_bank") {
+                    // SOURCE: QUESTION BANK — fetch questions from the saved bank
+                    if (topicsExist) {
+                        // Try topic-matched questions first
+                        const { data: questions, error: qError } = await supabaseAdmin
                             .from("question_banks")
                             .select("*")
                             .eq("user_id", setting.user_id)
+                            .eq("channel_id", setting.channel_id)
+                            .ilike("topic", `%${finalTopic}%`)
                             .limit(setting.questions_per_post);
-                        quizQuestions = anyQuestions || [];
-                    } else {
-                        quizQuestions = questions;
+
+                        if (qError) throw qError;
+
+                        if (questions && questions.length > 0) {
+                            quizQuestions = questions;
+                        }
+                    }
+
+                    // If no topic-matched questions (or no topics at all), pick random from bank
+                    if (quizQuestions.length === 0) {
+                        console.log(`[auto-schedule] No topic-matched questions, fetching random from bank...`);
+                        const { data: randomQuestions, error: rqError } = await supabaseAdmin
+                            .from("question_banks")
+                            .select("*")
+                            .eq("user_id", setting.user_id)
+                            .eq("channel_id", setting.channel_id)
+                            .limit(setting.questions_per_post);
+
+                        if (rqError) throw rqError;
+
+                        // If channel-specific bank is empty, try all user questions
+                        if (!randomQuestions || randomQuestions.length === 0) {
+                            const { data: allUserQuestions } = await supabaseAdmin
+                                .from("question_banks")
+                                .select("*")
+                                .eq("user_id", setting.user_id)
+                                .limit(setting.questions_per_post);
+                            quizQuestions = allUserQuestions || [];
+                        } else {
+                            quizQuestions = randomQuestions;
+                        }
                     }
 
                     if (quizQuestions.length === 0) {
-                        // If still no questions, fallback to AI generation
-                        console.log("No questions in bank, falling back to AI generation");
+                        // Only fall back to AI if the question bank is completely empty
+                        console.log("[auto-schedule] Question bank is empty, falling back to AI generation");
                         const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
                         quizQuestions = aiResponse.questions;
                     }
                 } else {
-                    // AI Generated Source (Default if bank is empty or source_type is ai)
+                    // AI Generated Source
                     const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
                     quizQuestions = aiResponse.questions;
                 }
@@ -400,16 +429,65 @@ Deno.serve(async (req) => {
     }
 });
 
+/**
+ * Resolve the best provider + key for auto-schedule functions.
+ * Includes validation of model availability with fallback to known-working models.
+ */
+const OPENROUTER_FALLBACK_MODEL = 'google/gemini-2.0-flash-exp:free';
+const RELIABLE_FREE_MODELS = [
+    'google/gemini-2.0-flash-exp:free',
+    'google/gemini-2.0-flash-lite-preview-02-05:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'mistralai/pixtral-12b:free',
+    'deepseek/deepseek-chat:free'
+];
+
+// Models known to be dead/removed from OpenRouter
+const DEAD_OPENROUTER_MODELS = [
+    'arcee-ai/trinity-large-preview:free',
+    'arcee-ai/',  // entire provider seems unstable
+];
+
+function resolveAutoScheduleProvider(aiSettings: AISettings): { provider: string; apiKey: string; model: string } {
+    const rawProvider = aiSettings.provider || 'openrouter';
+    let apiKey = '';
+    let provider = rawProvider === 'lovable' ? 'openrouter' : rawProvider;
+    let model = aiSettings.model;
+
+    if (provider === 'gemini' && aiSettings.gemini_api_key) {
+        apiKey = aiSettings.gemini_api_key;
+    } else if (provider === 'openai' && aiSettings.openai_api_key) {
+        apiKey = aiSettings.openai_api_key;
+    } else if (aiSettings.openrouter_api_key) {
+        apiKey = aiSettings.openrouter_api_key;
+        provider = 'openrouter';
+        if (!model.includes('/')) model = OPENROUTER_FALLBACK_MODEL;
+    } else if (aiSettings.gemini_api_key) {
+        apiKey = aiSettings.gemini_api_key;
+        provider = 'gemini';
+        model = 'gemini-2.0-flash';
+    } else if (aiSettings.openai_api_key) {
+        apiKey = aiSettings.openai_api_key;
+        provider = 'openai';
+        model = 'gpt-4o-mini';
+    }
+
+    // Validate OpenRouter model — fallback if known-dead or suspicious
+    if (provider === 'openrouter') {
+        const isDeadModel = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
+        if (isDeadModel) {
+            console.warn(`[resolveProvider] Model "${model}" is known to be unavailable. Falling back to ${OPENROUTER_FALLBACK_MODEL}`);
+            model = OPENROUTER_FALLBACK_MODEL;
+        }
+    }
+
+    return { provider, apiKey, model };
+}
+
 async function generateAIQuiz(setting: any, topic: string, aiSettings: AISettings) {
-    const model = aiSettings.model;
-    const provider = aiSettings.provider || 'openrouter';
+    const { provider, apiKey, model } = resolveAutoScheduleProvider(aiSettings);
 
-    let apiKey = "";
-    if (provider === 'gemini') apiKey = aiSettings.gemini_api_key!;
-    else if (provider === 'openai') apiKey = aiSettings.openai_api_key!;
-    else apiKey = aiSettings.openrouter_api_key!;
-
-    if (!apiKey) throw new Error(`AI API Key missing for ${provider}`);
+    if (!apiKey) throw new Error(`AI API Key missing for ${provider}. Configure in Super Admin → Settings → AI.`);
 
     const questionCount = setting.questions_per_post || 5;
     const quizLanguage = setting.language || 'English';
@@ -451,8 +529,9 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
 
     const prompt = promptText + jsonRequirement;
 
-
     let content = "";
+    console.log(`[auto-schedule] generateAIQuiz: provider=${provider}, model=${model}`);
+
     if (provider === 'gemini') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const res = await fetch(url, {
@@ -462,25 +541,77 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
                 contents: [{ parts: [{ text: prompt }] }],
             })
         });
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error(`[auto-schedule] Gemini error (${res.status}):`, errText.substring(0, 200));
+            throw new Error(`Gemini API error (${res.status}): ${errText.substring(0, 200)}`);
+        }
         const data = await res.json();
         content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } else {
-        // OpenRouter / OpenAI
-        const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
+        const makeOpenRouterRequest = async (useModel: string) => {
+            const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+            const headers: Record<string, string> = {
                 "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [{ role: "user", content: prompt }],
-                response_format: { type: "json_object" }
-            })
-        });
-        const data = await res.json();
-        content = data.choices?.[0]?.message?.content || "";
+            };
+            if (provider !== 'openai') {
+                headers["HTTP-Referer"] = "https://telepost.io";
+                headers["X-Title"] = "TelePost AutoSchedule";
+            }
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    model: useModel,
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: aiSettings.temperature || 0.7,
+                })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                let errorMsg = `AI API error (${res.status})`;
+                try {
+                    const errJson = JSON.parse(errText);
+                    errorMsg = errJson.error?.message || errJson.message || errorMsg;
+                } catch { errorMsg = errText.substring(0, 300); }
+                return { ok: false as const, errorMsg, status: res.status };
+            }
+
+            const data = await res.json();
+            return { ok: true as const, content: data.choices?.[0]?.message?.content || "" };
+        };
+
+        // Try with configured model first
+        let result = await makeOpenRouterRequest(model);
+
+        // Auto-retry with fallback if model is dead or no endpoints found
+        if (!result.ok && (result.errorMsg?.includes("No endpoints found") || result.errorMsg?.includes("404") || result.errorMsg?.includes("403"))) {
+            console.warn(`[auto-schedule] Model "${model}" failed/dead. Trying reliable fallbacks...`);
+            
+            for (const fallbackModel of RELIABLE_FREE_MODELS) {
+                if (fallbackModel === model) continue;
+                console.log(`[auto-schedule] Retrying with fallback: ${fallbackModel}`);
+                result = await makeOpenRouterRequest(fallbackModel);
+                if (result.ok) {
+                    console.log(`[auto-schedule] Fallback success: ${fallbackModel}`);
+                    break;
+                }
+            }
+        }
+
+        if (!result.ok) {
+            console.error(`[auto-schedule] ${provider} error:`, result.errorMsg);
+            throw new Error(`${provider} API error: ${result.errorMsg} [Model: ${model}]`);
+        }
+
+        content = result.content;
+    }
+
+    if (!content) {
+        throw new Error(`AI returned empty response for quiz generation [Model: ${model}]`);
     }
 
     // Parse JSON
@@ -488,53 +619,94 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
         const jsonStr = content.match(/\{[\s\S]*\}/)?.[0] || content;
         return JSON.parse(jsonStr);
     } catch (e) {
-        console.error("Failed to parse AI response:", content);
+        console.error("Failed to parse AI response:", content.substring(0, 300));
         throw new Error("AI failed to return valid JSON");
     }
 }
 
-async function generateAITopic(setting: any, aiSettings: AISettings): Promise<string> {
-    const model = aiSettings.model;
-    const provider = aiSettings.provider || 'openrouter';
-
-    let apiKey = "";
-    if (provider === 'gemini') apiKey = aiSettings.gemini_api_key!;
-    else if (provider === 'openai') apiKey = aiSettings.openai_api_key!;
-    else apiKey = aiSettings.openrouter_api_key!;
+async function generateAITopic(setting: any, aiSettings: AISettings, supabaseAdmin?: any): Promise<string> {
+    const { provider, apiKey, model } = resolveAutoScheduleProvider(aiSettings);
 
     if (!apiKey) throw new Error(`AI API Key missing for ${provider}`);
 
     const channelName = setting.channels?.name || "Educational Channel";
     const language = setting.language || 'English';
 
+    // --- DETERMINISTIC SUBJECT ROTATION ---
+    // Instead of relying on AI to "randomly" pick subjects (which causes it to repeat Polity),
+    // we force a specific subject category based on day count + time slot.
+    const subjectRotation = [
+        { category: "General Science - Physics", examples: "Laws of Motion, Light, Sound, Electricity, Units, Thermodynamics, Optics" },
+        { category: "Indian History - Ancient & Medieval", examples: "Indus Valley, Maurya, Gupta, Mughal Empire, Vijayanagara, Delhi Sultanate" },
+        { category: "Indian Geography", examples: "Rivers, Mountains, Climate, Agriculture, Minerals, Soil Types, Passes" },
+        { category: "Static GK", examples: "First in India/World, National Symbols, Important Dates, Awards, Books & Authors, UN/WHO/IMF/World Bank" },
+        { category: "General Science - Biology", examples: "Human Body Systems, Diseases, Nutrition, Cell Biology, Ecology, Genetics" },
+        { category: "Indian History - Modern & Freedom Struggle", examples: "1857 Revolt, Gandhi, Subhas Bose, Independence Movement, Social Reformers" },
+        { category: "Indian Economy", examples: "Five Year Plans, Budget, Banking System, Fiscal Policy, GDP, RBI, SEBI, NABARD" },
+        { category: "General Science - Chemistry", examples: "Elements, Acids & Bases, Chemical Reactions, Periodic Table, pH, Alloys" },
+        { category: "Environmental Studies & Ecology", examples: "Biodiversity, Climate Change, National Parks, Wildlife Sanctuaries, Pollution" },
+        { category: "Indian Polity & Constitution", examples: "Articles, Amendments, Fundamental Rights, Parliament, Judiciary, Panchayati Raj" },
+        { category: "Computer Awareness", examples: "MS Office, Networking, Operating Systems, Internet, Shortcuts, Cyber Security" },
+        { category: "Current Affairs & Static GK", examples: "Government Schemes, Summits, Appointments, Sports Awards, Census, Dams" },
+        { category: "Quantitative Aptitude", examples: "Percentage, Profit & Loss, SI/CI, Ratio, Time & Work, Number System, Averages" },
+        { category: "Reasoning & Logic", examples: "Series, Coding-Decoding, Blood Relations, Direction, Syllogism, Analogy, Venn Diagram" },
+    ];
+
+    // Select subject deterministically: rotate through all subjects across days and slots
+    const dayCount = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const sortedTimes = setting.schedule_times ? [...setting.schedule_times].sort() : [];
+    const slotCount = sortedTimes.length || 1;
+    // Use a prime multiplier to avoid predictable short cycles  
+    const globalIndex = (dayCount * slotCount * 3 + Math.floor(Date.now() / (1000 * 60 * 60))) % subjectRotation.length;
+    const forcedSubject = subjectRotation[globalIndex];
+
+    console.log(`[generateAITopic] Forced subject rotation: index=${globalIndex}, category="${forcedSubject.category}"`);
+
+    // Fetch recently used topics from DB to avoid repetition
+    let recentTopicsExclusion = "";
+    if (supabaseAdmin) {
+        try {
+            const { data: recentPosts } = await supabaseAdmin
+                .from("scheduled_telegram_posts")
+                .select("quiz_data")
+                .eq("user_id", setting.user_id)
+                .eq("channel_id", setting.channel_id)
+                .order("created_at", { ascending: false })
+                .limit(15);
+
+            if (recentPosts && recentPosts.length > 0) {
+                const recentTopicsList = recentPosts
+                    .map((p: any) => p.quiz_data?.topic)
+                    .filter(Boolean);
+                if (recentTopicsList.length > 0) {
+                    recentTopicsExclusion = `\n\nCRITICAL: The following topics were ALREADY USED RECENTLY. Do NOT repeat any of them or use similar topics:\n${recentTopicsList.map((t: string) => `- "${t}"`).join('\n')}`;
+                    console.log(`[generateAITopic] Excluding ${recentTopicsList.length} recent topics`);
+                }
+            }
+        } catch (e) {
+            console.error("[generateAITopic] Failed to fetch recent topics:", e);
+        }
+    }
+
     const prompt = `Suggest ONE short, specific, and engaging quiz topic (max 4-5 words) suitable for a Telegram channel named "${channelName}".
 The topic MUST be highly relevant to competitive government job exams (e.g., SSC CGL, CHSL, MTS, UPSC, Railways RRB, Banking IBPS/SBI, State PSC, WBCS, CTET, NDA, CDS).
 
-You MUST randomly pick from ALL of these subject areas (do NOT repeat the same subject frequently):
-- Indian History (Ancient, Medieval, Modern, Freedom Struggle)
-- Indian Geography (Rivers, Mountains, Climate, Agriculture, Minerals)
-- Indian Polity & Constitution (Articles, Amendments, Fundamental Rights, Parliament, Judiciary)
-- Indian Economy (Five Year Plans, Budget, Banking System, Fiscal Policy, GDP, RBI)
-- General Science - Physics (Laws of Motion, Light, Sound, Electricity, Units)
-- General Science - Chemistry (Elements, Acids & Bases, Chemical Reactions, Periodic Table)
-- General Science - Biology (Human Body, Diseases, Nutrition, Cell Biology, Ecology)
-- Static GK (First in India/World, National Symbols, Important Dates, Awards, Books & Authors, Organizations like UN/WHO/IMF)
-- Current Affairs (Recent Government Schemes, International Events, Summits, Appointments)
-- Quantitative Aptitude (Percentage, Profit & Loss, SI/CI, Ratio, Time & Work, Number System)
-- Reasoning & Logic (Series, Coding-Decoding, Blood Relations, Direction, Syllogism, Analogy)
-- Computer Awareness (MS Office, Networking, Operating Systems, Internet, Shortcuts)
-- English Grammar & Vocabulary (Idioms, Synonyms, Antonyms, One Word Substitution, Error Spotting)
-- Environmental Studies & Ecology (Biodiversity, Climate Change, National Parks, Wildlife)
+MANDATORY SUBJECT CATEGORY FOR THIS QUIZ: **${forcedSubject.category}**
+You MUST generate a topic ONLY from this category. Sub-topics to consider: ${forcedSubject.examples}.
 
 CONTENT GUIDELINES:
 - Make it dynamic and specific. Example: "Mughal Empire Architecture" instead of just "History", or "RBI Monetary Policy Tools" instead of just "Economy".
 - Focus on topics that are MOST FREQUENTLY ASKED in actual exams.
 - Do NOT suggest Bangladesh-related topics unless strongly connected to India.
+- Do NOT generate generic/broad topics. Be SPECIFIC within the "${forcedSubject.category}" category.
+${recentTopicsExclusion}
 
 REQUIRED LANGUAGE: ${language}.
 Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
 
     let content = "";
+    console.log(`[auto-schedule] generateAITopic: provider=${provider}, model=${model}`);
+
     try {
         if (provider === 'gemini') {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -545,28 +717,75 @@ Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
                     contents: [{ parts: [{ text: prompt }] }],
                 })
             });
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Gemini error (${res.status}): ${errText.substring(0, 200)}`);
+            }
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
-            const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
+            const makeTopicRequest = async (useModel: string) => {
+                const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+                const headers: Record<string, string> = {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: "user", content: prompt }]
-                })
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-            content = data.choices?.[0]?.message?.content || "";
+                };
+                if (provider !== 'openai') {
+                    headers["HTTP-Referer"] = "https://telepost.io";
+                    headers["X-Title"] = "TelePost AutoSchedule";
+                }
+
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        model: useModel,
+                        messages: [{ role: "user", content: prompt }],
+                        temperature: aiSettings.temperature || 0.7,
+                    })
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    let errorMsg = `${provider} error (${res.status})`;
+                    try {
+                        const errJson = JSON.parse(errText);
+                        errorMsg = errJson.error?.message || errorMsg;
+                    } catch { errorMsg = errText.substring(0, 200); }
+                    return { ok: false as const, errorMsg };
+                }
+
+                const data = await res.json();
+                if (data.error) return { ok: false as const, errorMsg: data.error.message || JSON.stringify(data.error) };
+                return { ok: true as const, content: data.choices?.[0]?.message?.content || "" };
+            };
+
+            let result = await makeTopicRequest(model);
+
+            // Auto-retry with fallback if model is dead or no endpoints found
+            if (!result.ok && (result.errorMsg?.includes("No endpoints found") || result.errorMsg?.includes("404") || result.errorMsg?.includes("403"))) {
+                console.warn(`[generateAITopic] Model "${model}" failed/dead. Trying reliable fallbacks...`);
+                
+                for (const fallbackModel of RELIABLE_FREE_MODELS) {
+                    if (fallbackModel === model) continue;
+                    console.log(`[generateAITopic] Retrying with fallback: ${fallbackModel}`);
+                    result = await makeTopicRequest(fallbackModel);
+                    if (result.ok) {
+                        console.log(`[generateAITopic] Fallback success: ${fallbackModel}`);
+                        break;
+                    }
+                }
+            }
+
+            if (!result.ok) {
+                throw new Error(result.errorMsg);
+            }
+
+            content = result.content;
         }
     } catch (apiErr) {
-        console.error(`AI Topic Generation API Error (${provider}):`, apiErr);
+        console.error(`[auto-schedule] AI Topic Generation Error (${provider}, ${model}):`, apiErr);
         throw apiErr;
     }
 

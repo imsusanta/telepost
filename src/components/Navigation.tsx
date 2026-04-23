@@ -50,10 +50,10 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
   };
 
   const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#pricing", label: "Pricing" },
-    { href: "#how-it-works", label: "How it Works" },
-    { href: "#faq", label: "FAQ" },
+    { name: "Features", href: "/#features" },
+    { name: "Pricing", href: "/#pricing" },
+    { name: "How it works", href: "/#how-it-works" },
+    { name: "FAQ", href: "/#faq" },
   ];
 
   return (
@@ -67,10 +67,13 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
 
       <div className="mx-4 mt-4">
         <nav
-          className={`max-w-5xl mx-auto px-6 py-3 rounded-full border transition-all duration-300 ${isScrolled
-            ? "bg-background/80 backdrop-blur-lg border-border/50 shadow-sm"
-            : "bg-transparent border-transparent"
-            }`}
+          className={`max-w-5xl mx-auto px-6 py-3 transition-all duration-300 ${
+            isMenuOpen ? "rounded-2xl shadow-xl" : "rounded-full"
+          } border ${
+            isScrolled || isMenuOpen
+              ? "bg-background/95 backdrop-blur-lg border-border/50 shadow-sm"
+              : "bg-transparent border-transparent"
+          }`}
           role="navigation"
           aria-label="Main navigation"
         >
@@ -95,7 +98,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                   href={link.href}
                   className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {link.label}
+                  {link.name}
                 </a>
               ))}
             </div>
@@ -113,12 +116,13 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                 </Button>
               ) : (
                 <>
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => navigate("/auth")}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-muted-foreground hover:text-foreground hover:bg-white/5 font-medium transition-all"
                   >
                     Sign in
-                  </button>
+                  </Button>
                   <Button
                     onClick={handleGetStarted}
                     size="sm"
@@ -143,7 +147,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
 
           {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="md:hidden pt-4 pb-2 animate-fade-in">
+            <div className="md:hidden pt-4 pb-2 animate-fade-in border-t border-border/10 mt-2">
               <div className="flex flex-col gap-1">
                 {navLinks.map((link) => (
                   <a
@@ -152,7 +156,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                     onClick={() => setIsMenuOpen(false)}
                     className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {link.label}
+                    {link.name}
                   </a>
                 ))}
                 <div className="pt-3 mt-2 border-t border-border flex flex-col gap-2">
@@ -167,15 +171,16 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                     </Button>
                   ) : (
                     <>
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => {
                           navigate("/auth");
                           setIsMenuOpen(false);
                         }}
-                        className="px-3 py-2 text-sm text-muted-foreground"
+                        className="text-left px-3 h-9 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all justify-start font-normal"
                       >
                         Sign in
-                      </button>
+                      </Button>
                       <Button
                         onClick={handleGetStarted}
                         size="sm"

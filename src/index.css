@@ -477,7 +477,7 @@
   }
 
   .floating-profile-card {
-    @apply m-3 rounded-2xl bg-white/5 dark:bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl transition-all duration-300 hover:bg-white/10;
+    @apply mx-3 mb-3 rounded-2xl bg-white/5 dark:bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl transition-all duration-300 hover:bg-white/10;
   }
 
   /* Radical Visual Marker */

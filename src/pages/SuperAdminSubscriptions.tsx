@@ -574,9 +574,14 @@ const SuperAdminSubscriptions = () => {
                     <FeatureItem label={plan.max_pdf_storage_gb > 0 ? `${plan.max_pdf_storage_gb}GB Storage` : 'No Storage'} active={true} />
                     <FeatureItem label={plan.max_quizzes_per_month === null || plan.max_quizzes_per_month >= 1000000 ? 'Unlimited Quizzes' : `${plan.max_quizzes_per_month >= 1000 ? `${(plan.max_quizzes_per_month / 1000).toFixed(0)}k` : plan.max_quizzes_per_month} Quizzes`} active={true} />
                     <FeatureItem label={plan.max_question_bank_size >= 1000000 ? 'Unlimited Questions Capacity' : `${plan.max_question_bank_size >= 1000 ? `${(plan.max_question_bank_size / 1000).toFixed(0)}k` : plan.max_question_bank_size} Questions Capacity`} active={true} />
-                    <FeatureItem label="Create Quiz" active={!!(plan.features?.create_quiz?.ai_generated || plan.features?.create_quiz?.manual_input || plan.features?.create_quiz?.documents || plan.features?.create_quiz?.question_bank)} />
-                    <FeatureItem label="Create Post" active={plan.features?.create_post?.write_with_ai} />
-                    <FeatureItem label="Question Bank" active={!!(plan.features?.question_bank?.my_questions || plan.features?.question_bank?.ai_generate || plan.features?.question_bank?.pdf_generate)} />
+                    <FeatureItem label="Create Post" active={plan.features?.create_post?.enabled} />
+                    {plan.features?.create_post?.enabled && (
+                      <FeatureItem label="AI Writing Assistant" active={plan.features?.create_post?.write_with_ai} isSubItem />
+                    )}
+                    <FeatureItem label="Question Bank" active={plan.features?.question_bank?.enabled} />
+                    {plan.features?.question_bank?.enabled && (
+                      <FeatureItem label="AI Q-Bank Tools" active={plan.features?.question_bank?.ai_generate} isSubItem />
+                    )}
                     <FeatureItem label="Telegram Stories" active={plan.features?.stories} />
                     <FeatureItem label="Knowledge Base" active={plan.features?.knowledge_base} />
                     <FeatureItem label="Auto Scheduling" active={plan.features?.scheduler} />
@@ -650,16 +655,8 @@ const StatCard = ({ title, value, icon: Icon, color, bg, description }: any) => 
   </Card>
 );
 
-const FeatureBox = ({ icon: Icon, label, value }: any) => (
-  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100/50 flex flex-col gap-1 hover:bg-slate-100/50 transition-colors">
-    <Icon className="w-4 h-4 text-primary opacity-60" />
-    <span className="text-xs font-black text-slate-800 mt-1">{value}</span>
-    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
-  </div>
-);
-
-const FeatureItem = ({ label, active }: any) => (
-  <div className={`flex items-center gap-3 text-xs font-bold ${active ? 'text-emerald-600' : 'text-slate-300'}`}>
+const FeatureItem = ({ label, active, isSubItem }: any) => (
+  <div className={`flex items-center gap-3 text-xs font-bold ${active ? 'text-emerald-600' : 'text-slate-300'} ${isSubItem ? 'ml-6 opacity-80' : ''}`}>
     <div className={`p-1 rounded-full ${active ? 'bg-emerald-50' : 'bg-slate-50'}`}>
       <Check className={`w-3 h-3 ${active ? 'text-emerald-600' : 'text-slate-300'}`} />
     </div>

@@ -22,15 +22,47 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
 
   // Get user ID on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-      } else {
-        setIsLoading(false);
+      try {
+        // Set a timeout for the user check
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Auth check timed out")), 5000)
+        );
+        
+        const userPromise = supabase.auth.getUser();
+        
+        const { data: { user } } = await Promise.race([userPromise, timeoutPromise]) as any;
+        
+        if (isMounted) {
+          if (user) {
+            setUserId(user.id);
+          } else {
+            setIsLoading(false);
+          }
+        }
+      } catch (err) {
+        console.error("Auth check failed in hook:", err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     getUser();
+    
+    // Safety fallback
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && isLoading) {
+        console.warn("Hook loading safety fallback triggered");
+        setIsLoading(false);
+      }
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   const fetchScheduledPosts = useCallback(async () => {

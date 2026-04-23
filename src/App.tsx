@@ -46,20 +46,25 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Documentation = lazy(() => import("./pages/Documentation"));
 
+import { AuthProvider } from "./contexts/AuthContext";
+
 // Loading fallback component
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center gap-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <p className="text-sm font-medium text-muted-foreground animate-pulse">Initializing TelePost...</p>
+    </div>
   </div>
 );
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      refetchOnWindowFocus: true, // Auto-refresh when user returns to tab
-      staleTime: 30000, // Consider data fresh for 30 seconds
-      gcTime: 300000, // Keep unused data in cache for 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false, // Don't spam DB when tab switching
+      staleTime: 1000 * 60 * 2, // Data is fresh for 2 minutes by default
+      gcTime: 1000 * 60 * 10, // Keep in memory for 10 minutes
     },
   },
 });
@@ -67,17 +72,18 @@ const queryClient = new QueryClient({
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:shadow-lg"
-        >
-          Skip to main content
-        </a>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
+      <AuthProvider>
+        <TooltipProvider>
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:shadow-lg"
+          >
+            Skip to main content
+          </a>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/install" element={<Install />} />
@@ -119,8 +125,9 @@ const App = () => (
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+    </AuthProvider>
+  </QueryClientProvider>
+</ErrorBoundary>
 );
 
 export default App;

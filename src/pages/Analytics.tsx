@@ -10,53 +10,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+
 export default function Analytics() {
-  const [data, setData] = useState<AnalyticsDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { profile, user } = useAuth();
   const [dateRange, setDateRange] = useState<string>("30");
   const { toast } = useToast();
 
-  const loadAnalytics = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["analytics-data", user?.id, dateRange],
+    queryFn: async () => {
       const end = new Date();
       const start = new Date();
       start.setDate(start.getDate() - parseInt(dateRange));
-
-      const analyticsData = await AnalyticsService.getDashboardData(user.id, { start, end });
-      setData(analyticsData);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load analytics";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange, toast]);
-
-  useEffect(() => {
-    loadAnalytics();
-  }, [loadAnalytics]);
+      return AnalyticsService.getDashboardData(user!.id, { start, end });
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutes fresh data
+  });
 
   const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await loadAnalytics();
-    setIsRefreshing(false);
+    await refetch();
     toast({
       title: "Refreshed",
       description: "Analytics data updated",
     });
-  }, [loadAnalytics, toast]);
+  }, [refetch, toast]);
 
   const handleExport = useCallback(async (format: "csv" | "json") => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const exportData = await AnalyticsService.exportData(user.id, format);

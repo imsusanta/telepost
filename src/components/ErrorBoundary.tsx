@@ -61,48 +61,61 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="max-w-lg w-full clay-card bg-card/50 backdrop-blur-sm border-border">
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="w-8 h-8 text-destructive" />
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center p-4">
+          <Card className="max-w-lg w-full glass-card border-white/20 bg-white/5 backdrop-blur-xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-500">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
+            
+            <CardHeader className="text-center relative z-10">
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform duration-300">
+                  <AlertTriangle className="w-10 h-10 text-destructive drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
                 </div>
               </div>
-              <CardTitle className="text-2xl font-bold text-foreground">
-                Something went wrong
+              <CardTitle className="text-3xl font-black text-white tracking-tight">
+                TelePost encountered an glitch
               </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                We're sorry, but something unexpected happened.
+              <CardDescription className="text-blue-100/60 font-medium text-lg mt-2">
+                Don't worry, your data is safe. Let's get you back.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            
+            <CardContent className="space-y-6 relative z-10">
               {process.env.NODE_ENV === "development" && this.state.error && (
-                <div className="p-4 bg-destructive/10 rounded-lg">
-                  <p className="text-sm font-mono text-destructive mb-2">
+                <div className="p-4 bg-black/40 rounded-2xl border border-white/10">
+                  <p className="text-xs font-mono text-destructive-foreground/70 mb-2 uppercase tracking-widest font-bold">
+                    Developer Info:
+                  </p>
+                  <p className="text-sm font-mono text-red-400 mb-2 font-bold whitespace-pre-wrap">
                     {this.state.error.message}
                   </p>
                   {this.state.error.stack && (
-                    <pre className="text-xs text-muted-foreground overflow-auto max-h-32">
+                    <pre className="text-[10px] text-white/40 overflow-auto max-h-32 scrollbar-hide font-mono leading-relaxed">
                       {this.state.error.stack}
                     </pre>
                   )}
                 </div>
               )}
-              <div className="flex flex-col sm:flex-row gap-3">
+              
+              <div className="flex flex-col gap-4">
                 <Button
                   onClick={this.handleReset}
-                  className="flex-1 clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
+                  className="w-full h-14 rounded-2xl bg-white text-blue-950 hover:bg-blue-50 text-base font-black transition-all shadow-[0_8px_30px_rgb(255,255,255,0.2)] hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Return to Home
+                  Return to Dashboard
                 </Button>
                 <Button
                   onClick={() => window.location.reload()}
                   variant="outline"
-                  className="flex-1 clay-button"
+                  className="w-full h-14 rounded-2xl border-white/20 bg-white/5 text-white hover:bg-white/10 text-base font-bold transition-all backdrop-blur"
                 >
                   Reload Page
                 </Button>
+              </div>
+
+              <div className="text-center">
+                <p className="text-xs text-blue-100/30 font-medium">
+                  If the issue persists, please contact support with the error details.
+                </p>
               </div>
             </CardContent>
           </Card>

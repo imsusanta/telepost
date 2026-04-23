@@ -103,22 +103,24 @@ export default function Documents() {
     }
   }, [toast]);
 
+  // Initial load
   useEffect(() => {
     loadChannels();
-    loadDocuments();
     loadStorageInfo();
-  }, [loadChannels, loadDocuments, loadStorageInfo]);
+  }, [loadChannels, loadStorageInfo]);
 
+  // Load documents when filter changes
+  useEffect(() => {
+    loadDocuments();
+  }, [selectedChannel]);
+
+  // Handle URL params
   useEffect(() => {
     const channelFromUrl = searchParams.get("channel");
     if (channelFromUrl) {
       setSelectedChannel(channelFromUrl);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
 
   // Poll for document processing status updates
   useEffect(() => {
@@ -127,19 +129,16 @@ export default function Documents() {
       doc => doc.processing_status === "pending" || doc.processing_status === "processing"
     );
 
-    if (!hasProcessingDocs) {
-      return; // No polling needed
-    }
+    if (!hasProcessingDocs) return;
 
-    // Poll every 3 seconds
+    // Poll every 5 seconds (less aggressive than 3s to save resources)
     const pollInterval = setInterval(() => {
+      console.log("[Documents] Polling for status updates...");
       loadDocuments();
-    }, 3000);
+    }, 5000);
 
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [documents, loadDocuments]);
+    return () => clearInterval(pollInterval);
+  }, [documents.length, loadDocuments]); // Only restart poll if count changes or manually reloaded
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -493,16 +492,7 @@ export default function Documents() {
                       {doc.processing_status}
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary hover:text-primary hover:bg-primary/10 gap-2 h-9 px-4 rounded-xl font-bold transition-all"
-                      onClick={() => handleGenerateQuiz(doc)}
-                      disabled={doc.processing_status !== "completed"}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Generate Quiz
-                    </Button>
+                    <div />
                   </div>
 
                   {doc.processing_error && (

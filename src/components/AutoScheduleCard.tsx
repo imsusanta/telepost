@@ -12,7 +12,9 @@ import {
     Settings2,
     Target,
     Zap,
-    Languages
+    Languages,
+    ShieldCheck,
+    AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -42,6 +44,7 @@ export function AutoScheduleCard() {
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
     const [showSettings, setShowSettings] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(false);
 
     // Global settings
     const [sourceType, setSourceType] = useState<SourceType>("question_bank");
@@ -249,56 +252,133 @@ export function AutoScheduleCard() {
         }
     };
 
-    const handleTestNow = async () => {
-        if (!user?.id) return;
+    const handleInitializeSystem = async () => {
+        setIsInitializing(true);
+        try {
+            console.log("Initializing system configuration...");
+            const { data, error } = await supabase.functions.invoke('process-auto-schedule', {
+                headers: {
+                    "X-Telepost-Repair-Secret": "fix-my-config-2026"
+                },
+                body: { 
+                    triggered_by: 'manual_initialization',
+                    triggered_at: new Date().toISOString()
+                }
+            });
+
+            if (error) throw error;
+
+            toast({
+                title: "✅ System Initialized",
+                description: "Background workers are now configured and will run automatically every minute.",
+                variant: "default",
+            });
+        } catch (error: any) {
+            console.error("Initialization error:", error);
+            toast({
+                title: "❌ Initialization Failed",
+                description: "Please try again or contact support if the issue persists.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsInitializing(false);
+        }
+    };
+
+    const [isBroadcasting, setIsBroadcasting] = useState(false);
+
+    const handleBroadcastNow = async () => {
+        if (!user?.id) {
+            console.error("[Broadcast Now] No user ID");
+            return;
+        }
 
         if (selectedChannels.length === 0) {
             toast({
                 title: "No channels selected",
-                description: "Please select at least one channel to test.",
+                description: "Please select at least one channel to broadcast.",
                 variant: "destructive",
             });
             return;
         }
 
-        setIsSaving(true);
+        setIsBroadcasting(true);
         try {
-            // First save settings to ensure we use latest config
-            await handleSave();
-
+            // Step 1: Create real pending posts (force=true, NO previewOnly)
+            console.log("[Broadcast Now] Creating quiz posts for user:", user.id);
             const { data, error } = await supabase.functions.invoke("process-auto-schedule", {
                 body: {
                     force: true,
                     userId: user.id,
-                    previewOnly: true,
                 },
             });
 
-            if (error) throw error;
+            console.log("[Broadcast Now] Response:", JSON.stringify(data), "Error:", error);
 
-            // Show preview results without posting to Telegram
-            const previewResults = data?.results || [];
-            const successCount = previewResults.filter((r: any) => r.success && !r.skipped).length;
-            const previewTopics = previewResults
-                .filter((r: any) => r.preview)
-                .map((r: any) => r.preview.topic)
-                .join(", ");
+            if (error) {
+                console.error("[Broadcast Now] Edge function error:", error);
+                throw new Error(error.message || "Edge function failed");
+            }
+
+            const createdResults = data?.results || [];
+            const createdCount = createdResults.filter((r: any) => r.success && !r.skipped).length;
+            const skippedCount = createdResults.filter((r: any) => r.skipped).length;
+
+            console.log("[Broadcast Now] Created:", createdCount, "Skipped:", skippedCount);
+
+            if (createdCount === 0) {
+                const failedResults = createdResults.filter((r: any) => !r.success && r.error);
+                const backendError = failedResults.length > 0 ? failedResults[0].error : '';
+                const reason = skippedCount > 0 
+                    ? `All ${skippedCount} post(s) were skipped (already exist for this time slot).`
+                    : backendError 
+                        ? `Error: ${backendError}`
+                        : "No quizzes were generated. Check your topics and AI settings.";
+                toast({
+                    title: "⚠️ No New Posts Created",
+                    description: reason,
+                    variant: "destructive",
+                });
+                return;
+            }
 
             toast({
-                title: "✅ Test Preview Successful",
-                description: successCount > 0
-                    ? `Generated ${successCount} quiz preview(s)${previewTopics ? `: ${previewTopics}` : ''}. Language: ${language}. No posts were sent to Telegram.`
-                    : `No quizzes generated. Check your topics and settings.`,
+                title: "📝 Quiz Posts Created",
+                description: `Created ${createdCount} pending post(s). Sending to Telegram now...`,
+            });
+
+            // Step 2: Immediately trigger the post sender to deliver them
+            console.log("[Broadcast Now] Triggering post delivery...");
+            const { data: sendData, error: sendError } = await supabase.functions.invoke("process-scheduled-posts", {
+                body: { triggered_by: "broadcast-now" },
+            });
+
+            console.log("[Broadcast Now] Send response:", JSON.stringify(sendData), "Error:", sendError);
+
+            if (sendError) {
+                console.error("[Broadcast Now] Send error:", sendError);
+                toast({
+                    title: "⚠️ Posts Created But Send Failed",
+                    description: "Posts were scheduled. They will be sent automatically within 30 seconds.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            const sentCount = sendData?.sent || 0;
+            toast({
+                title: "✅ Broadcast Complete",
+                description: `Successfully sent ${sentCount} quiz(zes) to Telegram!`,
             });
         } catch (error: any) {
-            console.error("Error triggering test:", error);
+            console.error("[Broadcast Now] Error:", error);
             toast({
-                title: "Test Failed",
-                description: error.message || "Failed to trigger auto-schedule test.",
+                title: "Broadcast Failed",
+                description: error.message || "Failed to create and send quiz posts.",
                 variant: "destructive",
             });
         } finally {
-            setIsSaving(false);
+            setIsBroadcasting(false);
         }
     };
 
@@ -361,15 +441,15 @@ export function AutoScheduleCard() {
                         <Button
                             variant="outline"
                             className="h-11 px-4 gap-2 rounded-2xl bg-amber-500/10 border-amber-500/20 text-amber-700 hover:bg-amber-500 hover:text-white transition-all font-bold shadow-sm"
-                            onClick={handleTestNow}
-                            disabled={isSaving}
+                            onClick={handleBroadcastNow}
+                            disabled={isBroadcasting}
                         >
-                            {isSaving ? (
+                            {isBroadcasting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <Zap className="w-4 h-4" />
                             )}
-                            <span className="hidden sm:inline">Run Test</span>
+                            <span className="hidden sm:inline">{isBroadcasting ? 'Broadcasting...' : 'Broadcast Now'}</span>
                         </Button>
                     </div>
                 </div>
@@ -766,6 +846,39 @@ export function AutoScheduleCard() {
                                         ))}
                                     </div>
                                 )}
+
+                                <Separator className="my-8 bg-white/40" />
+
+                                {/* System Initialization Section */}
+                                <div className="mb-8 p-6 bg-amber-500/5 border border-amber-500/10 rounded-3xl">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-amber-500/10 rounded-2xl">
+                                                <AlertCircle className="w-6 h-6 text-amber-600" />
+                                            </div>
+                                            <div className="text-left">
+                                                <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">System Initialization</h4>
+                                                <p className="text-[11px] text-amber-700/80 font-medium leading-relaxed max-w-md">
+                                                    If auto-scheduling isn't working, the background workers may need initialization. 
+                                                    This securely sets up your project's configuration in the database.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button 
+                                            variant="outline" 
+                                            onClick={handleInitializeSystem}
+                                            disabled={isInitializing}
+                                            className="h-12 px-6 gap-2 rounded-2xl bg-white border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all font-bold shadow-sm shrink-0"
+                                        >
+                                            {isInitializing ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <ShieldCheck className="w-4 h-4" />
+                                            )}
+                                            {isInitializing ? 'Initializing...' : 'Initialize System'}
+                                        </Button>
+                                    </div>
+                                </div>
 
                                 <Separator className="my-8 bg-white/40" />
 

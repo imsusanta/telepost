@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   SubscriptionService,
@@ -40,16 +40,28 @@ interface UseSubscriptionReturn {
   getLimit: (key: 'max_telegram_channels' | 'max_question_bank_size' | 'max_pdf_storage_gb' | 'max_quizzes_per_month' | 'max_batch_quiz_generation' | 'max_questions_per_quiz' | 'max_kb_docs') => number | null;
 }
 
-// Cache to avoid repeated DB calls within the same session
-let cachedPlan: SubscriptionPlan | null = null;
-let cachedSubscription: UserSubscription | null = null;
-let cachedSuperAdmin: boolean | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 60_000; // 1 minute
+const CACHE_KEY = 'telepost_subscription_cache';
+
+// Free tier constants
+const FREE_PLAN: SubscriptionPlan = {
+  id: 'free-default',
+  name: 'free',
+  display_name: 'Free Trial',
+  price: 0,
+  yearly_price: 0,
+  billing_period: 'trial',
+  max_telegram_channels: 1,
+  max_pdf_storage_gb: 1,
+  max_quizzes_per_month: 5,
+  max_batch_quiz_generation: 1,
+  max_question_bank_size: 500,
+  max_questions_per_quiz: 10,
+  max_kb_docs: 5,
+  features: { ...DEFAULT_FREE_FEATURES },
+};
 
 /**
  * Merges stored features with defaults to ensure all keys exist.
- * This prevents crashes when new features are added but old plans haven't been updated.
  */
 function mergeFeatures(stored: Partial<PlanFeatures> | undefined | null): PlanFeatures {
   if (!stored) return { ...DEFAULT_FREE_FEATURES };
@@ -64,24 +76,61 @@ function mergeFeatures(stored: Partial<PlanFeatures> | undefined | null): PlanFe
 
   // Complex features with sub-features
   if (stored.create_quiz && typeof stored.create_quiz === 'object') {
-    merged.create_quiz = { ...DEFAULT_FREE_FEATURES.create_quiz, ...stored.create_quiz };
+    merged.create_quiz = { 
+      ...DEFAULT_FREE_FEATURES.create_quiz, 
+      ...stored.create_quiz,
+      enabled: true, // Force enabled true if it exists in stored
+    };
   }
   if (stored.create_post && typeof stored.create_post === 'object') {
-    merged.create_post = { ...DEFAULT_FREE_FEATURES.create_post, ...stored.create_post };
+    merged.create_post = { 
+      ...DEFAULT_FREE_FEATURES.create_post, 
+      ...stored.create_post,
+      enabled: true,
+    };
   }
   if (stored.question_bank && typeof stored.question_bank === 'object') {
-    merged.question_bank = { ...DEFAULT_FREE_FEATURES.question_bank, ...stored.question_bank };
+    merged.question_bank = { 
+      ...DEFAULT_FREE_FEATURES.question_bank, 
+      ...stored.question_bank,
+      enabled: true,
+    };
   }
 
   return merged;
 }
 
 export function useSubscription(): UseSubscriptionReturn {
-  const [plan, setPlan] = useState<SubscriptionPlan | null>(cachedPlan);
-  const [subscription, setSubscription] = useState<UserSubscription | null>(cachedSubscription);
-  const [loading, setLoading] = useState(!cachedPlan || Date.now() - cacheTimestamp > CACHE_TTL);
-  const [superAdmin, setSuperAdmin] = useState(cachedSuperAdmin ?? false);
+  // Try to load from localStorage first for zero-latency UI on refresh
+  const getInitialState = () => {
+    if (typeof window === 'undefined') return { plan: FREE_PLAN, sub: null, admin: false };
+    try {
+      const saved = localStorage.getItem(CACHE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Date.now() - parsed.timestamp < 1000 * 60 * 30) { // 30 min cache
+          return { plan: parsed.plan, sub: parsed.sub, admin: parsed.admin };
+        }
+      }
+    } catch (e) {}
+    return { plan: FREE_PLAN, sub: null, admin: false };
+  };
 
+  const initialState = useMemo(getInitialState, []);
+  
+  const [plan, setPlan] = useState<SubscriptionPlan | null>(() => {
+    if (initialState.plan) {
+      const p = { ...initialState.plan };
+      p.features = mergeFeatures(p.features);
+      return p;
+    }
+    return FREE_PLAN;
+  });
+  const [subscription, setSubscription] = useState<UserSubscription | null>(initialState.sub);
+  const [superAdmin, setSuperAdmin] = useState(initialState.admin);
+  const [loading, setLoading] = useState(true);
+
+  // ... (useEffect remains similar but let's ensure it also merges)
   useEffect(() => {
     const loadSubscription = async () => {
       try {
@@ -91,45 +140,30 @@ export function useSubscription(): UseSubscriptionReturn {
           return;
         }
 
-        // Check super admin
-        const adminStatus = await isSuperAdmin();
-        setSuperAdmin(adminStatus);
-        cachedSuperAdmin = adminStatus;
+        const [adminStatus, sub] = await Promise.all([
+          isSuperAdmin(),
+          SubscriptionService.getUserSubscription(user.id)
+        ]);
 
-        // Get subscription
-        const sub = await SubscriptionService.getUserSubscription(user.id);
-        setSubscription(sub);
-        cachedSubscription = sub;
-
+        let activePlan = { ...FREE_PLAN };
         if (sub?.plan && typeof sub.plan === 'object') {
-          const planData = sub.plan as unknown as SubscriptionPlan;
-          // Ensure features are merged with defaults
-          planData.features = mergeFeatures(planData.features);
-          setPlan(planData);
-          cachedPlan = planData;
+          activePlan = { ...(sub.plan as unknown as SubscriptionPlan) };
+          activePlan.features = mergeFeatures(activePlan.features);
         } else {
-          // No subscription = free tier defaults
-          const freePlan: SubscriptionPlan = {
-            id: 'free-default',
-            name: 'free',
-            display_name: 'Free Trial',
-            price: 0,
-            yearly_price: 0,
-            billing_period: 'trial',
-            max_telegram_channels: 1,
-            max_pdf_storage_gb: 0,
-            max_quizzes_per_month: null,
-            max_batch_quiz_generation: 1,
-            max_question_bank_size: 500,
-            max_questions_per_quiz: 0,
-            max_kb_docs: 0,
-            features: { ...DEFAULT_FREE_FEATURES },
-          };
-          setPlan(freePlan);
-          cachedPlan = freePlan;
+          activePlan.features = mergeFeatures(activePlan.features);
         }
 
-        cacheTimestamp = Date.now();
+        setSuperAdmin(adminStatus);
+        setSubscription(sub);
+        setPlan(activePlan);
+
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          plan: activePlan,
+          sub,
+          admin: adminStatus,
+          timestamp: Date.now()
+        }));
+
       } catch (error) {
         console.error('Error loading subscription:', error);
       } finally {
@@ -137,65 +171,39 @@ export function useSubscription(): UseSubscriptionReturn {
       }
     };
 
-    // Use cache if fresh
-    if (cachedPlan && Date.now() - cacheTimestamp < CACHE_TTL) {
-      setPlan(cachedPlan);
-      setSubscription(cachedSubscription);
-      setSuperAdmin(cachedSuperAdmin ?? false);
-      setLoading(false);
-      return;
-    }
-
     loadSubscription();
   }, []);
 
-  // Resolve the active features — super admin gets everything
-  const features: PlanFeatures = superAdmin
-    ? ALL_FEATURES_ENABLED
-    : (plan?.features ?? DEFAULT_FREE_FEATURES);
+  const features: PlanFeatures = useMemo(() => {
+    return superAdmin ? ALL_FEATURES_ENABLED : (plan?.features ?? DEFAULT_FREE_FEATURES);
+  }, [superAdmin, plan]);
 
-  /**
-   * Check if a feature (or sub-feature) is accessible.
-   * 
-   * Usage:
-   *   canAccess('channels')                        // simple boolean feature
-   *   canAccess('create_quiz')                     // parent feature enabled check
-   *   canAccess('create_quiz', 'ai_generated')     // sub-feature check (also checks parent)
-   */
-  const canAccess = <T extends TopLevelFeature>(
+  const canAccess = useCallback(<T extends TopLevelFeature>(
     feature: T,
     subFeature?: SubFeatureMap[T]
   ): boolean => {
     if (superAdmin) return true;
-    if (!plan) return false;
-
+    
     const featureValue = features[feature];
 
-    // Simple boolean feature (channels, stories, knowledge_base, scheduler)
     if (typeof featureValue === 'boolean') {
       return featureValue;
     }
 
-    // Complex feature with sub-features
     if (typeof featureValue === 'object' && featureValue !== null) {
-      // Parent must be enabled
       if (!(featureValue as any).enabled) return false;
-      
-      // If no sub-feature specified, just check parent
       if (!subFeature) return true;
-      
-      // Check sub-feature
       return (featureValue as any)[subFeature] === true;
     }
 
     return false;
-  };
+  }, [superAdmin, features]);
 
-  const getLimit = (key: 'max_telegram_channels' | 'max_question_bank_size' | 'max_pdf_storage_gb' | 'max_quizzes_per_month' | 'max_batch_quiz_generation' | 'max_questions_per_quiz' | 'max_kb_docs'): number | null => {
-    if (superAdmin) return null; // No limits for super admin
+  const getLimit = useCallback((key: 'max_telegram_channels' | 'max_question_bank_size' | 'max_pdf_storage_gb' | 'max_quizzes_per_month' | 'max_batch_quiz_generation' | 'max_questions_per_quiz' | 'max_kb_docs'): number | null => {
+    if (superAdmin) return null;
     if (!plan) return 0;
     return (plan as any)[key] ?? 0;
-  };
+  }, [superAdmin, plan]);
 
   return {
     plan,
