@@ -148,88 +148,79 @@ Deno.serve(async (req) => {
                 minute: '2-digit',
                 hour12: false
             });
-            return formatter.format(date).replace(/[^\d:]/g, '');
+            const parts = formatter.formatToParts(date);
+            const hh = parts.find(p => p.type === 'hour')?.value || '00';
+            const mm = parts.find(p => p.type === 'minute')?.value || '00';
+            return `${hh}:${mm}`;
         };
 
-        // Helper: compute the actual scheduled Date from a "HH:MM" string in a timezone
-        // Uses the current UTC time as an anchor to find the correct offset,
-        // avoiding cross-midnight miscalculations.
-        const computeScheduledDate = (timeStr: string, tz: string): Date => {
-            const [hh, mm] = timeStr.split(':').map(Number);
-            // Get today's date in the target timezone
+        const computeScheduledDate = (schedTimeStr: string, tz: string, now: Date): Date => {
+            const [h, m] = schedTimeStr.split(':').map(Number);
+            const targetTotalMinutes = h * 60 + m;
             const todayInTZ = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-            // Get the current timezone offset using "now" (which is always valid for today)
-            const nowLocalHHMM = getLocalHHMM(now, tz);
-            const [nowLH, nowLM] = nowLocalHHMM.split(':').map(Number);
-            const nowLocalMinutes = nowLH * 60 + nowLM;
+            const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+            const nowLocalStr = formatter.format(now);
+            const [lh, lm] = nowLocalStr.replace(/[^\d:]/g, '').split(':').map(Number);
+            const nowLocalMinutes = lh * 60 + lm;
             const nowUTCMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-            // Offset = local - UTC (handles both positive and negative offsets)
+            
             let offsetMinutes = nowLocalMinutes - nowUTCMinutes;
-            // Normalize for day boundary crossings (e.g., UTC 23:00 = IST 04:30 next day)
-            if (offsetMinutes > 720) offsetMinutes -= 1440;
-            if (offsetMinutes < -720) offsetMinutes += 1440;
+            if (offsetMinutes > 840) offsetMinutes -= 1440;
+            if (offsetMinutes < -840) offsetMinutes += 1440;
 
-            // Target time in local minutes since midnight
-            const targetLocalMinutes = hh * 60 + mm;
-            // Convert to UTC minutes
-            const targetUTCMinutes = targetLocalMinutes - offsetMinutes;
-
-            // Build the final UTC date using today's date in the target timezone
+            const targetUTCMinutes = targetTotalMinutes - offsetMinutes;
             const [year, month, day] = todayInTZ.split('-').map(Number);
             const result = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
             result.setUTCMinutes(targetUTCMinutes);
-
             return result;
         };
 
-        // Filter matching settings: match if current time is within ±1 minute of a scheduled time
-        // This gives a 3-minute window (prev minute, current minute, next minute) to ensure
-        // the 60-second polling interval never misses a scheduled time.
-        const matchingEntries: Array<{ setting: any, matchedTime: string, scheduledDate: Date }> = [];
 
-        for (const s of settings) {
-            if (force) {
-                // For forced runs, use first schedule time or now
-                const firstTime = s.schedule_times?.[0] || '00:00';
-                matchingEntries.push({ setting: s, matchedTime: firstTime, scheduledDate: now });
-                continue;
-            }
+        console.log(`Processing ${settings.length} channel settings for auto-schedule...`);
 
-            if (!s.schedule_times || !Array.isArray(s.schedule_times)) continue;
+        const matchingEntries: Array<{ setting: any, matchedTime: string, scheduledDate: Date, slotIndex: number }> = [];
+        
+            for (const s of settings) {
+                if (force) {
+                    const firstTime = s.schedule_times?.[0] || '00:00';
+                    matchingEntries.push({ setting: s, matchedTime: firstTime, scheduledDate: now, slotIndex: 0 });
+                    continue;
+                }
 
-            const tz = s.timezone || 'UTC';
-            const localTimeStr = getLocalHHMM(now, tz);
-            // Compute 1 minute ahead and 1 minute behind
-            const oneMinLater = new Date(now.getTime() + 60000);
-            const oneMinBefore = new Date(now.getTime() - 60000);
-            const localTimePlus1 = getLocalHHMM(oneMinLater, tz);
-            const localTimeMinus1 = getLocalHHMM(oneMinBefore, tz);
+                if (!s.schedule_times || !Array.isArray(s.schedule_times)) continue;
 
-            console.log(`Checking Channel ${s.channel_id} (TZ: ${tz}): Local=${localTimeStr}, -1min=${localTimeMinus1}, +1min=${localTimePlus1}, Scheduled: ${s.schedule_times}`);
+                const tz = s.timezone || 'UTC';
+                const localTimeStr = getLocalHHMM(now, tz);
+                const oneMinLater = new Date(now.getTime() + 60000);
+                const oneMinBefore = new Date(now.getTime() - 60000);
+                const localTimePlus1 = getLocalHHMM(oneMinLater, tz);
+                const localTimeMinus1 = getLocalHHMM(oneMinBefore, tz);
 
-            for (const time of s.schedule_times) {
-                const schedHHMM = time.substring(0, 5); // "HH:MM" from "HH:MM:SS" or "HH:MM"
-                if (schedHHMM === localTimeStr || schedHHMM === localTimePlus1 || schedHHMM === localTimeMinus1) {
-                    const scheduledDate = computeScheduledDate(schedHHMM, tz);
-                    matchingEntries.push({ setting: s, matchedTime: schedHHMM, scheduledDate });
-                    break; // Only match once per setting
+                const sortedTimes = [...s.schedule_times].sort();
+                
+                for (let i = 0; i < sortedTimes.length; i++) {
+                    const time = sortedTimes[i];
+                    const schedHHMM = time.substring(0, 5); 
+                    
+                    if (schedHHMM === localTimeStr || schedHHMM === localTimePlus1 || schedHHMM === localTimeMinus1) {
+                        console.log(`[MATCH] ${s.channel_name} at ${schedHHMM} (Local: ${localTimeStr})`);
+                        const scheduledDate = computeScheduledDate(time, tz, now);
+                        matchingEntries.push({ setting: s, matchedTime: time, scheduledDate, slotIndex: i });
+                        break; // Only match once per setting per run
+                    }
                 }
             }
-        }
 
-        if (matchingEntries.length === 0) {
-            console.log("No schedules matching current time");
-            return new Response(JSON.stringify({ message: "No schedules matching current time" }), {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
+            if (matchingEntries.length === 0) {
+                return new Response(JSON.stringify({ success: true, message: "No schedules to process" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
 
         console.log(`Found ${matchingEntries.length} matching schedules to process`);
 
         const aiSettings = await getAISettings(supabaseAdmin);
         const results = [];
 
-        for (const { setting, matchedTime, scheduledDate } of matchingEntries) {
+        for (const { setting, matchedTime, scheduledDate, slotIndex } of matchingEntries) {
             try {
                 console.log(`Processing schedule for user ${setting.user_id}, channel ${setting.channel_id}, time=${matchedTime}`);
 
@@ -269,22 +260,17 @@ Deno.serve(async (req) => {
                 const slotIndex = sortedTimes.findIndex((t: string) => t.startsWith(matchedTime));
 
                 let finalTopic = "";
-                let topicsExist = setting.topics && Array.isArray(setting.topics) && setting.topics.length > 0;
+                const topicsExist = setting.topics && Array.isArray(setting.topics) && setting.topics.length > 0;
 
                 if (topicsExist) {
                     const sortedTopics = [...setting.topics].sort();
                     const globalSlotIndex = (dayCount * sortedTimes.length) + (slotIndex >= 0 ? slotIndex : 0);
                     const topicIndex = globalSlotIndex % sortedTopics.length;
                     finalTopic = sortedTopics[topicIndex];
-                    console.log(`Setting ${setting.channel_id}: Matched ${matchedTime}, DayCount ${dayCount}, GlobalIndex ${globalSlotIndex}, TopicIndex ${topicIndex}, Topic: ${finalTopic}`);
-                } else if (setting.source_type === "question_bank") {
-                    // No topic needed for random bank selection — skip AI call
-                    finalTopic = "Question Bank";
-                    console.log(`Setting ${setting.channel_id}: Source=question_bank, no topics — will pick random from bank`);
+                    console.log(`Setting ${setting.channel_id}: Predefined Topic Selected: ${finalTopic}`);
                 } else {
-                    // AI Generated Topic if none provided
                     console.log(`Setting ${setting.channel_id}: No topics provided. Generating topic with AI...`);
-                    finalTopic = await generateAITopic(setting, aiSettings, supabaseAdmin);
+                    finalTopic = await generateAITopic(setting, aiSettings, slotIndex, supabaseAdmin);
                     console.log(`Setting ${setting.channel_id}: AI Generated Topic: ${finalTopic}`);
                 }
 
@@ -335,20 +321,21 @@ Deno.serve(async (req) => {
                     if (quizQuestions.length === 0) {
                         // Only fall back to AI if the question bank is completely empty
                         console.log("[auto-schedule] Question bank is empty, falling back to AI generation");
-                        const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
+                        const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings, supabaseAdmin);
                         quizQuestions = aiResponse.questions;
                     }
                 } else {
-                    // AI Generated Source
-                    const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings);
+                    // AI Generated or Knowledge Base Source
+                    const aiResponse = await generateAIQuiz(setting, finalTopic, aiSettings, supabaseAdmin);
                     quizQuestions = aiResponse.questions;
                 }
 
                 // Prepare quiz data
-                const quizLanguage = setting.language || 'English';
+                const quizLanguage = setting.language || 'bn';
                 const quizData = {
                     topic: finalTopic,
                     language: quizLanguage,
+                    // Detect quiz language from metadata or text script
                     questions: quizQuestions.map((q: any, index: number) => ({
                         id: index + 1,
                         question: q.question,
@@ -442,17 +429,18 @@ const RELIABLE_FREE_MODELS = [
     'deepseek/deepseek-chat:free'
 ];
 
-// Models known to be dead/removed from OpenRouter
-const DEAD_OPENROUTER_MODELS = [
-    'arcee-ai/trinity-large-preview:free',
-    'arcee-ai/',  // entire provider seems unstable
-];
-
 function resolveAutoScheduleProvider(aiSettings: AISettings): { provider: string; apiKey: string; model: string } {
     const rawProvider = aiSettings.provider || 'openrouter';
     let apiKey = '';
     let provider = rawProvider === 'lovable' ? 'openrouter' : rawProvider;
     let model = aiSettings.model;
+
+    // Add fallback if model is empty to prevent API errors
+    if (!model || model.trim() === '') {
+        if (provider === 'gemini') model = 'gemini-2.0-flash';
+        else if (provider === 'openai') model = 'gpt-4o-mini';
+        else model = 'google/gemini-2.0-flash-exp:free';
+    }
 
     if (provider === 'gemini' && aiSettings.gemini_api_key) {
         apiKey = aiSettings.gemini_api_key;
@@ -472,34 +460,94 @@ function resolveAutoScheduleProvider(aiSettings: AISettings): { provider: string
         model = 'gpt-4o-mini';
     }
 
-    // Validate OpenRouter model — fallback if known-dead or suspicious
-    if (provider === 'openrouter') {
-        const isDeadModel = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
-        if (isDeadModel) {
-            console.warn(`[resolveProvider] Model "${model}" is known to be unavailable. Falling back to ${OPENROUTER_FALLBACK_MODEL}`);
-            model = OPENROUTER_FALLBACK_MODEL;
-        }
+    // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
+    if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+        apiKey = aiSettings.gemini_api_key;
+        provider = 'gemini';
     }
 
     return { provider, apiKey, model };
 }
 
-async function generateAIQuiz(setting: any, topic: string, aiSettings: AISettings) {
+async function generateAIQuiz(setting: any, topic: string, aiSettings: AISettings, supabaseAdmin?: any) {
     const { provider, apiKey, model } = resolveAutoScheduleProvider(aiSettings);
 
     if (!apiKey) throw new Error(`AI API Key missing for ${provider}. Configure in Super Admin → Settings → AI.`);
 
     const questionCount = setting.questions_per_post || 5;
-    const quizLanguage = setting.language || 'English';
+    const rawLanguage = setting.language || 'bn';
     const customPrompt = setting.custom_prompt || '';
 
-    let languageRequirement = `4. CRITICAL LANGUAGE REQUIREMENT: You MUST generate ALL questions, ALL options, and ALL explanations ENTIRELY in **${quizLanguage}** language.`;
-    if (quizLanguage !== 'English') {
-        languageRequirement += ` Do NOT use English at all. Every single word must be in ${quizLanguage} script. This is mandatory and non-negotiable.`;
+    // Fetch knowledge base content if requested
+    let knowledgeBaseContext = '';
+    if (setting.source_type === 'knowledge_base' && supabaseAdmin && setting.channel_id) {
+        console.log(`[auto-schedule] Fetching knowledge base documents for channel: ${setting.channel_id}`);
+        try {
+            const { data: documents, error: docError } = await supabaseAdmin
+                .from("documents")
+                .select("title, extracted_text")
+                .eq("channel_id", setting.channel_id)
+                .eq("processing_status", "completed")
+                .limit(10);
+
+            if (docError) {
+                console.error(`[auto-schedule] Error fetching documents:`, docError);
+            } else if (documents && documents.length > 0) {
+                knowledgeBaseContext = documents
+                    .map((doc: { title: string; extracted_text?: string }) => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
+                    .join('\n\n---\n\n')
+                    .substring(0, 8000);
+                console.log(`[auto-schedule] Successfully loaded ${documents.length} document(s) for quiz generation context`);
+            } else {
+                console.warn(`[auto-schedule] No completed documents found in knowledge base for channel: ${setting.channel_id}`);
+            }
+        } catch (e) {
+            console.error(`[auto-schedule] Failed to load knowledge base:`, e);
+        }
     }
 
-    let promptText = `Create a multiple-choice quiz about "${topic}".
+    // Map language codes to full names and script names
+    const languageMap: Record<string, { name: string; script: string; instruction: string }> = {
+        'bn': {
+            name: 'Bengali',
+            script: 'বাংলা',
+            instruction: `CRITICAL BENGALI LANGUAGE REQUIREMENTS:
+- Every word, question, option, explanation, and the topic must be written in 100% pure Bengali script (বাংলা Unicode).
+- Do NOT mix English, Hindi (Devanagari), or any other script inside Bengali words or sentences.
+- All technical terms must be transliterated into Bengali script (e.g., use 'ইউপিএসসি' instead of 'UPSC').
+- Do NOT use any English/Latin characters (a-z, A-Z) or Hindi/Devanagari characters anywhere in the JSON response.
+- Translate the topic title itself into Bengali.
+- Ensure proper Unicode encoding.`
+        },
+        'hi': {
+            name: 'Hindi',
+            script: 'हिन्दी',
+            instruction: `CRITICAL HINDI LANGUAGE REQUIREMENTS:
+- Every word, question, option, explanation, and the topic must be written in 100% pure Hindi script (हिन्दी Devanagari).
+- Do NOT mix English, Bengali, or any other script inside Hindi words or sentences.
+- All technical terms must be transliterated into Devanagari script.
+- Do NOT use any English/Latin characters (a-z, A-Z) anywhere in the JSON response.
+- Translate the topic title itself into Hindi.
+- Ensure proper Unicode encoding.`
+        },
+        'en': {
+            name: 'English',
+            script: 'English',
+            instruction: 'Write all questions, options, and explanations in English.'
+        },
+    };
+
+    const langInfo = languageMap[rawLanguage] || languageMap['bn'];
+    const quizLanguage = langInfo.name;
+
+    const languageRequirement = `
+  ⚠️ MANDATORY LANGUAGE RULE (VIOLATION = FAILURE):
+  ${langInfo.instruction}`;
+
+    let basePromptText = `Create a multiple-choice quiz ${knowledgeBaseContext ? `based on the provided Knowledge Base documents` : `about "${topic}"`}.
   
+  ${knowledgeBaseContext ? `CRITICAL CONTEXT: Generate the questions directly using the facts and information from this knowledge base content: \n${knowledgeBaseContext}\n` : ""}
+
   REQUIREMENTS:
   1. Number of questions: ${questionCount}.
   2. Each question must have EXACTLY 4 options.
@@ -512,7 +560,7 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
   ${languageRequirement}`;
 
     if (customPrompt) {
-        promptText += `\n  5. CUSTOM INSTRUCTIONS FROM USER: ${customPrompt}`;
+        basePromptText += `\n  5. CUSTOM INSTRUCTIONS FROM USER: ${customPrompt}`;
     }
 
     const jsonRequirement = `\n  ${customPrompt ? '6' : '5'}. Output MUST be ONLY valid JSON matching this schema:
@@ -527,114 +575,215 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
     ]
   }`;
 
-    const prompt = promptText + jsonRequirement;
+    // Helper validation function
+    function validateQuizData(data: any): { valid: boolean; reason?: string } {
+      if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+        return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
+      }
 
-    let content = "";
-    console.log(`[auto-schedule] generateAIQuiz: provider=${provider}, model=${model}`);
+      const devanagariRegex = /[\u0900-\u097F]/;
+      const englishLetterRegex = /[a-zA-Z]/;
 
-    if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-            })
-        });
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error(`[auto-schedule] Gemini error (${res.status}):`, errText.substring(0, 200));
-            throw new Error(`Gemini API error (${res.status}): ${errText.substring(0, 200)}`);
+      const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
+        if (typeof val !== "string") return { valid: true };
+        
+        if (rawLanguage === 'bn') {
+          if (devanagariRegex.test(val)) {
+            return { valid: false, reason: `${label} contains Hindi/Devanagari characters (e.g., "${val.match(devanagariRegex)?.[0]}")` };
+          }
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+        } else if (rawLanguage === 'hi') {
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
         }
-        const data = await res.json();
-        content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    } else {
-        const makeOpenRouterRequest = async (useModel: string) => {
-            const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
-            const headers: Record<string, string> = {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            };
-            if (provider !== 'openai') {
-                headers["HTTP-Referer"] = "https://telepost.io";
-                headers["X-Title"] = "TelePost AutoSchedule";
-            }
+        return { valid: true };
+      };
 
+      for (let i = 0; i < data.questions.length; i++) {
+        const q = data.questions[i];
+        const qLabel = `Question ${i + 1}`;
+
+        if (!q.question) {
+          return { valid: false, reason: `${qLabel} is missing question text.` };
+        }
+        const qCheck = checkFieldText(q.question, `${qLabel} text`);
+        if (!qCheck.valid) return qCheck;
+
+        if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+          return { valid: false, reason: `${qLabel} must have exactly 4 options.` };
+        }
+
+        for (let j = 0; j < q.options.length; j++) {
+          const optCheck = checkFieldText(q.options[j], `${qLabel} Option ${j + 1}`);
+          if (!optCheck.valid) return optCheck;
+        }
+
+        if (q.explanation) {
+          const expCheck = checkFieldText(q.explanation, `${qLabel} explanation`);
+          if (!expCheck.valid) return expCheck;
+        }
+
+        if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index > 3) {
+          return { valid: false, reason: `${qLabel} correct_option_index must be between 0 and 3.` };
+        }
+      }
+
+      return { valid: true };
+    }
+
+    let quizData = null;
+    let feedback = "";
+    const maxAttempts = 3;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const prompt = basePromptText + jsonRequirement + (feedback ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedback}` : "");
+        let content = "";
+        console.log(`[auto-schedule] generateAIQuiz attempt ${attempt}/${maxAttempts}: provider=${provider}, model=${model}`);
+
+        if (provider === 'gemini') {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             const res = await fetch(url, {
                 method: "POST",
-                headers,
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: useModel,
-                    messages: [{ role: "user", content: prompt }],
-                    temperature: aiSettings.temperature || 0.7,
+                    contents: [{ parts: [{ text: prompt }] }],
                 })
             });
-
             if (!res.ok) {
                 const errText = await res.text();
-                let errorMsg = `AI API error (${res.status})`;
-                try {
-                    const errJson = JSON.parse(errText);
-                    errorMsg = errJson.error?.message || errJson.message || errorMsg;
-                } catch { errorMsg = errText.substring(0, 300); }
-                return { ok: false as const, errorMsg, status: res.status };
+                throw new Error(`Gemini API error (${res.status}): ${errText.substring(0, 200)}`);
             }
-
             const data = await res.json();
-            return { ok: true as const, content: data.choices?.[0]?.message?.content || "" };
-        };
+            content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } else {
+            const makeOpenRouterRequest = async (useModel: string) => {
+                const url = provider === 'openai' ? "https://api.openai.com/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+                const headers: Record<string, string> = {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                };
+                if (provider !== 'openai') {
+                    headers["HTTP-Referer"] = "https://telepost.io";
+                    headers["X-Title"] = "TelePost AutoSchedule";
+                }
 
-        // Try with configured model first
-        let result = await makeOpenRouterRequest(model);
+                const systemMsg = rawLanguage !== 'en'
+                    ? `You are a Quiz Generator. You MUST output ALL content strictly in ${langInfo.script} (${quizLanguage}). ${langInfo.instruction} Output ONLY valid JSON.`
+                    : `You are a Quiz Generator. Output ONLY valid JSON.`;
 
-        // Auto-retry with fallback if model is dead or no endpoints found
-        if (!result.ok && (result.errorMsg?.includes("No endpoints found") || result.errorMsg?.includes("404") || result.errorMsg?.includes("403"))) {
-            console.warn(`[auto-schedule] Model "${model}" failed/dead. Trying reliable fallbacks...`);
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        model: useModel,
+                        messages: [
+                            { role: "system", content: systemMsg + (feedback ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedback}` : "") },
+                            { role: "user", content: prompt }
+                        ],
+                        temperature: aiSettings.temperature || 0.7,
+                    })
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    let errorMsg = `AI API error (${res.status})`;
+                    try {
+                        const errJson = JSON.parse(errText);
+                        errorMsg = errJson.error?.message || errJson.message || errorMsg;
+                    } catch { 
+                        errorMsg = errText.substring(0, 300);
+                    }
+                    return { ok: false as const, errorMsg, status: res.status };
+                }
+
+                const data = await res.json();
+                const resultText = data.choices?.[0]?.message?.content || "";
+                return { ok: true as const, content: resultText };
+            };
+
+            let result = await makeOpenRouterRequest(model);
+            const isRateLimited = !result.ok && (result.errorMsg?.toLowerCase().includes("rate limit") || result.errorMsg?.includes("429"));
             
-            for (const fallbackModel of RELIABLE_FREE_MODELS) {
-                if (fallbackModel === model) continue;
-                console.log(`[auto-schedule] Retrying with fallback: ${fallbackModel}`);
-                result = await makeOpenRouterRequest(fallbackModel);
-                if (result.ok) {
-                    console.log(`[auto-schedule] Fallback success: ${fallbackModel}`);
-                    break;
+            if (isRateLimited && aiSettings.gemini_api_key) {
+                console.log("[generateAIQuiz] Rate limited on OpenRouter, falling back to direct Gemini API...");
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${aiSettings.gemini_api_key}`;
+                try {
+                    const geminiRes = await fetch(geminiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                        })
+                    });
+                    if (geminiRes.ok) {
+                        const geminiData = await geminiRes.json();
+                        const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                        if (geminiContent) {
+                            console.log("[generateAIQuiz] Direct Gemini fallback success.");
+                            content = geminiContent;
+                        }
+                    }
+                } catch (e) {
+                    console.error("[generateAIQuiz] Direct Gemini fallback failed:", e);
                 }
             }
+
+            if (!content) {
+                if (!result.ok) {
+                    throw new Error(`${provider} API error: ${result.errorMsg} [Model: ${model}]`);
+                }
+                content = result.content;
+            }
         }
 
-        if (!result.ok) {
-            console.error(`[auto-schedule] ${provider} error:`, result.errorMsg);
-            throw new Error(`${provider} API error: ${result.errorMsg} [Model: ${model}]`);
+        if (!content) {
+            throw new Error(`AI returned empty response for quiz generation [Model: ${model}]`);
         }
 
-        content = result.content;
-    }
-
-    if (!content) {
-        throw new Error(`AI returned empty response for quiz generation [Model: ${model}]`);
-    }
-
-    // Parse JSON
-    try {
+        // Parse JSON
         const jsonStr = content.match(/\{[\s\S]*\}/)?.[0] || content;
-        return JSON.parse(jsonStr);
-    } catch (e) {
-        console.error("Failed to parse AI response:", content.substring(0, 300));
-        throw new Error("AI failed to return valid JSON");
+        const parsedData = JSON.parse(jsonStr);
+
+        // Validate
+        const validation = validateQuizData(parsedData);
+        if (validation.valid) {
+            console.log(`[auto-schedule] Quiz validation PASSED on attempt ${attempt}.`);
+            quizData = parsedData;
+            break;
+        } else {
+            console.warn(`[auto-schedule] Quiz validation FAILED on attempt ${attempt}: ${validation.reason}`);
+            feedback = `Your previous output failed quality validation: ${validation.reason}.
+Please regenerate the entire response, ensuring strict adherence to the language rules (100% pure script, absolutely NO characters from other scripts inside the text).`;
+        }
+      } catch (e: any) {
+        console.error(`[auto-schedule] Generation attempt ${attempt} failed:`, e.message);
+        lastError = e;
+        feedback = `Your previous attempt failed with error: ${e.message}. Please try again and ensure output matches the schema and script requirements.`;
+      }
     }
+
+    if (!quizData) {
+        throw new Error(`Failed to generate a valid and high-quality quiz after 3 attempts. Last error: ${lastError?.message || "Unknown error"}`);
+    }
+
+    return quizData;
 }
 
-async function generateAITopic(setting: any, aiSettings: AISettings, supabaseAdmin?: any): Promise<string> {
+async function generateAITopic(setting: any, aiSettings: AISettings, slotIndex: number, supabaseAdmin?: any): Promise<string> {
     const { provider, apiKey, model } = resolveAutoScheduleProvider(aiSettings);
 
     if (!apiKey) throw new Error(`AI API Key missing for ${provider}`);
 
     const channelName = setting.channels?.name || "Educational Channel";
-    const language = setting.language || 'English';
+    const language = setting.language || 'bn';
 
     // --- DETERMINISTIC SUBJECT ROTATION ---
-    // Instead of relying on AI to "randomly" pick subjects (which causes it to repeat Polity),
-    // we force a specific subject category based on day count + time slot.
+    // Focus on the 4 subjects requested by the user: General Science, History, Geography, and Static GK
     const subjectRotation = [
         { category: "General Science - Physics", examples: "Laws of Motion, Light, Sound, Electricity, Units, Thermodynamics, Optics" },
         { category: "Indian History - Ancient & Medieval", examples: "Indus Valley, Maurya, Gupta, Mughal Empire, Vijayanagara, Delhi Sultanate" },
@@ -642,25 +791,29 @@ async function generateAITopic(setting: any, aiSettings: AISettings, supabaseAdm
         { category: "Static GK", examples: "First in India/World, National Symbols, Important Dates, Awards, Books & Authors, UN/WHO/IMF/World Bank" },
         { category: "General Science - Biology", examples: "Human Body Systems, Diseases, Nutrition, Cell Biology, Ecology, Genetics" },
         { category: "Indian History - Modern & Freedom Struggle", examples: "1857 Revolt, Gandhi, Subhas Bose, Independence Movement, Social Reformers" },
-        { category: "Indian Economy", examples: "Five Year Plans, Budget, Banking System, Fiscal Policy, GDP, RBI, SEBI, NABARD" },
+        { category: "Static GK - International Organizations", examples: "UN, WHO, IMF, World Bank, BRICS, ASEAN, SAARC" },
         { category: "General Science - Chemistry", examples: "Elements, Acids & Bases, Chemical Reactions, Periodic Table, pH, Alloys" },
-        { category: "Environmental Studies & Ecology", examples: "Biodiversity, Climate Change, National Parks, Wildlife Sanctuaries, Pollution" },
-        { category: "Indian Polity & Constitution", examples: "Articles, Amendments, Fundamental Rights, Parliament, Judiciary, Panchayati Raj" },
-        { category: "Computer Awareness", examples: "MS Office, Networking, Operating Systems, Internet, Shortcuts, Cyber Security" },
-        { category: "Current Affairs & Static GK", examples: "Government Schemes, Summits, Appointments, Sports Awards, Census, Dams" },
-        { category: "Quantitative Aptitude", examples: "Percentage, Profit & Loss, SI/CI, Ratio, Time & Work, Number System, Averages" },
-        { category: "Reasoning & Logic", examples: "Series, Coding-Decoding, Blood Relations, Direction, Syllogism, Analogy, Venn Diagram" },
+        { category: "World Geography", examples: "Continents, Oceans, Famous Lakes, Deserts, Grasslands, Important Straits" },
+        { category: "Static GK - Sports & Awards", examples: "Olympics, ICC World Cup, Bharat Ratna, Nobel Prize, Oscar, National Sports Awards" },
+        { category: "General Science - Environment & Ecology", examples: "Pollution, Global Warming, Biodiversity, National Parks, Biosphere Reserves" },
+        { category: "Indian History - Important Battles & Treaties", examples: "Panipat, Plassey, Buxar, Kalinga, Anglo-Mysore Wars, Treaties of Amritsar/Salbai" },
+        { category: "Indian Geography - Climate & Natural Vegetation", examples: "Monsoon, Forests, Soil Types, Natural Resources" },
+        { category: "Static GK - Culture & Heritage", examples: "Classical Dances, Folk Art, UNESCO World Heritage Sites in India, Festivals" },
     ];
 
     // Select subject deterministically: rotate through all subjects across days and slots
+    // Using a more stable rotation logic to ensure variety
     const dayCount = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
     const sortedTimes = setting.schedule_times ? [...setting.schedule_times].sort() : [];
+    
+    // Find current slot index
     const slotCount = sortedTimes.length || 1;
-    // Use a prime multiplier to avoid predictable short cycles  
-    const globalIndex = (dayCount * slotCount * 3 + Math.floor(Date.now() / (1000 * 60 * 60))) % subjectRotation.length;
+    
+    // Rotation formula that changes every slot and every day
+    const globalIndex = (dayCount * 7 + slotIndex) % subjectRotation.length;
     const forcedSubject = subjectRotation[globalIndex];
 
-    console.log(`[generateAITopic] Forced subject rotation: index=${globalIndex}, category="${forcedSubject.category}"`);
+    console.log(`[generateAITopic] Forced subject rotation: slot=${slotIndex}, day=${dayCount}, index=${globalIndex}, category="${forcedSubject.category}"`);
 
     // Fetch recently used topics from DB to avoid repetition
     let recentTopicsExclusion = "";
@@ -688,6 +841,15 @@ async function generateAITopic(setting: any, aiSettings: AISettings, supabaseAdm
         }
     }
 
+    // Map language code/name to proper name for topic generation
+    const topicLangMap: Record<string, { name: string; instruction: string }> = {
+        'bn': { name: 'Bengali (বাংলা)', instruction: 'তুমি শুধুমাত্র বাংলায় টপিক দেবে।' },
+        'Bengali': { name: 'Bengali (বাংলা)', instruction: 'তুমি শুধুমাত্র বাংলায় টপিক দেবে।' },
+        'hi': { name: 'Hindi (हिन्दी)', instruction: 'केवल हिंदी में टॉपिक दें।' },
+        'en': { name: 'English', instruction: '' },
+    };
+    const topicLangInfo = topicLangMap[language] || topicLangMap['bn'];
+
     const prompt = `Suggest ONE short, specific, and engaging quiz topic (max 4-5 words) suitable for a Telegram channel named "${channelName}".
 The topic MUST be highly relevant to competitive government job exams (e.g., SSC CGL, CHSL, MTS, UPSC, Railways RRB, Banking IBPS/SBI, State PSC, WBCS, CTET, NDA, CDS).
 
@@ -701,8 +863,8 @@ CONTENT GUIDELINES:
 - Do NOT generate generic/broad topics. Be SPECIFIC within the "${forcedSubject.category}" category.
 ${recentTopicsExclusion}
 
-REQUIRED LANGUAGE: ${language}.
-Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
+⚠️ CRITICAL LANGUAGE REQUIREMENT: The topic MUST be written in ${topicLangInfo.name} script ONLY. ${topicLangInfo.instruction}
+Output ONLY THE TOPIC STRING in ${topicLangInfo.name}, no quotes, no extra text.`;
 
     let content = "";
     console.log(`[auto-schedule] generateAITopic: provider=${provider}, model=${model}`);
@@ -736,12 +898,20 @@ Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
                     headers["X-Title"] = "TelePost AutoSchedule";
                 }
 
+                // System message to enforce topic language
+                const topicSystemMsg = language !== 'en'
+                    ? `You output quiz topics ONLY in ${topicLangInfo.name}. ${topicLangInfo.instruction} Output ONLY the topic, nothing else.`
+                    : `You output quiz topics. Output ONLY the topic, nothing else.`;
+
                 const res = await fetch(url, {
                     method: "POST",
                     headers,
                     body: JSON.stringify({
                         model: useModel,
-                        messages: [{ role: "user", content: prompt }],
+                        messages: [
+                            { role: "system", content: topicSystemMsg },
+                            { role: "user", content: prompt }
+                        ],
                         temperature: aiSettings.temperature || 0.7,
                     })
                 });
@@ -756,34 +926,68 @@ Output ONLY THE TOPIC STRING, no quotes, no extra text.`;
                     return { ok: false as const, errorMsg };
                 }
 
-                const data = await res.json();
-                if (data.error) return { ok: false as const, errorMsg: data.error.message || JSON.stringify(data.error) };
-                return { ok: true as const, content: data.choices?.[0]?.message?.content || "" };
-            };
+            const data = await res.json();
+            if (data.error) return { ok: false as const, errorMsg: data.error.message || JSON.stringify(data.error) };
+            
+            const resultText = data.choices?.[0]?.message?.content || "";
+            if (!resultText) {
+                console.error(`[auto-schedule] Topic Generation: Empty response from ${provider}:`, JSON.stringify(data, null, 2));
+            }
+            return { ok: true as const, content: resultText };
+        };
 
-            let result = await makeTopicRequest(model);
+        let result = await makeTopicRequest(model);
 
-            // Auto-retry with fallback if model is dead or no endpoints found
-            if (!result.ok && (result.errorMsg?.includes("No endpoints found") || result.errorMsg?.includes("404") || result.errorMsg?.includes("403"))) {
-                console.warn(`[generateAITopic] Model "${model}" failed/dead. Trying reliable fallbacks...`);
-                
-                for (const fallbackModel of RELIABLE_FREE_MODELS) {
-                    if (fallbackModel === model) continue;
-                    console.log(`[generateAITopic] Retrying with fallback: ${fallbackModel}`);
-                    result = await makeTopicRequest(fallbackModel);
-                    if (result.ok) {
-                        console.log(`[generateAITopic] Fallback success: ${fallbackModel}`);
-                        break;
+        // Auto-retry with fallback if model is dead or rate limited
+        const isRateLimited = !result.ok && (result.errorMsg?.toLowerCase().includes("rate limit") || result.errorMsg?.includes("429"));
+        const isDeadModel = !result.ok && (result.errorMsg?.includes("No endpoints found") || result.errorMsg?.includes("404") || result.errorMsg?.includes("403"));
+
+        if (isRateLimited || isDeadModel) {
+            console.warn(`[generateAITopic] Model "${model}" failed (RateLimit: ${isRateLimited}). Trying reliable fallbacks...`);
+            
+            // If it's a rate limit on OpenRouter, and we have a Gemini key, try Gemini directly
+            if (isRateLimited && aiSettings.gemini_api_key) {
+                console.log("[generateAITopic] Rate limited on OpenRouter, falling back to direct Gemini API...");
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${aiSettings.gemini_api_key}`;
+                try {
+                    const geminiRes = await fetch(geminiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                        })
+                    });
+                    if (geminiRes.ok) {
+                        const geminiData = await geminiRes.json();
+                        const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                        if (geminiContent) {
+                            console.log("[generateAITopic] Direct Gemini fallback success.");
+                            return geminiContent.trim().replace(/^"|"$/g, '');
+                        }
                     }
+                } catch (e) {
+                    console.error("[generateAITopic] Direct Gemini fallback failed:", e);
                 }
             }
 
-            if (!result.ok) {
-                throw new Error(result.errorMsg);
+            for (const fallbackModel of RELIABLE_FREE_MODELS) {
+                if (fallbackModel === model) continue;
+                console.log(`[generateAITopic] Retrying with fallback: ${fallbackModel}`);
+                result = await makeTopicRequest(fallbackModel);
+                if (result.ok) {
+                    console.log(`[generateAITopic] Fallback success: ${fallbackModel}`);
+                    break;
+                }
             }
-
-            content = result.content;
         }
+
+        if (!result.ok) {
+            console.error(`[auto-schedule] Topic Generation ${provider} error:`, result.errorMsg);
+            throw new Error(result.errorMsg);
+        }
+
+        content = result.content;
+    }
     } catch (apiErr) {
         console.error(`[auto-schedule] AI Topic Generation Error (${provider}, ${model}):`, apiErr);
         throw apiErr;

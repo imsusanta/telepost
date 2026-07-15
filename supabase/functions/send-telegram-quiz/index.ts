@@ -17,13 +17,18 @@ interface TelegramQuizRequest {
       correct_option_index: number;
       explanation?: string;
     }>;
+    metadata?: {
+      language?: string;
+      [key: string]: unknown;
+    };
+    language?: string;
   };
   scheduleInterval?: number | null;
   minQuestionsPerInterval?: number | null;
   instantPoll?: boolean;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -52,7 +57,7 @@ serve(async (req) => {
       );
     }
 
-    const { chatId, channelId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll }: TelegramQuizRequest = await req.json();
+    const { chatId, channelId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll } = await req.json() as TelegramQuizRequest;
 
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
@@ -245,19 +250,24 @@ serve(async (req) => {
       return chars.slice(0, limit - 3).join("") + "...";
     };
 
-    // Detect if questions contain Bengali text
-    const hasBengaliText = quiz.questions.some((q: any) => {
+    // Detect quiz language from metadata or text script
+    const storedLanguage = quiz.metadata?.language || quiz.language || '';
+    const hasBengaliText = storedLanguage === 'bn' || storedLanguage === 'Bengali' || quiz.questions.some((q: any) => {
       const questionText = q.question || '';
-      const isBengali = /[\u0980-\u09FF]/.test(questionText);
-      console.log(`Question: "${questionText.substring(0, 50)}..." -> Bengali: ${isBengali}`);
-      return isBengali;
+      return /[\u0980-\u09FF]/.test(questionText);
     });
-    console.log(`Final hasBengaliText: ${hasBengaliText}`);
+    const hasHindiText = !hasBengaliText && (storedLanguage === 'hi' || storedLanguage === 'Hindi' || quiz.questions.some((q: any) => {
+      const questionText = q.question || '';
+      return /[\u0900-\u097F]/.test(questionText);
+    }));
+    console.log(`Language detection: Bengali=${hasBengaliText}, Hindi=${hasHindiText}, Stored=${storedLanguage}`);
 
-    // Language-aware intro message - Updated 23:55 IST
+    // Language-aware intro message
     const introText = hasBengaliText
       ? `📚 বিষয়: ${quiz.topic}\n\nআপনার জন্য ${quiz.questions.length}টি প্রশ্ন রয়েছে! নীচের প্রশ্নগুলির উত্তর দিন:`
-      : `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the questions below:`;
+      : hasHindiText
+        ? `📚 विषय: ${quiz.topic}\n\nआपके लिए ${quiz.questions.length} प्रश्न! नीचे दिए गए प्रश्नों के उत्तर दें:`
+        : `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the questions below:`;
 
     // Send intro message
     const introResponse = await fetch(`${baseUrl}/sendMessage`, {
@@ -271,7 +281,7 @@ serve(async (req) => {
     });
 
     if (!introResponse.ok) {
-      const introData = await introResponse.json();
+      const introData: any = await introResponse.json();
       console.error("Failed to send intro message:", introData);
 
       let errorMsg = `Telegram Error: ${introData.description || "Failed to start quiz"}`;
@@ -293,7 +303,7 @@ serve(async (req) => {
       while (retries < maxRetries) {
         const response = await fetch(url, options);
         if (response.status === 429) {
-          const data = await response.json();
+          const data: any = await response.json();
           const retryAfter = (data.parameters?.retry_after || 5) * 1000;
           console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
           await new Promise(resolve => setTimeout(resolve, retryAfter));
@@ -369,7 +379,7 @@ serve(async (req) => {
           }),
         });
 
-        const pollData = await pollResponse.json();
+        const pollData: any = await pollResponse.json();
 
         if (!pollResponse.ok) {
           console.error(`Failed to send poll ${i + 1}:`, pollData);

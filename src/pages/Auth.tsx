@@ -136,10 +136,10 @@ export default function Auth() {
   };
 
   const stagger = (i: number) => ({
-    hidden: { opacity: 0, y: 16 },
+    hidden: { opacity: 0, y: 20, scale: 0.97 },
     visible: {
-      opacity: 1, y: 0,
-      transition: { delay: i * 0.07 + 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
+      opacity: 1, y: 0, scale: 1,
+      transition: { delay: i * 0.08 + 0.1, duration: 0.45, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
     }
   });
 
@@ -154,15 +154,19 @@ export default function Auth() {
       >
         <div className="auth-mesh" />
         <div className="auth-grid" />
+        <div className="auth-particles">
+          {[...Array(8)].map((_, i) => <div key={i} className="auth-particle" />)}
+        </div>
         <div className="auth-orb auth-orb-1" />
         <div className="auth-orb auth-orb-2" />
         <div className="auth-orb auth-orb-3" />
 
         {/* Floating stat cards */}
         <motion.div className="auth-float-card auth-float-card-1"
-          initial={{ opacity: 0, scale: 0.8, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.5, type: "spring" }}
+          initial={{ opacity: 0, scale: 0.7, y: 40, rotate: -3 }}
+          animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+          transition={{ delay: 0.9, duration: 0.6, type: "spring", stiffness: 200, damping: 20 }}
+          whileHover={{ scale: 1.06, rotate: -1 }}
         >
           <div className="auth-float-icon" style={{ background: "rgba(74,222,128,0.2)" }}>
             <Zap size={18} color="#4ade80" />
@@ -174,9 +178,10 @@ export default function Auth() {
         </motion.div>
 
         <motion.div className="auth-float-card auth-float-card-2"
-          initial={{ opacity: 0, scale: 0.8, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.5, type: "spring" }}
+          initial={{ opacity: 0, scale: 0.7, y: 40, rotate: 2 }}
+          animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+          transition={{ delay: 1.2, duration: 0.6, type: "spring", stiffness: 200, damping: 20 }}
+          whileHover={{ scale: 1.06, rotate: 1 }}
         >
           <div className="auth-float-icon" style={{ background: "rgba(255,255,255,0.15)" }}>
             <Users size={18} color="#fff" />
@@ -188,9 +193,10 @@ export default function Auth() {
         </motion.div>
 
         <motion.div className="auth-float-card auth-float-card-3"
-          initial={{ opacity: 0, scale: 0.8, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.5, type: "spring" }}
+          initial={{ opacity: 0, scale: 0.7, y: 40, rotate: -2 }}
+          animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+          transition={{ delay: 1.5, duration: 0.6, type: "spring", stiffness: 200, damping: 20 }}
+          whileHover={{ scale: 1.06, rotate: -1 }}
         >
           <div className="auth-float-icon" style={{ background: "rgba(251,191,36,0.2)" }}>
             <BarChart3 size={18} color="#fbbf24" />
@@ -273,9 +279,9 @@ export default function Auth() {
       {/* ── RIGHT PANEL ── */}
       <div className="auth-right">
         <motion.div className="auth-form-wrap"
-          initial={{ opacity: 0, y: 25, scale: 0.97 }}
+          initial={{ opacity: 0, y: 30, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         >
           <button onClick={() => navigate("/")} className="auth-back-btn">
             <ArrowLeft size={14} /> Back to home
@@ -316,10 +322,10 @@ export default function Auth() {
 
           <AnimatePresence mode="wait">
             <motion.div key={activeTab}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
-              transition={{ duration: 0.22 }}
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -18, scale: 0.98 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             >
               {activeTab === "signin" ? (
                 <form onSubmit={handleSignIn} className="auth-form-fields">

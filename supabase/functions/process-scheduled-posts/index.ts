@@ -163,14 +163,21 @@ serve(async (req) => {
           throw new Error("Invalid quiz data: Missing questions");
         }
 
-        const hasBengaliText = post.quiz_data.questions.some((q: any) =>
+        // Detect quiz language from metadata or from text script
+        const storedLanguage = post.quiz_data?.metadata?.language || post.quiz_data?.language || '';
+        const hasBengaliText = storedLanguage === 'bn' || storedLanguage === 'Bengali' || post.quiz_data.questions.some((q: any) =>
           /[\u0980-\u09FF]/.test(q.question || '')
         );
+        const hasHindiText = storedLanguage === 'hi' || storedLanguage === 'Hindi' || (!hasBengaliText && post.quiz_data.questions.some((q: any) =>
+          /[\u0900-\u097F]/.test(q.question || '')
+        ));
 
         // Language-aware intro message
         const introText = hasBengaliText
           ? `📝 *কুইজ: ${post.quiz_data.topic || "সাধারণ"}*\n\n📊 আপনার জন্য ${post.quiz_data.questions.length}টি প্রশ্ন! নীচের প্রশ্নগুলির উত্তর দিন:`
-          : `📝 *Quiz: ${post.quiz_data.topic || "General"}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
+          : hasHindiText
+            ? `📝 *क्विज़: ${post.quiz_data.topic || "सामान्य"}*\n\n📊 आपके लिए ${post.quiz_data.questions.length} प्रश्न! नीचे दिए गए प्रश्नों के उत्तर दें:`
+            : `📝 *Quiz: ${post.quiz_data.topic || "General"}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
 
         // Send intro message
         console.log(`[Post ${post.id}] Sending intro message to ${post.chat_id}`);

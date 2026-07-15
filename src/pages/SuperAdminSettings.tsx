@@ -71,6 +71,8 @@ export default function SuperAdminSettings() {
   const [aiSettings, setAISettings] = useState<AISettings>({
     provider: 'lovable',
     model: 'openai/gpt-4o-mini',
+    image_model: 'openai/dall-e-3',
+    openrouter_image_model: 'openai/dall-e-3',
     temperature: 0.7,
     system_prompt: '',
     openrouter_api_key: '',
@@ -761,6 +763,38 @@ export default function SuperAdminSettings() {
                         Enter the full model slug
                       </p>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="image_model">OpenAI Image Model</Label>
+                      <Input
+                        id="image_model"
+                        value={aiSettings.image_model}
+                        onChange={(e) => setAISettings(prev => ({
+                          ...prev,
+                          image_model: e.target.value.trim(),
+                        }))}
+                        placeholder="e.g., dall-e-3"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Direct OpenAI image model
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="openrouter_image_model">OpenRouter Image Model</Label>
+                      <Input
+                        id="openrouter_image_model"
+                        value={aiSettings.openrouter_image_model || ''}
+                        onChange={(e) => setAISettings(prev => ({
+                          ...prev,
+                          openrouter_image_model: e.target.value.trim(),
+                        }))}
+                        placeholder="e.g., openai/dall-e-3 or black-forest-labs/flux-1-schnell"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Image model for OpenRouter
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -817,7 +851,9 @@ export default function SuperAdminSettings() {
                   <Button
                     onClick={() => setAISettings({
                       provider: 'openrouter',
-                      model: 'openai/gpt-4o-mini',
+                      model: '',
+                      image_model: '',
+                      openrouter_image_model: '',
                       temperature: 0.7,
                       system_prompt: '',
                       openrouter_api_key: '',

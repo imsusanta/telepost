@@ -90,7 +90,7 @@ export default function Scheduler() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [autoProcessEnabled, setAutoProcessEnabled] = useState(true);
+  const [autoProcessEnabled] = useState(true);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const lastAutoProcessRef = useRef<Date | null>(null);

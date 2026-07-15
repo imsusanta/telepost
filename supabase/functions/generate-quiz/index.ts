@@ -17,11 +17,8 @@ const RELIABLE_FREE_MODELS = [
   'deepseek/deepseek-chat:free'
 ];
 
-// Models known to be dead/removed from OpenRouter
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
-
 interface AISettings {
-  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
+  provider: 'openrouter' | 'gemini' | 'openai';
   model: string;
   temperature: number;
   system_prompt?: string;
@@ -51,7 +48,7 @@ async function fetchWithTimeout(resource: string | URL | Request, options: Reque
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAISettings(supabase: any): Promise<AISettings> {
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('system_settings')
       .select('setting_value')
       .eq('setting_key', 'ai_settings')
@@ -68,48 +65,45 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     provider: 'openrouter',
     model: 'google/gemini-2.0-flash-exp:free',
     temperature: 0.7,
-    system_prompt: '',
-    openrouter_api_key: '',
-    gemini_api_key: '',
-    openai_api_key: '',
   };
 }
 
 /**
  * Resolve the best available provider + API key + model.
- * Priority: user-selected provider → fallback to any provider with a key.
  */
 function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKey: string; model: string } {
   const provider = aiSettings.provider || 'openrouter';
   let apiKey = '';
   let finalProvider = provider;
   let model = aiSettings.model;
+  
+  // Add fallback if model is empty to prevent API errors
+  if (!model || model.trim() === '') {
+      if (provider === 'gemini') model = 'gemini-2.0-flash';
+      else if (provider === 'openai') model = 'gpt-4o-mini';
+      else model = 'google/gemini-2.0-flash-exp:free';
+  }
 
-  // Map lovable → openrouter
-  const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
+  const effectiveProvider = (provider as string) === 'lovable' ? 'openrouter' : provider;
 
-  // Try the user's selected provider first
   if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
     apiKey = aiSettings.gemini_api_key;
     finalProvider = 'gemini';
   } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
     apiKey = aiSettings.openai_api_key;
     finalProvider = 'openai';
-  } else if ((effectiveProvider === 'openrouter' || effectiveProvider === 'lovable') && aiSettings.openrouter_api_key) {
+  } else if (effectiveProvider === 'openrouter' && aiSettings.openrouter_api_key) {
     apiKey = aiSettings.openrouter_api_key;
     finalProvider = 'openrouter';
   }
 
-  // FALLBACK: if no key found for the selected provider, try others
+  // FALLBACK
   if (!apiKey) {
     console.warn(`[generate-quiz] No API key for ${effectiveProvider}, trying fallbacks...`);
     if (aiSettings.openrouter_api_key) {
       apiKey = aiSettings.openrouter_api_key;
       finalProvider = 'openrouter';
-      // Keep the model as-is if it looks like an OpenRouter model, otherwise use a free default
-      if (!model.includes('/')) {
-        model = 'google/gemini-2.0-flash-exp:free';
-      }
+      if (!model.includes('/')) model = 'google/gemini-2.0-flash-exp:free';
     } else if (aiSettings.gemini_api_key) {
       apiKey = aiSettings.gemini_api_key;
       finalProvider = 'gemini';
@@ -121,19 +115,16 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
     }
   }
 
-  // Validate OpenRouter model — fallback if dead
-  if (finalProvider === 'openrouter') {
-    const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
-    if (isDead) {
-      console.warn(`[generate-quiz] Model "${model}" is dead, using fallback: ${OPENROUTER_FALLBACK_MODEL}`);
-      model = OPENROUTER_FALLBACK_MODEL;
-    }
+  // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
+  if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+      apiKey = aiSettings.gemini_api_key;
+      finalProvider = 'gemini';
   }
 
   return { finalProvider, apiKey, model };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -187,7 +178,15 @@ serve(async (req) => {
       );
     }
 
-    const requestData = await req.json();
+    const requestData: {
+      topic?: string;
+      questionCount?: number;
+      difficulty?: string;
+      systemPrompt?: string;
+      language?: string;
+      channelId?: string;
+      useChannelKnowledgeBase?: boolean;
+    } = await req.json();
 
     const {
       topic,
@@ -250,7 +249,7 @@ serve(async (req) => {
 
         if (documents && documents.length > 0) {
           knowledgeBaseContext = documents
-            .map(doc => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
+            .map((doc: { title: string; extracted_text?: string }) => `Document: ${doc.title}\n${doc.extracted_text?.substring(0, 2000) || ''}`)
             .join('\n\n---\n\n')
             .substring(0, 8000);
         }
@@ -261,9 +260,21 @@ serve(async (req) => {
     const now = new Date().toISOString();
 
     const languageInstructions: Record<string, string> = {
-      'bn': 'Generate all content in Bengali (বাংলা). Use Bengali script and culturally relevant examples.',
+      'bn': `CRITICAL BENGALI LANGUAGE REQUIREMENTS:
+- Every word, question, option, explanation, and the topic must be written in 100% pure Bengali script (বাংলা Unicode).
+- Do NOT mix English, Hindi (Devanagari), or any other script inside Bengali words or sentences.
+- All technical terms must be transliterated into Bengali script (e.g., use 'ইউপিএসসি' instead of 'UPSC').
+- Do NOT use any English/Latin characters (a-z, A-Z) or Hindi/Devanagari characters anywhere in the JSON response.
+- Translate the topic title itself into Bengali.
+- Ensure proper Unicode encoding.`,
       'en': 'Generate all content in English. Use clear, accessible language.',
-      'hi': 'Generate all content in Hindi (हिन्दी). Use Hindi script and culturally relevant examples.',
+      'hi': `CRITICAL HINDI LANGUAGE REQUIREMENTS:
+- Every word, question, option, explanation, and the topic must be written in 100% pure Hindi script (हिन्दी Devanagari).
+- Do NOT mix English, Bengali, or any other script inside Hindi words or sentences.
+- All technical terms must be transliterated into Devanagari script.
+- Do NOT use any English/Latin characters (a-z, A-Z) anywhere in the JSON response.
+- Translate the topic title itself into Hindi.
+- Ensure proper Unicode encoding.`,
     };
 
     const baseSystemPrompt = `You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
@@ -272,8 +283,10 @@ serve(async (req) => {
     Difficulty: ${difficulty}.
 
     QUESTION QUALITY:
-    - Create clear, unambiguous questions.
-    - Ensure correct answers are verifiable.
+    - Generate only high-quality exam-oriented questions suitable for competitive exams (UPSC, SSC CGL/CHSL/MTS, WBCS, State PSCs, etc.).
+    - Prioritize questions that are based on frequently repeated exam patterns or have previously appeared in real examinations.
+    - Focus on important, high-yield, and high-probability topics/concepts.
+    - Avoid random, trivial, or AI-generated generic filler questions. Every question must be factually accurate and verified.
     - Make wrong options plausible but clearly incorrect.
     
     EXPLANATION FORMAT (IMPORTANT):
@@ -320,47 +333,54 @@ serve(async (req) => {
       "metadata": { "difficulty": "${difficulty}", "generated_at": "${now}" }
     }`;
 
-    let content = '';
+    // content will be assigned from the text variable after AI generation
     const systemPromptFinal = (aiSettings.system_prompt || "") + (finalSystemPrompt || "");
     const startTime = Date.now();
+    let text = "";
+    let lastError = null;
 
-    if (finalProvider === 'gemini') {
-      console.log(`Calling Gemini Direct API for topic "${topic}" with model ${resolvedModel}...`);
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
-      const geminiResponse = await fetchWithTimeout(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `${systemPromptFinal}\n\nUSER PROMPT: ${userPrompt}` }]
-          }],
-          generationConfig: {
-            temperature: aiSettings.temperature || 0.7,
-            maxOutputTokens: 2000,
-          }
-        }),
-        timeout: 45000,
-      });
+    async function attemptGeneration(currentModel: string, currentProvider: string, currentApiKey: string, feedbackPrompt = "") {
+      const combinedPrompt = `${systemPromptFinal}\n\nUSER PROMPT: ${userPrompt}${feedbackPrompt ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedbackPrompt}` : ""}`;
+      
+      if (currentProvider === 'gemini') {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentApiKey}`;
+        const geminiResponse = await fetchWithTimeout(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: combinedPrompt }] }],
+            generationConfig: { temperature: aiSettings.temperature || 0.7, maxOutputTokens: 2000 }
+          }),
+          timeout: 45000,
+        });
 
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        console.error("Gemini Direct Error:", errorText);
-        throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 200)}`);
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text();
+          throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 200)}`);
+        }
+        const geminiData: any = await geminiResponse.json();
+        const resText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!resText) throw new Error("Gemini returned empty response");
+        return resText;
       }
-      const geminiData = await geminiResponse.json();
-      content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (finalProvider === 'openai') {
-      console.log(`Calling OpenAI Direct API for topic "${topic}" with model ${resolvedModel}...`);
-      const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+
+      const fetchUrl = currentProvider === 'openai' ? "https://api.openai.com/v1/chat/completions" : OPENROUTER_API_URL;
+      const headers: Record<string, string> = {
+        "Authorization": `Bearer ${currentApiKey}`,
+        "Content-Type": "application/json",
+      };
+      if (currentProvider !== 'openai') {
+        headers["HTTP-Referer"] = "https://telepost.io";
+        headers["X-Title"] = "TelePost QuizMaker";
+      }
+
+      const res = await fetchWithTimeout(fetchUrl, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
-          model: resolvedModel,
+          model: currentModel,
           messages: [
-            { role: "system", content: systemPromptFinal },
+            { role: "system", content: systemPromptFinal + (feedbackPrompt ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedbackPrompt}` : "") },
             { role: "user", content: userPrompt }
           ],
           temperature: aiSettings.temperature || 0.7,
@@ -368,112 +388,133 @@ serve(async (req) => {
         timeout: 45000,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenAI Direct Error:", errorText);
-        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 200)}`);
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`${currentProvider} error: ${err.substring(0, 200)}`);
       }
-      const data = await response.json();
-      content = data.choices?.[0]?.message?.content;
-    } else {
-      console.log(`Calling OpenRouter API for topic "${topic}" with model ${resolvedModel}...`);
 
-      const makeOpenRouterRequest = async (useModel: string) => {
-        const response = await fetchWithTimeout(OPENROUTER_API_URL, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": supabaseUrl,
-            "X-Title": "TelePost QuizMaker",
-          },
-          body: JSON.stringify({
-            model: useModel,
-            messages: [
-              { role: "system", content: systemPromptFinal },
-              { role: "user", content: userPrompt }
-            ],
-            temperature: aiSettings.temperature || 0.7,
-          }),
-          timeout: 45000,
-        });
+      const data: any = await res.json();
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        return data.choices[0].message.content;
+      } else {
+        throw new Error(`Empty response from ${currentProvider}`);
+      }
+    }
 
-        if (!response.ok) {
-          const errorDetail = await response.text();
-          let errorMessage = `AI Service failure (${response.status})`;
-          try {
-            const errorJson = JSON.parse(errorDetail);
-            errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-          } catch {
-            errorMessage = errorDetail.substring(0, 300) || errorMessage;
+    // Helper validation function
+    function validateQuizData(data: any): { valid: boolean; reason?: string } {
+      if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+        return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
+      }
+
+      const devanagariRegex = /[\u0900-\u097F]/;
+      const englishLetterRegex = /[a-zA-Z]/;
+
+      const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
+        if (typeof val !== "string") return { valid: true };
+        
+        if (language === 'bn') {
+          if (devanagariRegex.test(val)) {
+            return { valid: false, reason: `${label} contains Hindi/Devanagari characters (e.g., "${val.match(devanagariRegex)?.[0]}")` };
           }
-          return { ok: false as const, errorMessage };
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+        } else if (language === 'hi') {
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
         }
-
-        const aiResponse = await response.json();
-        return { ok: true as const, content: aiResponse.choices?.[0]?.message?.content || '' };
+        return { valid: true };
       };
 
-      let result = await makeOpenRouterRequest(resolvedModel);
+      if (data.topic) {
+        const topicCheck = checkFieldText(data.topic, "Topic title");
+        if (!topicCheck.valid) return topicCheck;
+      }
 
-      // Auto-retry with fallback if model is dead or no endpoints found
-      if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
-        console.warn(`[generate-quiz] Model "${resolvedModel}" failed/dead. Trying reliable fallbacks...`);
-        
-        for (const fallbackModel of RELIABLE_FREE_MODELS) {
-          if (fallbackModel === resolvedModel) continue;
-          console.log(`[generate-quiz] Retrying with fallback: ${fallbackModel}`);
-          result = await makeOpenRouterRequest(fallbackModel);
-          if (result.ok) {
-            console.log(`[generate-quiz] Fallback success: ${fallbackModel}`);
-            break;
-          }
+      for (let i = 0; i < data.questions.length; i++) {
+        const q = data.questions[i];
+        const qLabel = `Question ${i + 1}`;
+
+        if (!q.question) {
+          return { valid: false, reason: `${qLabel} is missing question text.` };
+        }
+        const qCheck = checkFieldText(q.question, `${qLabel} text`);
+        if (!qCheck.valid) return qCheck;
+
+        if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+          return { valid: false, reason: `${qLabel} must have exactly 4 options.` };
+        }
+
+        for (let j = 0; j < q.options.length; j++) {
+          const optCheck = checkFieldText(q.options[j], `${qLabel} Option ${j + 1}`);
+          if (!optCheck.valid) return optCheck;
+        }
+
+        if (q.explanation) {
+          const expCheck = checkFieldText(q.explanation, `${qLabel} explanation`);
+          if (!expCheck.valid) return expCheck;
+        }
+
+        if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index > 3) {
+          return { valid: false, reason: `${qLabel} correct_option_index must be between 0 and 3.` };
         }
       }
 
-      if (!result.ok) {
-        return new Response(
-          JSON.stringify({
-            error: `${result.errorMessage} [Model: ${resolvedModel}, Provider: openrouter]`,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      return { valid: true };
+    }
 
-      content = result.content;
+    // Try generation with retry/regeneration loop (up to 3 attempts)
+    let quizData = null;
+    let feedback = "";
+    const maxAttempts = 3;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`[generate-quiz] Generation attempt ${attempt}/${maxAttempts} using ${resolvedModel}...`);
+        text = await attemptGeneration(resolvedModel, finalProvider, apiKey, feedback);
+        
+        if (!text) {
+          throw new Error("AI returned empty response");
+        }
+
+        // JSON parsing
+        let cleanedContent = text.trim();
+        const jsonStart = cleanedContent.indexOf('{');
+        const jsonEnd = cleanedContent.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+        }
+        if (cleanedContent.includes('```')) {
+          cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        }
+
+        quizData = JSON.parse(cleanedContent);
+
+        // Validation
+        const validationResult = validateQuizData(quizData);
+        if (validationResult.valid) {
+          console.log(`[generate-quiz] Validation PASSED on attempt ${attempt}.`);
+          break;
+        } else {
+          console.warn(`[generate-quiz] Validation FAILED on attempt ${attempt}: ${validationResult.reason}`);
+          feedback = `Your previous response failed quality validation: ${validationResult.reason}. 
+Please regenerate the entire response, ensuring strict adherence to the language rules (100% pure script, absolutely NO characters from other scripts inside the text).`;
+          quizData = null;
+        }
+      } catch (e: any) {
+        console.error(`[generate-quiz] Attempt ${attempt} failed with error: ${e.message}`);
+        lastError = e;
+        feedback = `Your previous attempt failed with error: ${e.message}. Please try again and ensure output matches the schema and script requirements.`;
+      }
     }
 
     console.log(`AI responded in ${Date.now() - startTime}ms`);
 
-    if (!content) throw new Error("Empty AI response — the model returned no content. Try a different model.");
-
-    // Robust JSON extraction
-    let quizData;
-    try {
-      let cleanedContent = content.trim();
-
-      // Attempt to extract the first { to the last }
-      const jsonStart = cleanedContent.indexOf('{');
-      const jsonEnd = cleanedContent.lastIndexOf('}');
-
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
-      }
-
-      // Still handle potential backticks if they are inside the extracted range for some reason
-      if (cleanedContent.includes('```')) {
-        cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-      }
-
-      quizData = JSON.parse(cleanedContent);
-    } catch (e: any) {
-      console.error("Parse error. Snippet:", content.substring(0, 200));
-      console.error("Detailed parsing error:", e.message);
-      throw new Error(`Invalid JSON from AI: ${e.message}`);
-    }
-
-    if (!quizData.questions || !Array.isArray(quizData.questions)) {
-      throw new Error("Invalid quiz structure");
+    if (!quizData) {
+      const errorMsg = lastError?.message || "Failed to generate a valid and high-quality quiz after 3 attempts. Please check your AI API configurations or try again.";
+      throw new Error(errorMsg);
     }
 
     // Save to database
@@ -485,7 +526,7 @@ serve(async (req) => {
         topic: topic.substring(0, 200),
         difficulty: difficulty,
         question_count: quizData.questions.length,
-        questions: quizData.questions,
+        questions: quizData.questions.map((doc: Record<string, any>) => ({ ...doc })),
         metadata: { ...quizData.metadata, language, used_knowledge_base: !!knowledgeBaseContext },
         status: "completed",
       });

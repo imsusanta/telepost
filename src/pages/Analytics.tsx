@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Award, BarChart3, Download, FileText, RefreshCw, TrendingUp } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { AnalyticsService, AnalyticsDashboardData } from "@/services/analyticsService";
-import { supabase } from "@/integrations/supabase/client";
+import { AnalyticsService } from "@/services/analyticsService";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,11 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 
 export default function Analytics() {
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const [dateRange, setDateRange] = useState<string>("30");
   const { toast } = useToast();
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["analytics-data", user?.id, dateRange],
     queryFn: async () => {
       const end = new Date();
@@ -69,7 +68,7 @@ export default function Analytics() {
 
   const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -147,8 +146,8 @@ export default function Analytics() {
                 <SelectItem value="365">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isFetching} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">

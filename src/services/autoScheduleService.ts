@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type SourceType = 'question_bank' | 'ai_generated';
+export type SourceType = 'question_bank' | 'ai_generated' | 'knowledge_base';
 
 export interface AutoScheduleSettings {
     id: string;

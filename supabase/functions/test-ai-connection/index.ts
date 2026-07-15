@@ -15,9 +15,6 @@ const RELIABLE_FREE_MODELS = [
   'deepseek/deepseek-chat:free'
 ];
 
-// Models known to be dead/removed from OpenRouter
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -72,7 +69,7 @@ serve(async (req) => {
     let finalProvider = '';
 
     // RULE 1: If model has "gemini", force gemini direct
-    if (testModel.toLowerCase().includes('gemini')) {
+    if (testModel.toLowerCase().includes('gemini') && !testModel.includes('/')) {
       apiKey = gemini_api_key || dbSettings.gemini_api_key;
       finalProvider = 'gemini';
     } else if (provider === 'gemini') {
@@ -90,7 +87,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: false,
         error: `API Key missing for ${finalProvider}. Please configure in Settings → AI.`
-        // NOTE: removed debug field that was leaking DB settings
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -108,13 +104,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, response: "Direct Gemini working!", model: testModel }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // OpenRouter — validate model isn't dead
+    // OpenRouter test
     let modelToTest = testModel;
-    const isDead = DEAD_OPENROUTER_MODELS.some(dead => modelToTest.startsWith(dead) || modelToTest === dead);
-    if (isDead) {
-      console.warn(`[test-ai-connection] Model "${modelToTest}" is dead, testing with fallback`);
-      modelToTest = OPENROUTER_FALLBACK_MODEL;
-    }
 
     const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -129,30 +120,6 @@ serve(async (req) => {
         const errJson = JSON.parse(orText);
         errorMsg = errJson.error?.message || errorMsg;
       } catch { errorMsg = orText.substring(0, 150); }
-
-      // If "No endpoints found" or other connection errors, retry with fallbacks
-      if ((errorMsg.includes("No endpoints found") || errorMsg.includes("404") || errorMsg.includes("403")) && !RELIABLE_FREE_MODELS.includes(modelToTest)) {
-        console.warn(`[test-ai-connection] Model "${modelToTest}" failed/dead, trying reliable fallbacks...`);
-        
-        for (const fallbackModel of RELIABLE_FREE_MODELS) {
-          if (fallbackModel === modelToTest) continue;
-          
-          const retryRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: fallbackModel, messages: [{ role: "user", content: "Say OK" }] })
-          });
-          
-          if (retryRes.ok) {
-            return new Response(JSON.stringify({
-              success: true,
-              response: `OpenRouter working via fallback! (Note: model "${testModel}" is currently unavailable)`,
-              model: fallbackModel,
-              warning: `Configured model "${testModel}" is failing. We automatically switched to "${fallbackModel}" for this test.`
-            }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-          }
-        }
-      }
 
       return new Response(JSON.stringify({ success: false, error: errorMsg }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

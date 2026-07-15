@@ -17,7 +17,6 @@ const RELIABLE_FREE_MODELS = [
     'mistralai/pixtral-12b:free',
     'deepseek/deepseek-chat:free'
 ];
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
 
 interface AISettings {
     provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
@@ -46,6 +45,13 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
     let apiKey = '';
     let finalProvider = provider;
     let model = aiSettings.model;
+    
+    // Add fallback if model is empty to prevent API errors
+    if (!model || model.trim() === '') {
+        if (provider === 'gemini') model = 'gemini-2.0-flash';
+        else if (provider === 'openai') model = 'gpt-4o-mini';
+        else model = OPENROUTER_FALLBACK_MODEL;
+    }
 
     const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
 
@@ -79,18 +85,9 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
     }
 
     // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
-    if (model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+    if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
         apiKey = aiSettings.gemini_api_key;
         finalProvider = 'gemini';
-    }
-
-    // Validate OpenRouter model — fallback if dead
-    if (finalProvider === 'openrouter') {
-        const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
-        if (isDead) {
-            console.warn(`[ai-generate-text] Model "${model}" is dead, using fallback: ${OPENROUTER_FALLBACK_MODEL}`);
-            model = OPENROUTER_FALLBACK_MODEL;
-        }
     }
 
     return { finalProvider, apiKey, model };
@@ -146,40 +143,67 @@ serve(async (req) => {
         if (!apiKey) {
             return new Response(
                 JSON.stringify({ error: `AI সার্ভিস কনফিগার করা হয়নি। Settings এ গিয়ে API Key সেট করুন। (${finalProvider || aiSettings.provider})` }),
-                { status: 200, headers: corsHeaders }
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
         }
 
-        const finalSystemPrompt = (aiSettings.system_prompt || "") + (systemPrompt || "");
-        console.log(`[ai-generate-text] user=${userId}, provider=${finalProvider}, model=${model}`);
-
-        if (finalProvider === 'gemini') {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: `${finalSystemPrompt}\n\nUSER PROMPT: ${prompt}` }] }],
-                    generationConfig: { temperature: aiSettings.temperature || temperature || 0.7 }
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.text();
-                throw new Error(`Gemini API error (${res.status}): ${err.substring(0, 200)}`);
+        // Combine prompts effectively
+        // If a systemPrompt is provided by the frontend, we use it as the primary instruction.
+        // We separate "Global Knowledge/Style" from "Specific Task Instruction".
+        let finalSystemPrompt = "";
+        if (systemPrompt) {
+            // Heuristic: If global prompt is heavily about MCQs but we're doing a post, 
+            // we should emphasize the post instructions.
+            const isQuizPrompt = aiSettings.system_prompt?.toLowerCase().includes('mcq') || aiSettings.system_prompt?.toLowerCase().includes('question');
+            const isPostRequest = systemPrompt.toLowerCase().includes('post') || systemPrompt.toLowerCase().includes('social media');
+            
+            if (isQuizPrompt && isPostRequest) {
+                // If it's a post request but the global prompt is about quizzes, 
+                // we only use the global prompt as a "Style Guide" if it doesn't conflict, 
+                // or we just prepend it but wrap it in a "General Style" block.
+                finalSystemPrompt = `${systemPrompt}\n\n[GENERAL STYLE & LANGUAGE RULES]:\n${aiSettings.system_prompt}`;
+            } else {
+                finalSystemPrompt = systemPrompt + (aiSettings.system_prompt ? "\n\n" : "") + (aiSettings.system_prompt || "");
             }
-            const data = await res.json();
-            return new Response(JSON.stringify({ text: data.candidates?.[0]?.content?.parts?.[0]?.text || '' }), { headers: corsHeaders });
+        } else {
+            finalSystemPrompt = aiSettings.system_prompt || "You are a helpful AI assistant.";
         }
 
-        // OpenAI or OpenRouter with retry-on-dead-model
-        const makeRequest = async (useModel: string) => {
-            const fetchUrl = finalProvider === 'openai' ? "https://api.openai.com/v1/chat/completions" : OPENROUTER_URL;
+        console.log(`Using system prompt: ${finalSystemPrompt.substring(0, 100)}...`);
+        console.log(`[ai-generate-text] user=${userId}, provider=${finalProvider}, model=${model}`);
+
+        async function attemptGeneration(currentModel: string, currentProvider: string, currentApiKey: string) {
+            if (currentProvider === 'gemini') {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentApiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `${finalSystemPrompt}\n\nUSER PROMPT: ${prompt}` }] }],
+                        generationConfig: { 
+                            temperature: aiSettings.temperature || temperature || 0.7,
+                            maxOutputTokens: 2048
+                        }
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(`Gemini error: ${err}`);
+                }
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                if (!text) throw new Error("Gemini returned empty response");
+                return text;
+            }
+
+            // OpenAI or OpenRouter
+            const fetchUrl = currentProvider === 'openai' ? "https://api.openai.com/v1/chat/completions" : OPENROUTER_URL;
             const headers: Record<string, string> = {
-                "Authorization": `Bearer ${apiKey}`,
+                "Authorization": `Bearer ${currentApiKey}`,
                 "Content-Type": "application/json",
             };
-            if (finalProvider !== 'openai') {
-                headers["HTTP-Referer"] = supabaseUrl || "https://telepost.io";
+            if (currentProvider !== 'openai') {
+                headers["HTTP-Referer"] = "https://telepost.io";
                 headers["X-Title"] = "TelePost";
             }
 
@@ -187,7 +211,7 @@ serve(async (req) => {
                 method: "POST",
                 headers,
                 body: JSON.stringify({
-                    model: useModel,
+                    model: currentModel,
                     messages: [
                         { role: "system", content: finalSystemPrompt },
                         { role: "user", content: prompt }
@@ -198,44 +222,78 @@ serve(async (req) => {
 
             if (!res.ok) {
                 const err = await res.text();
-                let errorMessage = `AI Service error (${res.status})`;
-                try {
-                    const errorJson = JSON.parse(err);
-                    errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-                } catch {
-                    errorMessage = err.substring(0, 300) || errorMessage;
-                }
-                return { ok: false as const, errorMessage };
+                throw new Error(`${currentProvider} error: ${err}`);
             }
+
             const data = await res.json();
-            return { ok: true as const, text: data.choices?.[0]?.message?.content || '' };
-        };
-
-        let result = await makeRequest(model);
-
-        // Auto-retry with fallback if model is dead or no endpoints found
-        if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
-            console.warn(`[ai-generate-text] Model "${model}" failed/dead. Trying reliable fallbacks...`);
-            
-            for (const fallbackModel of RELIABLE_FREE_MODELS) {
-                if (fallbackModel === model) continue;
-                console.log(`[ai-generate-text] Retrying with fallback: ${fallbackModel}`);
-                result = await makeRequest(fallbackModel);
-                if (result.ok) {
-                    console.log(`[ai-generate-text] Fallback success: ${fallbackModel}`);
-                    break;
-                }
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content;
+            } else {
+                throw new Error(`Empty response from ${currentProvider}`);
             }
         }
 
-        if (!result.ok) {
-            throw new Error(`${result.errorMessage} [Model: ${model}, Provider: ${finalProvider}]`);
+        let text = "";
+        let lastError = null;
+
+        // Try primary model
+        try {
+            text = await attemptGeneration(model, finalProvider, apiKey);
+        } catch (e) {
+            console.error(`[ai-generate-text] Primary model failed: ${e.message}`);
+            lastError = e;
         }
 
-        return new Response(JSON.stringify({ text: result.text }), { headers: corsHeaders });
+        if (text) {
+            // Log successful usage
+            try {
+                await supabase.from('ai_usage_logs').insert({
+                    user_id: userId,
+                    feature: 'text-generation',
+                    provider: finalProvider,
+                    model: model,
+                    prompt: prompt,
+                    response: text,
+                    status: 'success',
+                    success: true,
+                    tokens_used: 0,
+                    completed_at: new Date().toISOString()
+                });
+            } catch (logError) {
+                console.error('[ai-generate-text] Failed to log usage:', logError);
+            }
 
-    } catch (error: any) {
-        console.error("[ai-generate-text] Error:", error.message);
-        return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: corsHeaders });
+            return new Response(JSON.stringify({ text }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } else {
+            // Log failure
+            const errorMsg = lastError?.message || "No text returned from AI";
+            try {
+                await supabase.from('ai_usage_logs').insert({
+                    user_id: userId,
+                    feature: 'text-generation',
+                    provider: finalProvider,
+                    model: model,
+                    prompt: prompt,
+                    status: 'error',
+                    success: false,
+                    error_message: errorMsg,
+                    metadata: { error: errorMsg }
+                });
+            } catch (logError) {
+                console.error('[ai-generate-text] Failed to log error:', logError);
+            }
+            throw new Error(errorMsg);
+        }
+
+    } catch (error) {
+        console.error('[ai-generate-text] Error:', error);
+        
+        return new Response(JSON.stringify({ 
+            error: error instanceof Error ? error.message : "An unexpected error occurred",
+            stack: error instanceof Error ? error.stack : undefined
+        }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
     }
 });

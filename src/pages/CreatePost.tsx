@@ -43,6 +43,10 @@ import { LoadingState } from "@/components/LoadingState";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+import { KnowledgeBaseSelector } from "@/components/KnowledgeBaseSelector";
+import { Document as AppDocument } from "@/services/documentService";
+import { AIImageGeneratorModal } from "@/components/AIImageGeneratorModal";
+import { Palette } from "lucide-react";
 
 export default function CreatePost() {
     const { toast } = useToast();
@@ -84,12 +88,25 @@ export default function CreatePost() {
     const [isLoadingQb, setIsLoadingQb] = useState(false);
     const [selectedQbQuestionId, setSelectedQbQuestionId] = useState<string | null>(null);
 
+    // AI Advanced Generation state
+    const [aiTone, setAiTone] = useState<"professional" | "casual" | "motivational" | "fun">("professional");
+    const [aiLanguage, setAiLanguage] = useState<"english" | "bengali" | "hindi" | "mix">("bengali");
+    const [aiIncludeEmojis, setAiIncludeEmojis] = useState(true);
+    
+    // Document state
+    const [selectedDoc, setSelectedDoc] = useState<AppDocument | null>(null);
+    const [docPrompt, setDocPrompt] = useState("");
+    const [isDocGenerating, setIsDocGenerating] = useState(false);
+
     // Subscription hook
     const { 
         canAccess, 
         loading: isLoadingSubscription,
         isSuperAdmin
     } = useSubscription();
+
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [hasApiKey, setHasApiKey] = useState(false);
 
     // Question Bank interaction
     const handleSelectQuestion = (question: QuestionBankItem) => {
@@ -119,6 +136,12 @@ export default function CreatePost() {
                     setUserId(user.id);
                     const userChannels = await ChannelService.getUserChannels(user.id);
                     setChannels(userChannels);
+                    
+                    const { data: aiData } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
+                    if (aiData?.setting_value) {
+                        const settings = aiData.setting_value as any;
+                        setHasApiKey(!!settings.gemini_api_key || !!settings.openai_api_key || !!settings.openrouter_api_key);
+                    }
                 }
             } catch (error) {
                 console.error("Error loading user data:", error);
@@ -241,10 +264,22 @@ export default function CreatePost() {
 
         try {
             setIsAiGenerating(true);
+            
+            const systemPrompt = `You are a social media copywriter. 
+            Tone: ${aiTone}
+            Length: medium
+            Language: ${aiLanguage}
+            Include Emojis: ${aiIncludeEmojis ? 'Yes' : 'No'}
+            
+            Write a compelling post based on the user's prompt. Keep it concise and engaging. 
+            You can use bold (*text*) and italics (_text_) sparingly. Use bullet points (*) for lists. 
+            Supports Markdown-style formatting which will be converted for Telegram. 
+            Do not include any title or preamble, just the post content.`;
+
             const { data, error } = await supabase.functions.invoke('ai-generate-text', {
                 body: {
                     prompt: aiPrompt.trim(),
-                    systemPrompt: "You are a social media copywriter. Write a compelling post based on the user's prompt. Keep it concise and engaging. You can use bold (*text*) and italics (_text_) sparingly. Use bullet points (*) for lists. Supports Markdown-style formatting which will be converted for Telegram. Do not include any title or preamble, just the post content."
+                    systemPrompt: systemPrompt
                 }
             });
 
@@ -258,6 +293,7 @@ export default function CreatePost() {
                 });
                 setShowAiInput(false);
                 setAiPrompt("");
+                setPostSource("manual");
             } else {
                 throw new Error(data?.error || "Failed to generate content");
             }
@@ -270,6 +306,72 @@ export default function CreatePost() {
             });
         } finally {
             setIsAiGenerating(false);
+        }
+    };
+
+    const handleGenerateFromDoc = async () => {
+        if (!selectedDoc) {
+            toast({
+                title: "Document required",
+                description: "Please select a document from your library",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (!selectedDoc.extracted_text) {
+            toast({
+                title: "No text found",
+                description: "This document doesn't have any extracted text to work with.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            setIsDocGenerating(true);
+            
+            const prompt = `Based on the following document content, ${docPrompt || "create a summary post for Telegram"}:
+            
+            DOCUMENT CONTENT:
+            ${selectedDoc.extracted_text.substring(0, 5000)}
+            `;
+
+            const systemPrompt = `You are a social media assistant. Extract key information from the document and format it into a compelling Telegram post.
+            Tone: ${aiTone}
+            Language: ${aiLanguage}
+            Include Emojis: ${aiIncludeEmojis ? 'Yes' : 'No'}
+            
+            Do not include any title or preamble, just the post content. Use Markdown for formatting.`;
+
+            const { data, error } = await supabase.functions.invoke('ai-generate-text', {
+                body: {
+                    prompt: prompt,
+                    systemPrompt: systemPrompt
+                }
+            });
+
+            if (error) throw error;
+
+            if (data?.text) {
+                setContent(data.text);
+                toast({
+                    title: "Generated from document! 📄",
+                    description: "AI has extracted key points from your document.",
+                });
+                setPostSource("manual");
+            } else {
+                throw new Error(data?.error || "Failed to generate content");
+            }
+        } catch (error) {
+            console.error("Doc extraction error:", error);
+            toast({
+                title: "Extraction failed",
+                description: error instanceof Error ? error.message : "An error occurred",
+                variant: "destructive",
+            });
+        } finally {
+            setIsDocGenerating(false);
         }
     };
 
@@ -498,7 +600,7 @@ export default function CreatePost() {
                                                     size="sm"
                                                     className={`gap-2 text-xs h-8 ${showAiInput ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
                                                     onClick={() => {
-                                                        if (!hasAiWritingAccess) {
+                                                        if (!hasAiWritingAccess && !isSuperAdmin) {
                                                             toast({
                                                                 title: "Premium Feature",
                                                                 description: "AI writing is only available on Pro plans. Please upgrade to use this feature.",
@@ -542,7 +644,7 @@ export default function CreatePost() {
                                                 </TabsList>
 
                                                 <TabsContent value="manual" className="space-y-4 mt-0">
-                                                    {!hasAiWritingAccess && showAiInput && (
+                                                    {!hasAiWritingAccess && !isSuperAdmin && showAiInput && (
                                                         <Alert className="bg-amber-50 border-amber-200 text-amber-800 mb-4">
                                                             <Info className="h-4 w-4 text-amber-600" />
                                                             <AlertTitle>Upgrade Required</AlertTitle>
@@ -611,39 +713,123 @@ export default function CreatePost() {
                                                 </TabsContent>
 
                                                 <TabsContent value="ai-generate" className="space-y-4 mt-0">
-                                                    <div className="p-8 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center space-y-3 bg-primary/5 border-primary/20">
-                                                        <Sparkles className="h-10 w-10 text-primary animate-pulse" />
-                                                        <div>
-                                                            <h4 className="font-semibold">AI Generated Post</h4>
-                                                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                                                                Generate a complete post with images and formatting using advanced AI.
-                                                            </p>
+                                                    <div className="p-4 border rounded-xl bg-primary/5 border-primary/20 space-y-4">
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <Label className="text-xs">Tone</Label>
+                                                                <Select value={aiTone} onValueChange={(val: any) => setAiTone(val)}>
+                                                                    <SelectTrigger className="h-9">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="professional">Professional</SelectItem>
+                                                                        <SelectItem value="casual">Casual</SelectItem>
+                                                                        <SelectItem value="motivational">Motivational</SelectItem>
+                                                                        <SelectItem value="fun">Fun</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label className="text-xs">Language</Label>
+                                                                <Select value={aiLanguage} onValueChange={(val: any) => setAiLanguage(val)}>
+                                                                    <SelectTrigger className="h-9">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="bengali">Bengali</SelectItem>
+                                                                        <SelectItem value="english">English</SelectItem>
+                                                                        <SelectItem value="hindi">Hindi</SelectItem>
+                                                                        <SelectItem value="mix">Mix (Bn+En)</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
                                                         </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs">Prompt</Label>
+                                                            <Textarea 
+                                                                placeholder="What should this post be about?"
+                                                                value={aiPrompt}
+                                                                onChange={(e) => setAiPrompt(e.target.value)}
+                                                                className="h-20 bg-white dark:bg-slate-950"
+                                                            />
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between py-2">
+                                                            <Label htmlFor="include-emojis" className="text-xs cursor-pointer">Include Emojis</Label>
+                                                            <Switch 
+                                                                id="include-emojis"
+                                                                checked={aiIncludeEmojis}
+                                                                onCheckedChange={setAiIncludeEmojis}
+                                                            />
+                                                        </div>
+
                                                         <Button 
-                                                            variant="outline" 
-                                                            className="border-primary/30 text-primary hover:bg-primary/10"
-                                                            onClick={() => toast({ title: "Coming Soon", description: "Advanced AI Generation is being finalized." })}
+                                                            className="w-full gap-2"
+                                                            onClick={handleGenerateWithAi}
+                                                            disabled={isAiGenerating || !aiPrompt.trim()}
                                                         >
-                                                            Launch Generator
+                                                            {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                                            Generate Post
                                                         </Button>
                                                     </div>
                                                 </TabsContent>
 
                                                 <TabsContent value="documents" className="space-y-4 mt-0">
-                                                    <div className="p-8 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-center space-y-3 bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-900">
-                                                        <FileText className="h-10 w-10 text-purple-600 animate-bounce" />
-                                                        <div>
-                                                            <h4 className="font-semibold text-purple-900 dark:text-purple-300">Generate from Documents</h4>
-                                                            <p className="text-sm text-purple-700/70 dark:text-purple-400 max-w-xs mx-auto text-balance">
-                                                                Extract key points from your PDFs and documents to create engaging posts.
-                                                            </p>
+                                                    <div className="p-4 border rounded-xl bg-purple-50/50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-900 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText className="h-5 w-5 text-purple-600" />
+                                                                <span className="font-semibold text-sm">Source Document</span>
+                                                            </div>
+                                                            <KnowledgeBaseSelector 
+                                                                onSelect={(doc: any) => setSelectedDoc(doc)}
+                                                                trigger={
+                                                                    <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 bg-white hover:bg-purple-50">
+                                                                        {selectedDoc ? "Change" : "Select Document"}
+                                                                    </Button>
+                                                                }
+                                                            />
                                                         </div>
+
+                                                        {selectedDoc ? (
+                                                            <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-purple-100 flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-2 bg-purple-100 rounded text-purple-600">
+                                                                        <FileText className="h-4 w-4" />
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-xs font-medium truncate max-w-[150px]">{selectedDoc.title || selectedDoc.file_name}</p>
+                                                                        <p className="text-[10px] text-muted-foreground">{(selectedDoc.file_size_bytes / 1024 / 1024).toFixed(2)} MB</p>
+                                                                    </div>
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setSelectedDoc(null)}>
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="py-8 text-center border-2 border-dashed rounded-lg border-purple-100 bg-white/50">
+                                                                <p className="text-xs text-muted-foreground">No document selected</p>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs">Extraction Prompt (Optional)</Label>
+                                                            <Input 
+                                                                placeholder="E.g., 'Summarize key points for students'"
+                                                                value={docPrompt}
+                                                                onChange={(e) => setDocPrompt(e.target.value)}
+                                                                className="h-9 bg-white dark:bg-slate-950"
+                                                            />
+                                                        </div>
+
                                                         <Button 
-                                                            variant="outline" 
-                                                            className="border-purple-300 text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:text-purple-400"
-                                                            onClick={() => toast({ title: "Coming Soon", description: "Document integration is being finalized." })}
+                                                            className="w-full gap-2 bg-purple-600 hover:bg-purple-700"
+                                                            onClick={handleGenerateFromDoc}
+                                                            disabled={isDocGenerating || !selectedDoc}
                                                         >
-                                                            Select Document
+                                                            {isDocGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                                            Extract & Generate
                                                         </Button>
                                                     </div>
                                                 </TabsContent>
@@ -728,20 +914,33 @@ export default function CreatePost() {
                                                         Click to upload image<br />
                                                         <span className="text-xs">Max 10MB</span>
                                                     </p>
-                                                    <label className="cursor-pointer">
-                                                        <Button variant="outline" size="sm" asChild>
-                                                            <span>
-                                                                <Upload className="mr-1 h-3.5 w-3.5" />
-                                                                Upload
-                                                            </span>
+                                                    <div className="flex gap-2">
+                                                        <label className="cursor-pointer">
+                                                            <Button variant="outline" size="sm" asChild>
+                                                                <span>
+                                                                    <Upload className="mr-1 h-3.5 w-3.5" />
+                                                                    Upload
+                                                                </span>
+                                                            </Button>
+                                                            <Input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={handleFileSelect}
+                                                                className="hidden"
+                                                            />
+                                                        </label>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="sm" 
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                setIsImageModalOpen(true);
+                                                            }}
+                                                        >
+                                                            <Palette className="mr-1 h-3.5 w-3.5 text-primary" />
+                                                            Generate AI Image
                                                         </Button>
-                                                        <Input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            onChange={handleFileSelect}
-                                                            className="hidden"
-                                                        />
-                                                    </label>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -879,6 +1078,15 @@ export default function CreatePost() {
                 </Tabs>
             </div>
 
+            <AIImageGeneratorModal 
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
+                onUseImage={(url) => {
+                    setImagePreviewUrl(url);
+                    setSelectedFile(null); // Clear any uploaded file when using AI generated image
+                }}
+                hasApiKey={hasApiKey}
+            />
         </DashboardLayout>
     );
 }

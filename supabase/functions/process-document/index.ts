@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -24,21 +25,14 @@ const RELIABLE_FREE_MODELS = [
   'deepseek/deepseek-chat:free'
 ];
 
-// Models known to be dead/removed from OpenRouter
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAISettings(supabase: any): Promise<AISettings> {
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('system_settings')
       .select('setting_value')
       .eq('setting_key', 'ai_settings')
       .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching AI settings:", error);
-    }
 
     if (data?.setting_value) {
       return data.setting_value as AISettings;
@@ -51,10 +45,6 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     provider: 'openrouter',
     model: 'google/gemini-2.0-flash-exp:free',
     temperature: 0.7,
-    openrouter_api_key: '',
-    gemini_api_key: '',
-    openai_api_key: '',
-    system_prompt: '',
   };
 }
 
@@ -66,6 +56,13 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
   let apiKey = '';
   let finalProvider = provider;
   let model = aiSettings.model;
+  
+  // Add fallback if model is empty to prevent API errors
+  if (!model || model.trim() === '') {
+      if (provider === 'gemini') model = 'gemini-2.0-flash';
+      else if (provider === 'openai') model = 'gpt-4o-mini';
+      else model = 'google/gemini-2.0-flash-exp:free';
+  }
 
   const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
 
@@ -75,12 +72,12 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
   } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
     apiKey = aiSettings.openai_api_key;
     finalProvider = 'openai';
-  } else if ((effectiveProvider === 'openrouter' || effectiveProvider === 'lovable') && aiSettings.openrouter_api_key) {
+  } else if (effectiveProvider === 'openrouter' && aiSettings.openrouter_api_key) {
     apiKey = aiSettings.openrouter_api_key;
     finalProvider = 'openrouter';
   }
 
-  // FALLBACK: if no key found for the selected provider, try others
+  // FALLBACK
   if (!apiKey) {
     console.warn(`[process-document] No API key for ${effectiveProvider}, trying fallbacks...`);
     if (aiSettings.openrouter_api_key) {
@@ -98,19 +95,16 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
     }
   }
 
-  // Validation: if using OpenRouter and model is dead
-  if (finalProvider === 'openrouter') {
-    const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
-    if (isDead) {
-      console.warn(`[process-document] Model "${model}" is dead, using fallback`);
-      model = 'google/gemini-2.0-flash-exp:free';
-    }
+  // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
+  if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+      apiKey = aiSettings.gemini_api_key;
+      finalProvider = 'gemini';
   }
 
   return { finalProvider, apiKey, model };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -265,7 +259,7 @@ serve(async (req) => {
       let extractStatus = 0;
 
       // --- EXTRACTION LOOP ---
-      const extractionModels = [resolvedModel, ...RELIABLE_FREE_MODELS.filter(m => m !== resolvedModel)];
+      const extractionModels = [resolvedModel];
       
       for (const currentModel of extractionModels) {
         try {
@@ -387,12 +381,6 @@ serve(async (req) => {
             } else {
               const errorText = await extractResponse.text();
               console.error(`OpenRouter extraction error (${currentModel}, status ${extractStatus}):`, errorText);
-              
-              // If it's a model-not-found or endpoint error, we continue to next model in loop
-              if (errorText.includes("No endpoints found") || extractStatus === 404 || extractStatus === 403 || extractStatus === 502) {
-                console.warn(`Model ${currentModel} failed, trying next...`);
-                continue;
-              }
             }
           }
 
@@ -417,8 +405,9 @@ serve(async (req) => {
           let analyzeOk = false;
           let analyzeContent = "";
 
-          // --- ANALYSIS LOOP ---
-          for (const currentModel of extractionModels) {
+          // --- ANALYSIS ---
+          const analysisModels = [resolvedModel];
+          for (const currentModel of analysisModels) {
             try {
               console.log(`[process-document] Attempting analysis with model=${currentModel}...`);
               

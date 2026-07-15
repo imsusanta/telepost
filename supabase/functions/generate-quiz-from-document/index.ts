@@ -18,9 +18,6 @@ const RELIABLE_FREE_MODELS = [
   'deepseek/deepseek-chat:free'
 ];
 
-// Models known to be dead/removed from OpenRouter
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
-
 interface AISettings {
   provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
@@ -67,6 +64,13 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
   let finalProvider = provider;
   let model = aiSettings.model;
 
+  // Add fallback if model is empty to prevent API errors
+  if (!model || model.trim() === '') {
+      if (provider === 'gemini') model = 'gemini-2.0-flash';
+      else if (provider === 'openai') model = 'gpt-4o-mini';
+      else model = 'google/gemini-2.0-flash-exp:free';
+  }
+
   const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
 
   if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
@@ -97,13 +101,10 @@ function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKe
     }
   }
 
-  // Validate OpenRouter model — fallback if dead
-  if (finalProvider === 'openrouter') {
-    const isDead = DEAD_OPENROUTER_MODELS.some(dead => model.startsWith(dead) || model === dead);
-    if (isDead) {
-      console.warn(`[generate-quiz-from-doc] Model "${model}" is dead, using fallback: ${OPENROUTER_FALLBACK_MODEL}`);
-      model = OPENROUTER_FALLBACK_MODEL;
-    }
+  // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
+  if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+      apiKey = aiSettings.gemini_api_key;
+      finalProvider = 'gemini';
   }
 
   return { finalProvider, apiKey, model };
@@ -227,40 +228,46 @@ serve(async (req) => {
 
     console.log(`Calling ${finalProvider} for topic "${topic || 'Document'}" with model ${resolvedModel}...`);
     const startTime = Date.now();
-    let content = '';
+    let text = "";
+    let lastError = null;
 
-    if (finalProvider === 'gemini') {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
-      const geminiResponse = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `${baseSystemPromptFinal}\n\nUSER PROMPT: ${userPrompt}` }]
-          }],
-          generationConfig: {
-            temperature: aiSettings.temperature || 0.7,
-            maxOutputTokens: 2048,
-          }
-        })
-      });
+    async function attemptGeneration(currentModel: string, currentProvider: string, currentApiKey: string) {
+      if (currentProvider === 'gemini') {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentApiKey}`;
+        const geminiResponse = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${baseSystemPromptFinal}\n\nUSER PROMPT: ${userPrompt}` }] }],
+            generationConfig: { temperature: aiSettings.temperature || 0.7, maxOutputTokens: 2048 }
+          })
+        });
 
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        console.error("Gemini Direct Error:", errorText);
-        throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 200)}`);
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text();
+          throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 200)}`);
+        }
+        const geminiData = await geminiResponse.json();
+        const resText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!resText) throw new Error("Gemini returned empty response");
+        return resText;
       }
-      const geminiData = await geminiResponse.json();
-      content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (finalProvider === 'openai') {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+
+      const fetchUrl = currentProvider === 'openai' ? "https://api.openai.com/v1/chat/completions" : OPENROUTER_URL;
+      const headers: Record<string, string> = {
+        "Authorization": `Bearer ${currentApiKey}`,
+        "Content-Type": "application/json",
+      };
+      if (currentProvider !== 'openai') {
+        headers["HTTP-Referer"] = "https://telepost.io";
+        headers["X-Title"] = "TelePost QuizMaker";
+      }
+
+      const res = await fetch(fetchUrl, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
-          model: resolvedModel,
+          model: currentModel,
           messages: [
             { role: "system", content: baseSystemPromptFinal },
             { role: "user", content: userPrompt }
@@ -269,76 +276,44 @@ serve(async (req) => {
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenAI Direct Error:", errorText);
-        throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 200)}`);
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`${currentProvider} error: ${err.substring(0, 200)}`);
       }
-      const data = await response.json();
-      content = data.choices?.[0]?.message?.content;
-    } else {
-      // OpenRouter with retry-on-dead-model
-      const makeRequest = async (useModel: string) => {
-        const response = await fetch(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": supabaseUrl,
-            "X-Title": "TelePost QuizMaker",
-          },
-          body: JSON.stringify({
-            model: useModel,
-            messages: [
-              { role: "system", content: baseSystemPromptFinal },
-              { role: "user", content: userPrompt }
-            ],
-            temperature: aiSettings.temperature || 0.7,
-          }),
-        });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage = `AI Service failure (${response.status})`;
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-          } catch {
-            errorMessage = errorText.substring(0, 300) || errorMessage;
-          }
-          return { ok: false as const, errorMessage };
-        }
+      const data = await res.json();
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        return data.choices[0].message.content;
+      } else {
+        throw new Error(`Empty response from ${currentProvider}`);
+      }
+    }
 
-        const aiData = await response.json();
-        return { ok: true as const, content: aiData.choices?.[0]?.message?.content || '' };
-      };
+    // Try primary model
+    try {
+      text = await attemptGeneration(resolvedModel, finalProvider, apiKey);
+    } catch (e) {
+      console.error(`[generate-quiz-from-doc] Primary model failed: ${e.message}`);
+      lastError = e;
 
-      let result = await makeRequest(resolvedModel);
-
-      // Auto-retry with fallback if model is dead or no endpoints found
-      if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
-        console.warn(`[generate-quiz-from-doc] Model "${resolvedModel}" failed/dead. Trying reliable fallbacks...`);
-        
+      // Fallback to reliable models if using OpenRouter
+      if (finalProvider === 'openrouter' || finalProvider === 'lovable') {
+        console.log("[generate-quiz-from-doc] Attempting fallbacks...");
         for (const fallbackModel of RELIABLE_FREE_MODELS) {
           if (fallbackModel === resolvedModel) continue;
-          console.log(`[generate-quiz-from-doc] Retrying with fallback: ${fallbackModel}`);
-          result = await makeRequest(fallbackModel);
-          if (result.ok) {
-            console.log(`[generate-quiz-from-doc] Fallback success: ${fallbackModel}`);
-            break;
+          try {
+            console.log(`[generate-quiz-from-doc] Trying fallback: ${fallbackModel}`);
+            text = await attemptGeneration(fallbackModel, 'openrouter', apiKey);
+            if (text) break;
+          } catch (fallbackError) {
+            console.error(`[generate-quiz-from-doc] Fallback ${fallbackModel} failed: ${fallbackError.message}`);
+            lastError = fallbackError;
           }
         }
       }
-
-      if (!result.ok) {
-        return new Response(
-          JSON.stringify({ error: `${result.errorMessage} [Model: ${resolvedModel}]` }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      content = result.content;
     }
+
+    const content = text;
 
     console.log(`AI responded in ${Date.now() - startTime}ms`);
 

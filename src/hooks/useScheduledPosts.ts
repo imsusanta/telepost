@@ -105,7 +105,7 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     fetchStatistics();
 
     // Set up real-time subscription with user filtering
-    const channel = SchedulerService.subscribeToScheduledPosts(userId, (post, eventType) => {
+    const channel = SchedulerService.subscribeToScheduledPosts(userId, (_post, _eventType) => {
       // For simplicity in pagination, we'll refetch when real-time updates occur
       // to ensure the list and pagination state stay in sync
       fetchScheduledPosts();

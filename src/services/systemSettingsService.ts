@@ -28,6 +28,8 @@ export interface SystemMaintenance {
 export interface AISettings {
   provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
+  image_model: string;
+  openrouter_image_model?: string;
   temperature: number;
   system_prompt?: string;
   openrouter_api_key?: string;
@@ -99,14 +101,16 @@ export async function getAllSettings(): Promise<SystemSettings> {
       maintenance_mode: false,
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
-    ai_settings: (settings.ai_settings as AISettings) || {
-      provider: 'lovable',
-      model: 'openai/gpt-4o-mini',
-      temperature: 0.7,
-      system_prompt: '',
-      openrouter_api_key: '',
-      gemini_api_key: '',
-      openai_api_key: '',
+    ai_settings: {
+      provider: (settings.ai_settings as AISettings)?.provider || 'openrouter',
+      model: (settings.ai_settings as AISettings)?.model || '',
+      image_model: (settings.ai_settings as AISettings)?.image_model || '',
+      openrouter_image_model: (settings.ai_settings as AISettings)?.openrouter_image_model || '',
+      temperature: (settings.ai_settings as AISettings)?.temperature ?? 0.7,
+      system_prompt: (settings.ai_settings as AISettings)?.system_prompt || '',
+      openrouter_api_key: (settings.ai_settings as AISettings)?.openrouter_api_key || '',
+      gemini_api_key: (settings.ai_settings as AISettings)?.gemini_api_key || '',
+      openai_api_key: (settings.ai_settings as AISettings)?.openai_api_key || '',
     },
     telegram_settings: (settings.telegram_settings as TelegramSettings) || {
       global_bot_token: '',
@@ -220,14 +224,16 @@ export async function toggleMaintenanceMode(enabled: boolean): Promise<void> {
  */
 export async function getAISettings(): Promise<AISettings> {
   const settings = await getSetting('ai_settings');
-  return settings || {
-    provider: 'lovable',
-    model: 'openai/gpt-4o-mini',
-    temperature: 0.7,
-    system_prompt: '',
-    openrouter_api_key: '',
-    gemini_api_key: '',
-    openai_api_key: '',
+  return {
+    provider: settings?.provider || 'openrouter',
+    model: settings?.model || '',
+    image_model: settings?.image_model || '',
+    openrouter_image_model: settings?.openrouter_image_model || '',
+    temperature: settings?.temperature ?? 0.7,
+    system_prompt: settings?.system_prompt || '',
+    openrouter_api_key: settings?.openrouter_api_key || '',
+    gemini_api_key: settings?.gemini_api_key || '',
+    openai_api_key: settings?.openai_api_key || '',
   };
 }
 

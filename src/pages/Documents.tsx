@@ -232,23 +232,7 @@ export default function Documents() {
     });
   };
 
-  const handleGenerateQuiz = (doc: Document) => {
-    if (doc.processing_status !== "completed") {
-      toast({
-        title: "Document Processing",
-        description: "Please wait for the document to finish processing before generating a quiz",
-        variant: "default",
-      });
-      return;
-    }
-    // Navigate to quiz generation with the document pre-selected
-    const params = new URLSearchParams();
-    params.set("document", doc.id);
-    if (doc.channel_id) {
-      params.set("channel", doc.channel_id);
-    }
-    navigate(`/generate?${params.toString()}`);
-  };
+
 
   // Filter documents by search query
   const filteredDocuments = documents.filter(doc =>

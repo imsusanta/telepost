@@ -15,8 +15,6 @@ const RELIABLE_FREE_MODELS = [
   'mistralai/pixtral-12b:free',
   'deepseek/deepseek-chat:free'
 ];
-const DEAD_OPENROUTER_MODELS = ['arcee-ai/'];
-
 interface AISettings {
   provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
   model: string;
@@ -38,20 +36,6 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 
     if (data?.setting_value) {
       const settings = data.setting_value as AISettings;
-
-      // Allow Gemini models explicitly
-      if (settings.model.includes('gemini')) {
-        return settings;
-      }
-
-      // Force gpt-4o-mini if provider is lovable or using an old-style model
-      if (settings.provider === 'lovable' || settings.model.includes('glm-4.5-air')) {
-        return {
-          ...settings,
-          provider: 'lovable',
-          model: 'openai/gpt-4o-mini'
-        };
-      }
       return settings;
     }
   } catch (error) {
@@ -157,8 +141,15 @@ serve(async (req) => {
 
     const aiSettings = await getAISettings(supabase);
 
-    const testModel = aiSettings.model;
+    let model = aiSettings.model;
     const provider = aiSettings.provider || 'openrouter';
+
+    // Add fallback if model is empty to prevent API errors
+    if (!model || model.trim() === '') {
+        if (provider === 'gemini') model = 'gemini-2.0-flash';
+        else if (provider === 'openai') model = 'gpt-4o-mini';
+        else model = 'google/gemini-2.0-flash-exp:free';
+    }
 
     // Choose key based on provider
     let apiKey = '';
@@ -175,7 +166,7 @@ serve(async (req) => {
       finalProvider = 'openrouter';
     } else {
       // Auto-detect if provider is unknown or missing
-      if (testModel.toLowerCase().includes('gemini')) {
+      if (model.toLowerCase().includes('gemini')) {
         finalProvider = 'gemini';
         apiKey = aiSettings.gemini_api_key!;
       } else {
@@ -184,11 +175,17 @@ serve(async (req) => {
       }
     }
 
+    // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
+    if (model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
+        apiKey = aiSettings.gemini_api_key;
+        finalProvider = 'gemini';
+    }
+
     if (!apiKey) {
       throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
     }
 
-    console.log(`Using ${finalProvider} with model: ${aiSettings.model}`);
+    console.log(`Using ${finalProvider} with model: ${model}`);
 
     // Process each channel
     for (const channel of channels as Channel[]) {
@@ -255,7 +252,7 @@ serve(async (req) => {
 
         // Generate quiz
         const quiz = await generateQuizForChannel(
-          aiSettings.model,
+          model,
           apiKey,
           finalProvider,
           channel,
@@ -516,9 +513,11 @@ function generateChannelSystemPrompt(channel: Channel, knowledgeBase: string): s
   const language = channel.settings.default_language;
 
   const languageInstructions: Record<string, string> = {
-    'bn': 'Generate all content in Bengali (বাংলা). Use Bengali script and culturally relevant examples.',
+    'bn': `Generate ALL content in Bengali (বাংলা). Use Bengali script for EVERY word.
+⚠️ তুমি শুধুমাত্র বাংলায় উত্তর দেবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ বাংলায় লিখতে হবে। ইংরেজি ভাষা একেবারেই ব্যবহার করবে না।`,
     'en': 'Generate all content in English. Use clear, accessible language.',
-    'hi': 'Generate all content in Hindi (हिन्दी). Use Hindi script and culturally relevant examples.',
+    'hi': `Generate ALL content in Hindi (हिन्दी). Use Hindi/Devanagari script for EVERY word.
+⚠️ आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।`,
   };
 
   let prompt = `You are a specialized quiz generator for "${subject}".
@@ -578,11 +577,18 @@ If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.
 
 ${systemPrompt}`;
 
-  // Language-specific instructions
+  // Language-specific instructions — VERY strong enforcement
   const languageInstructions: Record<string, string> = {
-    'bn': 'ALL questions, options, and explanations MUST be written in Bengali (বাংলা).',
+    'bn': `⚠️ MANDATORY: ALL content (questions, options, explanations) MUST be in Bengali (বাংলা). 
+- প্রতিটি শব্দ বাংলা হরফে লিখতে হবে। 
+- ইংরেজি শব্দ বা হরফ একেবারেই ব্যবহার করা যাবে না (No English words or script allowed). 
+- Technical terms MUST be transliterated into Bengali script (e.g., write "ফোটোসিন্থেসিস" instead of "Photosynthesis").
+- Avoid mixing English words even in explanations.`,
     'en': 'ALL questions, options, and explanations MUST be written in English.',
-    'hi': 'ALL questions, options, and explanations MUST be written in Hindi (हिन्दी).',
+    'hi': `⚠️ MANDATORY: ALL questions, options, and explanations MUST be in Hindi (हिन्दी). 
+- हर शब्द हिंदी/देवनागरी लिपि में होना चाहिए। 
+- अंग्रेज़ी शब्दों का प्रयोग न करें। 
+- तकनीकी शब्दों को हिंदी लिपि में लिखें।`,
   };
 
   const langInstruction = languageInstructions[language] || languageInstructions['en'];
@@ -639,7 +645,15 @@ ADDITIONAL RULES:
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
   let content = '';
-  const finalSystemPromptCombined = (globalSystemPrompt ? globalSystemPrompt + "\n\n" : "") + baseSystemPrompt;
+
+  // Build a strong native-language system prefix for non-English
+  const nativeLangPrefix: Record<string, string> = {
+    'bn': 'তুমি একজন বাংলা কুইজ জেনারেটর। তুমি শুধুমাত্র বাংলায় উত্তর দেবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ বাংলায় লিখতে হবে। ইংরেজি ভাষা একেবারেই ব্যবহার করবে না।\n',
+    'hi': 'आप एक हिंदी क्विज़ जेनरेटर हैं। आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।\n',
+  };
+  const langPrefix = nativeLangPrefix[language] || '';
+
+  const finalSystemPromptCombined = langPrefix + (globalSystemPrompt ? globalSystemPrompt + "\n\n" : "") + baseSystemPrompt;
 
   if (provider === 'gemini') {
     console.log(`Generating quiz for topic: ${topic} using model: ${model} via Direct Gemini`);
@@ -691,13 +705,7 @@ ADDITIONAL RULES:
     const data = await response.json();
     content = data.choices?.[0]?.message?.content;
   } else {
-    // Validate model isn't dead
     let openRouterModel = model;
-    const isDead = DEAD_OPENROUTER_MODELS.some(dead => openRouterModel.startsWith(dead) || openRouterModel === dead);
-    if (isDead) {
-      console.warn(`[auto-generate-channel-quizzes] Model "${openRouterModel}" dead, using fallback`);
-      openRouterModel = OPENROUTER_FALLBACK_MODEL;
-    }
 
     console.log(`Generating quiz for topic: ${topic} using model: ${openRouterModel} via OpenRouter`);
 
@@ -741,22 +749,6 @@ ADDITIONAL RULES:
     };
 
     let result = await makeRequest(openRouterModel);
-
-    // Auto-retry with fallback if model is dead
-    // Auto-retry with fallback if model is dead or no endpoints found
-    if (!result.ok && (result.errorMessage?.includes("No endpoints found") || result.errorMessage?.includes("404") || result.errorMessage?.includes("403"))) {
-      console.warn(`[auto-generate-channel-quizzes] Model "${openRouterModel}" failed/dead. Trying reliable fallbacks...`);
-      
-      for (const fallbackModel of RELIABLE_FREE_MODELS) {
-        if (fallbackModel === openRouterModel) continue;
-        console.log(`[auto-generate-channel-quizzes] Retrying with fallback: ${fallbackModel}`);
-        result = await makeRequest(fallbackModel);
-        if (result.ok) {
-          console.log(`[auto-generate-channel-quizzes] Fallback success: ${fallbackModel}`);
-          break;
-        }
-      }
-    }
 
     if (!result.ok) {
       throw new Error(result.errorMessage);

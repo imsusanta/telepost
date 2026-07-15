@@ -14,7 +14,8 @@ import {
     Zap,
     Languages,
     ShieldCheck,
-    AlertCircle
+    AlertCircle,
+    FileText
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -256,7 +257,7 @@ export function AutoScheduleCard() {
         setIsInitializing(true);
         try {
             console.log("Initializing system configuration...");
-            const { data, error } = await supabase.functions.invoke('process-auto-schedule', {
+            const { data: _data, error } = await supabase.functions.invoke('process-auto-schedule', {
                 headers: {
                     "X-Telepost-Repair-Secret": "fix-my-config-2026"
                 },
@@ -498,12 +499,18 @@ export function AutoScheduleCard() {
                                                             <span className="font-bold">AI Generated</span>
                                                         </div>
                                                     </SelectItem>
+                                                    <SelectItem value="knowledge_base">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-1.5 bg-purple-500/10 rounded-lg"><FileText className="w-4 h-4 text-purple-600" /></div>
+                                                            <span className="font-bold">Knowledge Base</span>
+                                                        </div>
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
 
-                                        {/* Language Selection - only show for AI Generated */}
-                                        {sourceType === "ai_generated" && (
+                                        {/* Language Selection - only show for AI Generated and Knowledge Base */}
+                                        {(sourceType === "ai_generated" || sourceType === "knowledge_base") && (
                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <Label className="text-xs font-bold text-slate-600 ml-1 flex items-center gap-2">
                                                     <Languages className="w-3 h-3" />
@@ -527,8 +534,8 @@ export function AutoScheduleCard() {
                                             </div>
                                         )}
 
-                                        {/* Custom System Prompt - only show for AI Generated */}
-                                        {sourceType === "ai_generated" && (
+                                        {/* Custom System Prompt - only show for AI Generated and Knowledge Base */}
+                                        {(sourceType === "ai_generated" || sourceType === "knowledge_base") && (
                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <Label className="text-xs font-bold text-slate-600 ml-1 flex items-center gap-2">
                                                     <Settings2 className="w-3 h-3" />
