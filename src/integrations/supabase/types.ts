@@ -1869,6 +1869,36 @@ export type Database = {
           },
         ]
       }
+      reload_loop_events: {
+        Row: {
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          path: string | null
+          reload_count: number | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          path?: string | null
+          reload_count?: number | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          path?: string | null
+          reload_count?: number | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       scheduled_telegram_posts: {
         Row: {
           chat_id: string
