@@ -65,16 +65,26 @@ export default function Auth() {
   };
   const ps = pwStr(password);
 
+  // Support ?next=/... redirect (e.g. OAuth consent flow) — only same-origin relative paths.
+  const nextParam = (() => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("next");
+      return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : null;
+    } catch { return null; }
+  })();
+  const postAuthTarget = nextParam ?? "/dashboard";
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard");
+      if (session) navigate(postAuthTarget);
     }).catch(console.error);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (s) navigate("/dashboard");
+      if (s) navigate(postAuthTarget);
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, postAuthTarget]);
+
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
