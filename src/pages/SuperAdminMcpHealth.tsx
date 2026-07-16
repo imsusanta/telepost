@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, AlertTriangle, ShieldCheck, ShieldAlert } from "lucide-react";
 
 const AUTO_REFRESH_MS = 60_000;
 
@@ -39,9 +39,13 @@ export default function SuperAdminMcpHealth() {
   const set = (id: string, patch: Partial<Check>) =>
     setChecks((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
 
+  const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
+  const [lastAuthChallengeAt, setLastAuthChallengeAt] = useState<Date | null>(null);
+
   const run = useCallback(async () => {
     setRunning(true);
     setChecks(initialChecks);
+    setLastRunAt(new Date());
 
     // 1. Resource metadata
     try {
@@ -69,6 +73,7 @@ export default function SuperAdminMcpHealth() {
         status: ok ? "pass" : "fail",
         detail: `HTTP ${res.status} · WWW-Authenticate: ${www || "(missing)"}`,
       });
+      setLastAuthChallengeAt(new Date());
     } catch (e) {
       set("challenge", { status: "fail", detail: (e as Error).message });
     }
@@ -126,6 +131,18 @@ export default function SuperAdminMcpHealth() {
 
   const passed = checks.filter((c) => c.status === "pass").length;
   const failed = checks.filter((c) => c.status === "fail").length;
+  const pending = checks.filter((c) => c.status === "pending").length;
+  const errors = checks.filter((c) => c.status === "fail");
+  const challengeCheck = checks.find((c) => c.id === "challenge");
+  const overall: "healthy" | "degraded" | "down" | "checking" =
+    pending > 0 ? "checking" : failed === 0 ? "healthy" : challengeCheck?.status === "fail" ? "down" : "degraded";
+  const overallMeta = {
+    healthy: { label: "Operational", cls: "text-green-600 border-green-600/40 bg-green-600/5", Icon: ShieldCheck },
+    degraded: { label: "Degraded", cls: "text-amber-600 border-amber-600/40 bg-amber-600/5", Icon: AlertTriangle },
+    down: { label: "Auth failing", cls: "text-red-600 border-red-600/40 bg-red-600/5", Icon: ShieldAlert },
+    checking: { label: "Checking…", cls: "text-muted-foreground border-border bg-muted/30", Icon: Loader2 },
+  }[overall];
+  const fmt = (d: Date | null) => (d ? d.toLocaleTimeString() : "—");
 
   return (
     <div className="container mx-auto max-w-4xl p-6 space-y-6">
@@ -151,11 +168,47 @@ export default function SuperAdminMcpHealth() {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <Badge variant="outline" className="text-green-600 border-green-600/40">Passed: {passed}</Badge>
-        <Badge variant="outline" className={failed ? "text-red-600 border-red-600/40" : ""}>Failed: {failed}</Badge>
-      </div>
+      <Card className={`border-2 ${overallMeta.cls}`}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start gap-3">
+            <overallMeta.Icon className={`h-6 w-6 mt-0.5 ${overall === "checking" ? "animate-spin" : ""}`} />
+            <div className="flex-1">
+              <CardTitle className="text-lg">MCP connection status: {overallMeta.label}</CardTitle>
+              <CardDescription className="mt-1">
+                {overall === "healthy" && "All checks passing. External MCP clients can complete OAuth and reach tools."}
+                {overall === "degraded" && `${failed} check${failed === 1 ? "" : "s"} failing. Connections may still work but are not fully verified.`}
+                {overall === "down" && "The 401 bearer challenge is failing — MCP clients cannot initiate OAuth."}
+                {overall === "checking" && "Running diagnostics…"}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div><div className="text-muted-foreground">Passed</div><div className="text-lg font-semibold text-green-600">{passed}</div></div>
+          <div><div className="text-muted-foreground">Failed</div><div className={`text-lg font-semibold ${failed ? "text-red-600" : ""}`}>{failed}</div></div>
+          <div><div className="text-muted-foreground">Last check</div><div className="text-sm font-medium">{fmt(lastRunAt)}</div></div>
+          <div><div className="text-muted-foreground">Last auth attempt</div><div className="text-sm font-medium">{fmt(lastAuthChallengeAt)}</div></div>
+        </CardContent>
+      </Card>
 
+      {errors.length > 0 && (
+        <Card className="border-red-600/30 bg-red-600/5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <CardTitle className="text-sm">Error details ({errors.length})</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {errors.map((e) => (
+              <div key={e.id} className="text-xs">
+                <div className="font-medium text-red-600">{e.name}</div>
+                <pre className="mt-1 bg-background/60 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">{e.detail ?? "(no detail)"}</pre>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {checks.map((c) => (
