@@ -6,6 +6,32 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function getKey(): Promise<CryptoKey> {
+    const secret = Deno.env.get("AI_KEY_ENCRYPTION_SECRET");
+    if (!secret) throw new Error("AI_KEY_ENCRYPTION_SECRET not configured");
+    const raw = new TextEncoder().encode(secret);
+    const digest = await crypto.subtle.digest("SHA-256", raw);
+    return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+function fromB64(b64: string): Uint8Array {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+}
+
+async function decryptValue(stored: string): Promise<string> {
+    // Backward-compat: raw plaintext values without the enc:v1: prefix
+    if (!stored.startsWith("enc:v1:")) return stored;
+    const packed = fromB64(stored.slice("enc:v1:".length));
+    const iv = packed.slice(0, 12);
+    const ct = packed.slice(12);
+    const key = await getKey();
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+    return new TextDecoder().decode(pt);
+}
+
 serve(async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -21,8 +47,13 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: "Key not found" }), { status: 400, headers: corsHeaders });
         }
 
-        const apiKey = settings.gemini_api_key_encrypted;
-        const testModel = "gemini-1.5-flash"; // User level tests default to this
+        let apiKey: string;
+        try {
+            apiKey = await decryptValue(settings.gemini_api_key_encrypted);
+        } catch (e) {
+            return new Response(JSON.stringify({ success: false, message: "Failed to decrypt stored key. Please re-save it." }), { status: 200, headers: corsHeaders });
+        }
+        const testModel = "gemini-1.5-flash";
 
         console.log(`[ai-test-connection] Testing Direct Gemini for ${user.id}`);
 
@@ -39,7 +70,8 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ success: true, message: "Connection successful!", model: testModel }), { headers: corsHeaders });
 
-    } catch (error: any) {
-        return new Response(JSON.stringify({ success: false, message: error.message }), { status: 500, headers: corsHeaders });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        return new Response(JSON.stringify({ success: false, message: msg }), { status: 500, headers: corsHeaders });
     }
 });
