@@ -107,14 +107,29 @@ export default function SuperAdminMcpHealth() {
     setRunning(false);
   }, []);
 
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [nextIn, setNextIn] = useState(AUTO_REFRESH_MS / 1000);
+  const runRef = useRef(run);
+  useEffect(() => { runRef.current = run; }, [run]);
+
   useEffect(() => { run(); }, [run]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    setNextIn(AUTO_REFRESH_MS / 1000);
+    const tick = setInterval(() => {
+      setNextIn((n) => (n <= 1 ? AUTO_REFRESH_MS / 1000 : n - 1));
+    }, 1000);
+    const runner = setInterval(() => { runRef.current(); }, AUTO_REFRESH_MS);
+    return () => { clearInterval(tick); clearInterval(runner); };
+  }, [autoRefresh]);
 
   const passed = checks.filter((c) => c.status === "pass").length;
   const failed = checks.filter((c) => c.status === "fail").length;
 
   return (
     <div className="container mx-auto max-w-4xl p-6 space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">MCP Health Check</h1>
           <p className="text-muted-foreground mt-1">
@@ -122,16 +137,25 @@ export default function SuperAdminMcpHealth() {
             (ChatGPT, Claude, Cursor) rely on.
           </p>
         </div>
-        <Button onClick={run} disabled={running} variant="outline">
-          {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Re-run
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+            <Label htmlFor="auto-refresh" className="cursor-pointer text-sm">
+              Auto-refresh {autoRefresh && <span className="text-muted-foreground">({nextIn}s)</span>}
+            </Label>
+          </div>
+          <Button onClick={run} disabled={running} variant="outline">
+            {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Re-run
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-2">
         <Badge variant="outline" className="text-green-600 border-green-600/40">Passed: {passed}</Badge>
         <Badge variant="outline" className={failed ? "text-red-600 border-red-600/40" : ""}>Failed: {failed}</Badge>
       </div>
+
 
       <div className="space-y-3">
         {checks.map((c) => (
