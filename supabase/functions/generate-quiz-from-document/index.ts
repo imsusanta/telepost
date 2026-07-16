@@ -117,14 +117,8 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
 
-  // Method 1: JWT parsing
+  // Only trust the signature-verified identity from Supabase auth
   const token = authHeader.replace('Bearer ', '');
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.sub) return payload.sub;
-  } catch { /* ignore */ }
-
-  // Method 2: supabase auth.getUser
   try {
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (!error && user) return user.id;
@@ -132,6 +126,7 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
 
   return null;
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

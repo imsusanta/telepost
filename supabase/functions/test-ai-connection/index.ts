@@ -34,19 +34,12 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     let userId: string | null = null;
 
-    // JWT parse
+    // Only trust the signature-verified identity from Supabase auth
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      userId = payload.sub;
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (!error && user) userId = user.id;
     } catch { /* ignore */ }
 
-    // Fallback: supabase auth
-    if (!userId) {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        if (!error && user) userId = user.id;
-      } catch { /* ignore */ }
-    }
 
     if (!userId) {
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {

@@ -145,30 +145,15 @@ serve(async (req: Request) => {
       throw new Error("Missing Supabase configuration");
     }
 
-    // Authenticate user - try multiple methods
+    // Authenticate user via signature-verified Supabase auth ONLY
     let authUserId: string | null = null;
-
-    // Method 1: Direct JWT parsing (most reliable)
     const token = authHeader.replace('Bearer ', '');
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      authUserId = payload.sub;
-      console.log("User ID from JWT:", authUserId);
-    } catch (e) {
-      console.error("Could not parse JWT:", e);
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    if (!userError && user) {
+      authUserId = user.id;
     }
 
-    // Method 2: Fallback to supabase auth.getUser
-    if (!authUserId) {
-      const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-
-      if (!userError && user) {
-        authUserId = user.id;
-      }
-    }
 
     if (!authUserId) {
       console.error("All authentication methods failed");
