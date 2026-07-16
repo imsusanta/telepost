@@ -462,9 +462,9 @@ export async function getSubscriptionStats() {
   const subscriptions = subsResult.data;
   const payments = paymentsResult.data || [];
 
-  const totalRevenue = payments
-    .filter(p => p.payment_status === 'captured' || p.payment_status === 'completed' || p.payment_status === 'success')
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenue = (payments as any[])
+    .filter((p: any) => p.payment_status === 'captured' || p.payment_status === 'completed' || p.payment_status === 'success')
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
   const planCounts = plans.map(plan => ({
     planId: plan.id,
