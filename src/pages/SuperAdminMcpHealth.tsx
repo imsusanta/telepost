@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, AlertTriangle, ShieldCheck, ShieldAlert } from "lucide-react";
 
 const AUTO_REFRESH_MS = 60_000;
 
