@@ -105,7 +105,7 @@ export default function Auth() {
         email: email.toLowerCase().trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}${postAuthTarget}`,
           data: { full_name: name, institute_name: sanitizeInput(instituteName.trim()) }
         }
       });
