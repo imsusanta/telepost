@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.increment_quiz_count(uuid) FROM PUBLIC, anon, authenticated;
