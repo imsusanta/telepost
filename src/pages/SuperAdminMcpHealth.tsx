@@ -39,9 +39,13 @@ export default function SuperAdminMcpHealth() {
   const set = (id: string, patch: Partial<Check>) =>
     setChecks((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
 
+  const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
+  const [lastAuthChallengeAt, setLastAuthChallengeAt] = useState<Date | null>(null);
+
   const run = useCallback(async () => {
     setRunning(true);
     setChecks(initialChecks);
+    setLastRunAt(new Date());
 
     // 1. Resource metadata
     try {
