@@ -40,6 +40,7 @@ const SuperAdminSubscriptions = lazy(() => import("./pages/SuperAdminSubscriptio
 
 const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
 const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
+const SuperAdminMcpHealth = lazy(() => import("./pages/SuperAdminMcpHealth"));
 const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
 const Install = lazy(() => import("./pages/Install"));
 const Privacy = lazy(() => import("./pages/Privacy"));
