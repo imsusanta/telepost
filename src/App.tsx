@@ -45,6 +45,8 @@ const Install = lazy(() => import("./pages/Install"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Documentation = lazy(() => import("./pages/Documentation"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+
 
 import { AuthProvider } from "./contexts/AuthContext";
 
