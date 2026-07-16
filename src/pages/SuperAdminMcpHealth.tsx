@@ -73,6 +73,7 @@ export default function SuperAdminMcpHealth() {
         status: ok ? "pass" : "fail",
         detail: `HTTP ${res.status} · WWW-Authenticate: ${www || "(missing)"}`,
       });
+      setLastAuthChallengeAt(new Date());
     } catch (e) {
       set("challenge", { status: "fail", detail: (e as Error).message });
     }
