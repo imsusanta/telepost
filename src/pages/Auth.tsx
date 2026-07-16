@@ -136,11 +136,14 @@ export default function Auth() {
       if (error) throw error;
       localStorage.removeItem('ratelimit_login');
       if (data.session) {
-        await new Promise(r => setTimeout(r, 200));
-        await supabase.auth.getSession();
+        // Explicit navigate — don't rely solely on onAuthStateChange, which may
+        // race with rendering and leave the button spinning indefinitely,
+        // especially when postAuthTarget is a deep path like /.lovable/oauth/consent.
+        navigate(postAuthTarget);
       }
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
+    } finally {
       setLoading(false);
     }
   };
