@@ -64,7 +64,8 @@ serve(async (req) => {
                 payment_status: "success",
                 completed_at: new Date().toISOString(),
             })
-            .eq("razorpay_order_id", razorpay_order_id);
+            .eq("razorpay_order_id", razorpay_order_id)
+            .eq("user_id", user.id);
 
         if (updatePaymentError) {
             console.error("Failed to update payment record:", updatePaymentError);
