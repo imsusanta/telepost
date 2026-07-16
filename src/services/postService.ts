@@ -186,7 +186,7 @@ export class PostService {
             updateData.channel_id = updates.channel_id;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
             .from("telegram_posts")
             .update(updateData)
             .eq("id", postId)

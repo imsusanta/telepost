@@ -173,7 +173,7 @@ export class StoryService {
     userId: string,
     updates: Partial<CreateStoryData>
   ): Promise<Story> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("telegram_stories")
       .update(updates as Record<string, unknown>)
       .eq("story_id", storyId)
@@ -370,7 +370,7 @@ export class StoryService {
     customizations?: Partial<CreateStoryData>
   ): Promise<Story> {
     // Get template
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await (supabase as any)
       .from("story_templates")
       .select("*")
       .eq("template_id", templateId)
@@ -379,7 +379,7 @@ export class StoryService {
     if (templateError) throw templateError;
 
     // Increment template usage count
-    await supabase
+    await (supabase as any)
       .from("story_templates")
       .update({ usage_count: (template.usage_count || 0) + 1 })
       .eq("template_id", templateId);

@@ -72,13 +72,13 @@ export class ChannelService {
       maxChannels = (subscription.data.plan as any).max_telegram_channels || 10000;
     } else {
       // Check if super admin
-      const { data: profile } = await supabase
+      const { data: profile } = await (supabase as any)
         .from("profiles")
         .select("role")
         .eq("id", userId)
         .single();
       
-      if (profile?.role === 'super_admin') {
+      if ((profile as any)?.role === 'super_admin') {
         maxChannels = 10000;
       }
     }
@@ -148,7 +148,7 @@ export class ChannelService {
       updates.settings = { ...existingChannel.settings, ...request.settings };
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("channels")
       .update(updates)
       .eq("id", channelId)

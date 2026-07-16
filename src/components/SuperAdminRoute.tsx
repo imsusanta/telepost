@@ -24,7 +24,7 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     const checkSuperAdminWithTimeout = async (): Promise<boolean> => {
       // First check cache for quick access

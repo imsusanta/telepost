@@ -10,7 +10,7 @@ interface PaymentRequestCardProps {
     onPaymentRequested?: () => void;
 }
 
-export default function PaymentRequestCard({ onPaymentRequested }: PaymentRequestCardProps) {
+export default function PaymentRequestCard(_props: PaymentRequestCardProps) {
     const { toast } = useToast();
     const [status, setStatus] = useState<UserFullStatus | null>(null);
     const [loading, setLoading] = useState(true);

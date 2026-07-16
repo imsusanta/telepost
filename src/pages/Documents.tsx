@@ -89,9 +89,9 @@ export default function Documents() {
 
       const storageLimitGB = getLimit('max_pdf_storage_gb') || 0;
       
-      const { data } = await supabase.rpc('get_user_storage_usage', { user_id: user.id });
+      const { data } = await (supabase as any).rpc('get_user_storage_usage', { user_id: user.id });
       setStorageUsed({ 
-        current: (data?.total_bytes || 0) / (1024 * 1024 * 1024), 
+        current: ((data?.total_bytes as number) || 0) / (1024 * 1024 * 1024), 
         limit: storageLimitGB 
       });
     } catch (error: unknown) {
