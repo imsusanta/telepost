@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => ({
 
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["favicon.png", "apple-touch-icon.png", "masked-icon.svg"],
       manifest: {
         name: "TelePost - AI Quiz Platform",
