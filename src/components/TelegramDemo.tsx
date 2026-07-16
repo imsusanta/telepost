@@ -15,7 +15,7 @@ export const TelegramDemo = () => {
             return;
         }
 
-        const timers: NodeJS.Timeout[] = [];
+        const timers: ReturnType<typeof setTimeout>[] = [];
 
         timers.push(setTimeout(() => setStep(1), 500));
         timers.push(setTimeout(() => setStep(2), 1500));

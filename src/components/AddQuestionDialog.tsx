@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { PREDEFINED_SUBJECTS, ClassificationService, refreshSubjectsCache } from "@/services/classificationService";
 import { ClassificationMetadataService, ClassificationSubject } from "@/services/classificationMetadataService";
-import { isSuperAdmin } from "@/services/couponService";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

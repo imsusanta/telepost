@@ -3,8 +3,8 @@ import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-    Rocket, MessageSquare, Zap, Layout, ShieldCheck, Bot,
-    Send, BookOpen, Calendar, FileText, Users, Settings,
+    Rocket, MessageSquare, Zap, ShieldCheck, Bot,
+    Send, BookOpen, Calendar, FileText, Users,
     ChevronRight, AlertCircle, CheckCircle2, Copy
 } from "lucide-react";
 

@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   Search,
   Shield,
-  ShieldCheck,
+  
   User,
   UserCheck,
   UserCog,
@@ -135,7 +135,7 @@ export default function SuperAdminUsers() {
           pageSize,
           debouncedSearch,
           roleFilter === 'all' ? undefined : roleFilter,
-          statusFilter === 'all' ? undefined : statusFilter
+          statusFilter === 'all' ? undefined : (statusFilter as 'active' | 'suspended' | 'banned')
         ),
         SubscriptionService.getPlans(),
       ]);
@@ -412,7 +412,7 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const handleSendPaymentRequest = async (user: UserWithSubscription) => {
+  const _handleSendPaymentRequest = async (user: UserWithSubscription) => {
     if (!confirm(`Send payment request to ${user.email}? Their account will be locked until payment is complete.`)) {
       return;
     }
@@ -444,7 +444,7 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const handleActivateForTrial = async (user: UserWithSubscription) => {
+  const _handleActivateForTrial = async (user: UserWithSubscription) => {
     if (!confirm(`Activate ${user.email} for trial? This will unlock their account and give full access.`)) {
       return;
     }
@@ -939,7 +939,7 @@ export default function SuperAdminUsers() {
                               <Key className="w-4 h-4 mr-2" />
                               Reset Password
                             </DropdownMenuItem>
-                            {(user.status === 'pending') && (
+                            {((user.status as string) === 'pending') && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem

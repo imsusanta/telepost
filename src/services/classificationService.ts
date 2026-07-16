@@ -90,7 +90,7 @@ export class ClassificationService {
     /**
      * Classify a single question using AI
      */
-    static async classifyQuestion(request: ClassificationRequest): Promise<ClassificationResult> {
+    static async classifyQuestion(_request: ClassificationRequest): Promise<ClassificationResult> {
         // Edge function removed - returning fallback immediately
         return {
             subject: 'General Knowledge',

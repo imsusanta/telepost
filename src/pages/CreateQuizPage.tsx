@@ -29,7 +29,7 @@ import { QuestionFilters } from "@/components/QuestionFilters";
 import { ClassificationService } from "@/services/classificationService";
 import { ClassificationMetadataService } from "@/services/classificationMetadataService";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Badge } from "@/components/ui/badge";
+
 
 export default function CreateQuizPage() {
   const { quiz, isGenerating, generateQuiz, resetQuiz, setQuiz } = useQuizGeneration();
@@ -159,11 +159,11 @@ export default function CreateQuizPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      const { data } = await supabase.rpc('get_user_storage_usage', { user_id: user.id });
+      const { data } = await (supabase as any).rpc('get_user_storage_usage', { user_id: user.id });
       const storageLimitGB = getLimit('max_pdf_storage_gb') || 0.05; // Default 50MB if null
       
       setStorageUsed({
-        current: data.total_bytes || 0,
+        current: data?.total_bytes || 0,
         limit: storageLimitGB * 1024 * 1024 * 1024 // Convert GB to bytes
       });
     } catch (error) {

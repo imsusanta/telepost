@@ -74,7 +74,7 @@ export function KeyboardShortcuts() {
 
   useEffect(() => {
     let buffer = "";
-    let bufferTimeout: NodeJS.Timeout;
+    let bufferTimeout: ReturnType<typeof setTimeout>;
 
     const handleKeyPress = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input field
