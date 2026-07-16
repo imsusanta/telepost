@@ -131,6 +131,18 @@ export default function SuperAdminMcpHealth() {
 
   const passed = checks.filter((c) => c.status === "pass").length;
   const failed = checks.filter((c) => c.status === "fail").length;
+  const pending = checks.filter((c) => c.status === "pending").length;
+  const errors = checks.filter((c) => c.status === "fail");
+  const challengeCheck = checks.find((c) => c.id === "challenge");
+  const overall: "healthy" | "degraded" | "down" | "checking" =
+    pending > 0 ? "checking" : failed === 0 ? "healthy" : challengeCheck?.status === "fail" ? "down" : "degraded";
+  const overallMeta = {
+    healthy: { label: "Operational", cls: "text-green-600 border-green-600/40 bg-green-600/5", Icon: ShieldCheck },
+    degraded: { label: "Degraded", cls: "text-amber-600 border-amber-600/40 bg-amber-600/5", Icon: AlertTriangle },
+    down: { label: "Auth failing", cls: "text-red-600 border-red-600/40 bg-red-600/5", Icon: ShieldAlert },
+    checking: { label: "Checking…", cls: "text-muted-foreground border-border bg-muted/30", Icon: Loader2 },
+  }[overall];
+  const fmt = (d: Date | null) => (d ? d.toLocaleTimeString() : "—");
 
   return (
     <div className="container mx-auto max-w-4xl p-6 space-y-6">
