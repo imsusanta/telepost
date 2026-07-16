@@ -25,9 +25,10 @@
     content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-  <!-- One-time SW cleanup (no reload — reload caused an infinite loop with autoUpdate PWA) -->
+  <!-- One-time SW cleanup + reload-loop detector -->
   <script>
     (function () {
+      // Silent cleanup of any lingering service worker registrations & caches
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           regs.forEach(function (r) { r.unregister(); });
@@ -38,6 +39,73 @@
           }).catch(function () {});
         }
       }
+
+      // Reload-loop detector: count loads in a 20s window; banner at >=4
+      try {
+        var KEY = '__reloadLoopTracker';
+        var WINDOW_MS = 20000;
+        var THRESHOLD = 4;
+        var now = Date.now();
+        var raw = sessionStorage.getItem(KEY);
+        var data = raw ? JSON.parse(raw) : { first: now, count: 0 };
+        if (now - data.first > WINDOW_MS) data = { first: now, count: 0 };
+        data.count += 1;
+        sessionStorage.setItem(KEY, JSON.stringify(data));
+
+        if (data.count >= THRESHOLD) {
+          window.addEventListener('DOMContentLoaded', function () {
+            if (document.getElementById('__reloadLoopBanner')) return;
+            var el = document.createElement('div');
+            el.id = '__reloadLoopBanner';
+            el.setAttribute('role', 'alert');
+            el.style.cssText = [
+              'position:fixed','top:0','left:0','right:0','z-index:2147483647',
+              'background:#111827','color:#fff','padding:14px 18px',
+              'font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+              'display:flex','align-items:center','justify-content:space-between',
+              'gap:12px','box-shadow:0 4px 14px rgba(0,0,0,.35)','flex-wrap:wrap'
+            ].join(';');
+            el.innerHTML =
+              '<div style="flex:1;min-width:220px">' +
+                '<strong style="color:#fca5a5">Page keeps reloading.</strong> ' +
+                'Your browser may have stale cached data. Click Fix &amp; Reload to clear it.' +
+              '</div>' +
+              '<div style="display:flex;gap:8px">' +
+                '<button id="__reloadLoopFix" style="background:#ef4444;color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer">Fix &amp; Reload</button>' +
+                '<button id="__reloadLoopDismiss" style="background:transparent;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:8px 12px;cursor:pointer">Dismiss</button>' +
+              '</div>';
+            document.body.appendChild(el);
+
+            document.getElementById('__reloadLoopDismiss').onclick = function () {
+              sessionStorage.removeItem(KEY);
+              el.remove();
+            };
+            document.getElementById('__reloadLoopFix').onclick = async function () {
+              this.textContent = 'Cleaning…';
+              this.disabled = true;
+              try {
+                if ('serviceWorker' in navigator) {
+                  var regs = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(regs.map(function (r) { return r.unregister(); }));
+                }
+                if (window.caches && caches.keys) {
+                  var keys = await caches.keys();
+                  await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                }
+                try { sessionStorage.clear(); } catch (e) {}
+                try { localStorage.clear(); } catch (e) {}
+              } catch (e) { /* ignore */ }
+              // Break bfcache and force a fresh document
+              location.replace(location.pathname + '?__cleaned=' + Date.now());
+            };
+          });
+        }
+
+        // Clear the counter once the app is healthy for 5s post-load
+        window.addEventListener('load', function () {
+          setTimeout(function () { sessionStorage.removeItem(KEY); }, 5000);
+        });
+      } catch (e) { /* sessionStorage disabled — ignore */ }
     })();
   </script>
 
