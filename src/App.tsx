@@ -119,6 +119,7 @@ const App = () => (
               <Route path="/dashboard/super-admin/subscriptions" element={<SuperAdminRoute><SuperAdminSubscriptions /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/audit-logs" element={<SuperAdminRoute><SuperAdminAuditLogs /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
+              <Route path="/dashboard/super-admin/mcp-health" element={<SuperAdminRoute><SuperAdminMcpHealth /></SuperAdminRoute>} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
 
