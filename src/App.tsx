@@ -119,6 +119,8 @@ const App = () => (
               <Route path="/dashboard/super-admin/audit-logs" element={<SuperAdminRoute><SuperAdminAuditLogs /></SuperAdminRoute>} />
               <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+
               <Route path="/terms" element={<Terms />} />
               <Route path="/documentation" element={<Documentation />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
