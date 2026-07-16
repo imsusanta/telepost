@@ -258,7 +258,7 @@ export class CourseService {
   }
 
   static async updateChapter(id: string, updates: Partial<Chapter>): Promise<Chapter> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('chapters')
       .update(updates)
       .eq('id', id)
@@ -434,7 +434,7 @@ export class CourseService {
   }
 
   static async updateEnrollment(id: string, updates: Partial<Enrollment>): Promise<Enrollment> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('enrollments')
       .update(updates)
       .eq('id', id)

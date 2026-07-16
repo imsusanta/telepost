@@ -113,7 +113,7 @@ export const createFeePlan = async (plan: Omit<FeePlan, 'id' | 'created_at' | 'c
 };
 
 export const updateFeePlan = async (id: string, updates: Partial<FeePlan>): Promise<FeePlan> => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('fee_plans')
     .update(updates)
     .eq('id', id)
@@ -172,7 +172,7 @@ export const createFeeAssignment = async (assignment: {
 };
 
 export const updateFeeAssignment = async (id: string, updates: Partial<FeeAssignment>): Promise<FeeAssignment> => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('fee_assignments')
     .update(updates)
     .eq('id', id)
@@ -268,7 +268,7 @@ export const createInvoice = async (invoice: {
 };
 
 export const updateInvoice = async (id: string, updates: Partial<Invoice>): Promise<Invoice> => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('invoices')
     .update(updates)
     .eq('id', id)
