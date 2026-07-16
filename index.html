@@ -40,6 +40,31 @@
         }
       }
 
+      // ---- Lightweight beacon to record loop events ----
+      var SUPABASE_URL = 'https://cazrdevenbxdjussycfj.supabase.co';
+      var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhenJkZXZlbmJ4ZGp1c3N5Y2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwODY2MTUsImV4cCI6MjA3ODY2MjYxNX0.GSdt-2thi11xCHKIMQY6x7WVTNJTYP20IJfy5PiI0f0';
+      function logLoopEvent(event, extra) {
+        try {
+          var payload = Object.assign({
+            event: event,
+            path: location.pathname + location.search,
+            user_agent: (navigator.userAgent || '').slice(0, 300)
+          }, extra || {});
+          fetch(SUPABASE_URL + '/rest/v1/reload_loop_events', {
+            method: 'POST',
+            keepalive: true,
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON,
+              'Authorization': 'Bearer ' + SUPABASE_ANON,
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(payload)
+          }).catch(function () {});
+        } catch (e) { /* ignore */ }
+      }
+
       // Reload-loop detector: count loads in a 20s window; banner at >=4
       try {
         var KEY = '__reloadLoopTracker';
@@ -47,12 +72,17 @@
         var THRESHOLD = 4;
         var now = Date.now();
         var raw = sessionStorage.getItem(KEY);
-        var data = raw ? JSON.parse(raw) : { first: now, count: 0 };
-        if (now - data.first > WINDOW_MS) data = { first: now, count: 0 };
+        var data = raw ? JSON.parse(raw) : { first: now, count: 0, reported: false };
+        if (now - data.first > WINDOW_MS) data = { first: now, count: 0, reported: false };
         data.count += 1;
         sessionStorage.setItem(KEY, JSON.stringify(data));
 
         if (data.count >= THRESHOLD) {
+          if (!data.reported) {
+            data.reported = true;
+            sessionStorage.setItem(KEY, JSON.stringify(data));
+            logLoopEvent('trigger', { reload_count: data.count });
+          }
           window.addEventListener('DOMContentLoaded', function () {
             if (document.getElementById('__reloadLoopBanner')) return;
             var el = document.createElement('div');
@@ -83,6 +113,7 @@
             document.getElementById('__reloadLoopFix').onclick = async function () {
               this.textContent = 'Cleaning…';
               this.disabled = true;
+              var cleanupError = null;
               try {
                 if ('serviceWorker' in navigator) {
                   var regs = await navigator.serviceWorker.getRegistrations();
@@ -94,9 +125,15 @@
                 }
                 try { sessionStorage.clear(); } catch (e) {}
                 try { localStorage.clear(); } catch (e) {}
-              } catch (e) { /* ignore */ }
-              // Break bfcache and force a fresh document
-              location.replace(location.pathname + '?__cleaned=' + Date.now());
+              } catch (e) { cleanupError = (e && e.message) ? e.message : String(e); }
+              logLoopEvent(cleanupError ? 'cleanup_failed' : 'cleanup_success', {
+                reload_count: data.count,
+                error: cleanupError
+              });
+              // Give the beacon a moment to flush, then hard-reload with cache-bust
+              setTimeout(function () {
+                location.replace(location.pathname + '?__cleaned=' + Date.now());
+              }, 250);
             };
           });
         }
