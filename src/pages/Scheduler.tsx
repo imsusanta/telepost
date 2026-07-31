@@ -59,6 +59,8 @@ export default function Scheduler() {
     refetch,
     cancelPost,
     retryPost,
+    deletePost,
+    bulkDeletePosts,
     page,
     setPage,
     totalPages,
@@ -93,6 +95,9 @@ export default function Scheduler() {
   const [autoProcessEnabled] = useState(true);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const lastAutoProcessRef = useRef<Date | null>(null);
   const lastScheduleCheckRef = useRef<string | null>(null);
 
@@ -259,6 +264,25 @@ export default function Scheduler() {
     }
     setCancelDialogOpen(false);
     setCancelTargetId(null);
+  };
+
+  const handleDeletePost = (postId: string) => {
+    setDeleteTargetId(postId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (deleteTargetId) {
+      await deletePost(deleteTargetId);
+    }
+    setDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    const status = statusFilter as "sent" | "failed" | "pending" | "all";
+    await bulkDeletePosts(status);
+    setBulkDeleteDialogOpen(false);
   };
 
   const handleRetry = async (postId: string) => {
@@ -429,6 +453,22 @@ export default function Scheduler() {
               </TabsList>
             </Tabs>
 
+            {(statusFilter === "sent" || statusFilter === "failed") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+                disabled={filteredPosts.length === 0}
+                className="h-11 px-3 gap-1.5 rounded-xl border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold transition-all"
+                title={`Delete ${statusFilter} log records`}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  Clear {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+                </span>
+              </Button>
+            )}
+
             <div className="flex p-1 bg-muted/60 backdrop-blur-sm border border-border/50 rounded-xl shadow-sm ml-auto md:ml-0">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
@@ -547,9 +587,13 @@ export default function Scheduler() {
                               Retry
                             </Button>
                           )}
-                          <Button variant="outline" className="flex-1 gap-2 font-bold rounded-xl border-primary/20 text-primary hover:bg-primary/5">
-                            Details
-                            <ArrowRight className="w-3.5 h-3.5" />
+                          <Button
+                            variant="ghost"
+                            className="flex-1 gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 font-bold rounded-xl"
+                            onClick={() => handleDeletePost(post.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
                           </Button>
                         </CardFooter>
                       </Card>
@@ -612,6 +656,16 @@ export default function Scheduler() {
                                       Retry
                                     </Button>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeletePost(post.id)}
+                                    className="h-8 px-3 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
+                                    title="Delete post record"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                                    Delete
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -691,27 +745,55 @@ export default function Scheduler() {
           )}
         </div>
       </div>
-      {/* Cancel Confirmation Dialog */}
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-white/95 backdrop-blur-xl max-w-md">
+      {/* Single Post Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-card/95 backdrop-blur-xl max-w-md">
           <AlertDialogHeader className="text-center space-y-3">
-            <div className="mx-auto w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center">
+            <div className="mx-auto w-14 h-14 bg-rose-500/10 rounded-full flex items-center justify-center">
               <Trash2 className="w-7 h-7 text-rose-500" />
             </div>
-            <AlertDialogTitle className="text-xl font-bold">Cancel Scheduled Post?</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-bold text-foreground">Delete Post Record?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              This will permanently remove the post from the schedule. This action cannot be undone.
+              This will permanently delete this post record from your scheduler logs. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-3 sm:gap-3 pt-2">
-            <AlertDialogCancel className="rounded-xl font-bold border-gray-200 hover:bg-gray-50 flex-1">
-              Keep It
+            <AlertDialogCancel className="rounded-xl font-bold border-border/50 hover:bg-muted flex-1">
+              Keep Record
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmCancel}
+              onClick={confirmDeletePost}
               className="rounded-xl font-bold bg-rose-500 hover:bg-rose-600 text-white flex-1 shadow-lg"
             >
-              Yes, Cancel Post
+              Delete Record
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-card/95 backdrop-blur-xl max-w-md">
+          <AlertDialogHeader className="text-center space-y-3">
+            <div className="mx-auto w-14 h-14 bg-rose-500/10 rounded-full flex items-center justify-center">
+              <Trash2 className="w-7 h-7 text-rose-500" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-foreground">
+              {statusFilter === "all" ? "Clear All Post Logs?" : `Clear All ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Logs?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will permanently delete all {statusFilter === "all" ? "" : statusFilter} post records from your scheduler database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 sm:gap-3 pt-2">
+            <AlertDialogCancel className="rounded-xl font-bold border-border/50 hover:bg-muted flex-1">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="rounded-xl font-bold bg-rose-500 hover:bg-rose-600 text-white flex-1 shadow-lg"
+            >
+              Yes, Clear Logs
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
