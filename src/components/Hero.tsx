@@ -17,11 +17,11 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Soft background ambient glow */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[#0088cc]/5 rounded-full blur-[140px]" />
 
-        {/* Scattered background dots */}
+        {/* Scattered background dots from screenshot */}
         <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-[#0088cc]/40" />
-        <div className="absolute top-[22%] right-[8%] w-2 h-2 rounded-full bg-secondary/40" />
-        <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-accent/40" />
-        <div className="absolute bottom-[35%] left-[6%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
+        <div className="absolute top-[22%] right-[10%] w-2 h-2 rounded-full bg-secondary/40" />
+        <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-purple-400/40" />
+        <div className="absolute top-[40%] left-[11%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
 
         {/* Left Side: Floating Dashed Spiral Trail */}
         <div className="hidden lg:block absolute left-[3%] top-[20%] pointer-events-none">
@@ -30,23 +30,17 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </svg>
         </div>
 
-        {/* Right Side: Flowing Background Contour Mesh Waves from Screenshot */}
-        <div className="hidden lg:block absolute right-0 top-[15%] bottom-0 w-[450px] pointer-events-none opacity-20 text-[#0088cc]">
-          <svg className="w-full h-full" viewBox="0 0 400 600" fill="none">
-            <path d="M 100 0 C 250 150, 150 350, 400 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M 150 0 C 300 180, 200 380, 400 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M 200 0 C 350 200, 250 400, 400 650" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M 250 0 C 380 220, 300 420, 400 700" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        {/* Background Mesh Waves (Left & Right Edge) from Screenshot */}
+        <div className="hidden lg:block absolute left-0 top-[20%] bottom-0 w-[300px] pointer-events-none opacity-15 text-[#0088cc]">
+          <svg className="w-full h-full" viewBox="0 0 300 600" fill="none">
+            <path d="M -50 0 C 100 150, 50 350, -50 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M -80 0 C 70 180, 20 380, -80 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
           </svg>
         </div>
-
-        {/* Right Side: Telegram Badge + Dashed Loop Trail */}
-        <div className="hidden lg:block absolute right-[10%] top-[40%] pointer-events-none">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#0088cc] to-[#0077b5] shadow-lg shadow-[#0088cc]/30 flex items-center justify-center text-white mb-2 animate-float-slow">
-            <Send className="w-7 h-7 fill-white ml-[-2px] mt-[1px]" />
-          </div>
-          <svg className="w-48 h-48 opacity-30 text-[#0088cc] ml-[-40px] mt-[-20px]" viewBox="0 0 200 200" fill="none">
-            <path d="M 40 20 C 110 40, 160 100, 120 150 C 90 180, 50 130, 100 110 C 140 90, 170 150, 180 180" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
+        <div className="hidden lg:block absolute right-0 top-[20%] bottom-0 w-[350px] pointer-events-none opacity-15 text-[#0088cc]">
+          <svg className="w-full h-full" viewBox="0 0 350 600" fill="none">
+            <path d="M 100 0 C 250 150, 150 350, 350 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M 150 0 C 300 180, 200 380, 350 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
           </svg>
         </div>
       </div>
@@ -80,13 +74,13 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </span>
         </h1>
 
-        {/* Subheadline */}
+        {/* Subheadline - Formatted into 2 lines */}
         <p
-          className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-9 leading-relaxed animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
+          className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-9 leading-relaxed text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
-          Save hours every week by generating, scheduling,
+          Save hours every week by generating, scheduling, and automatically publishing
           <br className="hidden sm:block" />
-          and automatically publishing exam-quality Telegram quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
+          exam-quality Telegram quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
         </p>
 
         {/* CTAs */}
