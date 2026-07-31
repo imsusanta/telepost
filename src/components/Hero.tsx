@@ -34,10 +34,10 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
       </div>
 
       <div className="max-w-5xl mx-auto relative z-10 text-center">
-        {/* Telegram Badge */}
+        {/* Eyebrow Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 backdrop-blur-sm text-sm text-[#0088cc] mb-10 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
-          <Send className="w-4 h-4" />
-          <span>Telegram Automation for Educators</span>
+          <span>🚀</span>
+          <span>Publish Up to 20 Telegram Quizzes in Under a Minute</span>
         </div>
 
         {/* Main Headline */}
@@ -56,9 +56,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         <p
           className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-14 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
-          Generate exam-oriented quizzes from any topic or PDF,
+          Save hours every week by generating, scheduling, and automatically
           <br className="hidden sm:block" />
-          then automatically publish them to Telegram in under <span className="text-foreground font-semibold">30 seconds</span>.
+          publishing exam-quality Telegram quizzes from any topic or PDF.
         </p>
 
         {/* CTA - Primary with Telegram styling */}
