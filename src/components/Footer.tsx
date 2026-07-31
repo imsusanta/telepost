@@ -6,17 +6,6 @@ export const Footer = () => {
 
   const footerSections = [
     {
-      title: "PRODUCT",
-      titleColor: "text-[#0088cc]",
-      links: [
-        { label: "Features", href: "#features" },
-        { label: "How it Works", href: "#how-it-works" },
-        { label: "Pricing", href: "#pricing" },
-        { label: "Updates", href: "#" },
-        { label: "Roadmap", href: "#" },
-      ],
-    },
-    {
       title: "COMPANY",
       titleColor: "text-purple-600 dark:text-purple-400",
       links: [
@@ -92,8 +81,8 @@ export const Footer = () => {
             </div>
           </div>
 
-          {/* 4 Categorized Columns */}
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8">
+          {/* 3 Categorized Columns */}
+          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-8">
             {footerSections.map((section) => (
               <div key={section.title} className="space-y-4">
                 <h4 className={`text-xs font-bold uppercase tracking-wider ${section.titleColor}`}>
