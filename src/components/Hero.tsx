@@ -23,10 +23,13 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-purple-400/40" />
         <div className="absolute top-[40%] left-[11%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
 
-        {/* Left Side: Floating Dashed Spiral Trail */}
-        <div className="hidden lg:block absolute left-[3%] top-[20%] pointer-events-none">
-          <svg className="w-48 h-48 opacity-30 text-[#0088cc]" viewBox="0 0 200 200" fill="none">
-            <path d="M 20 100 C 10 40, 80 20, 100 80 C 120 140, 40 140, 50 90 C 60 40, 130 10, 180 120" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" fill="none" />
+        {/* Left Side: Floating Dashed Spiral Trail + Paperplane Attached */}
+        <div className="hidden lg:block absolute left-[2%] top-[18%] pointer-events-none text-[#0088cc]">
+          <svg className="w-56 h-56" viewBox="0 0 240 240" fill="none">
+            <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 200 45" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" fill="none" />
+            <g transform="translate(195, 30) rotate(-20) scale(1.2)">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor" />
+            </g>
           </svg>
         </div>
 

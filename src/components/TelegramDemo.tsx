@@ -36,14 +36,15 @@ export const TelegramDemo = () => {
         {/* Soft background ambient glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[600px] bg-[#0088cc]/5 rounded-full blur-[150px]" />
 
-        {/* Top-Left Floating Paperplane & Dashed Trail */}
-        <div className="hidden lg:block absolute left-[5%] top-[15%] opacity-40 text-[#0088cc]">
-          <svg className="w-52 h-52" viewBox="0 0 200 200" fill="none">
-            <path d="M 10 160 C 20 80, 100 40, 120 90 C 140 140, 60 140, 70 90 C 80 40, 150 20, 190 30" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
+        {/* Top-Left Floating Paperplane & Dashed Trail (Attached Together) */}
+        <div className="hidden lg:block absolute left-[3%] top-[10%] pointer-events-none text-[#0088cc]">
+          <svg className="w-56 h-56" viewBox="0 0 240 240" fill="none">
+            <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 200 45" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" />
+            {/* Paper plane icon attached seamlessly to trail tip */}
+            <g transform="translate(195, 30) rotate(-20) scale(1.2)">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor" />
+            </g>
           </svg>
-          <div className="absolute top-4 right-2 text-[#0088cc] -rotate-12 animate-float">
-            <Send className="w-8 h-8 fill-[#0088cc]" />
-          </div>
         </div>
 
         {/* Top-Right Decorative Sparkles */}
