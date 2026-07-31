@@ -45,9 +45,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           id="hero-heading"
           className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-display font-extrabold tracking-tight leading-[1.15] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
-          <span className="text-foreground">Publish Up to 20 Telegram </span>
-          <span className="relative inline-block pb-2">
-            <span className="text-[#0088cc]">Quizzes in Under a Minute</span>
+          <span className="text-foreground block">Publish Up to 20 Telegram Quizzes</span>
+          <span className="relative inline-block pb-2 mt-1">
+            <span className="text-[#0088cc]">in Under a Minute</span>
             <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-gradient-to-r from-[#0088cc] via-[#0088cc]/60 to-transparent rounded-full" />
           </span>
         </h1>
