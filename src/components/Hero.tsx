@@ -47,7 +47,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         >
           <span className="text-foreground block">Publish Up to 20 Telegram Quizzes</span>
           <span className="relative inline-block pb-2 mt-1">
-            <span className="text-[#0088cc]">in Under a Minute</span>
+            <span className="text-[#0088cc]">in under a minute</span>
             <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-gradient-to-r from-[#0088cc] via-[#0088cc]/60 to-transparent rounded-full" />
           </span>
         </h1>
