@@ -60,21 +60,16 @@ serve(async (req) => {
 
     const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-    // Get all pending posts that are due (limit to 5 per run to avoid timeouts as quizzes have delays)
+    // Atomically claim pending posts that are due to prevent duplicate processing under concurrency
     const { data: pendingPosts, error: fetchError } = await supabase
-      .from('scheduled_telegram_posts')
-      .select('*')
-      .eq('status', 'pending')
-      .lte('scheduled_time', new Date().toISOString())
-      .order('scheduled_time', { ascending: true })
-      .limit(5);
+      .rpc('claim_due_scheduled_posts');
 
     if (fetchError) {
-      console.error("Error fetching scheduled posts:", fetchError);
+      console.error("Error claiming scheduled posts:", fetchError);
       throw fetchError;
     }
 
-    console.log(`[process-scheduled-posts] Found ${pendingPosts?.length || 0} pending posts to process at ${new Date().toISOString()}`);
+    console.log(`[process-scheduled-posts] Found and claimed ${pendingPosts?.length || 0} pending posts to process at ${new Date().toISOString()}`);
 
     if (!pendingPosts || pendingPosts.length === 0) {
       return new Response(
@@ -87,27 +82,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Mark all posts as processing to prevent duplicate processing
-    const postIds = pendingPosts.map(p => p.id);
-    const { error: updateError } = await supabase
-      .from('scheduled_telegram_posts')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
-      .in('id', postIds);
-
-    if (updateError) {
-      console.error("[process-scheduled-posts] Error marking posts as processing:", updateError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Failed to mark posts as processing: " + updateError.message,
-          postIds
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`[process-scheduled-posts] Successfully marked ${postIds.length} posts as 'processing'`);
 
     const results = [];
 

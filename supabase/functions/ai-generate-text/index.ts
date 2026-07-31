@@ -102,13 +102,6 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Method 1: JWT parsing
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.sub) return payload.sub;
-    } catch { /* ignore */ }
-
-    // Method 2: supabase auth.getUser
     try {
         const { data: { user }, error } = await supabase.auth.getUser(token);
         if (!error && user) return user.id;
