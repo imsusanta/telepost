@@ -73,3 +73,26 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant execution to postgres and service_role
 GRANT EXECUTE ON FUNCTION public.claim_due_scheduled_posts() TO postgres, service_role;
+
+-- 4. Prevent users from modifying their own billing/payment status directly on the profiles table
+CREATE OR REPLACE FUNCTION public.check_profile_billing_updates()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF auth.role() <> 'service_role' AND NOT public.is_super_admin(auth.uid()) THEN
+    IF NEW.payment_status IS DISTINCT FROM OLD.payment_status OR
+       NEW.payment_expires_at IS DISTINCT FROM OLD.payment_expires_at OR
+       NEW.payment_amount IS DISTINCT FROM OLD.payment_amount OR
+       NEW.razorpay_order_id IS DISTINCT FROM OLD.razorpay_order_id OR
+       NEW.razorpay_payment_id IS DISTINCT FROM OLD.razorpay_payment_id THEN
+      RAISE EXCEPTION 'Access Denied: You cannot modify billing or payment status columns directly.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER check_profiles_billing_update
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.check_profile_billing_updates();
+
