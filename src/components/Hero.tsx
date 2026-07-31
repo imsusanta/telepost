@@ -46,19 +46,21 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold tracking-tight leading-[1.1] mb-8 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
           <span className="relative inline-block">
-            <span className="text-gradient-primary">Increase 10x Your </span>
-            <span className="text-[#0088cc]">Telegram Subscribers</span>
+            <span className="text-gradient-primary">Create Exam-Quality </span>
+            <span className="text-[#0088cc]">Telegram Quizzes</span>
             <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-[#0088cc] via-primary to-secondary rounded-full" />
           </span>
+          <br />
+          <span className="text-gradient-primary">in 30 Seconds</span>
         </h1>
 
-        {/* Subheadline - Benefits chain */}
+        {/* Subheadline */}
         <p
           className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-14 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
-          Post daily quizzes in <span className="text-foreground font-semibold">30 seconds</span>.
+          Generate exam-oriented quizzes from any topic or PDF,
           <br className="hidden sm:block" />
-          <span className="text-foreground/80">Students stay engaged. Subscribers multiply.</span>
+          then automatically publish them to Telegram in under <span className="text-foreground font-semibold">30 seconds</span>.
         </p>
 
         {/* CTA - Primary with Telegram styling */}
@@ -71,14 +73,14 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
             className="group h-16 px-12 text-lg font-medium bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white hover:from-[#0077b5] hover:to-[#006699] rounded-full transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(0,136,204,0.4)]"
           >
             <Send className="w-5 h-5 mr-2" />
-            Start Free Today
+            Start Free
             <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </Button>
           <button
             className="text-base text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-2"
           >
             <Zap className="w-4 h-4 text-[#0088cc]" />
-            <span>Watch 2-min demo</span>
+            <span>Watch Demo</span>
             <span className="inline-block ml-1 transition-transform group-hover:translate-x-0.5">→</span>
             <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground transition-all group-hover:w-full" />
           </button>
