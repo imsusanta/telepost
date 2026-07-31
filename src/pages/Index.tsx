@@ -10,7 +10,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { FAQ } from "@/components/FAQ";
 import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
-import { StatsSection } from "@/components/StatsSection";
+
 import { UseCases } from "@/components/UseCases";
 
 import { Features } from "@/components/Features";
@@ -138,7 +138,7 @@ const Index = () => {
           {!isStandalone && <Navigation onGetStarted={handleGetStarted} />}
           <main>
             <Hero onGetStarted={handleGetStarted} />
-            <StatsSection />
+
             <TelegramDemo />
             <Features />
             <Pricing onGetStarted={handleGetStarted} />
