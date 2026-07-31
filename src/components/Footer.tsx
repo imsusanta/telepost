@@ -1,56 +1,79 @@
-import { Twitter, Github, Linkedin, Mail } from "lucide-react";
+import { Twitter, Github, Linkedin, Mail, Send, Heart, Globe, ChevronDown } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
-import { TelePostLogoIcon } from "./TelePostLogo";
 
 export const Footer = () => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
 
-  const footerLinks = {
-    Company: [
-      { label: "Features", href: "#features" },
-      { label: "How it Works", href: "#how-it-works" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "FAQ", href: "#faq" },
-    ],
-    Resources: [
-      { label: "Documentation", href: "#" },
-      { label: "API Reference", href: "#" },
-      { label: "Community", href: "#" },
-      { label: "Support", href: "#" },
-    ],
-    Legal: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Security", href: "#" },
-    ],
-  };
+  const footerSections = [
+    {
+      title: "PRODUCT",
+      titleColor: "text-[#0088cc]",
+      links: [
+        { label: "Features", href: "#features" },
+        { label: "How it Works", href: "#how-it-works" },
+        { label: "Pricing", href: "#pricing" },
+        { label: "Updates", href: "#" },
+        { label: "Roadmap", href: "#" },
+      ],
+    },
+    {
+      title: "COMPANY",
+      titleColor: "text-purple-600 dark:text-purple-400",
+      links: [
+        { label: "About Us", href: "#" },
+        { label: "Contact Us", href: "#" },
+        { label: "Careers", href: "#" },
+        { label: "Blog", href: "#" },
+      ],
+    },
+    {
+      title: "LEGAL",
+      titleColor: "text-emerald-600 dark:text-emerald-400",
+      links: [
+        { label: "Privacy Policy", href: "/privacy" },
+        { label: "Terms & Conditions", href: "/terms" },
+        { label: "Refund Policy", href: "/terms" },
+        { label: "Data Security", href: "/privacy" },
+      ],
+    },
+    {
+      title: "SUPPORT",
+      titleColor: "text-amber-600 dark:text-amber-400",
+      links: [
+        { label: "Documentation", href: "/documentation" },
+        { label: "Help Center", href: "#" },
+        { label: "Video Tutorials", href: "#" },
+        { label: "Contact Support", href: "#" },
+      ],
+    },
+  ];
 
   return (
     <footer
       ref={ref as React.RefObject<HTMLElement>}
-      className="border-t border-border/50 bg-card/30 pt-20 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      className="py-16 px-4 sm:px-6 lg:px-8 border-t border-border/50 bg-gradient-to-b from-transparent to-muted/20"
+      role="contentinfo"
     >
-      <div className={`max-w-6xl mx-auto transition-all duration-700 ${
-        isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      }`}>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
-          {/* Logo and description */}
-          <div className="md:col-span-4 space-y-6">
+      <div className={`max-w-6xl mx-auto transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        
+        {/* Main Footer Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
+          {/* Logo & Bio Column */}
+          <div className="lg:col-span-4 space-y-6">
             <div>
-              <div className="text-2xl font-display font-bold text-foreground mb-3 flex items-center gap-2">
-                <div className="w-7 h-7 flex items-center justify-center">
-                  <TelePostLogoIcon className="w-6 h-6" />
+              <div className="text-2xl font-display font-extrabold text-foreground mb-3 flex items-center gap-2.5">
+                <div className="w-7 h-7 flex items-center justify-center text-[#0088cc] shrink-0">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
                 </div>
-                TelePost
+                <span>TelePost</span>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Empowering educators with AI-driven telegram automation and engagement tools.
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xs">
+                Empowering educators with AI-driven Telegram automation and engagement tools.
               </p>
             </div>
 
-            {/* Social links */}
-            <div className="flex items-center gap-2">
+            {/* Social Media Buttons */}
+            <div className="flex items-center gap-3">
               {[
                 { icon: Twitter, label: "Twitter" },
                 { icon: Github, label: "GitHub" },
@@ -60,31 +83,30 @@ export const Footer = () => {
                 <a
                   key={label}
                   href="#"
-                  className="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 border border-transparent hover:border-primary/10"
+                  className="w-9 h-9 rounded-full bg-card border border-border/80 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 shadow-sm transition-all duration-300 hover:scale-105"
                   aria-label={label}
                 >
-                  <Icon className="w-4.5 h-4.5" />
+                  <Icon className="w-4 h-4" />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Link columns */}
-          <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
-            {Object.entries(footerLinks).map(([category, links]) => (
-              <div key={category} className="space-y-5">
-                <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider">{category}</h4>
-                <ul className="space-y-3">
-                  {links.map((link) => (
+          {/* 4 Categorized Columns */}
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8">
+            {footerSections.map((section) => (
+              <div key={section.title} className="space-y-4">
+                <h4 className={`text-xs font-bold uppercase tracking-wider ${section.titleColor}`}>
+                  {section.title}
+                </h4>
+                <ul className="space-y-2.5">
+                  {section.links.map((link) => (
                     <li key={link.label}>
                       <a
                         href={link.href}
-                        className="text-sm text-muted-foreground hover:text-primary transition-all duration-200 inline-flex items-center group"
+                        className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                       >
-                        <span className="relative">
-                          {link.label}
-                          <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-primary transition-all duration-300 group-hover:w-full" />
-                        </span>
+                        {link.label}
                       </a>
                     </li>
                   ))}
@@ -94,19 +116,24 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-border/50">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} TelePost Inc.</p>
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="w-1 h-1 rounded-full bg-border" />
-              <span>Built for the future of education</span>
-            </div>
+        {/* Bottom Bar from Screenshot */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border/60 text-xs text-muted-foreground">
+          {/* Copyright */}
+          <div>
+            © 2026 TelePost Inc. &bull; All rights reserved.
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground group cursor-default">
-            <span>Made with</span>
-            <span className="text-destructive transition-transform duration-300 group-hover:scale-125 inline-block">❤️</span>
-            <span>by educators</span>
+
+          {/* Center Heart Pill Badge */}
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-border/60 bg-card/80 shadow-sm text-xs font-medium">
+            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" />
+            <span>Proudly built for educators</span>
+          </div>
+
+          {/* Language Dropdown Selector Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/60 bg-card/80 shadow-sm text-xs font-medium cursor-pointer hover:bg-muted/50 transition-colors">
+            <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>English</span>
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
           </div>
         </div>
       </div>

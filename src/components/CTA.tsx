@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { ArrowRight, Shield, Check, Star, Send } from "lucide-react";
+import { ArrowRight, Send, Calendar, Check, Gift, ShieldCheck } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 
 interface CTAProps {
@@ -7,89 +7,99 @@ interface CTAProps {
 }
 
 export const CTA = ({ onGetStarted }: CTAProps) => {
-  const { ref, isInView } = useInView({ threshold: 0.3 });
+  const { ref, isInView } = useInView({ threshold: 0.2 });
 
   return (
     <section
       ref={ref as React.RefObject<HTMLElement>}
-      className="relative py-40 px-4 sm:px-6 lg:px-8 overflow-hidden"
+      className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden"
       aria-labelledby="cta-heading"
     >
-      {/* Animated background gradient - Telegram themed */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#0088cc]/5 rounded-full blur-[120px] transition-all duration-1000 ${isInView ? "opacity-100 scale-100" : "opacity-0 scale-50"
-          }`} />
-        <div className={`absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px] transition-all duration-1000 delay-200 ${isInView ? "opacity-100" : "opacity-0"
-          }`} />
-        <div className={`absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] transition-all duration-1000 delay-300 ${isInView ? "opacity-100" : "opacity-0"
-          }`} />
-      </div>
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* Main CTA Glass Card */}
+        <div className={`p-8 sm:p-12 md:p-16 rounded-3xl bg-gradient-to-br from-sky-50/80 via-card to-purple-50/60 dark:from-sky-950/30 dark:via-card dark:to-purple-950/30 border border-sky-100 dark:border-sky-900/40 shadow-xl relative overflow-hidden transition-all duration-700 ${
+          isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        }`}>
+          {/* Top-Right Dotted Grid Pattern from Screenshot */}
+          <div className="hidden lg:block absolute right-[3%] top-[8%] w-56 h-56 opacity-20 pointer-events-none bg-[radial-gradient(#0088cc_1.5px,transparent_1.5px)] [background-size:16px_16px]" />
 
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Testimonial quote */}
-        <div className={`text-center mb-12 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}>
-          <div className="inline-flex items-center gap-1 mb-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-            ))}
-          </div>
-          <blockquote className="text-xl sm:text-2xl text-foreground/80 italic mb-4">
-            "TelePost tripled our quiz engagement overnight. We save 20+ minutes daily on quiz creation and delivery."
-          </blockquote>
-          <cite className="text-muted-foreground not-italic flex flex-col items-center gap-1">
-            <span>— Priyanshu Das, Director</span>
-            <span className="text-sm">Udaan Coaching Institute</span>
-          </cite>
-        </div>
-
-        {/* Main CTA */}
-        <div className={`text-center transition-all duration-700 delay-100 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}>
-          <h2
-            id="cta-heading"
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6"
-          >
-            Start Today,
-            <span className="text-gradient-primary"> Completely Free</span>
-          </h2>
-
-          <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Join thousands of educators who save hours every week and engage millions of students
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <Button
-              onClick={onGetStarted}
-              size="lg"
-              className="group h-16 px-12 text-lg font-medium bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white hover:from-[#0077b5] hover:to-[#006699] rounded-full transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(0,136,204,0.4)]"
-            >
-              <Send className="w-5 h-5 mr-2" />
-              Start Free Today
-              <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-            </Button>
-            <button
-              className="text-base text-muted-foreground hover:text-foreground transition-colors relative group"
-            >
-              Schedule a Demo
-              <span className="inline-block ml-1 transition-transform group-hover:translate-x-0.5">→</span>
-              <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground transition-all group-hover:w-full" />
-            </button>
+          {/* Left Side: Large 3D Blue Paperplane + Dashed Trail */}
+          <div className="hidden lg:block absolute left-[4%] top-[18%] text-[#0088cc] pointer-events-none z-0">
+            <svg className="w-56 h-56" viewBox="0 0 240 240" fill="none">
+              <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 200 45" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 5" opacity="0.3" fill="none" />
+              <g transform="translate(190, 20) rotate(-15) scale(1.5)">
+                <path d="M 2.01 21 L 23 12 L 2.01 3 L 2 10 L 17 12 L 2 14 Z" fill="url(#cta-plane-grad)" />
+                <defs>
+                  <linearGradient id="cta-plane-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#38bdf8" />
+                    <stop offset="1" stopColor="#0088cc" />
+                  </linearGradient>
+                </defs>
+              </g>
+            </svg>
           </div>
 
-          {/* Trust badges */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-success" />
-              <span>No credit card required</span>
+          <div className="max-w-2xl mx-auto text-center relative z-10">
+            {/* Headline */}
+            <h2
+              id="cta-heading"
+              className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight mb-4"
+            >
+              Ready to save hours every week?
+            </h2>
+
+            {/* Subheadline */}
+            <p className="text-base sm:text-lg text-muted-foreground mb-9 leading-relaxed">
+              Join thousands of educators who automate quizzes and engage students
+              <br className="hidden sm:block" />
+              on Telegram — in just a few clicks.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+              <Button
+                onClick={onGetStarted}
+                size="lg"
+                className="h-14 px-8 text-base font-semibold bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] text-white rounded-full transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-[#0088cc]/25 flex items-center gap-2"
+              >
+                <Send className="w-4 h-4 fill-white" />
+                Start Free Today
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-14 px-8 text-base font-semibold bg-card hover:bg-muted/50 border border-border/80 text-foreground rounded-full transition-all duration-300 hover:scale-[1.02] shadow-sm flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                Schedule a Demo
+                <ArrowRight className="w-4 h-4 ml-1 text-muted-foreground" />
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-success" />
-              <span>14-day free trial</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-success" />
-              <span>100% Secure</span>
+
+            {/* Bottom 3 Trust Badges from Screenshot */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-xs sm:text-sm text-muted-foreground pt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Check className="w-3 h-3 stroke-[3]" />
+                </div>
+                <span>No credit card required</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <Gift className="w-3 h-3" />
+                </div>
+                <span>14-day free trial</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-sky-100 dark:bg-sky-950/60 text-[#0088cc] flex items-center justify-center">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                </div>
+                <span>100% Secure</span>
+              </div>
             </div>
           </div>
         </div>
