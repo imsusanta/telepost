@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { ArrowRight, Send, Zap, TrendingUp } from "lucide-react";
+import { ArrowRight, Send, Zap, Sparkles, FileText, Calendar, Clock, CheckCircle2 } from "lucide-react";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -35,19 +35,19 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
 
       <div className="max-w-5xl mx-auto relative z-10 text-center">
         {/* Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 backdrop-blur-sm text-sm text-[#0088cc] mb-10 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
-          <span>🚀</span>
-          <span>Publish Up to 20 Telegram Quizzes in Under a Minute</span>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 backdrop-blur-sm text-sm font-medium text-[#0088cc] mb-10 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
+          <Send className="w-4 h-4" />
+          <span>Telegram Automation for Educators</span>
         </div>
 
         {/* Main Headline */}
         <h1
           id="hero-heading"
-          className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-display font-extrabold tracking-tight leading-[1.1] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-display font-extrabold tracking-tight leading-[1.15] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
-          <span className="text-foreground">Create Exam-Quality Telegram </span>
+          <span className="text-foreground">Publish Up to 20 Telegram </span>
           <span className="relative inline-block pb-2">
-            <span className="text-[#0088cc]">Quizzes in 30 Seconds</span>
+            <span className="text-[#0088cc]">Quizzes in Under a Minute</span>
             <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-gradient-to-r from-[#0088cc] via-[#0088cc]/60 to-transparent rounded-full" />
           </span>
         </h1>
@@ -82,28 +82,25 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </button>
         </div>
 
-        {/* Quick stats - Growth focused */}
+        {/* Real Product Benefits & Features */}
         <div
-          className="flex items-center justify-center gap-8 sm:gap-16 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:400ms]"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:400ms]"
         >
           {[
-            { value: "30sec", label: "Per Quiz Post", icon: "⚡" },
-            { value: "3x", label: "More Engagement", icon: "📈" },
-            { value: "10K+", label: "Educators Trust Us", icon: "👨‍🏫" },
-          ].map((stat) => (
+            { title: "Under 30 Seconds", desc: "30-Second Workflow", icon: Clock },
+            { title: "AI-Powered Generation", desc: "Exam-Quality MCQs", icon: Sparkles },
+            { title: "PDF to Quiz", desc: "Instant Document Import", icon: FileText },
+            { title: "Smart Scheduling", desc: "Auto Telegram Publishing", icon: Calendar },
+          ].map((feature, i) => (
             <div
-              key={stat.label}
-              className="group cursor-default"
+              key={i}
+              className="flex flex-col items-center p-4 rounded-2xl bg-card/40 border border-border/50 backdrop-blur-sm hover:border-[#0088cc]/30 transition-all text-center group"
             >
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-xl">{stat.icon}</span>
-                <span className="text-2xl sm:text-3xl font-display font-bold text-foreground transition-transform group-hover:scale-110">
-                  {stat.value}
-                </span>
+              <div className="w-9 h-9 rounded-xl bg-[#0088cc]/10 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                <feature.icon className="w-5 h-5 text-[#0088cc]" />
               </div>
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                {stat.label}
-              </div>
+              <span className="text-sm font-bold text-foreground mb-0.5">{feature.title}</span>
+              <span className="text-xs text-muted-foreground">{feature.desc}</span>
             </div>
           ))}
         </div>
@@ -112,11 +109,11 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         <div className="mt-16 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:500ms]">
           <div className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-card/50 border border-border/50 backdrop-blur-sm">
             <div className="w-10 h-10 rounded-full bg-[#0088cc] flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
+              <Send className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-foreground">Grow Faster</p>
-              <p className="text-xs text-muted-foreground">Daily quizzes = More subscribers</p>
+              <p className="text-sm font-medium text-foreground">Automatic Telegram Publishing</p>
+              <p className="text-xs text-muted-foreground">Directly to your Telegram channel or group</p>
             </div>
             <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
           </div>
