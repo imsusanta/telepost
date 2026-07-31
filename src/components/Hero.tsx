@@ -74,13 +74,13 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </span>
         </h1>
 
-        {/* Subheadline - Exact copy & styling from screenshot */}
+        {/* Subheadline - Requested exact copy */}
         <p
           className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-9 leading-relaxed text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
           Save hours every week by generating, scheduling,
           <br className="hidden sm:block" />
-          and automatically publishing <span className="font-bold text-foreground">exam-quality</span> Telegram quizzes.
+          and automatically publishing exam-quality Telegram quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
         </p>
 
         {/* CTAs */}
