@@ -83,6 +83,12 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           <Button
             variant="outline"
             size="lg"
+            onClick={() => {
+              const demoSection = document.getElementById("demo");
+              if (demoSection) {
+                demoSection.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
             className="h-14 px-8 text-base font-semibold bg-card hover:bg-muted/50 border border-border/80 text-foreground rounded-full transition-all duration-300 hover:scale-[1.02] shadow-sm flex items-center gap-2"
           >
             <Zap className="w-4 h-4 text-[#0088cc] fill-[#0088cc]" />

@@ -70,6 +70,10 @@ export const CTA = ({ onGetStarted }: CTAProps) => {
               <Button
                 variant="outline"
                 size="lg"
+                onClick={() => {
+                  const message = encodeURIComponent("Hi TelePost Team, I would like to schedule a demo for Telegram quiz automation.");
+                  window.open(`https://wa.me/918927093059?text=${message}`, "_blank");
+                }}
                 className="h-14 px-8 text-base font-semibold bg-card hover:bg-muted/50 border border-border/80 text-foreground rounded-full transition-all duration-300 hover:scale-[1.02] shadow-sm flex items-center gap-2"
               >
                 <Calendar className="w-4 h-4 text-muted-foreground" />
