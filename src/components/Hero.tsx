@@ -43,22 +43,20 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Main Headline */}
         <h1
           id="hero-heading"
-          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold tracking-tight leading-[1.15] mb-8 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-display font-extrabold tracking-tight leading-[1.1] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
-          <span className="text-gradient-primary">Create Exam-Quality Telegram </span>
-          <span className="relative inline-block">
+          <span className="text-foreground">Create Exam-Quality Telegram </span>
+          <span className="relative inline-block pb-2">
             <span className="text-[#0088cc]">Quizzes in 30 Seconds</span>
-            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#0088cc] via-primary to-secondary rounded-full opacity-60" />
+            <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-gradient-to-r from-[#0088cc] via-[#0088cc]/60 to-transparent rounded-full" />
           </span>
         </h1>
 
         {/* Subheadline */}
         <p
-          className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-14 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
+          className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-14 leading-relaxed animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
-          Save hours every week by generating, scheduling, and automatically
-          <br className="hidden sm:block" />
-          publishing exam-quality Telegram quizzes from any topic or PDF.
+          <span className="text-foreground/90 font-medium">Save hours every week</span> by generating, scheduling, and automatically publishing exam-quality Telegram quizzes from <span className="text-foreground/90 font-medium">any topic or PDF</span>.
         </p>
 
         {/* CTA - Primary with Telegram styling */}
