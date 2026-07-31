@@ -36,6 +36,8 @@ import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const PRESET_TOPICS = ["Indian History", "Geography", "General Science", "Reasoning", "Math", "Current Affairs"];
+
 export function AutoScheduleCard() {
     const { toast } = useToast();
     const [user, setUser] = useState<User | null>(null);
@@ -183,15 +185,39 @@ export function AutoScheduleCard() {
         setScheduleTimes(scheduleTimes.filter(t => t !== time));
     };
 
-    const handleAddTopic = () => {
-        if (newTopic.trim() && !topics.includes(newTopic.trim())) {
-            setTopics([...topics, newTopic.trim()]);
-            setNewTopic("");
+    const MAX_TOPIC_LENGTH = 30;
+
+    const handleAddTopic = (topicToAdd?: string) => {
+        const rawTopic = topicToAdd !== undefined ? topicToAdd : newTopic;
+        let trimmed = rawTopic.trim();
+        if (!trimmed) return;
+
+        if (trimmed.length > MAX_TOPIC_LENGTH) {
+            trimmed = trimmed.substring(0, MAX_TOPIC_LENGTH);
+            toast({
+                title: "Topic Name Length Limited",
+                description: `Topic name limited to max ${MAX_TOPIC_LENGTH} characters.`,
+            });
         }
+
+        if (topics.includes(trimmed)) {
+            toast({
+                title: "Topic Exists",
+                description: "This topic has already been added.",
+            });
+            return;
+        }
+
+        setTopics([...topics, trimmed]);
+        setNewTopic("");
     };
 
-    const handleRemoveTopic = (topic: string) => {
-        setTopics(topics.filter(t => t !== topic));
+    const handleRemoveTopic = (topicToRemove: string) => {
+        setTopics(topics.filter(t => t !== topicToRemove));
+    };
+
+    const handleClearAllTopics = () => {
+        setTopics([]);
     };
 
     const handleSave = async () => {
@@ -755,58 +781,120 @@ export function AutoScheduleCard() {
                                 </div>
 
                                 {/* Section 3: AI Topics (Conditional) */}
-                                <div className="p-6 space-y-6 bg-card/40">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Sparkles className="w-4 h-4 text-primary" />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content Focus</h4>
+                                <div className="p-6 space-y-6 bg-card/40 border-l border-border/40">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4 text-amber-500" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content Focus</h4>
+                                        </div>
+                                        {sourceType === "ai_generated" && topics.length > 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleClearAllTopics}
+                                                className="h-7 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg font-bold transition-colors"
+                                            >
+                                                Clear All
+                                            </Button>
+                                        )}
                                     </div>
 
-                                    {sourceType === "ai_generated" ? (
+                                    {(sourceType === "ai_generated" || sourceType === "knowledge_base") ? (
                                         <div className="space-y-4">
-                                            <div className="flex flex-wrap gap-2 min-h-[40px]">
-                                                {topics.map((topic) => (
-                                                    <Badge
-                                                        key={topic}
-                                                        variant="secondary"
-                                                        className="gap-2 py-2 px-3 bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 shadow-sm hover:bg-destructive/10 hover:text-destructive transition-all cursor-pointer group"
-                                                        onClick={() => handleRemoveTopic(topic)}
-                                                    >
-                                                        <span className="font-bold text-xs">{topic}</span>
-                                                        <X className="w-3 h-3 opacity-40 group-hover:opacity-100" />
-                                                    </Badge>
-                                                ))}
-                                                {topics.length === 0 && (
-                                                    <div className="flex flex-col items-center justify-center py-6 w-full bg-primary/5 rounded-2xl border border-dashed border-primary/20 animate-pulse">
-                                                        <Sparkles className="w-5 h-5 text-primary mb-2" />
-                                                        <p className="text-[11px] font-black text-primary uppercase tracking-widest">✨ Full Auto Mode Enabled</p>
-                                                        <p className="text-[9px] text-muted-foreground font-medium mt-1 text-center px-4 max-w-[200px]">
-                                                            AI will automatically curate exam-oriented topics from GK, History, Geography & Science categories.
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    placeholder="Pharma, Math, etc..."
-                                                    value={newTopic}
-                                                    onChange={(e) => setNewTopic(e.target.value)}
-                                                    onKeyDown={(e) => e.key === "Enter" && handleAddTopic()}
-                                                    className="h-12 bg-background/80 border-border/60 rounded-xl font-medium text-foreground"
-                                                />
+                                            {/* Input Row */}
+                                            <div className="flex gap-2 relative">
+                                                <div className="relative flex-1">
+                                                    <Input
+                                                        placeholder="Add topic (e.g. History, Math)..."
+                                                        value={newTopic}
+                                                        maxLength={MAX_TOPIC_LENGTH}
+                                                        onChange={(e) => setNewTopic(e.target.value)}
+                                                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTopic())}
+                                                        className="h-12 pr-14 bg-background/80 border-border/60 rounded-xl font-medium text-foreground text-sm focus-visible:ring-amber-500/30"
+                                                    />
+                                                    <span className="absolute right-3 top-3.5 text-[10px] font-bold text-muted-foreground/60 select-none">
+                                                        {newTopic.length}/{MAX_TOPIC_LENGTH}
+                                                    </span>
+                                                </div>
                                                 <Button
                                                     size="icon"
-                                                    onClick={handleAddTopic}
-                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 rounded-xl"
+                                                    onClick={() => handleAddTopic()}
+                                                    disabled={!newTopic.trim()}
+                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white shadow-md shadow-amber-500/20 rounded-xl transition-all"
                                                 >
                                                     <Plus className="w-5 h-5" />
                                                 </Button>
                                             </div>
+
+                                            {/* Added Topics List */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground px-1">
+                                                    <span>Selected Topics ({topics.length})</span>
+                                                    <span className="text-[10px] opacity-70">Max 30 chars per topic</span>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 min-h-[48px] p-3 bg-muted/20 border border-border/30 rounded-2xl">
+                                                    {topics.map((topic) => (
+                                                        <div
+                                                            key={topic}
+                                                            className="inline-flex items-center gap-2 py-1.5 pl-3 pr-1.5 bg-card border border-amber-500/30 text-foreground rounded-xl shadow-sm hover:border-amber-500/60 transition-all group max-w-[220px]"
+                                                        >
+                                                            <span className="font-bold text-xs truncate max-w-[160px]" title={topic}>{topic}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveTopic(topic)}
+                                                                title="Delete topic"
+                                                                className="p-1 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                            >
+                                                                <X className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+
+                                                    {topics.length === 0 && (
+                                                        <div className="flex flex-col items-center justify-center py-4 w-full text-center">
+                                                            <div className="p-2 bg-amber-500/10 rounded-xl mb-2">
+                                                                <Sparkles className="w-4 h-4 text-amber-500" />
+                                                            </div>
+                                                            <p className="text-[11px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">✨ Full Auto Mode Active</p>
+                                                            <p className="text-[10px] text-muted-foreground font-medium mt-1 max-w-[240px]">
+                                                                {sourceType === "knowledge_base"
+                                                                    ? "AI will generate questions automatically from all uploaded Knowledge Base documents."
+                                                                    : "No topics added. AI will automatically select exam-oriented topics from General Knowledge, History, Science, etc."}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Quick Presets */}
+                                            {topics.length < 6 && (
+                                                <div className="pt-1">
+                                                    <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider mb-2 px-1">Quick Presets</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {PRESET_TOPICS.filter(p => !topics.includes(p)).map((preset) => (
+                                                            <button
+                                                                key={preset}
+                                                                type="button"
+                                                                onClick={() => handleAddTopic(preset)}
+                                                                className="text-[11px] font-semibold px-2.5 py-1 bg-background hover:bg-amber-500/10 border border-border/60 hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-all"
+                                                            >
+                                                                + {preset}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-[120px] text-center px-4 border-2 border-dashed border-border/60 rounded-2xl bg-muted/20">
-                                            <Database className="w-6 h-6 text-muted-foreground/60 mb-2" />
-                                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Source: Question Bank</p>
-                                            <p className="text-[10px] text-muted-foreground">Questions will be picked randomly from your saved bank.</p>
+                                        <div className="flex flex-col items-center justify-center p-6 text-center border border-border/60 rounded-2xl bg-muted/20 space-y-2">
+                                            <div className="p-3 bg-muted rounded-2xl text-muted-foreground">
+                                                <Database className="w-6 h-6" />
+                                            </div>
+                                            <p className="text-xs font-black text-muted-foreground uppercase tracking-wider">Source: Question Bank</p>
+                                            <p className="text-[11px] text-muted-foreground font-medium max-w-[260px] leading-relaxed">
+                                                Questions will be picked randomly from your saved Question Bank.
+                                            </p>
                                         </div>
                                     )}
                                 </div>

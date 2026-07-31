@@ -18,6 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isUserSuperAdmin, setIsUserSuperAdmin] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const queryClient = useQueryClient();
 
   // Use React Query for the profile to benefit from caching and auto-refetching
@@ -51,10 +52,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setInitialized(true);
+    }).catch(() => {
+      setInitialized(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setInitialized(true);
       if (_event === "SIGNED_OUT") {
         queryClient.clear();
       } else {
@@ -79,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     profile,
     isUserSuperAdmin,
-    loading: profileLoading && !!user,
+    loading: !initialized || (profileLoading && !!user),
     signOut,
     refetchProfile,
   };
