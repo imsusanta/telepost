@@ -1,41 +1,41 @@
-import { ArrowRight, BookOpen, Briefcase, Film, Gamepad2, Languages, Newspaper } from "lucide-react";
+import { ArrowRight, BookOpen, GraduationCap, School, Send, Target, Users } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 
 const useCases = [
   {
-    icon: BookOpen,
-    title: "JEE/NEET Coaching",
-    description: "Auto-post daily quizzes to your Telegram channel. Keep 50K+ students engaged with zero manual work.",
+    icon: School,
+    title: "Coaching Institutes",
+    description: "JEE, NEET & SSC academies automating daily test series and practice quizzes for 50K+ Telegram subscribers.",
     gradient: "from-primary to-accent"
   },
   {
-    icon: Briefcase,
-    title: "UPSC Preparation",
-    description: "Schedule current affairs quizzes. Auto-generate PDFs with detailed explanations for your channel.",
+    icon: GraduationCap,
+    title: "Competitive Exam Educators",
+    description: "Independent faculty creating PYQ-style daily quizzes for UPSC, Banking, State PCS, and Railway aspirants.",
     gradient: "from-accent to-secondary"
   },
   {
-    icon: Languages,
-    title: "Language Learning",
-    description: "Run vocabulary and grammar quizzes on Telegram. Track student progress and engagement metrics.",
+    icon: BookOpen,
+    title: "School & Board Tutors",
+    description: "CBSE & ICSE teachers delivering chapter-wise revision tests and daily practice questions to student groups.",
     gradient: "from-secondary to-success"
   },
   {
-    icon: Newspaper,
-    title: "Banking & SSC",
-    description: "Post aptitude and reasoning quizzes daily. Build a loyal student community on Telegram.",
+    icon: Send,
+    title: "Telegram Education Channels",
+    description: "Channel admins publishing automated daily GK, current affairs, and topic-wise quizzes to boost subscriber retention.",
     gradient: "from-success to-primary"
   },
   {
-    icon: Film,
-    title: "CBSE/ICSE Classes",
-    description: "Share chapter-wise quizzes on your Telegram channel. Parents love the engagement reports.",
+    icon: Target,
+    title: "Subject Specialists",
+    description: "Maths, Reasoning, English, and Science educators generating quick 30-second quizzes from notes and PDFs.",
     gradient: "from-primary to-secondary"
   },
   {
-    icon: Gamepad2,
-    title: "General Knowledge",
-    description: "Run daily GK quizzes on Telegram. Perfect for current affairs channels and quiz enthusiasts.",
+    icon: Users,
+    title: "Private Tuition & Batches",
+    description: "Tutors managing multiple student batches on Telegram with scheduled automated quiz posts and instantly score checks.",
     gradient: "from-accent to-success"
   }
 ];
@@ -54,11 +54,10 @@ export const UseCases = () => {
           isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
         }`}>
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
-            Built for educators
-            <span className="text-gradient-primary"> across all sectors</span>
+            Built for Coaching Institutes, Teachers & <span className="text-gradient-primary">Telegram Education Channels</span>
           </h2>
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-            From competitive exam coaching to corporate training, TelePost powers learning for everyone
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
+            Empowering competitive exam educators, coaching centers, school teachers, and Telegram channel owners to automate exam-quality quizzes in seconds.
           </p>
         </div>
 
