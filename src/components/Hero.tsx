@@ -43,7 +43,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Main Headline */}
         <h1
           id="hero-heading"
-          className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold tracking-tight leading-[1.1] mb-8 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
+          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold tracking-tight leading-[1.15] mb-8 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
           <span className="relative inline-block">
             <span className="text-gradient-primary">Create Exam-Quality </span>
