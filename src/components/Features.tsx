@@ -16,22 +16,31 @@ export const Features = () => {
         {/* Soft background ambient glow */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[550px] bg-[#0088cc]/5 rounded-full blur-[140px]" />
 
-        {/* Left Side: Floating Paperplane + Dashed Trail */}
-        <div className="hidden lg:block absolute left-[2%] top-[12%] text-[#0088cc]">
-          <svg className="w-56 h-56" viewBox="0 0 240 240" fill="none">
-            <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 200 45" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" fill="none" />
-            <g transform="translate(195, 30) rotate(-20) scale(1.2)">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor" />
+        {/* Top-Right Dotted Grid Pattern from Screenshot */}
+        <div className="hidden lg:block absolute right-[3%] top-[8%] w-48 h-48 opacity-20 pointer-events-none bg-[radial-gradient(#0088cc_1.5px,transparent_1.5px)] [background-size:16px_16px]" />
+
+        {/* Left Side: Large 3D Blue Floating Paperplane + Dashed Trail */}
+        <div className="hidden lg:block absolute left-[3%] top-[8%] text-[#0088cc] pointer-events-none z-0">
+          <svg className="w-64 h-64" viewBox="0 0 260 260" fill="none">
+            <path d="M 10 190 C 20 100, 100 50, 120 110 C 140 170, 60 170, 75 110 C 90 50, 160 30, 210 50" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 5" opacity="0.3" fill="none" />
+            <g transform="translate(190, 20) rotate(-15) scale(1.6)">
+              <path d="M 2.01 21 L 23 12 L 2.01 3 L 2 10 L 17 12 L 2 14 Z" fill="url(#hero-plane-grad)" />
+              <defs>
+                <linearGradient id="hero-plane-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#38bdf8" />
+                  <stop offset="1" stopColor="#0088cc" />
+                </linearGradient>
+              </defs>
             </g>
           </svg>
         </div>
 
-        {/* Right Side: Floating Bar Chart & Users Badge */}
-        <div className="hidden lg:block absolute right-[6%] top-[12%] space-y-4">
-          <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-md animate-float">
+        {/* Right Side: Floating Bar Chart & Users Badges */}
+        <div className="hidden lg:block absolute right-[8%] top-[14%] space-y-4 z-10">
+          <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-md animate-float border border-purple-200/50">
             <BarChart3 className="w-6 h-6" />
           </div>
-          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-md ml-8 animate-float-slow">
+          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-md ml-8 animate-float-slow border border-amber-200/50">
             <Users className="w-5 h-5" />
           </div>
         </div>
@@ -54,8 +63,10 @@ export const Features = () => {
             <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">Automation</span>
           </h2>
 
-          <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto">
-            Save hours every week and skyrocket student engagement with powerful features
+          <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto text-center leading-relaxed">
+            Save hours every week and skyrocket student engagement
+            <br className="hidden sm:block" />
+            with powerful features
           </p>
         </div>
 
