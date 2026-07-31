@@ -45,13 +45,11 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           id="hero-heading"
           className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold tracking-tight leading-[1.15] mb-8 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
+          <span className="text-gradient-primary">Create Exam-Quality Telegram </span>
           <span className="relative inline-block">
-            <span className="text-gradient-primary">Create Exam-Quality </span>
-            <span className="text-[#0088cc]">Telegram Quizzes</span>
-            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-[#0088cc] via-primary to-secondary rounded-full" />
+            <span className="text-[#0088cc]">Quizzes in 30 Seconds</span>
+            <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#0088cc] via-primary to-secondary rounded-full opacity-60" />
           </span>
-          <br />
-          <span className="text-gradient-primary">in 30 Seconds</span>
         </h1>
 
         {/* Subheadline */}
