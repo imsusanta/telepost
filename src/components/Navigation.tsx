@@ -78,13 +78,13 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
             {/* Logo */}
             <a
               href="/"
-              className="flex items-center gap-2.5 text-lg font-display font-bold text-foreground hover:text-primary transition-colors group"
+              className="flex items-center gap-2 text-lg font-display font-extrabold text-foreground hover:text-[#0088cc] transition-colors group"
               aria-label="TelePost - Home"
             >
-              <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
-                <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
+              <div className="w-8 h-8 rounded-xl bg-[#0088cc]/10 flex items-center justify-center text-[#0088cc] group-hover:scale-105 transition-transform">
+                <Send className="w-4 h-4 fill-[#0088cc] ml-[-1px]" />
               </div>
-              <span className="font-extrabold text-foreground tracking-tight">TelePost</span>
+              <span className="font-extrabold text-foreground tracking-tight text-xl">TelePost</span>
             </a>
 
             {/* Desktop Navigation */}
@@ -107,7 +107,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                 <Button
                   onClick={handleGoToDashboard}
                   size="sm"
-                  className="h-10 px-5 text-sm font-semibold bg-[#0066ff] hover:bg-[#0052cc] text-white rounded-xl gap-2 shadow-md shadow-[#0066ff]/20 transition-all hover:scale-[1.02]"
+                  className="h-9 px-5 text-sm font-semibold bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-full gap-2 shadow-sm transition-all hover:scale-[1.02]"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Go to Dashboard
@@ -124,7 +124,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                   <Button
                     onClick={handleGetStarted}
                     size="sm"
-                    className="h-10 px-5 text-sm font-semibold bg-[#0066ff] hover:bg-[#0052cc] text-white rounded-xl gap-2 shadow-md shadow-[#0066ff]/20 transition-all hover:scale-[1.02]"
+                    className="h-9 px-5 text-sm font-semibold bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-full gap-2 shadow-sm transition-all hover:scale-[1.02]"
                   >
                     <LayoutDashboard className="w-4 h-4" />
                     Go to Dashboard
