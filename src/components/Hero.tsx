@@ -30,19 +30,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </svg>
         </div>
 
-        {/* Background Mesh Waves (Left & Right Edge) from Screenshot */}
-        <div className="hidden lg:block absolute left-0 top-[20%] bottom-0 w-[300px] pointer-events-none opacity-15 text-[#0088cc]">
-          <svg className="w-full h-full" viewBox="0 0 300 600" fill="none">
-            <path d="M -50 0 C 100 150, 50 350, -50 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M -80 0 C 70 180, 20 380, -80 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
-          </svg>
-        </div>
-        <div className="hidden lg:block absolute right-0 top-[20%] bottom-0 w-[350px] pointer-events-none opacity-15 text-[#0088cc]">
-          <svg className="w-full h-full" viewBox="0 0 350 600" fill="none">
-            <path d="M 100 0 C 250 150, 150 350, 350 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M 150 0 C 300 180, 200 380, 350 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
-          </svg>
-        </div>
+
       </div>
 
       <div className="max-w-5xl mx-auto relative z-10 text-center w-full">
