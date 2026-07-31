@@ -480,7 +480,9 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
 
     // Fetch knowledge base content if requested
     let knowledgeBaseContext = '';
-    if (setting.source_type === 'knowledge_base' && supabaseAdmin && setting.channel_id) {
+    const isKnowledgeBase = setting.source_type === 'knowledge_base' || 
+        (setting.custom_prompt && (setting.custom_prompt.includes('[SOURCE_TYPE:knowledge_base]') || setting.custom_prompt.includes('[KNOWLEDGE_BASE]')));
+    if (isKnowledgeBase && supabaseAdmin && setting.channel_id) {
         console.log(`[auto-schedule] Fetching knowledge base documents for channel: ${setting.channel_id}`);
         try {
             const { data: documents, error: docError } = await supabaseAdmin
@@ -581,22 +583,41 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
         return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
       }
 
-      const devanagariRegex = /[\u0900-\u097F]/;
+      const forbiddenIndicRegex = /[\u0900-\u097F\u0A00-\u0B7F\u0B80-\u0DFF]/;
       const englishLetterRegex = /[a-zA-Z]/;
+      const dottedCircleRegex = /[\u25CC◌]/;
+      const invalidVowelPlacement = /(?:^|[\s\d০-৯\-\(\)\.,!?;:\"\'\[\]{}|])[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
+      const consecutiveVowels = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]{2,}/;
+      const viramaVowelConflict = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]\u09CD|\u09CD[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
 
       const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
         if (typeof val !== "string") return { valid: true };
         
         if (rawLanguage === 'bn') {
-          if (devanagariRegex.test(val)) {
-            return { valid: false, reason: `${label} contains Hindi/Devanagari characters (e.g., "${val.match(devanagariRegex)?.[0]}")` };
+          if (forbiddenIndicRegex.test(val)) {
+            return { valid: false, reason: `${label} contains foreign/non-Bengali script characters (e.g., "${val.match(forbiddenIndicRegex)?.[0]}")` };
           }
           if (englishLetterRegex.test(val)) {
             return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+          if (dottedCircleRegex.test(val)) {
+            return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
+          }
+          if (invalidVowelPlacement.test(val)) {
+            return { valid: false, reason: `${label} contains a combining vowel sign positioned incorrectly (e.g., after space or punctuation)` };
+          }
+          if (consecutiveVowels.test(val)) {
+            return { valid: false, reason: `${label} contains consecutive combining vowel signs (invalid layout)` };
+          }
+          if (viramaVowelConflict.test(val)) {
+            return { valid: false, reason: `${label} contains a virama directly conflicting with a combining vowel sign` };
           }
         } else if (rawLanguage === 'hi') {
           if (englishLetterRegex.test(val)) {
             return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+          if (dottedCircleRegex.test(val)) {
+            return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
           }
         }
         return { valid: true };

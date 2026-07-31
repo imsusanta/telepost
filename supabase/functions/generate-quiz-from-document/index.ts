@@ -289,59 +289,155 @@ serve(async (req) => {
       }
     }
 
-    // Try primary model
-    try {
-      text = await attemptGeneration(resolvedModel, finalProvider, apiKey);
-    } catch (e) {
-      console.error(`[generate-quiz-from-doc] Primary model failed: ${e.message}`);
-      lastError = e;
+    // Helper validation function
+    function validateQuizData(data: any): { valid: boolean; reason?: string } {
+      if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+        return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
+      }
 
-      // Fallback to reliable models if using OpenRouter
-      if (finalProvider === 'openrouter' || finalProvider === 'lovable') {
-        console.log("[generate-quiz-from-doc] Attempting fallbacks...");
-        for (const fallbackModel of RELIABLE_FREE_MODELS) {
-          if (fallbackModel === resolvedModel) continue;
-          try {
-            console.log(`[generate-quiz-from-doc] Trying fallback: ${fallbackModel}`);
-            text = await attemptGeneration(fallbackModel, 'openrouter', apiKey);
-            if (text) break;
-          } catch (fallbackError) {
-            console.error(`[generate-quiz-from-doc] Fallback ${fallbackModel} failed: ${fallbackError.message}`);
-            lastError = fallbackError;
+      const forbiddenIndicRegex = /[\u0900-\u097F\u0A00-\u0B7F\u0B80-\u0DFF]/;
+      const englishLetterRegex = /[a-zA-Z]/;
+      const dottedCircleRegex = /[\u25CC◌]/;
+      const invalidVowelPlacement = /(?:^|[\s\d০-৯\-\(\)\.,!?;:\"\'\[\]{}|])[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
+      const consecutiveVowels = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]{2,}/;
+      const viramaVowelConflict = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]\u09CD|\u09CD[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
+
+      const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
+        if (typeof val !== "string") return { valid: true };
+        
+        if (language === 'bn') {
+          if (forbiddenIndicRegex.test(val)) {
+            return { valid: false, reason: `${label} contains foreign/non-Bengali script characters (e.g., "${val.match(forbiddenIndicRegex)?.[0]}")` };
           }
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+          if (dottedCircleRegex.test(val)) {
+            return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
+          }
+          if (invalidVowelPlacement.test(val)) {
+            return { valid: false, reason: `${label} contains a combining vowel sign positioned incorrectly (e.g., after space or punctuation)` };
+          }
+          if (consecutiveVowels.test(val)) {
+            return { valid: false, reason: `${label} contains consecutive combining vowel signs (invalid layout)` };
+          }
+          if (viramaVowelConflict.test(val)) {
+            return { valid: false, reason: `${label} contains a virama directly conflicting with a combining vowel sign` };
+          }
+        } else if (language === 'hi') {
+          if (englishLetterRegex.test(val)) {
+            return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+          }
+          if (dottedCircleRegex.test(val)) {
+            return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
+          }
+        }
+        return { valid: true };
+      };
+
+      if (data.topic) {
+        const topicCheck = checkFieldText(data.topic, "Topic title");
+        if (!topicCheck.valid) return topicCheck;
+      }
+
+      for (let i = 0; i < data.questions.length; i++) {
+        const q = data.questions[i];
+        const qLabel = `Question ${i + 1}`;
+
+        if (!q.question) {
+          return { valid: false, reason: `${qLabel} is missing question text.` };
+        }
+        const qCheck = checkFieldText(q.question, `${qLabel} text`);
+        if (!qCheck.valid) return qCheck;
+
+        if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+          return { valid: false, reason: `${qLabel} must have exactly 4 options.` };
+        }
+
+        for (let j = 0; j < q.options.length; j++) {
+          const optCheck = checkFieldText(q.options[j], `${qLabel} Option ${j + 1}`);
+          if (!optCheck.valid) return optCheck;
+        }
+
+        if (q.explanation) {
+          const expCheck = checkFieldText(q.explanation, `${qLabel} explanation`);
+          if (!expCheck.valid) return expCheck;
+        }
+
+        if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index > 3) {
+          return { valid: false, reason: `${qLabel} correct_option_index must be between 0 and 3.` };
+        }
+      }
+
+      return { valid: true };
+    }
+
+    // Try generation with retry/regeneration loop (up to 3 attempts)
+    let quizData = null;
+    let feedback = "";
+    const maxAttempts = 3;
+    let currentModelToUse = resolvedModel;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`[generate-quiz-from-doc] Generation attempt ${attempt}/${maxAttempts} using ${currentModelToUse}...`);
+        text = await attemptGeneration(currentModelToUse, finalProvider, apiKey);
+        
+        if (!text) {
+          throw new Error("AI returned empty response");
+        }
+
+        // Robust JSON extraction
+        let cleanedContent = text.trim();
+        const jsonStart = cleanedContent.indexOf('{');
+        const jsonEnd = cleanedContent.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+        }
+        if (cleanedContent.includes('```')) {
+          cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        }
+
+        const parsed = JSON.parse(cleanedContent);
+
+        // Run validation
+        const valRes = validateQuizData(parsed);
+        if (valRes.valid) {
+          quizData = parsed;
+          console.log(`[generate-quiz-from-doc] Validation PASSED on attempt ${attempt}.`);
+          break;
+        } else {
+          console.warn(`[generate-quiz-from-doc] Validation FAILED on attempt ${attempt}: ${valRes.reason}`);
+          feedback = `Your previous response failed quality validation: ${valRes.reason}. 
+Please regenerate the entire response, ensuring strict adherence to the language rules (100% pure script, absolutely NO characters from other scripts or layout errors like dotted circles inside the text).`;
+          
+          // Switch to fallback model for subsequent attempts if using openrouter
+          if ((finalProvider === 'openrouter' || finalProvider === 'lovable') && attempt < maxAttempts) {
+            const nextModel = RELIABLE_FREE_MODELS[attempt % RELIABLE_FREE_MODELS.length];
+            if (nextModel !== currentModelToUse) {
+              console.log(`[generate-quiz-from-doc] Switching to fallback model: ${nextModel}`);
+              currentModelToUse = nextModel;
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error(`[generate-quiz-from-doc] Attempt ${attempt} failed with error: ${e.message}`);
+        lastError = e;
+        
+        // Try fallback models on exception
+        if ((finalProvider === 'openrouter' || finalProvider === 'lovable') && attempt < maxAttempts) {
+          const nextModel = RELIABLE_FREE_MODELS[attempt % RELIABLE_FREE_MODELS.length];
+          console.log(`[generate-quiz-from-doc] Exception fallback. Switching to: ${nextModel}`);
+          currentModelToUse = nextModel;
         }
       }
     }
 
-    const content = text;
-
     console.log(`AI responded in ${Date.now() - startTime}ms`);
 
-    if (!content) throw new Error("Empty AI response — the model returned no content. Try a different model.");
-
-    // Robust JSON extraction
-    let quizData;
-    try {
-      let cleanedContent = content.trim();
-      const jsonStart = cleanedContent.indexOf('{');
-      const jsonEnd = cleanedContent.lastIndexOf('}');
-
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
-      }
-
-      if (cleanedContent.includes('```')) {
-        cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-      }
-
-      quizData = JSON.parse(cleanedContent);
-    } catch (e) {
-      console.error("Parse error. Content snippet:", content.substring(0, 100));
-      throw new Error(`Invalid JSON from AI: ${e instanceof Error ? e.message : 'Parse failed'}`);
-    }
-
-    if (!quizData.questions || !Array.isArray(quizData.questions)) {
-      throw new Error("Invalid quiz structure returned");
+    if (!quizData) {
+      const errorMsg = lastError?.message || "Failed to generate a valid and high-quality quiz after 3 attempts. Please try again.";
+      throw new Error(errorMsg);
     }
 
     return new Response(JSON.stringify(quizData), {

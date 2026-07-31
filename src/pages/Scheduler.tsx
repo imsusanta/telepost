@@ -358,7 +358,7 @@ export default function Scheduler() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="clay-card-hover border-none overflow-hidden relative group">
+          <Card className="border border-border/50 bg-card/70 backdrop-blur-xl overflow-hidden relative group hover:shadow-md transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <MessageSquare className="w-16 h-16 text-foreground" />
             </div>
@@ -370,7 +370,7 @@ export default function Scheduler() {
             </CardContent>
           </Card>
 
-          <Card className="clay-card-hover border-none overflow-hidden relative group">
+          <Card className="border border-border/50 bg-card/70 backdrop-blur-xl overflow-hidden relative group hover:shadow-md transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Clock className="w-16 h-16 text-blue-500" />
             </div>
@@ -382,7 +382,7 @@ export default function Scheduler() {
             </CardContent>
           </Card>
 
-          <Card className="clay-card-hover border-none overflow-hidden relative group">
+          <Card className="border border-border/50 bg-card/70 backdrop-blur-xl overflow-hidden relative group hover:shadow-md transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             </div>
@@ -394,7 +394,7 @@ export default function Scheduler() {
             </CardContent>
           </Card>
 
-          <Card className="clay-card-hover border-none overflow-hidden relative group">
+          <Card className="border border-border/50 bg-card/70 backdrop-blur-xl overflow-hidden relative group hover:shadow-md transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <AlertCircle className="w-16 h-16 text-rose-500" />
             </div>
@@ -413,7 +413,7 @@ export default function Scheduler() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
               placeholder="Search by quiz topic..."
-              className="pl-10 h-11 bg-white/50 backdrop-blur-sm border-white/20 rounded-xl focus:ring-primary/20 shadow-sm"
+              className="pl-10 h-11 bg-card/60 backdrop-blur-sm border-border/50 rounded-xl focus:ring-primary/20 shadow-sm text-foreground placeholder:text-muted-foreground"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -421,15 +421,15 @@ export default function Scheduler() {
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full md:w-auto">
-              <TabsList className="bg-white/50 backdrop-blur-sm border border-white/20 p-1 h-11 rounded-xl shadow-sm">
-                <TabsTrigger value="all" className="rounded-lg px-4 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">All</TabsTrigger>
-                <TabsTrigger value="pending" className="rounded-lg px-4 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Pending</TabsTrigger>
-                <TabsTrigger value="sent" className="rounded-lg px-4 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm text-emerald-600">Sent</TabsTrigger>
-                <TabsTrigger value="failed" className="rounded-lg px-4 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm text-rose-600">Failed</TabsTrigger>
+              <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-11 rounded-xl shadow-sm">
+                <TabsTrigger value="all" className="rounded-lg px-4 font-bold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-lg px-4 font-bold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Pending</TabsTrigger>
+                <TabsTrigger value="sent" className="rounded-lg px-4 font-bold data-[state=active]:bg-background data-[state=active]:text-emerald-500 data-[state=active]:shadow-sm">Sent</TabsTrigger>
+                <TabsTrigger value="failed" className="rounded-lg px-4 font-bold data-[state=active]:bg-background data-[state=active]:text-rose-500 data-[state=active]:shadow-sm">Failed</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            <div className="flex p-1 bg-white/50 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm ml-auto md:ml-0">
+            <div className="flex p-1 bg-muted/60 backdrop-blur-sm border border-border/50 rounded-xl shadow-sm ml-auto md:ml-0">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="icon"
@@ -456,7 +456,7 @@ export default function Scheduler() {
             <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
               {[...Array(6)].map((_, i) => (
                 viewMode === "grid" ? (
-                  <Card key={i} className="clay-card border-none h-48">
+                  <Card key={i} className="border border-border/50 bg-card/60 h-48">
                     <CardHeader className="pb-2">
                       <Skeleton className="h-6 w-3/4 rounded-lg" />
                     </CardHeader>
@@ -471,12 +471,12 @@ export default function Scheduler() {
               ))}
             </div>
           ) : filteredPosts.length === 0 ? (
-            <div className="clay-card p-12 flex flex-col items-center justify-center text-center space-y-4 bg-white/30 backdrop-blur-md">
-              <div className="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mb-2">
-                <Calendar className="w-10 h-10 text-muted-foreground/40" />
+            <div className="border border-border/50 rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-4 bg-card/60 backdrop-blur-md">
+              <div className="w-20 h-20 bg-muted/40 rounded-full flex items-center justify-center mb-2">
+                <Calendar className="w-10 h-10 text-muted-foreground/50" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-bold">No scheduled posts found</h3>
+                <h3 className="text-xl font-bold text-foreground">No scheduled posts found</h3>
                 <p className="text-muted-foreground max-w-xs">
                   {searchQuery || statusFilter !== "all"
                     ? "Try adjusting your filters to find what you're looking for."
@@ -484,7 +484,7 @@ export default function Scheduler() {
                 </p>
               </div>
               {!searchQuery && statusFilter === "all" && (
-                <Button className="clay-button rounded-xl px-8 shadow-clay-sm" asChild>
+                <Button className="rounded-xl px-8 shadow-sm" asChild>
                   <a href="/dashboard/create-quiz">Create Your First Quiz</a>
                 </Button>
               )}
@@ -496,21 +496,21 @@ export default function Scheduler() {
                   {filteredPosts.map((post) => {
                     const quizData = post.quiz_data as unknown as Quiz;
                     return (
-                      <Card key={post.id} className="clay-card border-none flex flex-col group hover:scale-[1.02] transition-all duration-300">
+                      <Card key={post.id} className="border border-border/50 bg-card/70 backdrop-blur-xl flex flex-col group hover:scale-[1.02] transition-all duration-300 shadow-sm">
                         <CardHeader className="p-5 pb-3">
                           <div className="flex justify-between items-start mb-2">
                             {getStatusBadge(post)}
-                            <div className="p-1.5 hover:bg-black/5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <div className="p-1.5 hover:bg-muted rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                               <MoreVertical className="w-4 h-4 text-muted-foreground" />
                             </div>
                           </div>
-                          <CardTitle className="text-xl font-black line-clamp-1 leading-tight tracking-tight">
+                          <CardTitle className="text-xl font-black text-foreground line-clamp-1 leading-tight tracking-tight">
                             {quizData?.topic || 'Untitled Quiz'}
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-5 pt-0 flex-grow space-y-4">
                           <div className="space-y-2.5">
-                            <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground bg-black/5 p-2 rounded-lg">
+                            <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground bg-muted/40 p-2 rounded-lg">
                               <History className="w-4 h-4 text-primary/70" />
                               <span className="truncate">{post.chat_id}</span>
                             </div>
@@ -519,7 +519,7 @@ export default function Scheduler() {
                               {formatDateTime(post.scheduled_time)}
                             </div>
                             {post.sent_at && (
-                              <div className="flex items-center gap-2.5 text-xs font-medium text-emerald-600/80 pl-2">
+                              <div className="flex items-center gap-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 pl-2">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 Sent on {formatDateTime(post.sent_at)}
                               </div>
@@ -530,7 +530,7 @@ export default function Scheduler() {
                           {(post.status === 'pending' || post.status === 'processing') && (
                             <Button
                               variant="ghost"
-                              className="flex-1 gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold rounded-xl"
+                              className="flex-1 gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 font-bold rounded-xl"
                               onClick={() => handleCancel(post.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -540,7 +540,7 @@ export default function Scheduler() {
                           {post.status === 'failed' && (
                             <Button
                               variant="secondary"
-                              className="flex-1 gap-2 font-bold rounded-xl bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
+                              className="flex-1 gap-2 font-bold rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20"
                               onClick={() => handleRetry(post.id)}
                             >
                               <RotateCcw className="w-4 h-4" />
@@ -557,11 +557,11 @@ export default function Scheduler() {
                   })}
                 </div>
               ) : (
-                <div className="clay-card overflow-hidden border-none p-0 bg-white/40 backdrop-blur-lg">
+                <div className="border border-border/50 rounded-2xl overflow-hidden p-0 bg-card/60 backdrop-blur-lg shadow-sm">
                   <div className="overflow-x-auto scrollbar-thin">
                     <Table>
-                      <TableHeader className="bg-black/5">
-                        <TableRow className="hover:bg-transparent border-white/20">
+                      <TableHeader className="bg-muted/50">
+                        <TableRow className="hover:bg-transparent border-border/40">
                           <TableHead className="font-black text-foreground/70 pl-6 h-14 whitespace-nowrap">Quiz Topic</TableHead>
                           <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Target Chat</TableHead>
                           <TableHead className="font-black text-foreground/70 h-14 whitespace-nowrap">Scheduled For</TableHead>
@@ -574,8 +574,8 @@ export default function Scheduler() {
                         {filteredPosts.map((post) => {
                           const quizData = post.quiz_data as unknown as Quiz;
                           return (
-                            <TableRow key={post.id} className="group hover:bg-white/40 border-white/20 transition-colors h-16">
-                              <TableCell className="font-bold pl-6 whitespace-nowrap">
+                            <TableRow key={post.id} className="group hover:bg-muted/40 border-border/40 transition-colors h-16">
+                              <TableCell className="font-bold pl-6 whitespace-nowrap text-foreground">
                                 {quizData?.topic || 'N/A'}
                               </TableCell>
                               <TableCell className="font-medium text-muted-foreground whitespace-nowrap">
@@ -606,7 +606,7 @@ export default function Scheduler() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleRetry(post.id)}
-                                      className="h-8 px-3 text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
+                                      className="h-8 px-3 text-orange-600 dark:text-orange-400 hover:text-orange-700 hover:bg-orange-500/10 rounded-lg group-hover:scale-105 transition-all font-bold"
                                     >
                                       <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                                       Retry

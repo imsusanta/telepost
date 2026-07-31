@@ -1,6 +1,5 @@
 import { Button } from "./ui/button";
 import { ArrowRight, Send, Zap, TrendingUp } from "lucide-react";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -13,10 +12,6 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
       className="relative min-h-[110vh] flex items-center justify-center pt-32 pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden"
       aria-labelledby="hero-heading"
     >
-      {/* Theme Toggle - Fixed position */}
-      <div className="fixed top-6 right-6 z-50">
-        <ThemeToggle />
-      </div>
 
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">

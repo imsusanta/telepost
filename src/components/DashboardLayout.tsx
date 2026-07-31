@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { useSubscription } from "@/hooks/useSubscription";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 import {
   Sidebar,
@@ -248,6 +249,7 @@ function DashboardLayoutInner({
                 </span>
               </div>
               <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+                <ThemeToggle />
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative hover:bg-primary/5 transition-all">
                   <Bell className="w-4 h-4 text-muted-foreground" />
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
@@ -464,10 +466,13 @@ function DashboardLayoutInner({
                 </span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg relative hover:bg-primary/5">
-              <Bell className="w-4 h-4 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg relative hover:bg-primary/5">
+                <Bell className="w-4 h-4 text-muted-foreground" />
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
+              </Button>
+            </div>
           </header>
 
           <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">

@@ -241,11 +241,11 @@ export function AutoScheduleCard() {
                     : "Auto-schedule disabled",
             });
             await loadData();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving auto-schedule settings:", error);
             toast({
                 title: "Saving Error",
-                description: "Failed to save settings. Please ensure you have run the database migration (adding the timezone column).",
+                description: error?.message || "Failed to save settings. Please check your database connection.",
                 variant: "destructive",
             });
         } finally {
@@ -385,7 +385,7 @@ export function AutoScheduleCard() {
 
     if (isLoading) {
         return (
-            <Card className="clay-card border-none bg-gradient-to-br from-violet-500/5 to-purple-500/10">
+            <Card className="border border-border/50 bg-card/60 backdrop-blur-xl">
                 <CardContent className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </CardContent>
@@ -394,44 +394,44 @@ export function AutoScheduleCard() {
     }
 
     return (
-        <Card className="clay-card border-none bg-white/40 backdrop-blur-xl border border-white/40 shadow-2xl overflow-hidden ring-1 ring-black/5">
-            <CardHeader className="pb-6 border-b border-white/40 bg-gradient-to-r from-violet-500/10 via-white/50 to-transparent">
+        <Card className="border border-border/50 bg-card/80 backdrop-blur-xl shadow-xl overflow-hidden ring-1 ring-border/20">
+            <CardHeader className="pb-6 border-b border-border/50 bg-gradient-to-r from-primary/10 via-card/50 to-transparent">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-violet-600 rounded-2xl shadow-lg shadow-violet-600/20">
-                            <Bot className="w-7 h-7 text-white" />
+                        <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20 text-primary-foreground">
+                            <Bot className="w-7 h-7" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <CardTitle className="text-2xl font-black text-slate-800 tracking-tight">Auto-Scheduler</CardTitle>
-                                <Badge variant="secondary" className={`text-[10px] font-black uppercase tracking-widest border-none ${isEnabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                                <CardTitle className="text-2xl font-black text-foreground tracking-tight">Auto-Scheduler</CardTitle>
+                                <Badge variant="secondary" className={`text-[10px] font-black uppercase tracking-widest border-none ${isEnabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                     {isEnabled ? 'Active' : 'Idle'}
                                 </Badge>
                             </div>
-                            <CardDescription className="text-slate-500 font-medium text-sm">
+                            <CardDescription className="text-muted-foreground font-medium text-sm">
                                 AI-powered quiz broadcasting
                             </CardDescription>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-3 px-4 py-2 bg-white/60 rounded-2xl border border-white/80 shadow-sm transition-all hover:bg-white">
-                            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 cursor-pointer" htmlFor="auto-schedule-mode">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-muted/60 rounded-2xl border border-border/50 shadow-sm transition-all hover:bg-muted">
+                            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground cursor-pointer" htmlFor="auto-schedule-mode">
                                 {isEnabled ? 'Enabled' : 'Disabled'}
                             </Label>
                             <Switch
                                 id="auto-schedule-mode"
                                 checked={isEnabled}
                                 onCheckedChange={setIsEnabled}
-                                className="data-[state=checked]:bg-violet-600"
+                                className="data-[state=checked]:bg-primary"
                             />
                         </div>
 
                         <Button
                             variant={showSettings ? "default" : "outline"}
                             className={`h-11 px-4 gap-2 rounded-2xl shadow-sm transition-all font-bold ${showSettings
-                                ? 'bg-slate-900 text-white hover:bg-black'
-                                : 'bg-white border-white/80 text-slate-700 hover:text-violet-600'
+                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                : 'bg-background border-border/60 text-foreground hover:bg-accent'
                                 }`}
                             onClick={() => setShowSettings(!showSettings)}
                         >
@@ -441,7 +441,7 @@ export function AutoScheduleCard() {
 
                         <Button
                             variant="outline"
-                            className="h-11 px-4 gap-2 rounded-2xl bg-amber-500/10 border-amber-500/20 text-amber-700 hover:bg-amber-500 hover:text-white transition-all font-bold shadow-sm"
+                            className="h-11 px-4 gap-2 rounded-2xl bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white transition-all font-bold shadow-sm"
                             onClick={handleBroadcastNow}
                             disabled={isBroadcasting}
                         >
@@ -460,48 +460,48 @@ export function AutoScheduleCard() {
                 {showSettings && (
                     <div className="">
                         {!isEnabled && (
-                            <div className="px-8 py-4 bg-amber-50/50 border-b border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="px-8 py-4 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                                    <Zap className="w-4 h-4 text-amber-600" />
+                                    <Zap className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                 </div>
-                                <p className="text-xs font-bold text-amber-800">
+                                <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
                                     Auto-Scheduler is paused. <span className="font-medium opacity-80">Settings below will be saved but won't trigger until the system is active.</span>
                                 </p>
                             </div>
                         )}
 
                         <div className={`transition-all duration-500 ${!isEnabled ? 'opacity-60 grayscale-[0.5] pointer-events-auto' : 'opacity-100 grayscale-0'}`}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 lg:divide-x border-b border-white/40">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 lg:divide-x divide-border/40 border-b border-border/40">
                                 {/* Section 1: Source */}
-                                <div className="p-6 space-y-6 bg-white/30">
+                                <div className="p-6 space-y-6 bg-card/40">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Settings2 className="w-4 h-4 text-violet-600" />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Core Configuration</h4>
+                                        <Settings2 className="w-4 h-4 text-primary" />
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Core Configuration</h4>
                                     </div>
 
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <Label className="text-xs font-bold text-slate-600 ml-1">Quiz Source</Label>
+                                            <Label className="text-xs font-bold text-foreground ml-1">Quiz Source</Label>
                                             <Select value={sourceType} onValueChange={(v) => setSourceType(v as SourceType)}>
-                                                <SelectTrigger className="h-12 bg-white/60 border-white/80 hover:bg-white transition-all rounded-xl shadow-sm">
+                                                <SelectTrigger className="h-12 bg-background/80 border-border/60 hover:bg-background text-foreground transition-all rounded-xl shadow-sm">
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent className="rounded-xl border-white/40 shadow-2xl backdrop-blur-xl">
+                                                <SelectContent className="rounded-xl border-border/60 shadow-2xl backdrop-blur-xl bg-card text-foreground">
                                                     <SelectItem value="question_bank">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="p-1.5 bg-blue-500/10 rounded-lg"><Database className="w-4 h-4 text-blue-600" /></div>
+                                                            <div className="p-1.5 bg-blue-500/10 rounded-lg"><Database className="w-4 h-4 text-blue-500" /></div>
                                                             <span className="font-bold">Question Bank</span>
                                                         </div>
                                                     </SelectItem>
                                                     <SelectItem value="ai_generated">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="p-1.5 bg-amber-500/10 rounded-lg"><Sparkles className="w-4 h-4 text-amber-600" /></div>
+                                                            <div className="p-1.5 bg-amber-500/10 rounded-lg"><Sparkles className="w-4 h-4 text-amber-500" /></div>
                                                             <span className="font-bold">AI Generated</span>
                                                         </div>
                                                     </SelectItem>
                                                     <SelectItem value="knowledge_base">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="p-1.5 bg-purple-500/10 rounded-lg"><FileText className="w-4 h-4 text-purple-600" /></div>
+                                                            <div className="p-1.5 bg-purple-500/10 rounded-lg"><FileText className="w-4 h-4 text-purple-500" /></div>
                                                             <span className="font-bold">Knowledge Base</span>
                                                         </div>
                                                     </SelectItem>
@@ -512,15 +512,15 @@ export function AutoScheduleCard() {
                                         {/* Language Selection - only show for AI Generated and Knowledge Base */}
                                         {(sourceType === "ai_generated" || sourceType === "knowledge_base") && (
                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Label className="text-xs font-bold text-slate-600 ml-1 flex items-center gap-2">
-                                                    <Languages className="w-3 h-3" />
+                                                <Label className="text-xs font-bold text-foreground ml-1 flex items-center gap-2">
+                                                    <Languages className="w-3 h-3 text-primary" />
                                                     Quiz Language
                                                 </Label>
                                                 <Select value={language} onValueChange={setLanguage}>
-                                                    <SelectTrigger className="h-12 bg-white/60 border-white/80 hover:bg-white transition-all rounded-xl shadow-sm">
+                                                    <SelectTrigger className="h-12 bg-background/80 border-border/60 hover:bg-background text-foreground transition-all rounded-xl shadow-sm">
                                                         <SelectValue />
                                                     </SelectTrigger>
-                                                    <SelectContent className="rounded-xl border-white/40 shadow-2xl backdrop-blur-xl max-h-[300px]">
+                                                    <SelectContent className="rounded-xl border-border/60 shadow-2xl backdrop-blur-xl bg-card text-foreground max-h-[300px]">
                                                         {supportedLanguages.map((lang) => (
                                                             <SelectItem key={lang.value} value={lang.value}>
                                                                 <span className="font-bold">{lang.label}</span>
@@ -528,7 +528,7 @@ export function AutoScheduleCard() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                                <p className="text-[10px] text-slate-400 font-medium italic text-center">
+                                                <p className="text-[10px] text-muted-foreground font-medium italic text-center">
                                                     AI will generate questions in this language
                                                 </p>
                                             </div>
@@ -537,17 +537,17 @@ export function AutoScheduleCard() {
                                         {/* Custom System Prompt - only show for AI Generated and Knowledge Base */}
                                         {(sourceType === "ai_generated" || sourceType === "knowledge_base") && (
                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Label className="text-xs font-bold text-slate-600 ml-1 flex items-center gap-2">
-                                                    <Settings2 className="w-3 h-3" />
+                                                <Label className="text-xs font-bold text-foreground ml-1 flex items-center gap-2">
+                                                    <Settings2 className="w-3 h-3 text-primary" />
                                                     Custom Instructions (Optional)
                                                 </Label>
                                                 <textarea
                                                     value={customPrompt}
                                                     onChange={(e) => setCustomPrompt(e.target.value)}
                                                     placeholder="e.g., Generate questions about Indian GK only, not Bangladesh. Focus on West Bengal state topics."
-                                                    className="w-full min-h-[80px] max-h-[150px] p-3 text-sm bg-white/60 border border-white/80 hover:bg-white transition-all rounded-xl shadow-sm resize-y focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent placeholder:text-slate-400 placeholder:italic"
+                                                    className="w-full min-h-[80px] max-h-[150px] p-3 text-sm bg-background/80 border border-border/60 text-foreground hover:bg-background transition-all rounded-xl shadow-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent placeholder:text-muted-foreground placeholder:italic"
                                                 />
-                                                <p className="text-[10px] text-slate-400 font-medium italic text-center">
+                                                <p className="text-[10px] text-muted-foreground font-medium italic text-center">
                                                     Guide the AI with specific instructions for quiz generation
                                                 </p>
                                             </div>
@@ -555,8 +555,8 @@ export function AutoScheduleCard() {
 
                                         <div className="space-y-4 pt-2">
                                             <div className="flex items-center justify-between ml-1">
-                                                <Label className="text-xs font-bold text-slate-600">Questions per Post</Label>
-                                                <Badge variant="secondary" className="bg-violet-600 text-white font-black px-2.5 rounded-lg border-none">
+                                                <Label className="text-xs font-bold text-foreground">Questions per Post</Label>
+                                                <Badge variant="secondary" className="bg-primary text-primary-foreground font-black px-2.5 rounded-lg border-none">
                                                     {questionsPerPost}
                                                 </Badge>
                                             </div>
@@ -568,20 +568,20 @@ export function AutoScheduleCard() {
                                                 step={1}
                                                 className="py-1 cursor-pointer"
                                             />
-                                            <p className="text-[10px] text-slate-400 font-medium italic text-center">Recommended: 5 to 10 questions</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium italic text-center">Recommended: 5 to 10 questions</p>
                                         </div>
                                     </div>
                                 </div>
 
 
                                 {/* Section 2: Timing */}
-                                <div className="p-6 space-y-6 bg-white/20">
+                                <div className="p-6 space-y-6 bg-card/20">
                                     <div className="flex items-center justify-between gap-2 mb-2">
                                         <div className="flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-violet-600" />
-                                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Posting Schedule</h4>
+                                            <Clock className="w-4 h-4 text-primary" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Posting Schedule</h4>
                                         </div>
-                                        <Badge variant="secondary" className="text-[9px] font-black bg-violet-600 text-white border-none py-0.5 px-2">
+                                        <Badge variant="secondary" className="text-[9px] font-black bg-primary text-primary-foreground border-none py-0.5 px-2">
                                             LOCAL TIME
                                         </Badge>
                                     </div>
@@ -591,16 +591,16 @@ export function AutoScheduleCard() {
                                             {scheduleTimes.map((time) => (
                                                 <Badge
                                                     key={time}
-                                                    className="gap-2 py-2 px-3 bg-white border-white/80 text-slate-700 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all cursor-pointer group"
+                                                    className="gap-2 py-2 px-3 bg-background border-border/60 text-foreground shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all cursor-pointer group"
                                                     onClick={() => handleRemoveTime(time)}
                                                 >
-                                                    <Clock className="w-3 h-3 text-violet-500 group-hover:text-red-500" />
+                                                    <Clock className="w-3 h-3 text-primary group-hover:text-destructive" />
                                                     <span className="font-black text-sm">{formatTime12h(time)}</span>
                                                     <X className="w-3 h-3 opacity-40 group-hover:opacity-100" />
                                                 </Badge>
                                             ))}
                                             {scheduleTimes.length === 0 && (
-                                                <p className="text-xs text-slate-400 font-medium py-2">No times set</p>
+                                                <p className="text-xs text-muted-foreground font-medium py-2">No times set</p>
                                             )}
                                         </div>
 
@@ -609,23 +609,23 @@ export function AutoScheduleCard() {
                                                 <PopoverTrigger asChild>
                                                     <Button
                                                         variant="outline"
-                                                        className="h-12 flex-1 bg-white/60 border-white/80 rounded-xl font-bold justify-between px-4 hover:bg-white transition-all shadow-sm"
+                                                        className="h-12 flex-1 bg-background/80 border-border/60 rounded-xl font-bold justify-between px-4 hover:bg-accent text-foreground transition-all shadow-sm"
                                                     >
                                                         <div className="flex items-center gap-2">
-                                                            <Clock className="w-4 h-4 text-violet-500" />
+                                                            <Clock className="w-4 h-4 text-primary" />
                                                             <span>{formatTime12h(newTime)}</span>
                                                         </div>
-                                                        <Badge variant="secondary" className="text-[9px] font-black bg-slate-100 text-slate-500 border-none px-1.5">
+                                                        <Badge variant="secondary" className="text-[9px] font-black bg-muted text-muted-foreground border-none px-1.5">
                                                             CHANGE
                                                         </Badge>
                                                     </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-[calc(100vw-32px)] sm:w-[350px] max-w-[350px] p-0 rounded-3xl shadow-2xl border-white/40 backdrop-blur-3xl bg-white/95" align="start">
-                                                    <div className="p-4 bg-gradient-to-br from-violet-600 to-purple-700 rounded-t-3xl text-white">
+                                                <PopoverContent className="w-[calc(100vw-32px)] sm:w-[350px] max-w-[350px] p-0 rounded-3xl shadow-2xl border-border/60 backdrop-blur-3xl bg-card text-foreground" align="start">
+                                                    <div className="p-4 bg-gradient-to-br from-primary to-primary/80 rounded-t-3xl text-primary-foreground">
                                                         {/* Current Time Display */}
-                                                        <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/20">
+                                                        <div className="flex items-center justify-between mb-3 pb-3 border-b border-primary-foreground/20">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                                                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                                                                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">Current Time</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
@@ -633,7 +633,7 @@ export function AutoScheduleCard() {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"
-                                                                    className="h-7 px-2 text-[10px] font-black bg-white/20 hover:bg-white/30 text-white rounded-lg"
+                                                                    className="h-7 px-2 text-[10px] font-black bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground rounded-lg"
                                                                     onClick={() => setNewTime(getCurrentTimeAs24h())}
                                                                 >
                                                                     Set Now
@@ -646,7 +646,7 @@ export function AutoScheduleCard() {
                                                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Selected Time</span>
                                                                 <span className="text-3xl font-black tabular-nums">{formatTime12h(newTime)}</span>
                                                             </div>
-                                                            <div className="flex gap-1 bg-white/10 p-1 rounded-xl">
+                                                            <div className="flex gap-1 bg-primary-foreground/10 p-1 rounded-xl">
                                                                 {['AM', 'PM'].map(p => {
                                                                     const currentHour = parseInt(newTime.split(':')[0]);
                                                                     const isPM = currentHour >= 12;
@@ -656,7 +656,7 @@ export function AutoScheduleCard() {
                                                                             key={p}
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            className={`h-8 px-3 rounded-lg font-black text-xs transition-all ${isSelected ? 'bg-white text-violet-600 shadow-lg' : 'text-white hover:bg-white/20'}`}
+                                                                            className={`h-8 px-3 rounded-lg font-black text-xs transition-all ${isSelected ? 'bg-primary-foreground text-primary shadow-lg' : 'text-primary-foreground hover:bg-primary-foreground/20'}`}
                                                                             onClick={() => {
                                                                                 const [h, m] = newTime.split(':').map(Number);
                                                                                 let newH = h;
@@ -676,8 +676,8 @@ export function AutoScheduleCard() {
 
                                                     <div className="flex p-4 gap-4">
                                                         {/* Hour Dial */}
-                                                        <div className="relative w-[210px] h-[210px] bg-slate-50 rounded-full border border-slate-100 shadow-inner flex shrink-0">
-                                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-violet-600 rounded-full z-10" />
+                                                        <div className="relative w-[210px] h-[210px] bg-muted/40 rounded-full border border-border/40 shadow-inner flex shrink-0">
+                                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full z-10" />
                                                             {Array.from({ length: 12 }).map((_, i) => {
                                                                 const h12 = i + 1;
                                                                 const { x, y } = getHourPos(h12);
@@ -688,7 +688,7 @@ export function AutoScheduleCard() {
                                                                     <Button
                                                                         key={h12}
                                                                         variant="ghost"
-                                                                        className={`absolute w-9 h-9 p-0 rounded-full font-black text-sm transition-all -translate-x-1/2 -translate-y-1/2 ${isSelected ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30 scale-110' : 'text-slate-500 hover:bg-violet-50 hover:text-violet-600'}`}
+                                                                        className={`absolute w-9 h-9 p-0 rounded-full font-black text-sm transition-all -translate-x-1/2 -translate-y-1/2 ${isSelected ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-110' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'}`}
                                                                         style={{ left: `${x}px`, top: `${y}px` }}
                                                                         onClick={() => {
                                                                             const isPM = currentH24 >= 12;
@@ -706,7 +706,7 @@ export function AutoScheduleCard() {
                                                         {/* Minute Scroll Area */}
                                                         <div className="flex flex-col flex-1">
                                                             <div className="text-center mb-2">
-                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Min</span>
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Min</span>
                                                             </div>
                                                             <ScrollArea className="h-[210px] w-full pr-2">
                                                                 <div className="space-y-1">
@@ -717,7 +717,7 @@ export function AutoScheduleCard() {
                                                                             <Button
                                                                                 key={min}
                                                                                 variant={isSelected ? "default" : "ghost"}
-                                                                                className={`w-full h-9 rounded-lg font-bold text-sm transition-all ${isSelected ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-violet-50'}`}
+                                                                                className={`w-full h-9 rounded-lg font-bold text-sm transition-all ${isSelected ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-primary/10'}`}
                                                                                 onClick={() => {
                                                                                     const hour = newTime.split(':')[0] || "12";
                                                                                     setNewTime(`${hour}:${min}`);
@@ -732,22 +732,22 @@ export function AutoScheduleCard() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="p-3 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl">
-                                                        <p className="text-[10px] text-slate-400 font-bold text-center">Touch/Click numbers to set time</p>
+                                                    <div className="p-3 border-t border-border/40 bg-muted/30 rounded-b-3xl">
+                                                        <p className="text-[10px] text-muted-foreground font-bold text-center">Touch/Click numbers to set time</p>
                                                     </div>
                                                 </PopoverContent>
                                             </Popover>
                                             <Button
                                                 size="icon"
                                                 onClick={handleAddTime}
-                                                className="h-12 w-12 shrink-0 bg-violet-600 hover:bg-violet-700 shadow-lg shadow-violet-600/30 rounded-xl"
+                                                className="h-12 w-12 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl"
                                             >
                                                 <Plus className="w-5 h-5" />
                                             </Button>
                                         </div>
-                                        <div className="p-3 bg-slate-100/50 rounded-xl border border-slate-200/50">
-                                            <p className="text-[10px] text-slate-500 font-bold leading-tight flex items-start gap-2">
-                                                <Clock className="w-3 h-3 mt-0.5 shrink-0" />
+                                        <div className="p-3 bg-muted/40 rounded-xl border border-border/40">
+                                            <p className="text-[10px] text-muted-foreground font-bold leading-tight flex items-start gap-2">
+                                                <Clock className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
                                                 Important: System uses your timezone ({userTimezone}).
                                             </p>
                                         </div>
@@ -755,10 +755,10 @@ export function AutoScheduleCard() {
                                 </div>
 
                                 {/* Section 3: AI Topics (Conditional) */}
-                                <div className="p-6 space-y-6 bg-white/30">
+                                <div className="p-6 space-y-6 bg-card/40">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Sparkles className="w-4 h-4 text-violet-600" />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Content Focus</h4>
+                                        <Sparkles className="w-4 h-4 text-primary" />
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content Focus</h4>
                                     </div>
 
                                     {sourceType === "ai_generated" ? (
@@ -768,18 +768,18 @@ export function AutoScheduleCard() {
                                                     <Badge
                                                         key={topic}
                                                         variant="secondary"
-                                                        className="gap-2 py-2 px-3 bg-amber-500/10 border-amber-500/20 text-amber-700 shadow-sm hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer group"
+                                                        className="gap-2 py-2 px-3 bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 shadow-sm hover:bg-destructive/10 hover:text-destructive transition-all cursor-pointer group"
                                                         onClick={() => handleRemoveTopic(topic)}
                                                     >
                                                         <span className="font-bold text-xs">{topic}</span>
-                                                        <X className="w-3 h-3 opacity-40" />
+                                                        <X className="w-3 h-3 opacity-40 group-hover:opacity-100" />
                                                     </Badge>
                                                 ))}
                                                 {topics.length === 0 && (
-                                                    <div className="flex flex-col items-center justify-center py-6 w-full bg-violet-50/50 rounded-2xl border border-dashed border-violet-200 animate-pulse">
-                                                        <Sparkles className="w-5 h-5 text-violet-500 mb-2" />
-                                                        <p className="text-[11px] font-black text-violet-600 uppercase tracking-widest">✨ Full Auto Mode Enabled</p>
-                                                        <p className="text-[9px] text-slate-400 font-medium mt-1 text-center px-4 max-w-[200px]">
+                                                    <div className="flex flex-col items-center justify-center py-6 w-full bg-primary/5 rounded-2xl border border-dashed border-primary/20 animate-pulse">
+                                                        <Sparkles className="w-5 h-5 text-primary mb-2" />
+                                                        <p className="text-[11px] font-black text-primary uppercase tracking-widest">✨ Full Auto Mode Enabled</p>
+                                                        <p className="text-[9px] text-muted-foreground font-medium mt-1 text-center px-4 max-w-[200px]">
                                                             AI will automatically curate exam-oriented topics from GK, History, Geography & Science categories.
                                                         </p>
                                                     </div>
@@ -791,37 +791,37 @@ export function AutoScheduleCard() {
                                                     value={newTopic}
                                                     onChange={(e) => setNewTopic(e.target.value)}
                                                     onKeyDown={(e) => e.key === "Enter" && handleAddTopic()}
-                                                    className="h-12 bg-white/60 border-white/80 rounded-xl font-medium"
+                                                    className="h-12 bg-background/80 border-border/60 rounded-xl font-medium text-foreground"
                                                 />
                                                 <Button
                                                     size="icon"
                                                     onClick={handleAddTopic}
-                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/30 rounded-xl"
+                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 rounded-xl"
                                                 >
                                                     <Plus className="w-5 h-5" />
                                                 </Button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-[120px] text-center px-4 border-2 border-dashed border-white/60 rounded-2xl bg-white/10">
-                                            <Database className="w-6 h-6 text-slate-300 mb-2" />
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Source: Question Bank</p>
-                                            <p className="text-[10px] text-slate-400">Questions will be picked randomly from your saved bank.</p>
+                                        <div className="flex flex-col items-center justify-center h-[120px] text-center px-4 border-2 border-dashed border-border/60 rounded-2xl bg-muted/20">
+                                            <Database className="w-6 h-6 text-muted-foreground/60 mb-2" />
+                                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Source: Question Bank</p>
+                                            <p className="text-[10px] text-muted-foreground">Questions will be picked randomly from your saved bank.</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
                             {/* Full Width Footer Section: Channels */}
-                            <div className="p-8 bg-gradient-to-b from-transparent to-violet-500/5">
+                            <div className="p-8 bg-gradient-to-b from-transparent to-primary/5">
                                 <div className="flex items-center gap-2 mb-6">
-                                    <Target className="w-5 h-5 text-violet-600" />
-                                    <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Target Destinations</h4>
+                                    <Target className="w-5 h-5 text-primary" />
+                                    <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Target Destinations</h4>
                                 </div>
 
                                 {channels.length === 0 ? (
-                                    <div className="p-8 text-center bg-white/40 border border-white rounded-3xl">
-                                        <p className="text-slate-500 font-bold">No channels connected yet.</p>
+                                    <div className="p-8 text-center bg-card/60 border border-border/50 rounded-3xl">
+                                        <p className="text-muted-foreground font-bold">No channels connected yet.</p>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -829,22 +829,22 @@ export function AutoScheduleCard() {
                                             <label
                                                 key={channel.id}
                                                 className={`flex items-center gap-4 p-4 rounded-[1.25rem] border transition-all cursor-pointer shadow-sm group ${selectedChannels.includes(channel.id)
-                                                    ? 'bg-violet-600 text-white border-violet-600 shadow-violet-600/20 translate-y-[-2px]'
-                                                    : 'bg-white/60 text-slate-600 border-white/80 hover:bg-white hover:border-white'
+                                                    ? 'bg-primary text-primary-foreground border-primary shadow-primary/20 translate-y-[-2px]'
+                                                    : 'bg-card/60 text-foreground border-border/60 hover:bg-card hover:border-border'
                                                     }`}
                                             >
-                                                <div className={`checkbox-wrapper p-1 rounded-lg transition-colors ${selectedChannels.includes(channel.id) ? 'bg-white/20' : 'bg-slate-100'
+                                                <div className={`checkbox-wrapper p-1 rounded-lg transition-colors ${selectedChannels.includes(channel.id) ? 'bg-primary-foreground/20' : 'bg-muted'
                                                     }`}>
                                                     <Checkbox
                                                         checked={selectedChannels.includes(channel.id)}
                                                         onCheckedChange={(checked) => handleToggleChannel(channel.id, !!checked)}
-                                                        className={selectedChannels.includes(channel.id) ? 'border-white bg-white text-violet-600' : ''}
+                                                        className={selectedChannels.includes(channel.id) ? 'border-primary-foreground bg-primary-foreground text-primary' : ''}
                                                     />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-black text-sm truncate">{channel.name}</p>
                                                     {channel.telegram_channel_id && (
-                                                        <p className={`text-[10px] font-medium opacity-70 truncate ${selectedChannels.includes(channel.id) ? 'text-white' : 'text-slate-400'}`}>
+                                                        <p className={`text-[10px] font-medium opacity-70 truncate ${selectedChannels.includes(channel.id) ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
                                                             {channel.telegram_channel_id}
                                                         </p>
                                                     )}
@@ -854,54 +854,21 @@ export function AutoScheduleCard() {
                                     </div>
                                 )}
 
-                                <Separator className="my-8 bg-white/40" />
-
-                                {/* System Initialization Section */}
-                                <div className="mb-8 p-6 bg-amber-500/5 border border-amber-500/10 rounded-3xl">
-                                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-amber-500/10 rounded-2xl">
-                                                <AlertCircle className="w-6 h-6 text-amber-600" />
-                                            </div>
-                                            <div className="text-left">
-                                                <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">System Initialization</h4>
-                                                <p className="text-[11px] text-amber-700/80 font-medium leading-relaxed max-w-md">
-                                                    If auto-scheduling isn't working, the background workers may need initialization. 
-                                                    This securely sets up your project's configuration in the database.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <Button 
-                                            variant="outline" 
-                                            onClick={handleInitializeSystem}
-                                            disabled={isInitializing}
-                                            className="h-12 px-6 gap-2 rounded-2xl bg-white border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all font-bold shadow-sm shrink-0"
-                                        >
-                                            {isInitializing ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <ShieldCheck className="w-4 h-4" />
-                                            )}
-                                            {isInitializing ? 'Initializing...' : 'Initialize System'}
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <Separator className="my-8 bg-white/40" />
+                                <Separator className="my-8 bg-border/40" />
 
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                                     <div className="flex items-center gap-3">
                                         {selectedChannels.length > 0 && scheduleTimes.length > 0 ? (
-                                            <div className={`flex items-center gap-3 px-4 py-2 rounded-full border transition-all ${isEnabled ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}>
-                                                <div className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                                                <p className={`text-[11px] font-black uppercase tracking-wider ${isEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                            <div className={`flex items-center gap-3 px-4 py-2 rounded-full border transition-all ${isEnabled ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-muted/60 border-border/50'}`}>
+                                                <div className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+                                                <p className={`text-[11px] font-black uppercase tracking-wider ${isEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                                                     {isEnabled ? `Posting to ${selectedChannels.length} channels` : `Ready to post to ${selectedChannels.length} channels`}
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-full">
-                                                <div className="w-2 h-2 bg-slate-300 rounded-full" />
-                                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider tabular-nums">
+                                            <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-full">
+                                                <div className="w-2 h-2 bg-muted-foreground/30 rounded-full" />
+                                                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider tabular-nums">
                                                     Waiting for config
                                                 </p>
                                             </div>
@@ -911,7 +878,7 @@ export function AutoScheduleCard() {
                                     <Button
                                         onClick={handleSave}
                                         disabled={isSaving}
-                                        className="w-full sm:w-auto min-w-[200px] h-14 gap-3 bg-slate-900 hover:bg-black text-white rounded-[1.25rem] shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] font-black uppercase tracking-widest"
+                                        className="w-full sm:w-auto min-w-[200px] h-14 gap-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-[1.25rem] shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] font-black uppercase tracking-widest"
                                     >
                                         {isSaving ? (
                                             <>

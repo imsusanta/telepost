@@ -571,19 +571,14 @@ async function generateQuizForChannel(
   const difficulty = channel.settings.default_difficulty || "medium";
   const language = channel.settings.default_language || "en";
 
-  const baseSystemPrompt = `${globalSystemPrompt ? globalSystemPrompt + "\n\n" : ""}You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
-You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON.
-If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.
-
-${systemPrompt}`;
-
   // Language-specific instructions — VERY strong enforcement
   const languageInstructions: Record<string, string> = {
     'bn': `⚠️ MANDATORY: ALL content (questions, options, explanations) MUST be in Bengali (বাংলা). 
 - প্রতিটি শব্দ বাংলা হরফে লিখতে হবে। 
 - ইংরেজি শব্দ বা হরফ একেবারেই ব্যবহার করা যাবে না (No English words or script allowed). 
 - Technical terms MUST be transliterated into Bengali script (e.g., write "ফোটোসিন্থেসিস" instead of "Photosynthesis").
-- Avoid mixing English words even in explanations.`,
+- Avoid mixing English words even in explanations.
+- Ensure proper Unicode spelling with no broken vowels or dotted circles (◌).`,
     'en': 'ALL questions, options, and explanations MUST be written in English.',
     'hi': `⚠️ MANDATORY: ALL questions, options, and explanations MUST be in Hindi (हिन्दी). 
 - हर शब्द हिंदी/देवनागरी लिपि में होना चाहिए। 
@@ -593,17 +588,121 @@ ${systemPrompt}`;
 
   const langInstruction = languageInstructions[language] || languageInstructions['en'];
 
-  // Build knowledge base section
-  const knowledgeBaseSection = knowledgeBase
-    ? `\n\nCHANNEL KNOWLEDGE BASE:
+  // Helper validation function
+  function validateQuizData(data: any): { valid: boolean; reason?: string } {
+    if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
+      return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
+    }
+
+    const forbiddenIndicRegex = /[\u0900-\u097F\u0A00-\u0B7F\u0B80-\u0DFF]/;
+    const englishLetterRegex = /[a-zA-Z]/;
+    const dottedCircleRegex = /[\u25CC◌]/;
+    const invalidVowelPlacement = /(?:^|[\s\d০-৯\-\(\)\.,!?;:\"\'\[\]{}|])[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
+    const consecutiveVowels = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]{2,}/;
+    const viramaVowelConflict = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]\u09CD|\u09CD[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
+
+    const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
+      if (typeof val !== "string") return { valid: true };
+      
+      if (language === 'bn') {
+        if (forbiddenIndicRegex.test(val)) {
+          return { valid: false, reason: `${label} contains foreign/non-Bengali script characters (e.g., "${val.match(forbiddenIndicRegex)?.[0]}")` };
+        }
+        if (englishLetterRegex.test(val)) {
+          return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+        }
+        if (dottedCircleRegex.test(val)) {
+          return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
+        }
+        if (invalidVowelPlacement.test(val)) {
+          return { valid: false, reason: `${label} contains a combining vowel sign positioned incorrectly (e.g., after space or punctuation)` };
+        }
+        if (consecutiveVowels.test(val)) {
+          return { valid: false, reason: `${label} contains consecutive combining vowel signs (invalid layout)` };
+        }
+        if (viramaVowelConflict.test(val)) {
+          return { valid: false, reason: `${label} contains a virama directly conflicting with a combining vowel sign` };
+        }
+      } else if (language === 'hi') {
+        if (englishLetterRegex.test(val)) {
+          return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
+        }
+        if (dottedCircleRegex.test(val)) {
+          return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
+        }
+      }
+      return { valid: true };
+    };
+
+    if (data.topic) {
+      const topicCheck = checkFieldText(data.topic, "Topic title");
+      if (!topicCheck.valid) return topicCheck;
+    }
+
+    for (let i = 0; i < data.questions.length; i++) {
+      const q = data.questions[i];
+      const qLabel = `Question ${i + 1}`;
+
+      if (!q.question) {
+        return { valid: false, reason: `${qLabel} is missing question text.` };
+      }
+      const qCheck = checkFieldText(q.question, `${qLabel} text`);
+      if (!qCheck.valid) return qCheck;
+
+      if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+        return { valid: false, reason: `${qLabel} must have exactly 4 options.` };
+      }
+
+      for (let j = 0; j < q.options.length; j++) {
+        const optCheck = checkFieldText(q.options[j], `${qLabel} Option ${j + 1}`);
+        if (!optCheck.valid) return optCheck;
+      }
+
+      if (q.explanation) {
+        const expCheck = checkFieldText(q.explanation, `${qLabel} explanation`);
+        if (!expCheck.valid) return expCheck;
+      }
+
+      if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index > 3) {
+        return { valid: false, reason: `${qLabel} correct_option_index must be between 0 and 3.` };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  const nativeLangPrefix: Record<string, string> = {
+    'bn': 'তুমি একজন বাংলা কুইজ জেনারেটর। তুমি শুধুমাত্র বাংলায় কুইজ তৈরি করবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ শুদ্ধ বাংলায় লিখতে হবে। ইংরেজি বা হিন্দি ভাষা একেবারেই ব্যবহার করবে না।\n',
+    'hi': 'आप एक हिंदी क्विज़ जेनरेटर हैं। आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।\n',
+  };
+  const langPrefix = nativeLangPrefix[language] || '';
+
+  let feedback = "";
+  const maxAttempts = 3;
+  let lastError = null;
+  let quizData = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const baseSystemPrompt = `${globalSystemPrompt ? globalSystemPrompt + "\n\n" : ""}You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
+You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON.
+If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.
+
+${systemPrompt}`;
+
+      const finalSystemPromptCombined = langPrefix + baseSystemPrompt + (feedback ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedback}` : "");
+
+      // Build knowledge base section
+      const knowledgeBaseSection = knowledgeBase
+        ? `\n\nCHANNEL KNOWLEDGE BASE:
 IMPORTANT: Use ONLY the following documents to create quiz questions. All questions must be based on this content.
 
 ${knowledgeBase}
 
 `
-    : '';
+        : '';
 
-  const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
+      const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
 ${knowledgeBaseSection}
 REQUIREMENTS:
 1. Number of questions: ${questionCount}.
@@ -644,153 +743,129 @@ ADDITIONAL RULES:
 - Do NOT include markdown, comments, or human-readable text.
 - If anything fails, return ONLY: {"error":"invalid_output"}.`;
 
-  let content = '';
+      let content = '';
 
-  // Build a strong native-language system prefix for non-English
-  const nativeLangPrefix: Record<string, string> = {
-    'bn': 'তুমি একজন বাংলা কুইজ জেনারেটর। তুমি শুধুমাত্র বাংলায় উত্তর দেবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ বাংলায় লিখতে হবে। ইংরেজি ভাষা একেবারেই ব্যবহার করবে না।\n',
-    'hi': 'आप एक हिंदी क्विज़ जेनरेटर हैं। आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।\n',
-  };
-  const langPrefix = nativeLangPrefix[language] || '';
+      if (provider === 'gemini') {
+        console.log(`[auto-generate-channel-quizzes] Generating via Direct Gemini, attempt=${attempt}/${maxAttempts}`);
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const geminiResponse = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${finalSystemPromptCombined}\n\nUSER PROMPT: ${userPrompt}` }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            }
+          })
+        });
 
-  const finalSystemPromptCombined = langPrefix + (globalSystemPrompt ? globalSystemPrompt + "\n\n" : "") + baseSystemPrompt;
-
-  if (provider === 'gemini') {
-    console.log(`Generating quiz for topic: ${topic} using model: ${model} via Direct Gemini`);
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `${finalSystemPromptCombined}\n\nUSER PROMPT: ${userPrompt}` }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text();
+          throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
         }
-      })
-    });
+        const geminiData = await geminiResponse.json();
+        content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      } else if (provider === 'openai') {
+        console.log(`[auto-generate-channel-quizzes] Generating via Direct OpenAI, attempt=${attempt}/${maxAttempts}`);
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: "system", content: finalSystemPromptCombined },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.7,
+          }),
+        });
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("Gemini Direct Error:", errorText);
-      throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
-    }
-    const geminiData = await geminiResponse.json();
-    content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } else if (provider === 'openai') {
-    console.log(`Generating quiz for topic: ${topic} using model: ${model} via Direct OpenAI`);
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: finalSystemPromptCombined },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI Direct Error:", errorText);
-      throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
-    }
-    const data = await response.json();
-    content = data.choices?.[0]?.message?.content;
-  } else {
-    let openRouterModel = model;
-
-    console.log(`Generating quiz for topic: ${topic} using model: ${openRouterModel} via OpenRouter`);
-
-    const makeRequest = async (useModel: string) => {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://telepost.io",
-          "X-Title": "QuizMaker Auto-Gen",
-        },
-        body: JSON.stringify({
-          model: useModel,
-          messages: [
-            { role: "system", content: finalSystemPromptCombined },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          return { ok: false as const, errorMessage: "Rate limit exceeded. Please try again later." };
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
         }
-        if (response.status === 402) {
-          return { ok: false as const, errorMessage: "Payment required. Please add credits to your workspace." };
+        const data = await response.json();
+        content = data.choices?.[0]?.message?.content;
+      } else {
+        console.log(`[auto-generate-channel-quizzes] Generating via OpenRouter, attempt=${attempt}/${maxAttempts}`);
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://telepost.io",
+            "X-Title": "QuizMaker Auto-Gen",
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: "system", content: finalSystemPromptCombined },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.7,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`OpenRouter error (${response.status}): ${errorText.substring(0, 100)}`);
         }
-        const errorText = await response.text();
-        let errorMsg = `OpenRouter error (${response.status})`;
-        try {
-          const errJson = JSON.parse(errorText);
-          errorMsg = errJson.error?.message || errorMsg;
-        } catch { errorMsg = errorText.substring(0, 200); }
-        return { ok: false as const, errorMessage: errorMsg };
+
+        const aiData = await response.json();
+        content = aiData.choices?.[0]?.message?.content || '';
       }
 
-      const aiData = await response.json();
-      return { ok: true as const, content: aiData.choices?.[0]?.message?.content || '' };
-    };
+      if (!content) {
+        throw new Error("No content in AI response");
+      }
 
-    let result = await makeRequest(openRouterModel);
+      // Robust JSON extraction
+      let cleanedContent = content.trim();
+      const jsonStart = cleanedContent.indexOf('{');
+      const jsonEnd = cleanedContent.lastIndexOf('}');
 
-    if (!result.ok) {
-      throw new Error(result.errorMessage);
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+      }
+
+      if (cleanedContent.includes('```')) {
+        cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+      }
+
+      const parsed = JSON.parse(cleanedContent);
+
+      if (typeof parsed !== 'object' || parsed === null) {
+        throw new Error("AI response is not a valid object");
+      }
+
+      // Validate
+      const validation = validateQuizData(parsed);
+      if (validation.valid) {
+        quizData = parsed;
+        console.log(`[auto-generate-channel-quizzes] Validation PASSED on attempt ${attempt}.`);
+        break;
+      } else {
+        console.warn(`[auto-generate-channel-quizzes] Validation FAILED on attempt ${attempt}: ${validation.reason}`);
+        feedback = `Your previous response failed quality validation: ${validation.reason}. 
+Please regenerate the entire response, ensuring strict adherence to the language rules (100% pure script, absolutely NO characters from other scripts or layout errors like dotted circles inside the text).`;
+      }
+
+    } catch (e: any) {
+      console.error(`[auto-generate-channel-quizzes] Attempt ${attempt} failed: ${e.message}`);
+      lastError = e;
+      feedback = `Your previous attempt failed with error: ${e.message}. Please try again.`;
     }
-
-    content = result.content;
   }
 
-  if (!content) {
-    throw new Error("No content in AI response");
-  }
-
-  // Robust JSON extraction
-  let quizData;
-  try {
-    let cleanedContent = content.trim();
-
-    // Attempt to extract the first { to the last }
-    const jsonStart = cleanedContent.indexOf('{');
-    const jsonEnd = cleanedContent.lastIndexOf('}');
-
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
-    }
-
-    // Still handle potential backticks if they are inside the extracted range for some reason
-    if (cleanedContent.includes('```')) {
-      cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-    }
-
-    quizData = JSON.parse(cleanedContent);
-  } catch (e) {
-    console.error("Failed to parse AI response. Content length:", content.length);
-    console.error("Content start:", content.substring(0, 100));
-    console.error("Parse error:", e);
-    throw new Error(`Invalid JSON format received from AI: ${e instanceof Error ? e.message : 'Parse failed'}`);
-  }
-
-  // Ensure we return a valid object
-  if (typeof quizData !== 'object' || quizData === null) {
-    console.error("AI returned non-object:", quizData);
-    throw new Error("AI response is not a valid object");
+  if (!quizData) {
+    const errorMsg = lastError?.message || "Failed to generate a valid and high-quality quiz after 3 attempts.";
+    throw new Error(errorMsg);
   }
 
   return quizData;
