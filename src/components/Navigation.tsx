@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard, Send } from "lucide-react";
 import { Button } from "./ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "./ThemeToggle";
@@ -81,8 +81,8 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
               className="flex items-center gap-2.5 text-lg font-display font-bold text-foreground hover:text-primary transition-colors group"
               aria-label="TelePost - Home"
             >
-              <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
-                <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
+              <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc] group-hover:scale-105 transition-transform">
+                <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
               </div>
               <span className="font-extrabold text-foreground tracking-tight">TelePost</span>
             </a>

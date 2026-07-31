@@ -1,4 +1,4 @@
-import { Twitter, Github, Linkedin, Mail } from "lucide-react";
+import { Twitter, Github, Linkedin, Mail, Send } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 
 export const Footer = () => {
@@ -34,8 +34,8 @@ export const Footer = () => {
           <div className="md:col-span-4 space-y-6">
             <div>
               <div className="text-2xl font-display font-bold text-foreground mb-3 flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center">
-                  <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
+                <div className="w-7 h-7 flex items-center justify-center text-[#0088cc]">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
                 </div>
                 TelePost
               </div>
