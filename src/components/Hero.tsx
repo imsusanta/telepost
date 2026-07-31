@@ -74,9 +74,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </span>
         </h1>
 
-        {/* Subheadline - Requested exact copy */}
+        {/* Subheadline - Exactly 2 lines */}
         <p
-          className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-9 leading-relaxed text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
+          className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-9 leading-relaxed text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
           Save hours every week by generating, scheduling,
           <br className="hidden sm:block" />
