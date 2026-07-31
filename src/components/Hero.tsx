@@ -20,35 +20,32 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Scattered background dots */}
         <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-[#0088cc]/40" />
         <div className="absolute top-[22%] right-[8%] w-2 h-2 rounded-full bg-secondary/40" />
-        <div className="absolute top-[40%] right-[15%] w-1.5 h-1.5 rounded-full bg-accent/40" />
+        <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-accent/40" />
         <div className="absolute bottom-[35%] left-[6%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
 
-        {/* Soft Mesh Wave Lines - Left & Right */}
-        <svg className="absolute left-0 top-1/4 w-[380px] h-[500px] opacity-20 text-[#0088cc]" viewBox="0 0 400 600" fill="none">
-          <path d="M -50 100 C 150 200, 100 400, 350 550" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M -30 140 C 170 240, 120 440, 370 590" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
-        </svg>
-        <svg className="absolute right-0 top-1/3 w-[380px] h-[500px] opacity-20 text-[#0088cc]" viewBox="0 0 400 600" fill="none">
-          <path d="M 450 100 C 250 250, 300 450, 50 600" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M 470 140 C 270 290, 320 490, 70 640" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
-        </svg>
-
-        {/* Left Side: 3D Paperplane + Dashed Trail */}
-        <div className="hidden lg:block absolute left-[5%] top-[22%] pointer-events-none">
+        {/* Left Side: Floating Dashed Spiral Trail */}
+        <div className="hidden lg:block absolute left-[3%] top-[20%] pointer-events-none">
           <svg className="w-48 h-48 opacity-30 text-[#0088cc]" viewBox="0 0 200 200" fill="none">
-            <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 180 20" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
+            <path d="M 20 100 C 10 40, 80 20, 100 80 C 120 140, 40 140, 50 90 C 60 40, 130 10, 180 120" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" fill="none" />
           </svg>
-          <div className="absolute top-0 right-0 -translate-y-2 translate-x-2 text-[#0088cc] drop-shadow-lg animate-float">
-            <Send className="w-10 h-10 fill-[#0088cc] -rotate-12" />
-          </div>
         </div>
 
-        {/* Right Side: Telegram Badge + Dashed Trail */}
-        <div className="hidden lg:block absolute right-[7%] top-[36%] pointer-events-none">
+        {/* Right Side: Flowing Background Contour Mesh Waves from Screenshot */}
+        <div className="hidden lg:block absolute right-0 top-[15%] bottom-0 w-[450px] pointer-events-none opacity-20 text-[#0088cc]">
+          <svg className="w-full h-full" viewBox="0 0 400 600" fill="none">
+            <path d="M 100 0 C 250 150, 150 350, 400 550" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M 150 0 C 300 180, 200 380, 400 600" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M 200 0 C 350 200, 250 400, 400 650" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M 250 0 C 380 220, 300 420, 400 700" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
+        </div>
+
+        {/* Right Side: Telegram Badge + Dashed Loop Trail */}
+        <div className="hidden lg:block absolute right-[10%] top-[40%] pointer-events-none">
           <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#0088cc] to-[#0077b5] shadow-lg shadow-[#0088cc]/30 flex items-center justify-center text-white mb-2 animate-float-slow">
             <Send className="w-7 h-7 fill-white ml-[-2px] mt-[1px]" />
           </div>
-          <svg className="w-48 h-48 opacity-30 text-[#0088cc] ml-[-40px]" viewBox="0 0 200 200" fill="none">
+          <svg className="w-48 h-48 opacity-30 text-[#0088cc] ml-[-40px] mt-[-20px]" viewBox="0 0 200 200" fill="none">
             <path d="M 40 20 C 110 40, 160 100, 120 150 C 90 180, 50 130, 100 110 C 140 90, 170 150, 180 180" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
           </svg>
         </div>
@@ -69,7 +66,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           <span className="block text-foreground">Publish Up to 20 Telegram Quizzes</span>
           <span className="relative inline-block pb-3 mt-1 text-[#0088cc]">
             in under a minute
-            {/* Theme gradient swoosh underline */}
+            {/* Multi-color gradient swoosh underline from screenshot */}
             <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
               <path d="M 4 10 C 80 3, 240 2, 316 10" stroke="url(#swoosh-gradient)" strokeWidth="4" strokeLinecap="round" />
               <defs>
@@ -89,9 +86,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         >
           Save hours every week by generating, scheduling,
           <br className="hidden sm:block" />
-          and automatically publishing exam-quality Telegram
-          <br className="hidden sm:block" />
-          quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
+          and automatically publishing exam-quality Telegram quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
         </p>
 
         {/* CTAs */}
@@ -132,8 +127,8 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           {/* Card 1 */}
           <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-14 h-14 rounded-full bg-[#0088cc]/10 text-[#0088cc] flex items-center justify-center mb-4 shadow-inner">
-                <Timer className="w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl bg-[#0088cc]/10 text-[#0088cc] flex items-center justify-center mb-4">
+                <Timer className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">30-Second Workflow</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">Create and publish quizzes in just 30 seconds.</p>
@@ -148,8 +143,8 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           {/* Card 2 */}
           <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-14 h-14 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4 shadow-inner">
-                <Brain className="w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4">
+                <Brain className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">AI Quiz Generation</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">AI creates exam-quality MCQs in seconds.</p>
@@ -164,8 +159,8 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           {/* Card 3 */}
           <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-14 h-14 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center mb-4 relative shadow-inner">
-                <FileText className="w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center mb-4 relative">
+                <FileText className="w-6 h-6" />
                 <span className="absolute bottom-1 right-1 bg-pink-500 text-white text-[8px] font-extrabold px-1 rounded">PDF</span>
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">PDF to Quiz</h3>
@@ -181,8 +176,8 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           {/* Card 4 */}
           <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-14 h-14 rounded-full bg-teal-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-inner">
-                <Calendar className="w-7 h-7" />
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-4">
+                <Calendar className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">Smart Scheduling</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">Schedule quizzes and auto publish to Telegram.</p>
