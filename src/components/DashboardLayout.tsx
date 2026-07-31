@@ -1,5 +1,4 @@
 import { ReactNode, useState, useCallback, useEffect, useRef } from "react";
-import { TelePostLogoIcon } from "./TelePostLogo";
 import {
   BarChart3,
   Bell,
@@ -20,7 +19,8 @@ import {
   User,
   PenLine,
   Calendar,
-  CreditCard
+  CreditCard,
+  Send
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -238,8 +238,10 @@ function DashboardLayoutInner({
           <SidebarHeader className="border-b border-white/5 py-4">
             <div className="flex items-center justify-between px-3">
               <div className="flex items-center gap-2">
-                {/* Paper plane icon */}
-                <TelePostLogoIcon className="w-7 h-7 shrink-0" />
+                {/* Paper plane icon matching Navbar logo */}
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
+                </div>
                 {/* TelePost text - hidden when collapsed */}
                 <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">
                   TelePost
@@ -453,7 +455,9 @@ function DashboardLayoutInner({
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
               <div className="flex items-center gap-2">
-                <TelePostLogoIcon className="h-6 w-6 shrink-0" />
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
+                </div>
                 <span className="text-lg font-bold text-foreground">
                   TelePost
                 </span>
