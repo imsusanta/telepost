@@ -116,34 +116,32 @@ export const UseCases = () => {
         </div>
 
         {/* 4 Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {cards.map((card, idx) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 items-stretch">
+          {cards.map((card) => {
             const Icon = card.icon;
             return (
               <div
                 key={card.title}
-                className={`p-8 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md ${card.hoverBorder} transition-all flex flex-col justify-between items-center text-center group min-h-[300px] relative overflow-hidden`}
+                className={`p-8 sm:p-9 rounded-[28px] bg-card border border-border/60 shadow-sm hover:shadow-md ${card.hoverBorder} transition-all flex flex-col justify-between items-center text-center group h-full min-h-[330px] relative overflow-hidden`}
               >
                 {/* Top Circular Graphic Icon */}
-                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm shrink-0 transition-transform group-hover:scale-105 ${card.bg}">
-                  <div className={`w-20 h-20 rounded-full flex items-center justify-center ${card.bg}`}>
-                    <Icon className="w-10 h-10" />
-                  </div>
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 shrink-0 transition-transform duration-300 group-hover:scale-105 ${card.bg}`}>
+                  <Icon className="w-9 h-9" />
                 </div>
 
-                {/* Title & Accent Line */}
-                <div className="w-full">
-                  <h3 className="text-lg font-bold text-foreground mb-2 leading-tight">
+                {/* Title, Accent Line & Description */}
+                <div className="w-full flex-1 flex flex-col items-center justify-start">
+                  <h3 className="text-lg font-bold text-foreground mb-1 leading-snug min-h-[44px] flex items-center justify-center">
                     {card.title}
                   </h3>
-                  <div className={`w-8 h-1 ${card.divider} rounded-full mx-auto mb-3.5`} />
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed px-1">
+                  <div className={`w-8 h-1 ${card.divider} rounded-full mx-auto my-3`} />
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-[220px] mx-auto">
                     {card.description}
                   </p>
                 </div>
 
                 {/* Bottom Arrow Action Button */}
-                <div className="mt-6 pt-2">
+                <div className="mt-6 pt-1 shrink-0">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm transition-all duration-300 ${card.btnBg}`}>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                   </div>
