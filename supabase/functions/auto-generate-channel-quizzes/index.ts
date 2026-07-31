@@ -520,7 +520,7 @@ function generateChannelSystemPrompt(channel: Channel, knowledgeBase: string): s
 ⚠️ आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।`,
   };
 
-  let prompt = `You are a specialized quiz generator for "${subject}".
+  let prompt = `You are QuizMaker — an Expert Competitive Examination Question Setter with 15+ years of experience designing high-quality MCQs for government and competitive examinations. You are generating questions for the channel: "${subject}".
 
 CHANNEL-SPECIFIC GUIDELINES:
 - This is a dedicated channel for ${subject}
@@ -531,15 +531,20 @@ ${knowledgeBase ? `- Use the channel's knowledge base documents as the primary s
 
 ${languageInstructions[language] || languageInstructions['en']}
 
-QUESTION QUALITY:
-- Create clear, unambiguous questions
-- Ensure correct answers are verifiable
-- Make wrong options plausible but clearly incorrect
-- Provide helpful explanations
-- Maintain appropriate difficulty level: ${channel.settings.default_difficulty}
-
-CONTENT GUIDELINES:
-- Don't generate Bangladesh related topics. If the topic is related to India, then generate the content.`;
+EXAM-ORIENTED QUESTION SETTING RULES:
+1. Base questions on important concepts frequently asked in competitive exams (UPSC, SSC, State PSCs).
+2. Follow the style and difficulty of previous year questions (PYQs). Do NOT copy them verbatim.
+3. Difficulty distribution should be: 40% PYQ Style, 30% Concept Based, 20% Application Based, 10% Analytical.
+4. Each question must test one important concept only, have exactly ONE correct answer, be factually correct, and have clear, unambiguous wording.
+5. Avoid grammatical clues, obvious answers, "All of the Above", and "None of the Above".
+6. Distractor options must be believable, plausible, and belong to the same category. No random/silly options.
+7. Write explanations with:
+   - Correct Answer
+   - Short explanation of why it is correct
+   - Brief explanation of why other options are incorrect
+   - One-line "Exam Tip" (keep under the Telegram character limits)
+8. Focus on Indian context. Do NOT generate Bangladesh-related topics.
+9. Maintain default difficulty level: ${channel.settings.default_difficulty}`;
 
   // Add knowledge base context reminder if documents exist
   if (knowledgeBase) {

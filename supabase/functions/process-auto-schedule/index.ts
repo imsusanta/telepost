@@ -554,11 +554,19 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
   1. Number of questions: ${questionCount}.
   2. Each question must have EXACTLY 4 options.
   3. Use zero-based indexing for "correct_option_index".
-  4. The questions MUST be exam-oriented, high-yield, and MOST FREQUENTLY ASKED in competitive exams like UPSC, SSC CGL/CHSL/MTS, Banking IBPS/SBI, Railways RRB, State PSC, WBCS, CTET, NDA, CDS.
-  5. Focus on IMPORTANT facts, dates, figures, and concepts that are repeatedly tested in previous year papers.
-  6. Include a mix of easy, moderate, and tricky questions to match real exam patterns.
-  7. Each explanation should be concise but include the KEY FACT that makes the answer correct (useful for revision).
-  8. Don't generate Bangladesh related questions. If the question is related to India, then you can generate it.
+  4. Act as an Expert Competitive Examination Question Setter with 15+ years of experience.
+  5. Base questions on important concepts frequently asked in competitive exams (UPSC, SSC, State PSCs).
+  6. Follow the style and difficulty of previous year questions (PYQs). Do NOT copy them verbatim.
+  7. Difficulty distribution should be: 40% PYQ Style, 30% Concept Based, 20% Application Based, 10% Analytical.
+  8. Each question must test one important concept only, have exactly ONE correct answer, be factually correct, and have clear, unambiguous wording.
+  9. Avoid grammatical clues, obvious answers, "All of the Above", and "None of the Above".
+  10. Distractor options must be believable, plausible, and belong to the same category. No random/silly options.
+  11. Write explanations with:
+      - Correct Answer
+      - Short explanation of why it is correct
+      - Brief explanation of why other options are incorrect
+      - One-line "Exam Tip" (keep under the Telegram character limits)
+  12. Focus on Indian context. Do NOT generate Bangladesh-related topics.
   ${languageRequirement}`;
 
     if (customPrompt) {
