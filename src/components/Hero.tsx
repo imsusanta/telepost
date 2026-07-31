@@ -17,26 +17,24 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Soft background ambient glow */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[#0088cc]/5 rounded-full blur-[140px]" />
 
-        {/* Subtle background wave curves from screenshot */}
-        <div className="absolute left-0 top-[20%] w-[45%] h-[500px] opacity-15 pointer-events-none text-[#0088cc]">
-          <svg className="w-full h-full" viewBox="0 0 500 500" fill="none">
-            <path d="M -100 200 Q 150 350 450 150 M -100 240 Q 150 390 450 190 M -100 280 Q 150 430 450 230" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </div>
-        <div className="absolute right-0 top-[20%] w-[45%] h-[500px] opacity-15 pointer-events-none text-[#0088cc]">
-          <svg className="w-full h-full" viewBox="0 0 500 500" fill="none">
-            <path d="M 50 150 Q 350 350 600 200 M 50 190 Q 350 390 600 240 M 50 230 Q 350 430 600 280" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </div>
-
         {/* Scattered background dots */}
         <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-[#0088cc]/40" />
-        <div className="absolute top-[22%] right-[8%] w-2 h-2 rounded-full bg-purple-400/40" />
-        <div className="absolute top-[40%] right-[15%] w-1.5 h-1.5 rounded-full bg-purple-400/40" />
+        <div className="absolute top-[22%] right-[8%] w-2 h-2 rounded-full bg-secondary/40" />
+        <div className="absolute top-[40%] right-[15%] w-1.5 h-1.5 rounded-full bg-accent/40" />
         <div className="absolute bottom-[35%] left-[6%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
 
+        {/* Soft Mesh Wave Lines - Left & Right */}
+        <svg className="absolute left-0 top-1/4 w-[380px] h-[500px] opacity-20 text-[#0088cc]" viewBox="0 0 400 600" fill="none">
+          <path d="M -50 100 C 150 200, 100 400, 350 550" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M -30 140 C 170 240, 120 440, 370 590" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
+        </svg>
+        <svg className="absolute right-0 top-1/3 w-[380px] h-[500px] opacity-20 text-[#0088cc]" viewBox="0 0 400 600" fill="none">
+          <path d="M 450 100 C 250 250, 300 450, 50 600" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M 470 140 C 270 290, 320 490, 70 640" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
+        </svg>
+
         {/* Left Side: 3D Paperplane + Dashed Trail */}
-        <div className="hidden lg:block absolute left-[6%] top-[24%] pointer-events-none">
+        <div className="hidden lg:block absolute left-[5%] top-[22%] pointer-events-none">
           <svg className="w-48 h-48 opacity-30 text-[#0088cc]" viewBox="0 0 200 200" fill="none">
             <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 180 20" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
           </svg>
@@ -46,7 +44,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         </div>
 
         {/* Right Side: Telegram Badge + Dashed Trail */}
-        <div className="hidden lg:block absolute right-[8%] top-[38%] pointer-events-none">
+        <div className="hidden lg:block absolute right-[7%] top-[36%] pointer-events-none">
           <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#0088cc] to-[#0077b5] shadow-lg shadow-[#0088cc]/30 flex items-center justify-center text-white mb-2 animate-float-slow">
             <Send className="w-7 h-7 fill-white ml-[-2px] mt-[1px]" />
           </div>
@@ -71,7 +69,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           <span className="block text-foreground">Publish Up to 20 Telegram Quizzes</span>
           <span className="relative inline-block pb-3 mt-1 text-[#0088cc]">
             in under a minute
-            {/* Multi-color gradient swoosh underline from screenshot */}
+            {/* Theme gradient swoosh underline */}
             <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
               <path d="M 4 10 C 80 3, 240 2, 316 10" stroke="url(#swoosh-gradient)" strokeWidth="4" strokeLinecap="round" />
               <defs>
@@ -91,7 +89,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         >
           Save hours every week by generating, scheduling,
           <br className="hidden sm:block" />
-          and automatically publishing <span className="font-bold text-foreground">exam-quality</span> Telegram quizzes.
+          and automatically publishing exam-quality Telegram
+          <br className="hidden sm:block" />
+          quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
         </p>
 
         {/* CTAs */}
@@ -125,70 +125,70 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           <span>No credit card required • Start free in under 2 minutes</span>
         </div>
 
-        {/* 4 Feature Cards matching screenshot circular badges */}
+        {/* 4 Feature Cards */}
         <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto text-left animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:400ms]"
         >
-          {/* Card 1: 30-Second Workflow */}
-          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/60 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[185px]">
+          {/* Card 1 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-16 h-16 rounded-full bg-blue-100/80 dark:bg-blue-950/40 text-[#0088cc] flex items-center justify-center mb-4">
-                <Timer className="w-8 h-8" />
+              <div className="w-14 h-14 rounded-full bg-[#0088cc]/10 text-[#0088cc] flex items-center justify-center mb-4 shadow-inner">
+                <Timer className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1.5">30-Second Workflow</h3>
+              <h3 className="text-base font-bold text-foreground mb-1">30-Second Workflow</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">Create and publish quizzes in just 30 seconds.</p>
             </div>
             <div className="flex justify-end mt-4">
-              <div className="w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-center text-[#0088cc] group-hover:scale-110 transition-all">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0088cc] group-hover:text-[#0088cc] transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </div>
           </div>
 
-          {/* Card 2: AI Quiz Generation */}
-          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/60 shadow-sm hover:shadow-md hover:border-purple-500/30 transition-all flex flex-col justify-between group min-h-[185px]">
+          {/* Card 2 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-16 h-16 rounded-full bg-purple-100/80 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4">
-                <Brain className="w-8 h-8" />
+              <div className="w-14 h-14 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4 shadow-inner">
+                <Brain className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1.5">AI Quiz Generation</h3>
+              <h3 className="text-base font-bold text-foreground mb-1">AI Quiz Generation</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">AI creates exam-quality MCQs in seconds.</p>
             </div>
             <div className="flex justify-end mt-4">
-              <div className="w-7 h-7 rounded-full bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-all">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0088cc] group-hover:text-[#0088cc] transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </div>
           </div>
 
-          {/* Card 3: PDF to Quiz */}
-          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/60 shadow-sm hover:shadow-md hover:border-pink-500/30 transition-all flex flex-col justify-between group min-h-[185px]">
+          {/* Card 3 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-16 h-16 rounded-full bg-pink-100/80 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 flex items-center justify-center mb-4 relative">
-                <FileText className="w-8 h-8" />
-                <span className="absolute bottom-2 right-2 bg-pink-600 text-white text-[7px] font-extrabold px-1 rounded">PDF</span>
+              <div className="w-14 h-14 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center mb-4 relative shadow-inner">
+                <FileText className="w-7 h-7" />
+                <span className="absolute bottom-1 right-1 bg-pink-500 text-white text-[8px] font-extrabold px-1 rounded">PDF</span>
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1.5">PDF to Quiz</h3>
+              <h3 className="text-base font-bold text-foreground mb-1">PDF to Quiz</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">Convert any PDF or notes into quizzes instantly.</p>
             </div>
             <div className="flex justify-end mt-4">
-              <div className="w-7 h-7 rounded-full bg-pink-50 dark:bg-pink-950/60 border border-pink-200/60 dark:border-pink-800/40 flex items-center justify-center text-pink-600 dark:text-pink-400 group-hover:scale-110 transition-all">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0088cc] group-hover:text-[#0088cc] transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </div>
           </div>
 
-          {/* Card 4: Smart Scheduling */}
-          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/60 shadow-sm hover:shadow-md hover:border-emerald-500/30 transition-all flex flex-col justify-between group min-h-[185px]">
+          {/* Card 4 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[170px]">
             <div>
-              <div className="w-16 h-16 rounded-full bg-emerald-100/80 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
-                <Calendar className="w-8 h-8" />
+              <div className="w-14 h-14 rounded-full bg-teal-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-inner">
+                <Calendar className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1.5">Smart Scheduling</h3>
+              <h3 className="text-base font-bold text-foreground mb-1">Smart Scheduling</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">Schedule quizzes and auto publish to Telegram.</p>
             </div>
             <div className="flex justify-end mt-4">
-              <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-all">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0088cc] group-hover:text-[#0088cc] transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </div>
