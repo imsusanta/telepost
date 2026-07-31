@@ -527,7 +527,7 @@ export default function CreatePost() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-bold text-primary">
                             Create Post
                         </h1>
                         <p className="text-muted-foreground mt-1">
@@ -776,16 +776,16 @@ export default function CreatePost() {
                                                 </TabsContent>
 
                                                 <TabsContent value="documents" className="space-y-4 mt-0">
-                                                    <div className="p-4 border rounded-xl bg-purple-50/50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-900 space-y-4">
+                                                    <div className="p-4 border rounded-xl bg-primary/5 border-primary/20 dark:bg-primary/10 dark:border-primary/30 space-y-4">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
-                                                                <FileText className="h-5 w-5 text-purple-600" />
+                                                                <FileText className="h-5 w-5 text-primary" />
                                                                 <span className="font-semibold text-sm">Source Document</span>
                                                             </div>
                                                             <KnowledgeBaseSelector 
                                                                 onSelect={(doc: any) => setSelectedDoc(doc)}
                                                                 trigger={
-                                                                    <Button variant="outline" size="sm" className="h-8 text-xs border-purple-200 bg-white hover:bg-purple-50">
+                                                                    <Button variant="outline" size="sm" className="h-8 text-xs border-primary/20 bg-white hover:bg-primary/5">
                                                                         {selectedDoc ? "Change" : "Select Document"}
                                                                     </Button>
                                                                 }
@@ -793,9 +793,9 @@ export default function CreatePost() {
                                                         </div>
 
                                                         {selectedDoc ? (
-                                                            <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-purple-100 flex items-center justify-between">
+                                                            <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-primary/10 flex items-center justify-between">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-purple-100 rounded text-purple-600">
+                                                                    <div className="p-2 bg-primary/10 rounded text-primary">
                                                                         <FileText className="h-4 w-4" />
                                                                     </div>
                                                                     <div className="min-w-0">
@@ -808,7 +808,7 @@ export default function CreatePost() {
                                                                 </Button>
                                                             </div>
                                                         ) : (
-                                                            <div className="py-8 text-center border-2 border-dashed rounded-lg border-purple-100 bg-white/50">
+                                                            <div className="py-8 text-center border-2 border-dashed rounded-lg border-primary/10 bg-white/50">
                                                                 <p className="text-xs text-muted-foreground">No document selected</p>
                                                             </div>
                                                         )}
@@ -824,7 +824,7 @@ export default function CreatePost() {
                                                         </div>
 
                                                         <Button 
-                                                            className="w-full gap-2 bg-purple-600 hover:bg-purple-700"
+                                                            className="w-full gap-2 bg-primary hover:bg-primary/90"
                                                             onClick={handleGenerateFromDoc}
                                                             disabled={isDocGenerating || !selectedDoc}
                                                         >
@@ -836,7 +836,7 @@ export default function CreatePost() {
                                             </Tabs>
 
                                             {showAiInput && (
-                                                <div className="bg-gradient-to-br from-primary/5 to-purple-500/5 rounded-xl p-4 border border-primary/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <Wand2 className="h-4 w-4 text-primary" />
                                                         <span className="text-sm font-semibold text-primary">AI Assistant</span>
@@ -996,10 +996,10 @@ export default function CreatePost() {
                                     </CardContent>
                                 </Card>
 
-                                <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5">
+                                <Card className="bg-primary/5 border border-primary/10">
                                     <CardContent className="pt-6 space-y-3">
                                         <Button
-                                            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                                            className="w-full bg-primary hover:bg-primary/90 shadow-sm"
                                             size="lg"
                                             onClick={() => handleSubmit(!isScheduled)}
                                             disabled={isPosting || isUploading}
