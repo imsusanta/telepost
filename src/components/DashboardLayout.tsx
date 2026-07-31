@@ -1,4 +1,5 @@
 import { ReactNode, useState, useCallback, useEffect, useRef } from "react";
+import { TelePostLogoIcon } from "./TelePostLogo";
 import {
   BarChart3,
   Bell,
@@ -238,11 +239,7 @@ function DashboardLayoutInner({
             <div className="flex items-center justify-between px-3">
               <div className="flex items-center gap-2">
                 {/* Paper plane icon */}
-                <img
-                  src="/favicon.png"
-                  alt="TelePost"
-                  className="w-8 h-8 object-contain"
-                />
+                <TelePostLogoIcon className="w-7 h-7 shrink-0" />
                 {/* TelePost text - hidden when collapsed */}
                 <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">
                   TelePost
@@ -456,11 +453,7 @@ function DashboardLayoutInner({
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
               <div className="flex items-center gap-2">
-                <img
-                  src="/favicon.png"
-                  alt="TelePost"
-                  className="h-7 w-7 object-contain"
-                />
+                <TelePostLogoIcon className="h-6 w-6 shrink-0" />
                 <span className="text-lg font-bold text-foreground">
                   TelePost
                 </span>

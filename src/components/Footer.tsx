@@ -1,5 +1,6 @@
-import { Twitter, Github, Linkedin, Mail, Send } from "lucide-react";
+import { Twitter, Github, Linkedin, Mail } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
+import { TelePostLogoIcon } from "./TelePostLogo";
 
 export const Footer = () => {
   const { ref, isInView } = useInView({ threshold: 0.2 });
@@ -8,34 +9,38 @@ export const Footer = () => {
     Company: [
       { label: "Features", href: "#features" },
       { label: "How it Works", href: "#how-it-works" },
-      { label: "About Us", href: "#" },
-      { label: "Contact Information", href: "#" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
+    ],
+    Resources: [
+      { label: "Documentation", href: "#" },
+      { label: "API Reference", href: "#" },
+      { label: "Community", href: "#" },
+      { label: "Support", href: "#" },
     ],
     Legal: [
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms & Conditions", href: "/terms" },
-    ],
-    Support: [
-      { label: "Documentation", href: "/documentation" },
+      { label: "Privacy Policy", href: "#" },
+      { label: "Terms of Service", href: "#" },
+      { label: "Security", href: "#" },
     ],
   };
 
   return (
     <footer
       ref={ref as React.RefObject<HTMLElement>}
-      className="py-20 px-4 border-t border-border/50 bg-gradient-to-b from-transparent to-muted/20"
-      role="contentinfo"
+      className="border-t border-border/50 bg-card/30 pt-20 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
     >
-      <div className={`max-w-6xl mx-auto transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}>
+      <div className={`max-w-6xl mx-auto transition-all duration-700 ${
+        isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+      }`}>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
           {/* Logo and description */}
           <div className="md:col-span-4 space-y-6">
             <div>
               <div className="text-2xl font-display font-bold text-foreground mb-3 flex items-center gap-2">
-                <div className="w-7 h-7 flex items-center justify-center text-[#0088cc]">
-                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
+                <div className="w-7 h-7 flex items-center justify-center">
+                  <TelePostLogoIcon className="w-6 h-6" />
                 </div>
                 TelePost
               </div>
