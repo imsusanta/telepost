@@ -12,7 +12,7 @@ import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 import { StatsSection } from "@/components/StatsSection";
 import { UseCases } from "@/components/UseCases";
-import { Testimonials } from "@/components/Testimonials";
+
 import { Features } from "@/components/Features";
 import { Pricing } from "@/components/Pricing";
 import { TelegramDemo } from "@/components/TelegramDemo";
@@ -144,7 +144,7 @@ const Index = () => {
             <Pricing onGetStarted={handleGetStarted} />
             <HowItWorks />
             <UseCases />
-            <Testimonials />
+
             <FAQ />
             <CTA onGetStarted={handleGetStarted} />
             <Footer />
