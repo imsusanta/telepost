@@ -21,8 +21,8 @@ export const Footer = () => {
       links: [
         { label: "Privacy Policy", href: "/privacy" },
         { label: "Terms & Conditions", href: "/terms" },
-        { label: "Refund Policy", href: "/terms" },
-        { label: "Data Security", href: "/privacy" },
+        { label: "Refund Policy", href: "/refund-policy" },
+        { label: "Data Security", href: "/data-security" },
       ],
     },
     {

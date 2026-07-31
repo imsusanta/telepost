@@ -44,6 +44,8 @@ const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
 const Install = lazy(() => import("./pages/Install"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
+const DataSecurity = lazy(() => import("./pages/DataSecurity"));
 const Documentation = lazy(() => import("./pages/Documentation"));
 
 import { AuthProvider } from "./contexts/AuthContext";
@@ -118,6 +120,10 @@ const App = () => (
               <Route path="/dashboard/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/refund" element={<RefundPolicy />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
+              <Route path="/data-security" element={<DataSecurity />} />
+              <Route path="/security" element={<DataSecurity />} />
               <Route path="/documentation" element={<Documentation />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
