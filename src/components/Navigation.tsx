@@ -68,50 +68,46 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
 
       <div className="mx-4 mt-4">
         <nav
-          className={`max-w-5xl mx-auto px-6 py-3 transition-all duration-300 ${
+          className={`max-w-6xl mx-auto px-6 py-2.5 transition-all duration-300 ${
             isMenuOpen ? "rounded-2xl shadow-xl" : "rounded-full"
-          } border ${
-            isScrolled || isMenuOpen
-              ? "bg-background/95 backdrop-blur-lg border-border/50 shadow-sm"
-              : "bg-transparent border-transparent"
-          }`}
+          } border border-border/60 bg-card/80 backdrop-blur-xl shadow-sm`}
           role="navigation"
           aria-label="Main navigation"
         >
           <div className="flex items-center justify-between">
-            {/* Logo - Minimal */}
+            {/* Logo */}
             <a
               href="/"
-              className="flex items-center gap-2.5 text-lg font-display font-semibold text-foreground hover:text-primary transition-colors group"
+              className="flex items-center gap-2.5 text-lg font-display font-bold text-foreground hover:text-primary transition-colors group"
               aria-label="TelePost - Home"
             >
-              <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
                 <img src="/favicon.png" alt="TelePost Logo" className="w-full h-full object-contain" />
               </div>
-              TelePost
+              <span className="font-extrabold text-foreground tracking-tight">TelePost</span>
             </a>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-6">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {link.name}
                 </a>
               ))}
             </div>
 
-            {/* CTA Buttons & Theme Toggle - Conditional based on auth state */}
+            {/* CTA Buttons & Theme Toggle */}
             <div className="hidden md:flex items-center gap-3">
               <ThemeToggle />
               {isLoggedIn ? (
                 <Button
                   onClick={handleGoToDashboard}
                   size="sm"
-                  className="h-8 px-4 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full gap-2"
+                  className="h-10 px-5 text-sm font-semibold bg-[#0066ff] hover:bg-[#0052cc] text-white rounded-xl gap-2 shadow-md shadow-[#0066ff]/20 transition-all hover:scale-[1.02]"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Go to Dashboard
@@ -121,16 +117,17 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                   <Button
                     variant="ghost"
                     onClick={() => navigate("/auth")}
-                    className="text-muted-foreground hover:text-foreground hover:bg-white/5 font-medium transition-all"
+                    className="text-muted-foreground hover:text-foreground font-medium transition-all"
                   >
                     Sign in
                   </Button>
                   <Button
                     onClick={handleGetStarted}
                     size="sm"
-                    className="h-8 px-4 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-full"
+                    className="h-10 px-5 text-sm font-semibold bg-[#0066ff] hover:bg-[#0052cc] text-white rounded-xl gap-2 shadow-md shadow-[#0066ff]/20 transition-all hover:scale-[1.02]"
                   >
-                    Get Started
+                    <LayoutDashboard className="w-4 h-4" />
+                    Go to Dashboard
                   </Button>
                 </>
               )}

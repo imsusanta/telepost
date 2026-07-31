@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { ArrowRight, Send, Zap, Sparkles, FileText, Calendar, Clock, ShieldCheck } from "lucide-react";
+import { ArrowRight, Send, Zap, ShieldCheck, Timer, Brain, FileText, Calendar, ChevronRight } from "lucide-react";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -9,118 +9,180 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
   return (
     <section
       id="main-content"
-      className="relative min-h-[105vh] flex items-center justify-center pt-32 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden"
+      className="relative min-h-[100vh] flex flex-col items-center justify-center pt-32 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-background via-background/95 to-background"
       aria-labelledby="hero-heading"
     >
-      {/* Animated gradient background & ambient dots */}
+      {/* Background Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Primary gradient orb - Telegram blue tinted */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-[#0088cc]/5 rounded-full blur-[150px] animate-pulse-soft" />
+        {/* Soft background ambient glow */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[#0066ff]/5 rounded-full blur-[140px]" />
 
-        {/* Floating particles */}
-        <div className="absolute top-[22%] left-[10%] w-2 h-2 bg-[#0088cc]/40 rounded-full animate-particle-1" />
-        <div className="absolute top-[18%] right-[12%] w-1.5 h-1.5 bg-[#0088cc]/30 rounded-full animate-particle-2" />
-        <div className="absolute bottom-[35%] right-[8%] w-2 h-2 bg-[#0088cc]/35 rounded-full animate-particle-3" />
-        <div className="absolute bottom-[28%] left-[8%] w-2 h-2 bg-[#0088cc]/30 rounded-full animate-particle-4" />
+        {/* Scattered background dots */}
+        <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-blue-400/40" />
+        <div className="absolute top-[22%] right-[8%] w-2 h-2 rounded-full bg-purple-400/40" />
+        <div className="absolute top-[40%] right-[15%] w-1.5 h-1.5 rounded-full bg-pink-400/40" />
+        <div className="absolute bottom-[35%] left-[6%] w-1.5 h-1.5 rounded-full bg-blue-400/30" />
+
+        {/* Left Side: 3D Paperplane + Dashed Trail */}
+        <div className="hidden lg:block absolute left-[6%] top-[24%] pointer-events-none">
+          <svg className="w-48 h-48 opacity-40 text-[#0066ff]" viewBox="0 0 200 200" fill="none">
+            <path d="M 20 180 C 10 90, 90 40, 110 100 C 130 160, 50 160, 60 110 C 70 60, 140 30, 180 20" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
+          </svg>
+          <div className="absolute top-0 right-0 -translate-y-2 translate-x-2 text-[#0066ff] drop-shadow-lg animate-float">
+            <Send className="w-10 h-10 fill-[#0066ff] -rotate-12" />
+          </div>
+        </div>
+
+        {/* Right Side: Telegram Badge + Dashed Trail */}
+        <div className="hidden lg:block absolute right-[8%] top-[38%] pointer-events-none">
+          <div className="w-14 h-14 rounded-full bg-[#0066ff] shadow-lg shadow-[#0066ff]/30 flex items-center justify-center text-white mb-2 animate-float-slow">
+            <Send className="w-7 h-7 fill-white ml-[-2px] mt-[1px]" />
+          </div>
+          <svg className="w-48 h-48 opacity-40 text-[#0066ff] ml-[-40px]" viewBox="0 0 200 200" fill="none">
+            <path d="M 40 20 C 110 40, 160 100, 120 150 C 90 180, 50 130, 100 110 C 140 90, 170 150, 180 180" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" fill="none" />
+          </svg>
+        </div>
       </div>
 
-      <div className="max-w-5xl mx-auto relative z-10 text-center">
+      <div className="max-w-5xl mx-auto relative z-10 text-center w-full">
         {/* Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#0088cc]/25 bg-[#0088cc]/8 backdrop-blur-sm text-sm font-medium text-[#0088cc] mb-8 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
-          <Send className="w-4 h-4" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#0066ff]/30 bg-[#eff6ff] dark:bg-[#0066ff]/10 text-xs sm:text-sm font-semibold text-[#0066ff] mb-8 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
+          <Send className="w-3.5 h-3.5 fill-[#0066ff]" />
           <span>Telegram Automation for Educators</span>
         </div>
 
         {/* Main Headline */}
         <h1
           id="hero-heading"
-          className="text-3xl sm:text-5xl md:text-6xl lg:text-[3.6rem] font-display font-extrabold tracking-tight leading-[1.12] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
+          className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-foreground tracking-tight leading-[1.12] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
-          <span className="text-foreground block">Publish Up to 20 Telegram Quizzes</span>
-          <span className="relative inline-block pb-3 mt-1">
-            <span className="text-[#0088cc]">in under a minute</span>
-            {/* Curved SVG Underline */}
-            <svg
-              className="absolute -bottom-1 left-0 w-full h-3 text-[#0088cc]"
-              viewBox="0 0 250 12"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              preserveAspectRatio="none"
-            >
-              <path
-                d="M3 9C60 3 180 2 247 9"
-                stroke="currentColor"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
+          <span className="block text-foreground">Publish Up to 20 Telegram Quizzes</span>
+          <span className="relative inline-block pb-3 mt-1 text-[#0066ff]">
+            in under a minute
+            {/* Multi-color gradient swoosh underline from screenshot */}
+            <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
+              <path d="M 4 10 C 80 3, 240 2, 316 10" stroke="url(#swoosh-gradient)" strokeWidth="4" strokeLinecap="round" />
+              <defs>
+                <linearGradient id="swoosh-gradient" x1="0" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#38bdf8" />
+                  <stop offset="0.5" stopColor="#0066ff" />
+                  <stop offset="1" stopColor="#f43f5e" />
+                </linearGradient>
+              </defs>
             </svg>
           </span>
         </h1>
 
         {/* Subheadline */}
         <p
-          className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
+          className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-9 leading-relaxed animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]"
         >
-          Save hours every week by generating, scheduling, and automatically publishing exam-quality Telegram quizzes from <span className="text-foreground font-semibold">any topic or PDF</span>.
+          Save hours every week by generating, scheduling,
+          <br className="hidden sm:block" />
+          and automatically publishing <span className="font-bold text-foreground">exam-quality Telegram quizzes.</span>
         </p>
 
-        {/* Dual Pill CTA Buttons */}
+        {/* CTAs */}
         <div
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-5 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:300ms]"
         >
           <Button
             onClick={onGetStarted}
             size="lg"
-            className="group h-14 px-8 text-base font-semibold bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] flex items-center gap-2"
+            className="h-14 px-8 text-base font-semibold bg-[#0066ff] hover:bg-[#0052cc] text-white rounded-full transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-[#0066ff]/25 flex items-center gap-2"
           >
-            <Send className="w-4 h-4" />
-            <span>Start Free</span>
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <Send className="w-4 h-4 fill-white" />
+            Start Free
+            <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
 
           <Button
             variant="outline"
             size="lg"
-            className="group h-14 px-8 text-base font-semibold bg-card/80 backdrop-blur-sm text-foreground border border-border/80 hover:bg-muted/60 rounded-full transition-all duration-300 shadow-sm flex items-center gap-2"
+            className="h-14 px-8 text-base font-semibold bg-card hover:bg-muted/50 border border-border/80 text-foreground rounded-full transition-all duration-300 hover:scale-[1.02] shadow-sm flex items-center gap-2"
           >
-            <Zap className="w-4 h-4 text-[#0088cc]" />
-            <span>Watch Demo</span>
-            <ArrowRight className="w-4 h-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            <Zap className="w-4 h-4 text-[#0066ff] fill-[#0066ff]" />
+            Watch Demo
+            <ArrowRight className="w-4 h-4 ml-1 text-muted-foreground" />
           </Button>
         </div>
 
-        {/* Sub-CTA Trust Micro Copy */}
+        {/* Trust sub-text */}
         <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground mb-16 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:350ms]">
-          <ShieldCheck className="w-4 h-4 text-[#0088cc]" />
+          <ShieldCheck className="w-4 h-4 text-[#0066ff]" />
           <span>No credit card required • Start free in under 2 minutes</span>
         </div>
 
-        {/* 4 Feature Cards Grid */}
+        {/* 4 Feature Cards */}
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:400ms]"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto text-left animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:400ms]"
         >
-          {[
-            { title: "Under 30 Seconds", desc: "30-Second Workflow", icon: Clock },
-            { title: "AI-Powered Generation", desc: "Exam-Quality MCQs", icon: Sparkles },
-            { title: "PDF to Quiz", desc: "Instant Document Import", icon: FileText },
-            { title: "Smart Scheduling", desc: "Auto Telegram Publishing", icon: Calendar },
-          ].map((feature, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center p-6 sm:p-7 rounded-3xl bg-card border border-border/60 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all duration-300 text-center group"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-[#0088cc]/10 flex items-center justify-center mb-5 text-[#0088cc] group-hover:scale-105 transition-transform">
-                <feature.icon className="w-7 h-7" />
+          {/* Card 1 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0066ff]/30 transition-all flex flex-col justify-between group min-h-[170px]">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-[#0066ff] flex items-center justify-center mb-4">
+                <Timer className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1.5">{feature.title}</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground font-normal">{feature.desc}</p>
+              <h3 className="text-base font-bold text-foreground mb-1">30-Second Workflow</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">Create and publish quizzes in just 30 seconds.</p>
             </div>
-          ))}
+            <div className="flex justify-end mt-4">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0066ff] group-hover:text-[#0066ff] transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0066ff]/30 transition-all flex flex-col justify-between group min-h-[170px]">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center mb-4">
+                <Brain className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1">AI Quiz Generation</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">AI creates exam-quality MCQs in seconds.</p>
+            </div>
+            <div className="flex justify-end mt-4">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0066ff] group-hover:text-[#0066ff] transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0066ff]/30 transition-all flex flex-col justify-between group min-h-[170px]">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-pink-500/10 text-pink-600 flex items-center justify-center mb-4 relative">
+                <FileText className="w-6 h-6" />
+                <span className="absolute bottom-1 right-1 bg-pink-500 text-white text-[8px] font-extrabold px-1 rounded">PDF</span>
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1">PDF to Quiz</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">Convert any PDF or notes into quizzes instantly.</p>
+            </div>
+            <div className="flex justify-end mt-4">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0066ff] group-hover:text-[#0066ff] transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4 */}
+          <div className="p-6 rounded-3xl bg-card/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md hover:border-[#0066ff]/30 transition-all flex flex-col justify-between group min-h-[170px]">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 flex items-center justify-center mb-4">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1">Smart Scheduling</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">Schedule quizzes and auto publish to Telegram.</p>
+            </div>
+            <div className="flex justify-end mt-4">
+              <div className="w-7 h-7 rounded-full border border-border/80 flex items-center justify-center text-muted-foreground group-hover:border-[#0066ff] group-hover:text-[#0066ff] transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Bottom gradient fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
     </section>
   );
 };
