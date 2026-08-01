@@ -179,7 +179,7 @@ export class SubscriptionService {
       throw error;
     }
 
-    return data;
+    return data as unknown as UserSubscription;
   }
 
   /**
@@ -315,7 +315,7 @@ export class SubscriptionService {
     // Initialize usage tracking
     await this.initializeUsageTracking(userId);
 
-    return data;
+    return data as unknown as UserSubscription;
   }
 
   /**
@@ -664,6 +664,6 @@ export class SubscriptionService {
 
     if (error) throw error;
 
-    return data;
+    return data as unknown as UserSubscription;
   }
 }

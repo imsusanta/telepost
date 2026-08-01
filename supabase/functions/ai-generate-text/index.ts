@@ -107,6 +107,7 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
         if (!error && user) return user.id;
     } catch { /* ignore */ }
 
+
     return null;
 }
 

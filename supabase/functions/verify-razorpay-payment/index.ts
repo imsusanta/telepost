@@ -64,22 +64,24 @@ serve(async (req) => {
                 payment_status: "success",
                 completed_at: new Date().toISOString(),
             })
-            .eq("razorpay_order_id", razorpay_order_id);
+            .eq("razorpay_order_id", razorpay_order_id)
+            .eq("user_id", user.id);
 
         if (updatePaymentError) {
             console.error("Failed to update payment record:", updatePaymentError);
         }
 
-        // Get plan_id from subscription_payments
+        // Get plan_id from subscription_payments AND verify caller owns the order
         const { data: paymentData, error: paymentFetchError } = await supabaseClient
             .from("subscription_payments")
-            .select("plan_id, amount")
+            .select("plan_id, amount, user_id")
             .eq("razorpay_order_id", razorpay_order_id)
+            .eq("user_id", user.id)
             .single();
 
         if (paymentFetchError || !paymentData) {
-            console.error("Failed to fetch payment data:", paymentFetchError);
-            throw new Error("Payment record not found");
+            console.error("Failed to fetch payment data or ownership mismatch:", paymentFetchError);
+            throw new Error("Payment record not found for this account");
         }
 
         // 1. Update user profile to paid status

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { SubscriptionPlan } from './subscriptionService';
+import type { SubscriptionPlan as _SubscriptionPlan } from './subscriptionService';
+void ({} as _SubscriptionPlan);
 
 export type AppRole = 'user' | 'super_admin';
 
@@ -169,7 +170,7 @@ export async function getPaginatedUsers(
       updated_at: profile.updated_at || new Date().toISOString(),
       role: userRole,
       status: (profile.status as 'active' | 'suspended' | 'banned') || 'active',
-      account_locked: profile.account_locked ?? false,
+      account_locked: (profile as any).account_locked ?? false,
       can_purchase_plans: profile.can_purchase_plans ?? true,
       subscription: userSub ? {
         id: userSub.id,
@@ -444,7 +445,7 @@ export async function getSubscriptionStats() {
   const [plansResult, subsResult, paymentsResult] = await Promise.all([
     supabase.from('subscription_plans').select('id, name, display_name, price'),
     supabase.from('subscriptions').select('plan_id, status'),
-    supabase.from('subscription_payments').select('amount, payment_status')
+    (supabase as any).from('subscription_payments').select('amount, payment_status')
   ]);
 
   if (!plansResult.data || !subsResult.data) {
@@ -461,9 +462,9 @@ export async function getSubscriptionStats() {
   const subscriptions = subsResult.data;
   const payments = paymentsResult.data || [];
 
-  const totalRevenue = payments
-    .filter(p => p.payment_status === 'captured' || p.payment_status === 'completed' || p.payment_status === 'success')
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenue = (payments as any[])
+    .filter((p: any) => p.payment_status === 'captured' || p.payment_status === 'completed' || p.payment_status === 'success')
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
   const planCounts = plans.map(plan => ({
     planId: plan.id,
@@ -518,7 +519,7 @@ export async function updateSubscriptionPlan(
   planId: string,
   updates: Record<string, any>
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('subscription_plans')
     .update(updates)
     .eq('id', planId)

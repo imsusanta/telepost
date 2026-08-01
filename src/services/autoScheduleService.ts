@@ -1,4 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
+// Table not yet in generated types
+const supabase = supabaseClient as any;
 
 export type SourceType = 'question_bank' | 'ai_generated' | 'knowledge_base';
 

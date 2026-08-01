@@ -65,16 +65,26 @@ export default function Auth() {
   };
   const ps = pwStr(password);
 
+  // Support ?next=/... redirect (e.g. OAuth consent flow) — only same-origin relative paths.
+  const nextParam = (() => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("next");
+      return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : null;
+    } catch { return null; }
+  })();
+  const postAuthTarget = nextParam ?? "/dashboard";
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard");
+      if (session) navigate(postAuthTarget);
     }).catch(console.error);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (s) navigate("/dashboard");
+      if (s) navigate(postAuthTarget);
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, postAuthTarget]);
+
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +105,7 @@ export default function Auth() {
         email: email.toLowerCase().trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}${postAuthTarget}`,
           data: { full_name: name, institute_name: sanitizeInput(instituteName.trim()) }
         }
       });
@@ -126,11 +136,14 @@ export default function Auth() {
       if (error) throw error;
       localStorage.removeItem('ratelimit_login');
       if (data.session) {
-        await new Promise(r => setTimeout(r, 200));
-        await supabase.auth.getSession();
+        // Explicit navigate — don't rely solely on onAuthStateChange, which may
+        // race with rendering and leave the button spinning indefinitely,
+        // especially when postAuthTarget is a deep path like /.lovable/oauth/consent.
+        navigate(postAuthTarget);
       }
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
+    } finally {
       setLoading(false);
     }
   };

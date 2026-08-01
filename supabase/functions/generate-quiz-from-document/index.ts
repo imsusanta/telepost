@@ -126,6 +126,7 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
   return null;
 }
 
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

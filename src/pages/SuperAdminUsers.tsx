@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   Search,
   Shield,
-  ShieldCheck,
+  
   User,
   UserCheck,
   UserCog,
@@ -135,7 +135,7 @@ export default function SuperAdminUsers() {
           pageSize,
           debouncedSearch,
           roleFilter === 'all' ? undefined : roleFilter,
-          statusFilter === 'all' ? undefined : statusFilter
+          statusFilter === 'all' ? undefined : (statusFilter as 'active' | 'suspended' | 'banned')
         ),
         SubscriptionService.getPlans(),
       ]);
@@ -412,68 +412,6 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const handleSendPaymentRequest = async (user: UserWithSubscription) => {
-    if (!confirm(`Send payment request to ${user.email}? Their account will be locked until payment is complete.`)) {
-      return;
-    }
-
-    try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { error } = await (supabase as any)
-        .from('profiles')
-        .update({
-          payment_status: 'locked',
-          payment_requested_at: new Date().toISOString(),
-          payment_amount: 999
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Payment Request Sent',
-        description: `${user.email}'s account is now locked. They must pay to access features.`,
-      });
-      await loadData();
-    } catch (error: unknown) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to send payment request',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleActivateForTrial = async (user: UserWithSubscription) => {
-    if (!confirm(`Activate ${user.email} for trial? This will unlock their account and give full access.`)) {
-      return;
-    }
-
-    try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { error } = await (supabase as any)
-        .from('profiles')
-        .update({
-          payment_status: 'paid',
-          payment_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'User Activated',
-        description: `${user.email} has been activated for trial and can now access all features.`,
-      });
-      await loadData();
-    } catch (error: unknown) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to activate user',
-        variant: 'destructive',
-      });
-    }
-  };
 
   // Lock user account - blocks access to Telegram Quiz features
   const handleLockAccount = async (user: UserWithSubscription) => {
@@ -939,7 +877,7 @@ export default function SuperAdminUsers() {
                               <Key className="w-4 h-4 mr-2" />
                               Reset Password
                             </DropdownMenuItem>
-                            {(user.status === 'pending') && (
+                            {((user.status as string) === 'pending') && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
