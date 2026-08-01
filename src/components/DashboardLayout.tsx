@@ -19,13 +19,15 @@ import {
   User,
   PenLine,
   Calendar,
-  CreditCard
+  CreditCard,
+  Send
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { useSubscription } from "@/hooks/useSubscription";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 import {
   Sidebar,
@@ -236,18 +238,17 @@ function DashboardLayoutInner({
           <SidebarHeader className="border-b border-white/5 py-4">
             <div className="flex items-center justify-between px-3">
               <div className="flex items-center gap-2">
-                {/* Paper plane icon */}
-                <img
-                  src="/favicon.png"
-                  alt="TelePost"
-                  className="w-8 h-8 object-contain"
-                />
+                {/* Paper plane icon matching Navbar logo */}
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
+                </div>
                 {/* TelePost text - hidden when collapsed */}
                 <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">
                   TelePost
                 </span>
               </div>
               <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+                <ThemeToggle />
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative hover:bg-primary/5 transition-all">
                   <Bell className="w-4 h-4 text-muted-foreground" />
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
@@ -450,24 +451,25 @@ function DashboardLayoutInner({
         {/* Main Content */}
         <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 flex flex-col min-w-0 max-w-full overflow-x-hidden">
           {/* Mobile Navigation Header - Only visible on mobile */}
-          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl sticky top-0 z-40 shadow-sm">
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl relative z-40 shadow-sm">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
               <div className="flex items-center gap-2">
-                <img
-                  src="/favicon.png"
-                  alt="TelePost"
-                  className="h-7 w-7 object-contain"
-                />
+                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
+                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
+                </div>
                 <span className="text-lg font-bold text-foreground">
                   TelePost
                 </span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg relative hover:bg-primary/5">
-              <Bell className="w-4 h-4 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg relative hover:bg-primary/5">
+                <Bell className="w-4 h-4 text-muted-foreground" />
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
+              </Button>
+            </div>
           </header>
 
           <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">

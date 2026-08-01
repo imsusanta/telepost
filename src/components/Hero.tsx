@@ -9,7 +9,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
   return (
     <section
       id="main-content"
-      className="relative min-h-[100vh] flex flex-col items-center justify-center pt-32 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-background via-background/95 to-background"
+      className="relative min-h-[100vh] flex flex-col items-center justify-center pt-20 sm:pt-24 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-background via-background/95 to-background"
       aria-labelledby="hero-heading"
     >
       {/* Background Decorative Elements */}
@@ -38,12 +38,12 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Main Headline */}
         <h1
           id="hero-heading"
-          className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.15] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
+          className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-tight mb-5 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
           <span className="block text-foreground sm:whitespace-nowrap">
             Post Up to 20 Quizzes to Your Telegram Channel
           </span>
-          <span className="relative inline-block pb-3 mt-1 text-[#0088cc]">
+          <span className="relative inline-block pb-3 mt-2 text-[#0088cc]">
             in Under a Minute
             {/* Multi-color gradient swoosh underline from screenshot */}
             <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
