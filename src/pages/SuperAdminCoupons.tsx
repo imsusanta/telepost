@@ -340,7 +340,7 @@ export default function SuperAdminCoupons() {
                       <p className="font-semibold">
                         {coupon.discount_type === 'percentage'
                           ? `${coupon.discount_value}%`
-                          : `$${coupon.discount_value}`}
+                          : `₹${coupon.discount_value}`}
                       </p>
                     </div>
                     <div>
@@ -423,14 +423,14 @@ export default function SuperAdminCoupons() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed_amount">Fixed Amount ($)</SelectItem>
+                    <SelectItem value="fixed_amount">Fixed Amount (₹)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="discountValue">
-                  Discount Value * {discountType === 'percentage' ? '(%)' : '($)'}
+                  Discount Value * {discountType === 'percentage' ? '(%)' : '(₹)'}
                 </Label>
                 <Input
                   id="discountValue"

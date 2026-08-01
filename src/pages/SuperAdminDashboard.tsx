@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Shield, TrendingUp, Activity, Settings,
-  BarChart3, DollarSign, Lock, AlertCircle, CheckCircle
+  BarChart3, IndianRupee, Tag, Lock, AlertCircle, CheckCircle
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -172,7 +172,7 @@ export default function SuperAdminDashboard() {
                 {stats.users.subscribed} users subscribed
               </p>
               <div className="text-sm font-semibold text-green-600 mt-2">
-                ${stats.subscriptions.revenue}/mo revenue
+                ₹{stats.subscriptions.revenue}/mo revenue
               </div>
             </CardContent>
           </Card>
@@ -180,7 +180,7 @@ export default function SuperAdminDashboard() {
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Coupons</CardTitle>
-              <DollarSign className="h-5 w-5 text-yellow-600" />
+              <Tag className="h-5 w-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{stats.coupons.total}</div>
@@ -188,7 +188,7 @@ export default function SuperAdminDashboard() {
                 {stats.coupons.active} active
               </p>
               <div className="text-sm font-semibold text-yellow-600 mt-2">
-                ${stats.coupons.totalDiscount.toFixed(2)} total discount
+                ₹{stats.coupons.totalDiscount.toFixed(2)} total discount
               </div>
             </CardContent>
           </Card>
@@ -228,7 +228,7 @@ export default function SuperAdminDashboard() {
                     className="w-full justify-start"
                     onClick={() => navigate('/dashboard/super-admin/coupons')}
                   >
-                    <DollarSign className="w-4 h-4 mr-2" />
+                    <Tag className="w-4 h-4 mr-2" />
                     Manage Coupons
                   </Button>
                 </CardContent>
