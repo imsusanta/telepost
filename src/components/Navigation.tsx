@@ -58,7 +58,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
   ];
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className="fixed top-0 left-0 right-0 z-50">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg z-50"
@@ -68,9 +68,13 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
 
       <div className="mx-4 mt-4">
         <nav
-          className={`max-w-6xl mx-auto px-6 py-2.5 transition-all duration-300 ${
+          className={`max-w-5xl mx-auto px-6 py-3 transition-all duration-300 ${
             isMenuOpen ? "rounded-2xl shadow-xl" : "rounded-full"
-          } border border-border/60 bg-card/80 backdrop-blur-xl shadow-sm`}
+          } border ${
+            isScrolled || isMenuOpen
+              ? "bg-background/95 backdrop-blur-lg border-border/50 shadow-sm"
+              : "bg-transparent border-transparent"
+          }`}
           role="navigation"
           aria-label="Main navigation"
         >
