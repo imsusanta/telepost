@@ -29,7 +29,6 @@ interface AIQuestionGeneratorProps {
 export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: AIQuestionGeneratorProps) {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [customPrompt, setCustomPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -86,7 +85,6 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
       const quiz = await QuizService.generateQuiz({
         topic: topic.trim(),
         questionCount,
-        difficulty,
         language,
         systemPrompt: customPrompt.trim() || undefined,
         userId: user.id,
@@ -99,13 +97,12 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
       // Store questions temporarily
       TempQuestionStorageService.addQuestions(quiz.questions, {
         topic: topic.trim(),
-        difficulty,
         language,
         source_type: 'ai_generator',
       });
 
-      // Pass generated questions to parent with metadata (for backward compatibility)
-      onQuestionsGenerated(quiz.questions, topic.trim(), difficulty, language);
+      // Pass generated questions to parent with metadata
+      onQuestionsGenerated(quiz.questions, topic.trim(), undefined, language);
 
       toast({
         title: "Success",
@@ -126,7 +123,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5" />
+          <Sparkles className="w-5 h-5 text-primary" />
           AI Question Generation
         </CardTitle>
         <CardDescription>
@@ -145,6 +142,17 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
           </Alert>
         )}
         <div className="space-y-4">
+          {/* Helper Banner */}
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 text-xs space-y-1">
+            <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
+              <span>🎯</span>
+              <span>Government Exam Standard</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              Every quiz is automatically generated following the standard and style of competitive government examinations. No manual difficulty selection is required.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="topic">Topic *</Label>
             <Input
@@ -156,7 +164,7 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="questionCount">Number of Questions</Label>
               <Input
@@ -168,24 +176,6 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
                 onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                 disabled={isGenerating}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="difficulty">Difficulty</Label>
-              <Select
-                value={difficulty}
-                onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}
-                disabled={isGenerating}
-              >
-                <SelectTrigger id="difficulty">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

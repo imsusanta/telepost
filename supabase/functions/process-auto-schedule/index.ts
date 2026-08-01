@@ -39,6 +39,132 @@ async function getAISettings(supabase: any): Promise<AISettings> {
     } as AISettings;
 }
 
+interface TopicCategory {
+    subject: string;
+    subject_bn: string;
+    topics: string[];
+}
+
+export const TOPIC_LIBRARY: TopicCategory[] = [
+    {
+        subject: "History",
+        subject_bn: "ইতিহাস",
+        topics: [
+            "সিন্ধু সভ্যতার বন্দর (লোথাল)",
+            "বিখ্যাত পরিব্রাজক",
+            "আর্য সমাজ",
+            "ব্রাহ্ম সমাজ",
+            "রামকৃষ্ণ মিশন",
+            "পলাশীর যুদ্ধ",
+            "বক্সারের যুদ্ধ",
+            "সিপাহী বিদ্রোহ",
+            "ডান্ডি অভিযান",
+            "জালিয়ানওয়ালাবাগ হত্যাকাণ্ড"
+        ]
+    },
+    {
+        subject: "Geography",
+        subject_bn: "ভূগোল",
+        topics: [
+            "মাজুলী দ্বীপ",
+            "চিল্কা হ্রদ",
+            "উলার হ্রদ",
+            "লোকটাক হ্রদ",
+            "নাথুলা পাস",
+            "রোটাং পাস",
+            "জোজিলা পাস",
+            "ভারতের IST",
+            "খারিফ শস্য",
+            "রবি শস্য",
+            "নীলগিরি",
+            "আরাবল্লী",
+            "গোদাবরী",
+            "কাবেরী"
+        ]
+    },
+    {
+        subject: "Polity",
+        subject_bn: "রাষ্ট্রবিজ্ঞান",
+        topics: [
+            "খসড়া কমিটি",
+            "মৌলিক কর্তব্য",
+            "দলত্যাগ বিরোধী আইন",
+            "নীতি আয়োগ",
+            "অর্থ বিল",
+            "সাধারণ বিল",
+            "ধারা ৩৫৬"
+        ]
+    },
+    {
+        subject: "Science",
+        subject_bn: "বিজ্ঞান",
+        topics: [
+            "মাইটোকন্ড্রিয়া",
+            "pH Scale",
+            "লাফিং গ্যাস",
+            "ড্রাই আইস",
+            "RBC",
+            "WBC",
+            "ম্যালেরিয়া",
+            "ডেঙ্গু",
+            "নিউটনের তৃতীয় সূত্র"
+        ]
+    },
+    {
+        subject: "Economy",
+        subject_bn: "অর্থনীতি",
+        topics: [
+            "GST",
+            "NABARD",
+            "সবুজ বিপ্লব",
+            "শ্বেত বিপ্লব",
+            "Repo Rate",
+            "Reverse Repo Rate",
+            "SEBI"
+        ]
+    },
+    {
+        subject: "Static GK",
+        subject_bn: "স্ট্যাটিক জিকে",
+        topics: [
+            "ISRO",
+            "DRDO",
+            "SAARC",
+            "BRICS",
+            "BIMSTEC",
+            "INTERPOL",
+            "Red Cross",
+            "Statue of Unity",
+            "মধুবনী চিত্রকলা",
+            "পটচিত্র",
+            "Durand Line",
+            "McMahon Line"
+        ]
+    }
+];
+
+export function getRotatedPredefinedTopic(channelId: string, slotIndex: number, dayCount: number): { subject: string; topic: string } {
+    const pool: { subject: string; topic: string }[] = [];
+    const maxLen = Math.max(...TOPIC_LIBRARY.map(cat => cat.topics.length));
+
+    for (let i = 0; i < maxLen; i++) {
+        for (const cat of TOPIC_LIBRARY) {
+            if (i < cat.topics.length) {
+                pool.push({ subject: cat.subject, topic: cat.topics[i] });
+            }
+        }
+    }
+
+    let hash = 0;
+    for (let i = 0; i < channelId.length; i++) {
+        hash = (hash << 5) - hash + channelId.charCodeAt(i);
+        hash |= 0;
+    }
+    const offset = Math.abs(hash);
+    const index = (dayCount * 12 + slotIndex + offset) % pool.length;
+    return pool[index];
+}
+
 Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
@@ -181,29 +307,33 @@ Deno.serve(async (req) => {
         const matchingEntries: Array<{ setting: any, matchedTime: string, scheduledDate: Date, slotIndex: number }> = [];
         
             for (const s of settings) {
+                if (!s.schedule_times || !Array.isArray(s.schedule_times) || s.schedule_times.length === 0) continue;
+
+                const tz = s.timezone || 'Asia/Kolkata';
+
                 if (force) {
-                    const firstTime = s.schedule_times?.[0] || '00:00';
-                    matchingEntries.push({ setting: s, matchedTime: firstTime, scheduledDate: now, slotIndex: 0 });
+                    const firstTime = s.schedule_times[0] || '09:00';
+                    const scheduledDate = computeScheduledDate(firstTime, tz, now);
+                    matchingEntries.push({ setting: s, matchedTime: firstTime, scheduledDate, slotIndex: 0 });
                     continue;
                 }
 
-                if (!s.schedule_times || !Array.isArray(s.schedule_times)) continue;
-
-                const tz = s.timezone || 'UTC';
                 const localTimeStr = getLocalHHMM(now, tz);
-                const oneMinLater = new Date(now.getTime() + 60000);
-                const oneMinBefore = new Date(now.getTime() - 60000);
-                const localTimePlus1 = getLocalHHMM(oneMinLater, tz);
-                const localTimeMinus1 = getLocalHHMM(oneMinBefore, tz);
+                const [nowH, nowM] = localTimeStr.split(':').map(Number);
+                const nowTotalMinutes = nowH * 60 + nowM;
 
                 const sortedTimes = [...s.schedule_times].sort();
                 
                 for (let i = 0; i < sortedTimes.length; i++) {
                     const time = sortedTimes[i];
-                    const schedHHMM = time.substring(0, 5); 
+                    const [schedH, schedM] = time.substring(0, 5).split(':').map(Number);
+                    const schedTotalMinutes = schedH * 60 + schedM;
                     
-                    if (schedHHMM === localTimeStr || schedHHMM === localTimePlus1 || schedHHMM === localTimeMinus1) {
-                        console.log(`[MATCH] ${s.channel_name} at ${schedHHMM} (Local: ${localTimeStr})`);
+                    let diff = Math.abs(nowTotalMinutes - schedTotalMinutes);
+                    if (diff > 720) diff = 1440 - diff; // Handle midnight crossover (e.g. 23:59 vs 00:01)
+
+                    if (diff <= 2) { // Resilient matching window for configured times only
+                        console.log(`[MATCH] ${s.channel_name} at ${time} (Local: ${localTimeStr}, diff: ${diff}m)`);
                         const scheduledDate = computeScheduledDate(time, tz, now);
                         matchingEntries.push({ setting: s, matchedTime: time, scheduledDate, slotIndex: i });
                         break; // Only match once per setting per run
@@ -267,11 +397,11 @@ Deno.serve(async (req) => {
                     const globalSlotIndex = (dayCount * sortedTimes.length) + (slotIndex >= 0 ? slotIndex : 0);
                     const topicIndex = globalSlotIndex % sortedTopics.length;
                     finalTopic = sortedTopics[topicIndex];
-                    console.log(`Setting ${setting.channel_id}: Predefined Topic Selected: ${finalTopic}`);
+                    console.log(`Setting ${setting.channel_id}: Custom User Topic Selected: ${finalTopic}`);
                 } else {
-                    console.log(`Setting ${setting.channel_id}: No topics provided. Generating topic with AI...`);
-                    finalTopic = await generateAITopic(setting, aiSettings, slotIndex, supabaseAdmin);
-                    console.log(`Setting ${setting.channel_id}: AI Generated Topic: ${finalTopic}`);
+                    const rotated = getRotatedPredefinedTopic(setting.channel_id, slotIndex >= 0 ? slotIndex : 0, dayCount);
+                    finalTopic = rotated.topic;
+                    console.log(`Setting ${setting.channel_id}: Predefined Library Topic Selected (${rotated.subject}): ${finalTopic}`);
                 }
 
                 if (setting.source_type === "question_bank") {
@@ -392,6 +522,26 @@ Deno.serve(async (req) => {
 
                 results.push({ channel_id: setting.channel_id, success: true, scheduled_time: scheduledDate.toISOString() });
                 console.log(`Successfully scheduled post for channel ${setting.channel_id} at ${scheduledDate.toISOString()}`);
+
+                // Trigger process-scheduled-posts immediately for instant dispatch of due posts
+                try {
+                    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+                    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+                    const dispatchUrl = `${supabaseUrl}/functions/v1/process-scheduled-posts`;
+                    
+                    fetch(dispatchUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${serviceRoleKey}`
+                        },
+                        body: JSON.stringify({ triggered_by: 'auto_schedule_generator', force: force })
+                    }).catch(e => console.error("Async dispatch error:", e));
+                    
+                    console.log("[Auto-Schedule] Triggered process-scheduled-posts for instant Telegram dispatch.");
+                } catch (dispatchErr) {
+                    console.error("Error triggering instant post dispatch:", dispatchErr);
+                }
 
             } catch (err) {
                 console.error(`Error processing schedule for channel ${setting.channel_id}:`, err);
@@ -546,9 +696,14 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
   ⚠️ MANDATORY LANGUAGE RULE (VIOLATION = FAILURE):
   ${langInfo.instruction}`;
 
-    let basePromptText = `Create a multiple-choice quiz ${knowledgeBaseContext ? `based on the provided Knowledge Base documents` : `about "${topic}"`}.
+    let basePromptText = `Create a multiple-choice quiz ${knowledgeBaseContext ? `based on the provided Knowledge Base documents` : `strictly and exclusively focused on the single specific topic "${topic}"`}.
   
   ${knowledgeBaseContext ? `CRITICAL CONTEXT: Generate the questions directly using the facts and information from this knowledge base content: \n${knowledgeBaseContext}\n` : ""}
+
+  CRITICAL TOPIC BOUNDARY:
+  - Every single question MUST be strictly and exclusively about "${topic}".
+  - Do NOT generate generic or unrelated questions outside of "${topic}".
+  - The exact topic name "${topic}" represents the core subject of this entire quiz batch.
 
   REQUIREMENTS:
   1. Number of questions: ${questionCount}.

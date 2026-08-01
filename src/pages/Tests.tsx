@@ -197,9 +197,6 @@ export default function Tests() {
               <Badge variant="outline" className={getStatusColor(test.status)}>
                 {test.status || "draft"}
               </Badge>
-              <Badge variant="outline" className={getDifficultyColor(test.difficulty)}>
-                {test.difficulty || "medium"}
-              </Badge>
               <Badge variant="outline" className="bg-muted">
                 {test.test_type?.toUpperCase() || "MCQ"}
               </Badge>
@@ -468,22 +465,6 @@ export default function Tests() {
                       <SelectItem value="mcq">MCQ Only</SelectItem>
                       <SelectItem value="mixed">Mixed</SelectItem>
                       <SelectItem value="subjective">Subjective</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="difficulty">Difficulty</Label>
-                  <Select
-                    value={newTest.difficulty}
-                    onValueChange={(value) => setNewTest({ ...newTest, difficulty: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

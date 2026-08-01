@@ -11,8 +11,6 @@ export const Footer = () => {
       links: [
         { label: "About Us", href: "#" },
         { label: "Contact Us", href: "#" },
-        { label: "Careers", href: "#" },
-        { label: "Blog", href: "#" },
       ],
     },
     {
@@ -30,9 +28,9 @@ export const Footer = () => {
       titleColor: "text-amber-600 dark:text-amber-400",
       links: [
         { label: "Documentation", href: "/documentation" },
-        { label: "Help Center", href: "#" },
-        { label: "Video Tutorials", href: "#" },
-        { label: "Contact Support", href: "#" },
+        { label: "Help Center", href: "/help-center" },
+        { label: "Video Tutorials", href: "/video-tutorials" },
+        { label: "Contact Support", href: "/contact-support" },
       ],
     },
   ];

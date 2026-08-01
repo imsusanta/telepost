@@ -82,16 +82,6 @@ export function ClassificationBadges({
                 </Badge>
             )}
 
-            {/* Difficulty Badge */}
-            {difficulty && (
-                <Badge
-                    variant="outline"
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 border-0 ${difficultyConfig.bgColor} ${difficultyConfig.textColor}`}
-                >
-                    {difficulty}
-                </Badge>
-            )}
-
             {/* Date Badge */}
             {formattedDate && (
                 <span className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -135,27 +125,12 @@ export function SubjectBadge({ subject, size = 'md', showIcon = true }: SubjectB
     );
 }
 
-// Standalone Difficulty Badge component
+// Standalone Difficulty Badge component (deprecated - returns null)
 interface DifficultyBadgeProps {
-    difficulty: string;
+    difficulty?: string;
     size?: 'sm' | 'md' | 'lg';
 }
 
-export function DifficultyBadge({ difficulty, size = 'md' }: DifficultyBadgeProps) {
-    const config = getDifficultyConfig(difficulty);
-
-    const sizeClasses = {
-        sm: 'text-[9px] px-1.5 py-0.5',
-        md: 'text-[10px] px-2 py-0.5',
-        lg: 'text-xs px-2.5 py-1',
-    };
-
-    return (
-        <Badge
-            variant="outline"
-            className={`font-bold uppercase border-0 ${config.bgColor} ${config.textColor} ${sizeClasses[size]}`}
-        >
-            {difficulty}
-        </Badge>
-    );
+export function DifficultyBadge(_props: DifficultyBadgeProps) {
+    return null;
 }

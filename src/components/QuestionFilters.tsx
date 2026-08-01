@@ -57,7 +57,7 @@ interface QuestionFiltersProps {
     privateOnly?: boolean;
 }
 
-type SortOption = 'latest' | 'oldest' | 'a-z' | 'difficulty';
+type SortOption = 'latest' | 'oldest' | 'a-z';
 
 export function QuestionFilters({
     filters,

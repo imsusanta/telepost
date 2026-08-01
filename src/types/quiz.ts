@@ -4,11 +4,12 @@ export interface QuizQuestion {
   options: string[];
   correct_option_index: number;
   explanation?: string;
+  difficulty?: string; // Optional for backward compatibility with old stored DB objects, but never used or shown
 }
 
 export interface QuizMetadata {
-  difficulty: 'easy' | 'medium' | 'hard';
   generated_at: string;
+  standard?: string;
 }
 
 export interface Quiz {
@@ -21,7 +22,6 @@ export interface Quiz {
 export interface QuizConfig {
   topic: string;
   questionCount: number;
-  difficulty: 'easy' | 'medium' | 'hard';
   systemPrompt?: string;
   channelId?: string;
   language?: 'bn' | 'en' | 'hi';

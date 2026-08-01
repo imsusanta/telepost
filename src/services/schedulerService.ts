@@ -118,28 +118,62 @@ export class SchedulerService {
   }
 
   /**
-   * Cancel a scheduled post
+   * Cancel a scheduled post (pending/processing)
    */
   static async cancelScheduledPost(
     postId: string,
     userId: string
   ): Promise<void> {
-    // First try to delete pending posts
-    const { error, count } = await supabase
+    const { error } = await supabase
       .from("scheduled_telegram_posts")
-      .delete({ count: 'exact' })
+      .delete()
       .eq("id", postId)
-      .eq("user_id", userId)
-      .in("status", ["pending", "processing"]); // Allow canceling pending or processing posts
+      .eq("user_id", userId);
 
     if (error) {
       throw new Error(error.message || "Failed to cancel scheduled post");
     }
+  }
 
-    if (count === 0) {
-      // Post was not in a cancellable state or doesn't exist
-      throw new Error("Cannot cancel: Post has already been sent or does not exist");
+  /**
+   * Permanently delete any scheduled/sent/failed post entry
+   */
+  static async deleteScheduledPost(
+    postId: string,
+    userId: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from("scheduled_telegram_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("user_id", userId);
+
+    if (error) {
+      throw new Error(error.message || "Failed to delete post entry");
     }
+  }
+
+  /**
+   * Bulk delete posts by status (e.g. all sent, all failed, or all)
+   */
+  static async deletePostsByStatus(
+    userId: string,
+    status?: "sent" | "failed" | "pending" | "all"
+  ): Promise<number> {
+    let query = supabase
+      .from("scheduled_telegram_posts")
+      .delete({ count: 'exact' })
+      .eq("user_id", userId);
+
+    if (status && status !== "all") {
+      query = query.eq("status", status);
+    }
+
+    const { error, count } = await query;
+    if (error) {
+      throw new Error(error.message || "Failed to bulk delete posts");
+    }
+    return count || 0;
   }
 
 

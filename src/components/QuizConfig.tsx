@@ -22,7 +22,6 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
   const [customQuestionCount, setCustomQuestionCount] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -127,28 +126,38 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
       return;
     }
 
-    onStartQuiz({
-      topic: topic.trim(),
-      questionCount: actualQuestionCount,
-      difficulty,
-      language,
-      systemPrompt: systemPrompt.trim() || undefined,
-      channelId: selectedChannel || undefined,
-      useChannelKnowledgeBase: useChannelKnowledgeBase && !!selectedChannel,
-    });
-  };
+        onStartQuiz({
+          topic: topic.trim(),
+          questionCount: actualQuestionCount,
+          language,
+          systemPrompt: systemPrompt.trim() || undefined,
+          channelId: selectedChannel || undefined,
+          useChannelKnowledgeBase: useChannelKnowledgeBase && !!selectedChannel,
+        });
+      };
 
-  return (
-    <Card className="w-full max-w-2xl p-8 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-all">
-      <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-primary to-primary/80">
-          <Sparkles className="w-8 h-8 text-primary-foreground" />
-        </div>
-        <h2 className="text-3xl font-bold text-foreground mb-2">Create Your Quiz</h2>
-        <p className="text-muted-foreground">Generate AI-powered quizzes on any topic</p>
-      </div>
+      return (
+        <Card className="w-full max-w-2xl p-8 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-all">
+          <div className="mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-primary to-primary/80">
+              <Sparkles className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h2 className="text-3xl font-bold text-foreground mb-2">Create Your Quiz</h2>
+            <p className="text-muted-foreground">Generate AI-powered quizzes on any topic</p>
+          </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Helper Banner */}
+          <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs space-y-1">
+            <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
+              <span>🎯</span>
+              <span>Government Exam Standard</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              Every quiz is automatically generated following the standard and style of competitive government examinations. No manual difficulty selection is required.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="channel" className="text-sm font-medium">
             Channel (Optional)
@@ -244,51 +253,33 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="count" className="text-sm font-medium">
-              Number of Questions
-            </Label>
-            <Select value={questionCount} onValueChange={setQuestionCount}>
-              <SelectTrigger id="count" className="h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 Questions</SelectItem>
-                <SelectItem value="5">5 Questions</SelectItem>
-                <SelectItem value="10">10 Questions</SelectItem>
-                <SelectItem value="15">15 Questions</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
-              </SelectContent>
-            </Select>
-            {questionCount === "custom" && (
-              <Input
-                type="number"
-                placeholder={`Enter number (1-${maxQuestions})`}
-                value={customQuestionCount}
-                onChange={(e) => setCustomQuestionCount(e.target.value)}
-                min="1"
-                max={maxQuestions}
-                className="h-12 mt-2"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="difficulty" className="text-sm font-medium">
-              Difficulty Level
-            </Label>
-            <Select value={difficulty} onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}>
-              <SelectTrigger id="difficulty" className="h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="count" className="text-sm font-medium">
+            Number of Questions
+          </Label>
+          <Select value={questionCount} onValueChange={setQuestionCount}>
+            <SelectTrigger id="count" className="h-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 Questions</SelectItem>
+              <SelectItem value="5">5 Questions</SelectItem>
+              <SelectItem value="10">10 Questions</SelectItem>
+              <SelectItem value="15">15 Questions</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+          {questionCount === "custom" && (
+            <Input
+              type="number"
+              placeholder={`Enter number (1-${maxQuestions})`}
+              value={customQuestionCount}
+              onChange={(e) => setCustomQuestionCount(e.target.value)}
+              min="1"
+              max={maxQuestions}
+              className="h-12 mt-2"
+            />
+          )}
         </div>
 
         <Button

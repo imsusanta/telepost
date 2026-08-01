@@ -29,7 +29,7 @@ export class QuizService {
     };
 
     const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((_, reject) =>
-      setTimeout(() => reject(new Error("Quiz generation timed out (client-side). Your quiz might still be generating, please check your dashboard in a moment.")), 60000)
+      setTimeout(() => reject(new Error("Quiz generation timed out (client-side). Your quiz might still be generating, please check your dashboard in a moment.")), 180000)
     );
 
     let result;
@@ -122,7 +122,7 @@ export class QuizService {
     documentText: string;
     topic?: string;
     questionCount: number;
-    difficulty: string;
+    difficulty?: string;
     language: string;
   }): Promise<Quiz> {
     // Verify we have an active session before invoking the function

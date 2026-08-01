@@ -52,7 +52,6 @@ export function QuestionSelectionDialog({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editedQuestions, setEditedQuestions] = useState<Question[]>(questions);
   const [topic, setTopic] = useState(defaultTopic);
-  const [difficulty, setDifficulty] = useState(defaultDifficulty);
   const [language, setLanguage] = useState(defaultLanguage);
   const [makePublic, setMakePublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -121,7 +120,6 @@ export function QuestionSelectionDialog({
           correct_option_index: q.correct_option_index,
           explanation: q.explanation,
           topic: topic.trim(),
-          difficulty: difficulty as "easy" | "medium" | "hard",
           language: language as "bn" | "en" | "hi",
           source: "ai_generated",
           is_public: makePublic,
@@ -179,20 +177,6 @@ export function QuestionSelectionDialog({
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="difficulty">Difficulty</Label>
-                  <Select value={difficulty} onValueChange={setDifficulty}>
-                    <SelectTrigger id="difficulty">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="space-y-2">

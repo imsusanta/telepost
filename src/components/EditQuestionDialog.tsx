@@ -27,7 +27,6 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
         correct_option_index: 0,
         subject: "",
         topic: "",
-        difficulty: "medium",
         language: "bn",
         explanation: "",
     });
@@ -70,7 +69,6 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                 correct_option_index: question.correct_option_index,
                 subject: question.subject || "",
                 topic: question.topic || "",
-                difficulty: question.difficulty || "medium",
                 language: question.language || "bn",
                 explanation: question.explanation || "",
             });
@@ -268,23 +266,6 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                                     <option key={t} value={t} />
                                 ))}
                             </datalist>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Difficulty</label>
-                            <Select
-                                value={formData.difficulty}
-                                onValueChange={(value) => setFormData({ ...formData, difficulty: value })}
-                            >
-                                <SelectTrigger className="font-medium rounded-xl border-2 border-border/60">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="easy">Easy</SelectItem>
-                                    <SelectItem value="medium">Medium</SelectItem>
-                                    <SelectItem value="hard">Hard</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
 
                         <div className="space-y-2">

@@ -73,7 +73,6 @@ export class TestService {
       description: test.description,
       instructions: test.instructions,
       test_type: test.test_type,
-      difficulty: test.difficulty,
       duration_minutes: test.duration_minutes,
       total_marks: test.total_marks,
       passing_marks: test.passing_marks,

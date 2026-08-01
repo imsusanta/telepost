@@ -17,7 +17,7 @@ export interface AnalyticsDashboardData {
   totalResponses: number;
   quizzesByDay: Array<{ date: string; count: number }>;
   quizzesByTopic: Array<{ topic: string; count: number }>;
-  quizzesByDifficulty: Array<{ difficulty: string; count: number }>;
+  quizzesByDifficulty?: Array<{ difficulty: string; count: number }>;
   averageScore: number;
   topTopics: Array<{ topic: string; count: number }>;
   recentActivity: Array<AnalyticsEvent>;
@@ -143,11 +143,6 @@ export class AnalyticsService {
       .filter(q => q.topic)
       .map(q => ({ topic: q.topic!, count: q.count }));
 
-    // Quizzes by difficulty
-    const quizzesByDifficulty = this.groupByField(quizzes, "difficulty")
-      .filter(q => q.difficulty)
-      .map(q => ({ difficulty: q.difficulty!, count: q.count }));
-
     // Top topics
     const topTopics = quizzesByTopic.slice(0, 5);
 
@@ -158,7 +153,6 @@ export class AnalyticsService {
       totalResponses,
       quizzesByDay,
       quizzesByTopic,
-      quizzesByDifficulty,
       averageScore: Math.round(averageScore * 100) / 100,
       topTopics,
       recentActivity: (recentActivityResult.data || []).map(event => ({

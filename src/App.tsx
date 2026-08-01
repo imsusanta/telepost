@@ -47,6 +47,9 @@ const Terms = lazy(() => import("./pages/Terms"));
 const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
 const DataSecurity = lazy(() => import("./pages/DataSecurity"));
 const Documentation = lazy(() => import("./pages/Documentation"));
+const ContactSupport = lazy(() => import("./pages/ContactSupport"));
+const VideoTutorials = lazy(() => import("./pages/VideoTutorials"));
+const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -125,6 +128,9 @@ const App = () => (
               <Route path="/data-security" element={<DataSecurity />} />
               <Route path="/security" element={<DataSecurity />} />
               <Route path="/documentation" element={<Documentation />} />
+              <Route path="/contact-support" element={<ContactSupport />} />
+              <Route path="/video-tutorials" element={<VideoTutorials />} />
+              <Route path="/help-center" element={<HelpCenter />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

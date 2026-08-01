@@ -462,10 +462,9 @@ export default function QuestionBank() {
     }
   };
 
-  const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, difficulty?: string, language?: string) => {
+  const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, _difficulty?: string, language?: string) => {
     setGeneratedQuestions(generatedQs);
     setDefaultTopic(topic || "");
-    setDefaultDifficulty(difficulty || "medium");
     setDefaultLanguage(language || "en");
     // Trigger refresh of AIGeneratedQuestionsList
     setAiListRefreshKey(prev => prev + 1);
@@ -497,7 +496,6 @@ export default function QuestionBank() {
         explanation: q.explanation || undefined,
         subject: q.subject || "GK",
         topic: q.topic || "",
-        difficulty: q.difficulty || "medium",
         language: "bn",
         is_public: false,
         is_active: true
@@ -1091,7 +1089,6 @@ export default function QuestionBank() {
                           <ClassificationBadges
                             subject={q.subject}
                             topic={q.topic}
-                            difficulty={q.difficulty}
                             compact={true}
                           />
                         </div>

@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Trash2,
   XCircle,
+  Ban,
   Search,
   LayoutGrid,
   List,
@@ -229,15 +230,34 @@ export default function Scheduler() {
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke('process-scheduled-posts', {
-        body: { triggered_by: 'manual' }
+        body: { triggered_by: 'manual', force: true }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || "Failed to process pending posts.");
+      }
 
-      toast({
-        title: "Posts Processed",
-        description: `Successfully processed ${data?.sent || 0} post(s). ${data?.failed || 0} failed.`,
-      });
+      if (data?.success === false) {
+        throw new Error(data.error || "Edge function failed to process posts.");
+      }
+
+      const sentCount = data?.sent ?? (data?.results?.filter((r: any) => r.status === 'sent').length || 0);
+      const failedCount = data?.failed ?? (data?.results?.filter((r: any) => r.status === 'failed').length || 0);
+
+      if (sentCount === 0 && failedCount > 0) {
+        const firstError = data?.results?.find((r: any) => r.status === 'failed')?.error;
+        toast({
+          title: "Processing Failed",
+          description: firstError ? `Error: ${firstError}` : `${failedCount} post(s) failed to send. Check bot token/permissions.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Posts Processed",
+          description: `Successfully processed ${sentCount} post(s). ${failedCount > 0 ? `${failedCount} failed.` : ''}`,
+          variant: failedCount > 0 ? "destructive" : "default"
+        });
+      }
 
       // Refresh the list
       await refetch();
@@ -260,7 +280,12 @@ export default function Scheduler() {
 
   const confirmCancel = async () => {
     if (cancelTargetId) {
-      await cancelPost(cancelTargetId);
+      try {
+        await cancelPost(cancelTargetId);
+        await refetch();
+      } catch (err) {
+        console.error("Error cancelling post:", err);
+      }
     }
     setCancelDialogOpen(false);
     setCancelTargetId(null);
@@ -273,7 +298,12 @@ export default function Scheduler() {
 
   const confirmDeletePost = async () => {
     if (deleteTargetId) {
-      await deletePost(deleteTargetId);
+      try {
+        await deletePost(deleteTargetId);
+        await refetch();
+      } catch (err) {
+        console.error("Error deleting post:", err);
+      }
     }
     setDeleteDialogOpen(false);
     setDeleteTargetId(null);
@@ -282,6 +312,7 @@ export default function Scheduler() {
   const confirmBulkDelete = async () => {
     const status = statusFilter as "sent" | "failed" | "pending" | "all";
     await bulkDeletePosts(status);
+    await refetch();
     setBulkDeleteDialogOpen(false);
   };
 
@@ -745,6 +776,32 @@ export default function Scheduler() {
           )}
         </div>
       </div>
+      {/* Single Post Cancel Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-card/95 backdrop-blur-xl max-w-md">
+          <AlertDialogHeader className="text-center space-y-3">
+            <div className="mx-auto w-14 h-14 bg-rose-500/10 rounded-full flex items-center justify-center">
+              <Ban className="w-7 h-7 text-rose-500" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-foreground">Cancel Scheduled Post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This will cancel the scheduled quiz post and stop it from broadcasting to your channel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 sm:gap-3 pt-2">
+            <AlertDialogCancel className="rounded-xl font-bold border-border/50 hover:bg-muted flex-1">
+              Keep Scheduled
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancel}
+              className="rounded-xl font-bold bg-rose-500 hover:bg-rose-600 text-white flex-1 shadow-lg"
+            >
+              Yes, Cancel Post
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Single Post Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="rounded-2xl border-none shadow-2xl bg-card/95 backdrop-blur-xl max-w-md">

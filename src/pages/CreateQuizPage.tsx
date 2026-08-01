@@ -478,6 +478,9 @@ export default function CreateQuizPage() {
 
   // Quiz functions
   const handleStartQuiz = useCallback(async (config: QuizConfigType) => {
+    if (config.channelId) {
+      setSelectedChannel(config.channelId);
+    }
     await generateQuiz(config);
   }, [generateQuiz]);
 
@@ -505,7 +508,6 @@ export default function CreateQuizPage() {
         topic: q.topic || "Manual Selection",
         questions: [quizQuestion],
         metadata: {
-          difficulty: 'medium',
           generated_at: new Date().toISOString()
         }
       });
@@ -541,7 +543,6 @@ export default function CreateQuizPage() {
         topic: selectedQuestions[0]?.topic || "Manual Selection",
         questions: quizQuestions,
         metadata: {
-          difficulty: 'medium',
           generated_at: new Date().toISOString()
         }
       });
@@ -849,7 +850,6 @@ export default function CreateQuizPage() {
                                       const config: QuizConfigType = {
                                         topic: doc.title || doc.file_name,
                                         questionCount: 5,
-                                        difficulty: "medium",
                                         language: (doc.language as "bn" | "en" | "hi") || "en",
                                         channelId: doc.channel_id || undefined,
                                         useChannelKnowledgeBase: false,
@@ -1113,7 +1113,6 @@ export default function CreateQuizPage() {
                                 </p>
                                 <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
                                   <span>{q.language.toUpperCase()}</span>
-                                  {q.difficulty && <span>• {q.difficulty.toUpperCase()}</span>}
                                   <span>• Used {q.times_used} times</span>
                                   {q.is_public && (
                                     <span className="flex items-center gap-1 text-emerald-600 font-bold">
@@ -1127,7 +1126,6 @@ export default function CreateQuizPage() {
                                 <ClassificationBadges
                                   subject={q.subject}
                                   topic={q.topic}
-                                  difficulty={q.difficulty}
                                   compact={true}
                                 />
                               </div>

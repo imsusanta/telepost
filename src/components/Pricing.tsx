@@ -195,7 +195,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
   }
 
   return (
-    <section id="pricing" className="py-24 relative overflow-hidden bg-slate-50/50">
+    <section id="pricing" className="py-24 relative overflow-hidden bg-background transition-colors duration-300">
       <div className="container px-4 mx-auto relative z-10">
         {/* Section Header */}
         <motion.div
@@ -210,22 +210,22 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
             <span className="text-[11px] font-bold uppercase tracking-widest text-primary">Simple Pricing</span>
           </motion.div>
           
-          <motion.h2 variants={itemVariants} className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">
+          <motion.h2 variants={itemVariants} className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-foreground">
             Pricing
           </motion.h2>
           
-          <motion.p variants={itemVariants} className="text-base text-slate-500 font-medium leading-relaxed mb-8">
+          <motion.p variants={itemVariants} className="text-base text-muted-foreground font-medium leading-relaxed mb-8">
             Scale your Telegram community with powerful automation tools. Choose the plan that fits your institute's needs.
           </motion.p>
 
           {/* Billing Toggle */}
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200 shadow-sm">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-1 p-1 rounded-full bg-card border border-border shadow-sm">
             <button
               onClick={() => setBillingPeriod('monthly')}
               className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
                 billingPeriod === 'monthly'
-                  ? 'bg-primary text-white shadow-md'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Monthly
@@ -234,15 +234,15 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
               onClick={() => setBillingPeriod('yearly')}
               className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
                 billingPeriod === 'yearly'
-                  ? 'bg-primary text-white shadow-md'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Yearly
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 billingPeriod === 'yearly'
                   ? 'bg-white/20 text-white'
-                  : 'bg-emerald-100 text-emerald-700'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
               }`}>Save 20%</span>
             </button>
           </motion.div>
@@ -272,7 +272,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                     className={`flex flex-col w-full rounded-3xl transition-all duration-300 ${
                       popular
                         ? 'bg-primary text-white shadow-2xl shadow-primary/30 scale-[1.03] lg:scale-[1.05]'
-                        : 'bg-white border border-slate-200/80 shadow-sm hover:shadow-lg'
+                        : 'bg-card border border-border/80 text-card-foreground shadow-sm hover:shadow-lg dark:hover:border-primary/40'
                     }`}
                     style={popular ? {} : {}}
                   >
@@ -280,11 +280,11 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                     <div className="p-8 pb-6">
                       <div className="flex items-center gap-3 mb-6">
                         <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${
-                          popular ? 'bg-white/20' : 'bg-primary/5'
+                          popular ? 'bg-white/20' : 'bg-primary/10'
                         }`}>
                           {icon}
                         </div>
-                        <h3 className={`text-xl font-bold ${popular ? 'text-white' : 'text-slate-900'}`}>
+                        <h3 className={`text-xl font-bold ${popular ? 'text-white' : 'text-foreground'}`}>
                           {plan.display_name}
                         </h3>
                       </div>
@@ -292,32 +292,32 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                       {/* Price */}
                       <div className="mb-3">
                         <div className="flex items-baseline gap-1.5">
-                          <span className={`text-4xl font-black tracking-tight ${popular ? 'text-white' : 'text-slate-900'}`}>
+                          <span className={`text-4xl font-black tracking-tight ${popular ? 'text-white' : 'text-foreground'}`}>
                             ₹{billingPeriod === 'yearly' ? (plan as any).yearly_price || plan.price : plan.price}
                           </span>
-                          <span className={`text-sm font-medium ${popular ? 'text-white/70' : 'text-slate-400'}`}>
+                          <span className={`text-sm font-medium ${popular ? 'text-white/70' : 'text-muted-foreground'}`}>
                             / {billingPeriod === 'yearly' ? 'year' : plan.billing_period === 'trial' ? '7 days' : 'month'}
                           </span>
                         </div>
                         {billingPeriod === 'yearly' && plan.price > 0 && (
                           <div className="flex items-center gap-2 mt-1.5">
-                            <span className={`text-xs line-through ${popular ? 'text-white/40' : 'text-slate-400'}`}>
+                            <span className={`text-xs line-through ${popular ? 'text-white/40' : 'text-muted-foreground/60'}`}>
                               ₹{plan.price * 12}/yr
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${popular ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${popular ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
                               Save ₹{plan.price * 12 - ((plan as any).yearly_price || plan.price)}
                             </span>
                           </div>
                         )}
                         {billingPeriod === 'monthly' && plan.price > 0 && (
-                          <p className={`text-xs mt-1 ${popular ? 'text-white/50' : 'text-slate-400'}`}>
+                          <p className={`text-xs mt-1 ${popular ? 'text-white/50' : 'text-muted-foreground'}`}>
                             or ₹{(plan as any).yearly_price || plan.price * 12}/yr (save more!)
                           </p>
                         )}
                       </div>
 
                       {/* Description */}
-                      <p className={`text-sm leading-relaxed ${popular ? 'text-white/70' : 'text-slate-500'}`}>
+                      <p className={`text-sm leading-relaxed ${popular ? 'text-white/70' : 'text-muted-foreground'}`}>
                         {plan.price === 0
                           ? 'Get started for free with essential features to explore the platform.'
                           : popular
@@ -329,7 +329,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
                     {/* Divider */}
                     <div className="px-8">
-                      <div className={`h-px w-full ${popular ? 'bg-white/20' : 'bg-slate-100'}`} />
+                      <div className={`h-px w-full ${popular ? 'bg-white/20' : 'bg-border/60'}`} />
                     </div>
 
                     {/* Features List */}
@@ -340,18 +340,18 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                             <div className={`flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center ${
                               feature.enabled
                                 ? (popular ? 'bg-white/20' : 'bg-primary/10')
-                                : (popular ? 'bg-white/10' : 'bg-slate-100')
+                                : (popular ? 'bg-white/10' : 'bg-muted')
                             }`}>
                               {feature.enabled ? (
                                 <Check className={`w-3 h-3 ${popular ? 'text-white' : 'text-primary'}`} />
                               ) : (
-                                <X className={`w-3 h-3 ${popular ? 'text-white/40' : 'text-slate-300'}`} />
+                                <X className={`w-3 h-3 ${popular ? 'text-white/40' : 'text-muted-foreground/50'}`} />
                               )}
                             </div>
                             <span className={`text-sm font-medium ${
                               feature.enabled
-                                ? (popular ? 'text-white/90' : 'text-slate-600')
-                                : (popular ? 'text-white/30 line-through' : 'text-slate-300 line-through')
+                                ? (popular ? 'text-white/90' : 'text-foreground/90')
+                                : (popular ? 'text-white/30 line-through' : 'text-muted-foreground/50 line-through')
                             }`}>
                               {feature.label}
                             </span>
@@ -381,7 +381,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                         )}
                       </Button>
 
-                      <p className={`text-center text-xs mt-3 font-medium ${popular ? 'text-white/50' : 'text-slate-400'}`}>
+                      <p className={`text-center text-xs mt-3 font-medium ${popular ? 'text-white/50' : 'text-muted-foreground'}`}>
                         No credit card required
                       </p>
                     </div>

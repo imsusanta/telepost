@@ -26,20 +26,18 @@ export async function refreshSubjectsCache() {
     }
 }
 
-// Difficulty levels with colors
+// Legacy difficulty fallback helper (kept for backward compatibility with old code calls)
 export const DIFFICULTY_LEVELS = [
-    { id: 'easy', name: 'Easy', color: '#16a34a', bgColor: 'bg-green-500/10', textColor: 'text-green-600' },
-    { id: 'medium', name: 'Medium', color: '#eab308', bgColor: 'bg-yellow-500/10', textColor: 'text-yellow-600' },
-    { id: 'hard', name: 'Hard', color: '#dc2626', bgColor: 'bg-red-500/10', textColor: 'text-red-600' },
+    { id: 'medium', name: 'Government Exam Standard', color: '#3b82f6', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600' },
 ] as const;
 
-export type DifficultyLevel = typeof DIFFICULTY_LEVELS[number]['id'];
+export type DifficultyLevel = string;
 
 // Classification result interface
 export interface ClassificationResult {
     subject: string;
     topic: string;
-    difficulty: DifficultyLevel;
+    difficulty?: string;
     confidence: number; // 0-100
     suggestedTags?: string[];
 }
@@ -77,9 +75,9 @@ export function getSubjectIcon(subjectName: string): string {
     return subject?.icon || '📋';
 }
 
-// Get difficulty config
-export function getDifficultyConfig(difficulty: string) {
-    return DIFFICULTY_LEVELS.find(d => d.id === difficulty) || DIFFICULTY_LEVELS[1]; // Default medium
+// Get difficulty config (legacy)
+export function getDifficultyConfig(_difficulty?: string) {
+    return DIFFICULTY_LEVELS[0];
 }
 
 /**

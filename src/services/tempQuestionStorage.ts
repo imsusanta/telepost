@@ -10,7 +10,7 @@ export interface TempQuestion {
   correct_option_index: number;
   explanation?: string;
   topic: string;
-  difficulty: string;
+  difficulty?: string;
   language: string;
   generated_at: string;
   source_type: 'ai_generator' | 'pdf_generator';
@@ -45,7 +45,7 @@ export class TempQuestionStorageService {
     }>,
     metadata: {
       topic: string;
-      difficulty: string;
+      difficulty?: string;
       language: string;
       source_type: 'ai_generator' | 'pdf_generator';
     }
@@ -119,7 +119,6 @@ export class TempQuestionStorageService {
     const all = this.getAll();
     return all.filter((q) => {
       if (filters.topic && q.topic !== filters.topic) return false;
-      if (filters.difficulty && q.difficulty !== filters.difficulty) return false;
       if (filters.language && q.language !== filters.language) return false;
       if (filters.source_type && q.source_type !== filters.source_type) return false;
       return true;

@@ -36,7 +36,17 @@ import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const PRESET_TOPICS = ["Indian History", "Geography", "General Science", "Reasoning", "Math", "Current Affairs"];
+const PRESET_TOPICS = [
+    "সিন্ধু সভ্যতার বন্দর (লোথাল)",
+    "ডান্ডি অভিযান",
+    "মাজুলী দ্বীপ",
+    "মাইটোকন্ড্রিয়া",
+    "GST",
+    "খসড়া কমিটি",
+    "ISRO",
+    "সিপাহী বিদ্রোহ",
+    "চিল্কা হ্রদ"
+];
 
 export function AutoScheduleCard() {
     const { toast } = useToast();
@@ -241,8 +251,6 @@ export function AutoScheduleCard() {
             return;
         }
 
-        // Topics are now optional - empty topics trigger "Full Auto Mode" (Exam-oriented GK/History/etc)
-
         setIsSaving(true);
         try {
             for (const channel of channels) {
@@ -261,11 +269,20 @@ export function AutoScheduleCard() {
             }
 
             toast({
-                title: "Settings saved",
+                title: "Settings Saved Successfully",
                 description: isEnabled
-                    ? `Auto-schedule enabled for ${selectedChannels.length} channel(s)`
-                    : "Auto-schedule disabled",
+                    ? `Auto-scheduler active for ${selectedChannels.length} channel(s) at ${scheduleTimes.length} time slot(s).`
+                    : "Auto-schedule settings saved (paused).",
             });
+
+            // Immediate schedule check trigger
+            if (isEnabled) {
+                console.log("[AutoScheduleCard] Triggering immediate schedule check post-save...");
+                await supabase.functions.invoke('process-auto-schedule', {
+                    body: { triggered_by: 'settings_save_check' }
+                });
+            }
+
             await loadData();
         } catch (error: any) {
             console.error("Error saving auto-schedule settings:", error);
@@ -787,12 +804,17 @@ export function AutoScheduleCard() {
                                             <Sparkles className="w-4 h-4 text-amber-500" />
                                             <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content Focus</h4>
                                         </div>
-                                        {sourceType === "ai_generated" && topics.length > 0 && (
+                                        {(sourceType === "ai_generated" || sourceType === "knowledge_base") && topics.length > 0 && (
                                             <Button
+                                                type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={handleClearAllTopics}
-                                                className="h-7 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg font-bold transition-colors"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleClearAllTopics();
+                                                }}
+                                                className="h-7 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg font-bold transition-colors cursor-pointer"
                                             >
                                                 Clear All
                                             </Button>
@@ -809,7 +831,13 @@ export function AutoScheduleCard() {
                                                         value={newTopic}
                                                         maxLength={MAX_TOPIC_LENGTH}
                                                         onChange={(e) => setNewTopic(e.target.value)}
-                                                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTopic())}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleAddTopic();
+                                                            }
+                                                        }}
                                                         className="h-12 pr-14 bg-background/80 border-border/60 rounded-xl font-medium text-foreground text-sm focus-visible:ring-amber-500/30"
                                                     />
                                                     <span className="absolute right-3 top-3.5 text-[10px] font-bold text-muted-foreground/60 select-none">
@@ -817,10 +845,15 @@ export function AutoScheduleCard() {
                                                     </span>
                                                 </div>
                                                 <Button
+                                                    type="button"
                                                     size="icon"
-                                                    onClick={() => handleAddTopic()}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleAddTopic();
+                                                    }}
                                                     disabled={!newTopic.trim()}
-                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white shadow-md shadow-amber-500/20 rounded-xl transition-all"
+                                                    className="h-12 w-12 shrink-0 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white shadow-md shadow-amber-500/20 rounded-xl transition-all cursor-pointer"
                                                 >
                                                     <Plus className="w-5 h-5" />
                                                 </Button>
@@ -842,9 +875,13 @@ export function AutoScheduleCard() {
                                                             <span className="font-bold text-xs truncate max-w-[160px]" title={topic}>{topic}</span>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleRemoveTopic(topic)}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleRemoveTopic(topic);
+                                                                }}
                                                                 title="Delete topic"
-                                                                className="p-1 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                                className="p-1 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors shrink-0 cursor-pointer"
                                                             >
                                                                 <X className="w-3.5 h-3.5" />
                                                             </button>
@@ -876,8 +913,12 @@ export function AutoScheduleCard() {
                                                             <button
                                                                 key={preset}
                                                                 type="button"
-                                                                onClick={() => handleAddTopic(preset)}
-                                                                className="text-[11px] font-semibold px-2.5 py-1 bg-background hover:bg-amber-500/10 border border-border/60 hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-all"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleAddTopic(preset);
+                                                                }}
+                                                                className="text-[11px] font-semibold px-2.5 py-1 bg-background hover:bg-amber-500/10 border border-border/60 hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-all cursor-pointer"
                                                             >
                                                                 + {preset}
                                                             </button>

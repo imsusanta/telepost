@@ -264,8 +264,8 @@ const Documentation = () => {
                             <div className="flex items-start gap-4">
                                 <span className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 font-bold text-sm shrink-0">3</span>
                                 <div>
-                                    <p className="font-semibold text-foreground mb-1">Configure options</p>
-                                    <p>Choose the <strong className="text-foreground">number of questions</strong>, <strong className="text-foreground">difficulty level</strong>, and <strong className="text-foreground">subject/topic</strong>. You can also set the language for your quizzes.</p>
+                                     <p className="font-semibold text-foreground mb-1">Configure options</p>
+                                    <p>Choose the <strong className="text-foreground">number of questions</strong>, <strong className="text-foreground">language</strong>, and <strong className="text-foreground">subject/topic</strong>. All quizzes automatically follow <strong className="text-foreground">Government Competitive Exam Standards</strong>.</p>
                                 </div>
                             </div>
 
@@ -318,7 +318,7 @@ const Documentation = () => {
                             <li><strong className="text-foreground">View all questions</strong> organized by subject and topic.</li>
                             <li><strong className="text-foreground">Add questions manually</strong> or import them from AI-generated quizzes.</li>
                             <li><strong className="text-foreground">Edit or delete</strong> any question at any time.</li>
-                            <li><strong className="text-foreground">Filter & search</strong> by subject, topic, difficulty, or keyword.</li>
+                            <li><strong className="text-foreground">Filter & search</strong> by subject, topic, or keyword.</li>
                             <li><strong className="text-foreground">Reuse questions</strong> for future quizzes and scheduled posts.</li>
                         </ul>
                     </div>

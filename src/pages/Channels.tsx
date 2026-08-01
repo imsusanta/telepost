@@ -856,28 +856,7 @@ export default function Channels() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="default-difficulty">Difficulty</Label>
-                      <Select
-                        value={selectedChannel.settings.default_difficulty}
-                        onValueChange={(value: "easy" | "medium" | "hard") =>
-                          setSelectedChannel({
-                            ...selectedChannel,
-                            settings: { ...selectedChannel.settings, default_difficulty: value },
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Easy</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="hard">Hard</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="grid grid-cols-2 gap-4">
 
                     <div>
                       <Label htmlFor="default-language">Language</Label>

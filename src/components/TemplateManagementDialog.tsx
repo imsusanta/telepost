@@ -147,7 +147,7 @@ GUIDELINES:
 - Ensure all information is correct and relevant
 - Include a variety of question types
 - Make explanations helpful and educational
-- Adapt difficulty to the target audience
+- Follow Government Competitive Exam Standard MCQs
 
 QUESTION TYPES:
 - [Define your question types]

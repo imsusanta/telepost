@@ -451,7 +451,7 @@ function DashboardLayoutInner({
         {/* Main Content */}
         <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 flex flex-col min-w-0 max-w-full overflow-x-hidden">
           {/* Mobile Navigation Header - Only visible on mobile */}
-          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl sticky top-0 z-40 shadow-sm">
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl relative z-40 shadow-sm">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
               <div className="flex items-center gap-2">

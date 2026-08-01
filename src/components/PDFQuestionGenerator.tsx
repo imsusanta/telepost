@@ -31,7 +31,6 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
   const [file, setFile] = useState<File | null>(null);
   const [selectedLibraryDoc, setSelectedLibraryDoc] = useState<Document | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [topic, setTopic] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -196,7 +195,6 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
         documentText: textForGeneration,
         topic: documentName,
         questionCount,
-        difficulty,
         language,
       });
 
@@ -207,13 +205,12 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
       // Store questions temporarily
       TempQuestionStorageService.addQuestions(quiz.questions, {
         topic: documentName,
-        difficulty,
         language,
         source_type: 'pdf_generator',
       });
 
-      // Pass generated questions to parent with metadata (for backward compatibility)
-      onQuestionsGenerated(quiz.questions, documentName, difficulty, language);
+      // Pass generated questions to parent with metadata
+      onQuestionsGenerated(quiz.questions, documentName, undefined, language);
 
       toast({
         title: "Success",
@@ -341,6 +338,17 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
             )}
           </div>
 
+          {/* Helper Banner */}
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 text-xs space-y-1">
+            <div className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
+              <span>🎯</span>
+              <span>Government Exam Standard</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              Every quiz is automatically generated following the standard and style of competitive government examinations. No manual difficulty selection is required.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="topic">Topic/Title (Optional)</Label>
             <Input
@@ -352,7 +360,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="questionCount">Number of Questions</Label>
               <Input
@@ -364,24 +372,6 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
                 onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                 disabled={isLoading}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="difficulty">Difficulty</Label>
-              <Select
-                value={difficulty}
-                onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}
-                disabled={isLoading}
-              >
-                <SelectTrigger id="difficulty">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

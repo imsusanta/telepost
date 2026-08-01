@@ -38,7 +38,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
   const [isDeleting, setIsDeleting] = useState(false);
   const [filterSource, setFilterSource] = useState<string>(sourceType || "all");
   const [filterTopic, setFilterTopic] = useState<string>("all");
-  const [filterDifficulty, setFilterDifficulty] = useState<string>("all");
   const [filterLanguage, setFilterLanguage] = useState<string>("all");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<'bulk' | string | null>(null);
@@ -63,9 +62,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
     if (filterTopic !== "all") {
       filters.topic = filterTopic;
     }
-    if (filterDifficulty !== "all") {
-      filters.difficulty = filterDifficulty;
-    }
     if (filterLanguage !== "all") {
       filters.language = filterLanguage;
     }
@@ -73,13 +69,12 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
     const filtered = Object.keys(filters).length > 0
       ? TempQuestionStorageService.getFiltered(filters)
       : TempQuestionStorageService.getAll();
-
     setQuestions(filtered);
   };
 
   useEffect(() => {
     loadQuestions();
-  }, [filterSource, filterTopic, filterDifficulty, filterLanguage, sourceType]);
+  }, [filterSource, filterTopic, filterLanguage, sourceType]);
 
   const handleAddToBank = async (question: TempQuestion) => {
     if (isLimitReached && !isSuperAdmin) {
@@ -105,7 +100,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
         correct_option_index: question.correct_option_index,
         explanation: question.explanation,
         topic: question.topic,
-        difficulty: question.difficulty as "easy" | "medium" | "hard",
         language: question.language as "bn" | "en" | "hi",
         source: "ai_generated",
         is_public: false,
@@ -176,7 +170,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
           correct_option_index: question.correct_option_index,
           explanation: question.explanation,
           topic: question.topic,
-          difficulty: question.difficulty as "easy" | "medium" | "hard",
           language: question.language as "bn" | "en" | "hi",
           source: "ai_generated",
           is_public: false,
@@ -336,7 +329,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
           correct_option_index: question.correct_option_index,
           explanation: question.explanation,
           topic: question.topic,
-          difficulty: question.difficulty as "easy" | "medium" | "hard",
           language: question.language as "bn" | "en" | "hi",
           source: "ai_generated",
           is_public: false,
@@ -493,21 +485,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Difficulty</label>
-              <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Difficulties" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Difficulties</SelectItem>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
               <label className="text-sm font-medium mb-2 block">Language</label>
               <Select value={filterLanguage} onValueChange={setFilterLanguage}>
                 <SelectTrigger>
@@ -558,7 +535,6 @@ export function AIGeneratedQuestionsList({ onQuestionsAdded, sourceType, current
                               {getSourceLabel(q.source_type)}
                             </Badge>
                             <Badge variant="secondary">{q.topic}</Badge>
-                            <Badge variant="secondary">{q.difficulty}</Badge>
                             <Badge variant="secondary">{q.language}</Badge>
                           </CardDescription>
                         </div>

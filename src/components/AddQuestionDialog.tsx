@@ -42,7 +42,6 @@ export function AddQuestionDialog({ onQuestionAdded, currentCount = 0 }: AddQues
   const [explanation, setExplanation] = useState("");
   const [topic, setTopic] = useState("");
   const [subject, setSubject] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -172,7 +171,6 @@ export function AddQuestionDialog({ onQuestionAdded, currentCount = 0 }: AddQues
         explanation: explanation.trim() || undefined,
         topic: topic.trim(),
         subject: subject.trim() || undefined,
-        difficulty,
         language,
         tags: tagArray.length > 0 ? tagArray : undefined,
         source: "manual",
@@ -361,34 +359,18 @@ export function AddQuestionDialog({ onQuestionAdded, currentCount = 0 }: AddQues
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="difficulty">Difficulty</Label>
-              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as "easy" | "medium" | "hard")}>
-                <SelectTrigger id="difficulty">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
-              <Select value={language} onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}>
-                <SelectTrigger id="language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bn">Bengali</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">Hindi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="language">Language</Label>
+            <Select value={language} onValueChange={(v) => setLanguage(v as "bn" | "en" | "hi")}>
+              <SelectTrigger id="language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bn">Bengali</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="hi">Hindi</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

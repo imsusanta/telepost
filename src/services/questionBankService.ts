@@ -10,7 +10,7 @@ export interface QuestionBankItem {
   explanation?: string;
   topic: string;
   subject?: string;
-  difficulty: string;
+  difficulty?: string;
   tags?: string[];
   source?: string;
   usage_count?: number;

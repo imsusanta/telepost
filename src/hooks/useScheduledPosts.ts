@@ -159,6 +159,46 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     }
   }, [userId, toast, fetchStatistics, fetchScheduledPosts]);
 
+  const deletePost = useCallback(async (postId: string) => {
+    if (!userId) return;
+
+    try {
+      await SchedulerService.deleteScheduledPost(postId, userId);
+      fetchScheduledPosts();
+      toast({
+        title: "Deleted",
+        description: "Post record deleted successfully",
+      });
+      fetchStatistics();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete post record",
+        variant: "destructive",
+      });
+    }
+  }, [userId, toast, fetchStatistics, fetchScheduledPosts]);
+
+  const bulkDeletePosts = useCallback(async (status?: "sent" | "failed" | "pending" | "all") => {
+    if (!userId) return;
+
+    try {
+      const count = await SchedulerService.deletePostsByStatus(userId, status);
+      fetchScheduledPosts();
+      toast({
+        title: "Deleted",
+        description: `Deleted ${count} post record(s)`,
+      });
+      fetchStatistics();
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to bulk delete posts",
+        variant: "destructive",
+      });
+    }
+  }, [userId, toast, fetchStatistics, fetchScheduledPosts]);
+
   return {
     scheduledPosts,
     isLoading,
@@ -170,5 +210,7 @@ export function useScheduledPosts(filters?: ScheduledPostFilters) {
     refetch: fetchScheduledPosts,
     cancelPost,
     retryPost,
+    deletePost,
+    bulkDeletePosts,
   };
 }

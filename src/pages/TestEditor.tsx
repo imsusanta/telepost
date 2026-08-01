@@ -575,7 +575,6 @@ export default function TestEditor() {
                           <p className="font-medium line-clamp-2">{question.question}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-xs">{question.topic}</Badge>
-                            <Badge variant="outline" className="text-xs">{question.difficulty}</Badge>
                           </div>
                         </div>
                       </div>

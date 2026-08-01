@@ -190,7 +190,6 @@ export function ManualQuizInput({ onQuizCreated, isGenerating }: ManualQuizInput
         topic: 'Manual Quiz',
         questions,
         metadata: {
-          difficulty: 'medium',
           generated_at: new Date().toISOString(),
         },
       };

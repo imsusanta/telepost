@@ -60,13 +60,68 @@ serve(async (req) => {
 
     const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-    // Atomically claim pending posts that are due to prevent duplicate processing under concurrency
-    const { data: pendingPosts, error: fetchError } = await supabase
-      .rpc('claim_due_scheduled_posts');
+    // Read body parameters if provided
+    let reqBody: any = {};
+    try {
+      reqBody = await req.clone().json();
+    } catch (_) {
+      reqBody = {};
+    }
 
-    if (fetchError) {
-      console.error("Error claiming scheduled posts:", fetchError);
-      throw fetchError;
+    const isForce = reqBody?.force === true || reqBody?.triggered_by === 'manual';
+
+    // Safety Catch-Up 1: Reset stuck processing posts (> 5 minutes old) back to pending
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    await supabase
+      .from('scheduled_telegram_posts')
+      .update({ status: 'pending', updated_at: new Date().toISOString() })
+      .eq('status', 'processing')
+      .lt('updated_at', fiveMinsAgo);
+
+    // Atomically claim pending posts that are due
+    let pendingPosts: any[] = [];
+    
+    // Try RPC claim first
+    try {
+      const { data: claimedRpc, error: rpcError } = await supabase.rpc('claim_due_scheduled_posts');
+      if (!rpcError && claimedRpc && claimedRpc.length > 0) {
+        pendingPosts = claimedRpc;
+      } else if (rpcError) {
+        console.warn("[process-scheduled-posts] RPC claim_due_scheduled_posts failed:", rpcError.message);
+      }
+    } catch (e) {
+      console.warn("[process-scheduled-posts] RPC exception, falling back to direct DB claim:", e);
+    }
+
+    // Fallback: If RPC returned nothing or failed, query pending posts directly
+    if (pendingPosts.length === 0) {
+      // Look for pending posts that are due (with a 2-minute buffer for clock/timezone drift)
+      // Or all pending posts if force/manual trigger
+      const dueThreshold = isForce 
+        ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        : new Date(Date.now() + 2 * 60 * 1000).toISOString();
+
+      const { data: fallbackPosts, error: fallbackError } = await supabase
+        .from('scheduled_telegram_posts')
+        .select('*')
+        .eq('status', 'pending')
+        .lte('scheduled_time', dueThreshold)
+        .order('scheduled_time', { ascending: true })
+        .limit(10);
+
+      if (fallbackError) {
+        console.error("Fallback query error:", fallbackError);
+        throw fallbackError;
+      }
+
+      if (fallbackPosts && fallbackPosts.length > 0) {
+        const ids = fallbackPosts.map((p: any) => p.id);
+        await supabase
+          .from('scheduled_telegram_posts')
+          .update({ status: 'processing', updated_at: new Date().toISOString() })
+          .in('id', ids);
+        pendingPosts = fallbackPosts;
+      }
     }
 
     console.log(`[process-scheduled-posts] Found and claimed ${pendingPosts?.length || 0} pending posts to process at ${new Date().toISOString()}`);
@@ -76,6 +131,8 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           processed: 0,
+          sent: 0,
+          failed: 0,
           message: "No pending posts to process",
           now: new Date().toISOString()
         }),
@@ -272,10 +329,15 @@ serve(async (req) => {
       }
     }
 
+    const sentCount = results.filter(r => r.status === 'sent').length;
+    const failedCount = results.filter(r => r.status === 'failed').length;
+
     return new Response(
       JSON.stringify({
         success: true,
         processed: results.length,
+        sent: sentCount,
+        failed: failedCount,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -285,9 +347,13 @@ serve(async (req) => {
     console.error("Error processing scheduled posts:", error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error processing scheduled posts",
+        processed: 0,
+        sent: 0,
+        failed: 0,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   SettingsIcon,
   UserRound,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -56,7 +58,6 @@ export default function Settings() {
 
         if (error) {
           console.error("Error loading profile:", error);
-          // Still try to set email even if profile fails
           return;
         }
 
@@ -64,8 +65,6 @@ export default function Settings() {
           console.log("Profile loaded:", data.full_name);
           setFullName(data.full_name || "");
         }
-      } else {
-        console.log("No user found");
       }
     } catch (err) {
       console.error("Exception in loadProfile:", err);
@@ -76,7 +75,6 @@ export default function Settings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       try {
-        // Check if user has any channels - use any to bypass type issues
         const { data: channels, error } = await (supabase as any)
           .from("channels")
           .select("id, telegram_bot_token")
@@ -113,12 +111,11 @@ export default function Settings() {
 
       if (error) throw error;
 
-      // Dispatch custom event to notify Sidebar (DashboardLayout) to reload profile
       window.dispatchEvent(new CustomEvent("profile-updated"));
 
       toast({
         title: "Success!",
-        description: "Settings updated successfully.",
+        description: "Profile updated successfully.",
       });
     } catch (error: unknown) {
       toast({
@@ -147,12 +144,8 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      console.log("Saving bot token for user:", user.id);
-
-      // Use any to bypass TypeScript issues with telegram_bot_token column
       const supabaseAny = supabase as any;
 
-      // Check if user already has any channel
       const { data: existingChannels, error: fetchError } = await supabaseAny
         .from("channels")
         .select("id, name")
@@ -160,17 +153,12 @@ export default function Settings() {
         .limit(1);
 
       if (fetchError) {
-        console.error("Error fetching channels:", fetchError);
         throw new Error(fetchError.message || "Failed to fetch channels");
       }
-
-      console.log("Existing channels:", existingChannels);
 
       let saveError = null;
 
       if (existingChannels && existingChannels.length > 0) {
-        // Update ALL existing channels with the new bot token
-        console.log(`Updating ${existingChannels.length} existing channels...`);
         const { error: updateError } = await supabaseAny
           .from("channels")
           .update({ telegram_bot_token: botToken })
@@ -178,8 +166,6 @@ export default function Settings() {
 
         saveError = updateError;
       } else {
-        // Create a new channel with the bot token
-        console.log("Creating new channel for user:", user.id);
         const result = await supabaseAny
           .from("channels")
           .insert({
@@ -192,11 +178,9 @@ export default function Settings() {
       }
 
       if (saveError) {
-        console.error("Error saving bot token:", saveError);
         throw new Error(saveError.message || "Failed to save bot token");
       }
 
-      console.log("Bot token saved successfully!");
       setHasBotToken(true);
       setBotToken("••••••••••••••••••••");
       setShowBotToken(false);
@@ -206,7 +190,6 @@ export default function Settings() {
         description: "Your Telegram bot token has been saved successfully.",
       });
     } catch (error: unknown) {
-      console.error("Exception in handleSaveBotToken:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save bot token",
@@ -219,68 +202,83 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-6xl space-y-8 pb-12">
-        <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-              <SettingsIcon className="h-4 w-4" /> Workspace settings
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Settings</h1>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-                Keep your profile current and connect the tools that power your publishing workflow.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm backdrop-blur-xl">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account status</p>
-              <p className="text-sm font-semibold">Protected and private</p>
-            </div>
-          </div>
-        </header>
+      <div className="mx-auto max-w-5xl space-y-8 pb-12">
+        {/* Hero Section Header with Requested Headline */}
+        <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card/70 to-accent/10 p-6 md:p-10 shadow-2xl backdrop-blur-xl group">
+          <div className="absolute -top-12 -right-12 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none transition-all duration-700 group-hover:scale-125" />
+          <div className="absolute -bottom-12 -left-12 h-64 w-64 rounded-full bg-accent/20 blur-3xl pointer-events-none transition-all duration-700 group-hover:scale-125" />
 
-        <main className="min-w-0 space-y-6">
-          {/* Profile Settings Card */}
-          <Card id="profile" className="overflow-hidden rounded-3xl border-border/70 bg-card/70 shadow-sm backdrop-blur-xl">
-            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-primary/[0.08] to-transparent pb-6">
+          <div className="relative z-10 space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/15 border border-primary/25 text-primary text-xs font-black uppercase tracking-widest shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+              <span>TelePost Automation Engine</span>
+            </div>
+
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
+                <span className="bg-gradient-to-r from-primary via-indigo-500 to-accent bg-clip-text text-transparent">
+                  Post Up to 20 Quizzes
+                </span>
+              </h1>
+              <h2 className="text-xl md:text-3xl font-extrabold text-foreground/90 tracking-tight">
+                to Your Telegram Channel in Under a Minute
+              </h2>
+            </div>
+
+            <p className="text-sm md:text-base text-muted-foreground max-w-2xl font-medium leading-relaxed">
+              Configure your user profile, connect your Telegram bot token, and manage automated channel broadcasts.
+            </p>
+          </div>
+        </div>
+
+        <main className="space-y-8">
+          {/* Profile Information Card */}
+          <Card id="profile" className="overflow-hidden rounded-3xl border border-border/80 bg-card/70 shadow-xl backdrop-blur-xl transition-all duration-300 hover:shadow-2xl">
+            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-6">
               <CardTitle className="flex items-center gap-3 text-xl font-bold">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/20">
                   <UserRound className="h-5 w-5" />
                 </div>
-                <span>Profile information</span>
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Profile Information
+                </span>
               </CardTitle>
-              <CardDescription>Update the details your team sees across TelePost.</CardDescription>
+              <CardDescription className="text-muted-foreground text-sm">
+                Manage your personal information and display preferences across TelePost.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-sm font-semibold">Full name</Label>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="fullName" className="text-sm font-semibold text-foreground">
+                      Full Name
+                    </Label>
                     <Input
                       id="fullName"
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="h-11 rounded-xl border-border/70 bg-background/60 font-medium transition-all focus:bg-background focus:ring-2 focus:ring-primary/20"
+                      className="h-12 rounded-2xl border-border/70 bg-background/60 font-medium transition-all focus:bg-background focus:ring-2 focus:ring-primary/20"
                       placeholder="Enter your full name"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-semibold">Email address</Label>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                      Email Address
+                    </Label>
                     <Input
                       id="email"
                       type="email"
                       value={email}
                       disabled
-                      className="h-11 cursor-not-allowed rounded-xl border-border/60 bg-muted/60 font-medium text-muted-foreground"
+                      className="h-12 cursor-not-allowed rounded-2xl border-border/50 bg-muted/60 font-medium text-muted-foreground"
                     />
-                    <p className="text-xs text-muted-foreground">Managed by your authentication provider.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Email address is managed by your authentication provider.
+                    </p>
                   </div>
                 </div>
 
@@ -288,7 +286,7 @@ export default function Settings() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="h-11 rounded-xl px-5 font-semibold shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
+                    className="h-12 rounded-2xl bg-gradient-to-r from-primary via-primary/90 to-accent px-7 font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {loading ? (
                       <span className="flex items-center gap-2">
@@ -296,7 +294,9 @@ export default function Settings() {
                         <span>Saving...</span>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-2"><Save className="h-4 w-4" /> Save changes</span>
+                      <span className="flex items-center gap-2">
+                        <Save className="h-4 w-4" /> Save Profile Changes
+                      </span>
                     )}
                   </Button>
                 </div>
@@ -304,30 +304,34 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Telegram Bot Configuration Card */}
-          <Card id="telegram" className="overflow-hidden rounded-3xl border-border/70 bg-card/70 shadow-sm backdrop-blur-xl">
-            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-sky-500/[0.08] to-transparent pb-6">
+          {/* Telegram Bot Integration Card */}
+          <Card id="telegram" className="overflow-hidden rounded-3xl border border-border/80 bg-card/70 shadow-xl backdrop-blur-xl transition-all duration-300 hover:shadow-2xl">
+            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-sky-500/10 via-sky-500/5 to-transparent pb-6">
               <CardTitle className="flex flex-wrap items-center justify-between gap-4 text-xl font-bold">
                 <div className="flex items-center space-x-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20">
                     <Bot className="h-5 w-5" />
                   </div>
-                  <span>Telegram integration</span>
+                  <span className="bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+                    Telegram Bot Integration
+                  </span>
                 </div>
                 {hasBotToken ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-500 shadow-sm">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Bot Connected
                   </span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600">
-                    Setup needed
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-500 shadow-sm">
+                    <Zap className="h-3.5 w-3.5" /> Setup Needed
                   </span>
                 )}
               </CardTitle>
-              <CardDescription>Connect a bot to publish quizzes and posts automatically to your Telegram channels.</CardDescription>
+              <CardDescription className="text-muted-foreground text-sm">
+                Connect your Telegram Bot token to post interactive quizzes and broadcasts directly to your Telegram channels.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
-              <Alert className="rounded-2xl border-sky-500/25 bg-sky-500/[0.07] p-4 text-foreground">
+              <Alert className="rounded-2xl border-sky-500/30 bg-sky-500/5 p-4 text-foreground">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500 mt-0.5">
                     <Bot className="h-4 w-4" />
@@ -347,15 +351,17 @@ export default function Settings() {
                 </div>
               </Alert>
 
-              <div className="space-y-2">
-                <Label htmlFor="botToken" className="text-sm font-semibold">Bot API token</Label>
+              <div className="space-y-2.5">
+                <Label htmlFor="botToken" className="text-sm font-semibold text-foreground">
+                  Telegram Bot API Token
+                </Label>
                 <div className="relative">
                   <Input
                     id="botToken"
                     type={showBotToken ? "text" : "password"}
                     value={botToken}
                     onChange={(e) => setBotToken(e.target.value)}
-                    className="h-11 rounded-xl border-border/70 bg-background/60 pr-12 font-mono text-sm transition-all focus:bg-background focus:ring-2 focus:ring-sky-500/20"
+                    className="h-12 rounded-2xl border-border/70 bg-background/60 pr-12 font-mono text-sm transition-all focus:bg-background focus:ring-2 focus:ring-sky-500/20"
                     placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
                   />
                   <Button
@@ -369,7 +375,7 @@ export default function Settings() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Your token is stored with encryption and never exposed in client logs.
+                  Your bot token is encrypted and stored securely.
                 </p>
               </div>
 
@@ -377,7 +383,7 @@ export default function Settings() {
                 <Button
                   onClick={handleSaveBotToken}
                   disabled={botLoading}
-                  className="h-11 rounded-xl bg-sky-500 px-5 font-semibold text-white shadow-lg shadow-sky-500/20 transition-transform hover:-translate-y-0.5 hover:bg-sky-600"
+                  className="h-12 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 px-7 font-bold text-white shadow-lg shadow-sky-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {botLoading ? (
                     <span className="flex items-center space-x-2">

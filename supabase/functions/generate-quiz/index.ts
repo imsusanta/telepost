@@ -29,7 +29,7 @@ interface AISettings {
 
 // Timeout helper for fetch
 async function fetchWithTimeout(resource: string | URL | Request, options: RequestInit & { timeout?: number } = {}) {
-  const { timeout = 45000 } = options;
+  const { timeout = 90000 } = options;
   
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -262,24 +262,25 @@ serve(async (req: Request) => {
 - Ensure proper Unicode encoding.`,
     };
 
-    const baseSystemPrompt = `You are QuizMaker — an Expert Competitive Examination Question Setter with 15+ years of experience designing high-quality MCQs for government and competitive examinations.
+    const baseSystemPrompt = `You are QuizMaker — an Expert Competitive Examination Question Setter with 15+ years of experience designing high-quality MCQs for government and competitive examinations (UPSC, SSC, Railways, State PSCs, Teaching Exams).
     ${languageInstructions[language] || languageInstructions['bn']}
     Generate a quiz with EXACTLY ${questionCount} questions for the topic: "${topic}".
-    Difficulty: ${difficulty}.
 
-    EXAM-ORIENTED QUESTION SETTING RULES:
-    1. Base questions on important concepts frequently asked in competitive exams (UPSC, SSC, State PSCs).
-    2. Follow the style and difficulty of previous year questions (PYQs), but do NOT copy them verbatim.
-    3. Difficulty distribution should be: 40% PYQ Style, 30% Concept Based, 20% Application Based, 10% Analytical.
-    4. Each question must test one important concept only, have exactly ONE correct answer, be factually correct, and have clear, unambiguous wording.
-    5. Avoid grammatical clues, obvious answers, trick wording, "All of the Above", and "None of the Above".
-    6. Distractor options must be believable, plausible, and belong to the same category (e.g., all dynasty names, all organic compounds). No random/silly options.
-    7. Write explanations with:
+    GOVERNMENT COMPETITIVE EXAM STANDARD GENERATION RULES:
+    1. Always generate high-quality, exam-oriented MCQs following the real style and standard of competitive government examinations.
+    2. Focus on conceptual, factual, and frequently asked topics in government exams. Prioritize accuracy and clarity.
+    3. Naturally maintain a balanced challenge level internally: 40% PYQ Style, 30% Concept Based, 20% Application Based, 10% Analytical.
+    4. Avoid overly simple textbook questions. Avoid unnecessarily difficult or research-level questions.
+    5. Every generated question must feel like it was prepared by an experienced government exam question setter.
+    6. Each question must test one important concept only, have exactly ONE correct answer, be factually correct, and have clear, unambiguous wording.
+    7. Avoid grammatical clues, obvious answers, trick wording, "All of the Above", and "None of the Above".
+    8. Distractor options must be believable, plausible, and belong to the same category. No random or silly options.
+    9. Write explanations with:
        - Correct Answer
        - Short explanation of why it is correct
        - Brief explanation of why other options are incorrect
        - One-line "Exam Tip" (keep under the Telegram character limits)
-    8. Focus on Indian context. Do NOT generate Bangladesh-related topics.
+    10. Focus on Indian context. Do NOT generate Bangladesh-related topics.
 
     CRITICAL TELEGRAM LIMITS (STRICT):
     - Question text: Keep under 120 characters (Max 300).
@@ -309,7 +310,7 @@ serve(async (req: Request) => {
           "explanation": "string"
         }
       ],
-      "metadata": { "difficulty": "${difficulty}", "generated_at": "${now}" }
+      "metadata": { "standard": "Government Competitive Exam Standard", "generated_at": "${now}" }
     }`;
 
     // content will be assigned from the text variable after AI generation
@@ -330,7 +331,7 @@ serve(async (req: Request) => {
             contents: [{ parts: [{ text: combinedPrompt }] }],
             generationConfig: { temperature: aiSettings.temperature || 0.7, maxOutputTokens: 2000 }
           }),
-          timeout: 45000,
+          timeout: 90000,
         });
 
         if (!geminiResponse.ok) {
@@ -522,7 +523,6 @@ Please regenerate the entire response, ensuring strict adherence to the language
         channel_id: channelId || null,
         request_id: requestId,
         topic: topic.substring(0, 200),
-        difficulty: difficulty,
         question_count: quizData.questions.length,
         questions: quizData.questions.map((doc: Record<string, any>) => ({ ...doc })),
         metadata: { ...quizData.metadata, language, used_knowledge_base: !!knowledgeBaseContext },

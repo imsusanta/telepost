@@ -9,7 +9,7 @@ const faqs = [
   },
   {
     question: "How does the AI quiz generation work?",
-    answer: "Upload your PDFs, notes, or any text content. Our AI analyzes the material and creates relevant multiple-choice questions aligned with your curriculum. You can adjust difficulty levels, question count, and topics. The entire process takes just seconds.",
+    answer: "Upload your PDFs, notes, or any text content. Our AI analyzes the material and creates high-quality MCQs following Government Competitive Exam Standards. You can adjust question count, language, and topics in seconds.",
   },
   {
     question: "How does the Telegram integration work?",
@@ -20,8 +20,8 @@ const faqs = [
     answer: "We support PDF, DOCX, TXT, and plain text. You can also paste content directly. Our AI handles various formats including scanned documents with OCR support for clear text extraction.",
   },
   {
-    question: "Can I customize the difficulty levels?",
-    answer: "Absolutely! You can set difficulty levels (Easy, Medium, Hard) for each quiz. Our AI also suggests appropriate difficulty based on the source material. You can mix difficulties within a single quiz for comprehensive testing.",
+    question: "How are question standards set?",
+    answer: "All quizzes automatically follow Government Competitive Examination Standards (UPSC, SSC, State PSCs) by default, providing conceptual and exam-oriented MCQs without requiring manual difficulty selection.",
   },
   {
     question: "Is my data secure?",
