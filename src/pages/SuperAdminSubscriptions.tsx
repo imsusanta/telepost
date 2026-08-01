@@ -554,8 +554,15 @@ const SuperAdminSubscriptions = () => {
                   <div className="mt-4">
                     <div className="flex items-baseline gap-2">
                       <span className="text-5xl font-black tracking-tighter text-slate-900">₹{plan.price}</span>
-                      <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">/ month</span>
+                      <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                        {plan.name === 'free' ? '/ 7 days' : plan.billing_period === 'yearly' ? '/ year' : '/ month'}
+                      </span>
                     </div>
+                    {plan.name === 'free' && (
+                      <Badge className="mt-2 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                        7-day free trial for new users
+                      </Badge>
+                    )}
                     {(plan as any).yearly_price > 0 && (
                       <div className="flex items-baseline gap-2 mt-1">
                         <span className="text-lg font-bold text-primary">₹{(plan as any).yearly_price}</span>
