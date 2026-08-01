@@ -6,7 +6,10 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Save,
+  ShieldCheck,
   SettingsIcon,
+  UserRound,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -216,163 +219,181 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="space-y-3">
-          <h1 className="text-5xl font-bold text-foreground mb-2">
-            Settings
-          </h1>
-          <p className="text-muted-foreground text-lg">Manage your account settings and preferences</p>
-        </div>
-
-        {/* Telegram Bot Configuration Card */}
-        <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-          <CardHeader className="space-y-3 pb-6">
-            <CardTitle className="flex items-center space-x-3 text-2xl">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-clay-sm">
-                <Bot className="w-6 h-6 text-white" />
-              </div>
-              <span className="bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
-                Telegram Bot
-              </span>
-              {hasBotToken && (
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-              )}
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
-              Connect your Telegram bot to post quizzes to your channels
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert>
-              <Bot className="h-4 w-4" />
-              <AlertDescription>
-                To get a bot token, message{" "}
-                <a
-                  href="https://t.me/BotFather"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  @BotFather <ExternalLink className="w-3 h-3" />
-                </a>
-                {" "}on Telegram and create a new bot.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-3">
-              <Label htmlFor="botToken" className="text-base font-medium text-foreground">
-                Bot Token
-              </Label>
-              <div className="relative">
-                <Input
-                  id="botToken"
-                  type={showBotToken ? "text" : "password"}
-                  value={botToken}
-                  onChange={(e) => setBotToken(e.target.value)}
-                  className="h-12 pr-10 font-mono"
-                  placeholder="Enter your Telegram bot token"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowBotToken(!showBotToken)}
-                >
-                  {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Your bot token is stored securely and never shared.
+      <div className="mx-auto max-w-6xl space-y-8 pb-12">
+        <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <SettingsIcon className="h-4 w-4" /> Workspace settings
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Settings</h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+                Keep your profile current and connect the tools that power your publishing workflow.
               </p>
             </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm backdrop-blur-xl">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account status</p>
+              <p className="text-sm font-semibold">Protected and private</p>
+            </div>
+          </div>
+        </header>
 
-            <Button
-              onClick={handleSaveBotToken}
-              disabled={botLoading}
-              className="h-12 px-8 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold"
-            >
-              {botLoading ? (
-                <span className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Saving...</span>
-                </span>
-              ) : hasBotToken ? (
-                "Update Bot Token"
-              ) : (
-                "Save Bot Token"
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <main className="min-w-0 space-y-6">
+          {/* Profile Settings Card */}
+          <Card id="profile" className="overflow-hidden rounded-3xl border-border/70 bg-card/70 shadow-sm backdrop-blur-xl">
+            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-primary/[0.08] to-transparent pb-6">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                  <UserRound className="h-5 w-5" />
+                </div>
+                <span>Profile information</span>
+              </CardTitle>
+              <CardDescription>Update the details your team sees across TelePost.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <form onSubmit={handleSave} className="space-y-6">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName" className="text-sm font-semibold">Full name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      className="h-11 rounded-xl border-border/70 bg-background/60 font-medium transition-all focus:bg-background focus:ring-2 focus:ring-primary/20"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
 
-        {/* Profile Settings Card */}
-        <Card className="clay-card-hover bg-card/50 backdrop-blur-sm border-border">
-          <CardHeader className="space-y-3 pb-6">
-            <CardTitle className="flex items-center space-x-3 text-2xl">
-              <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-xl shadow-clay-sm">
-                <SettingsIcon className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Profile Settings
-              </span>
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
-              Update your personal information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="fullName" className="text-base font-medium text-foreground">
-                  Full Name
-                </Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="h-12 clay-input"
-                  placeholder="Enter your full name"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-semibold">Email address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      disabled
+                      className="h-11 cursor-not-allowed rounded-xl border-border/60 bg-muted/60 font-medium text-muted-foreground"
+                    />
+                    <p className="text-xs text-muted-foreground">Managed by your authentication provider.</p>
+                  </div>
+                </div>
 
-              <div className="space-y-3">
-                <Label htmlFor="email" className="text-base font-medium text-foreground">
-                  Email Address
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  disabled
-                  className="h-12"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Email address is managed by your authentication provider
+                <div className="flex justify-end border-t border-border/60 pt-5">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="h-11 rounded-xl px-5 font-semibold shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Save className="h-4 w-4" /> Save changes</span>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Telegram Bot Configuration Card */}
+          <Card id="telegram" className="overflow-hidden rounded-3xl border-border/70 bg-card/70 shadow-sm backdrop-blur-xl">
+            <CardHeader className="border-b border-border/60 bg-gradient-to-r from-sky-500/[0.08] to-transparent pb-6">
+              <CardTitle className="flex flex-wrap items-center justify-between gap-4 text-xl font-bold">
+                <div className="flex items-center space-x-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <span>Telegram integration</span>
+                </div>
+                {hasBotToken ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+                  </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600">
+                    Setup needed
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>Connect a bot to publish quizzes and posts automatically to your Telegram channels.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <Alert className="rounded-2xl border-sky-500/25 bg-sky-500/[0.07] p-4 text-foreground">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500 mt-0.5">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <AlertDescription className="text-sm leading-relaxed">
+                    <strong>How to get your Bot Token:</strong> Message{" "}
+                    <a
+                      href="https://t.me/BotFather"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-sky-500 hover:underline inline-flex items-center gap-1"
+                    >
+                      @BotFather <ExternalLink className="w-3 h-3" />
+                    </a>{" "}
+                    on Telegram, send <code className="bg-background px-1.5 py-0.5 rounded border border-border text-xs font-mono">/newbot</code>, follow the prompts, and paste the HTTP API Token below.
+                  </AlertDescription>
+                </div>
+              </Alert>
+
+              <div className="space-y-2">
+                <Label htmlFor="botToken" className="text-sm font-semibold">Bot API token</Label>
+                <div className="relative">
+                  <Input
+                    id="botToken"
+                    type={showBotToken ? "text" : "password"}
+                    value={botToken}
+                    onChange={(e) => setBotToken(e.target.value)}
+                    className="h-11 rounded-xl border-border/70 bg-background/60 pr-12 font-mono text-sm transition-all focus:bg-background focus:ring-2 focus:ring-sky-500/20"
+                    placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-xl"
+                    onClick={() => setShowBotToken(!showBotToken)}
+                  >
+                    {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your token is stored with encryption and never exposed in client logs.
                 </p>
               </div>
 
-              <div className="pt-4">
+              <div className="flex justify-end border-t border-border/60 pt-5">
                 <Button
-                  type="submit"
-                  disabled={loading}
-                  className="h-12 px-8 clay-button bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold"
+                  onClick={handleSaveBotToken}
+                  disabled={botLoading}
+                  className="h-11 rounded-xl bg-sky-500 px-5 font-semibold text-white shadow-lg shadow-sky-500/20 transition-transform hover:-translate-y-0.5 hover:bg-sky-600"
                 >
-                  {loading ? (
+                  {botLoading ? (
                     <span className="flex items-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Saving...</span>
+                      <span>Saving Token...</span>
                     </span>
+                  ) : hasBotToken ? (
+                    "Update Bot Token"
                   ) : (
-                    "Save Changes"
+                    "Save Bot Token"
                   )}
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     </DashboardLayout>
   );
