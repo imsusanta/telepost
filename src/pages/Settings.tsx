@@ -8,7 +8,6 @@ import {
   Loader2,
   Save,
   ShieldCheck,
-  SettingsIcon,
   UserRound,
   Sparkles,
   Zap,
