@@ -41,11 +41,11 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           className="flex flex-col items-center gap-1.5 sm:gap-2 text-[clamp(1.8rem,4vw,3rem)] font-extrabold text-foreground tracking-[-0.02em] leading-[1.1] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
           <span className="block text-foreground leading-[1.1] sm:whitespace-nowrap">
-            Post Up to 20 Quizzes to Your Telegram Channel
+            Post Up to 20 Quizzes
           </span>
-          <span className="relative inline-block pb-3 text-[#0088cc] leading-[1.1]">
-            in Under a Minute
-            {/* Multi-color gradient swoosh underline from screenshot */}
+          <span className="relative inline-block pb-3 text-[#0088cc] leading-[1.1] sm:whitespace-nowrap">
+            to Your Telegram Channel in Under a Minute
+            {/* Multi-color gradient swoosh underline */}
             <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
               <path d="M 4 10 C 80 3, 240 2, 316 10" stroke="url(#swoosh-gradient)" strokeWidth="4" strokeLinecap="round" />
               <defs>

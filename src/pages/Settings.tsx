@@ -220,8 +220,19 @@ export default function Settings() {
                     Post Up to 20 Quizzes
                   </span>
                 </h1>
-                <h2 className="text-xl md:text-3xl font-extrabold text-foreground/90 tracking-tight">
+                <h2 className="relative inline-block pb-3 text-xl md:text-3xl font-extrabold text-foreground/90 tracking-tight">
                   to Your Telegram Channel in Under a Minute
+                  {/* Multi-color gradient swoosh underline */}
+                  <svg className="absolute -bottom-1 left-0 w-full h-3.5" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
+                    <path d="M 4 10 C 80 3, 240 2, 316 10" stroke="url(#settings-swoosh-gradient)" strokeWidth="4" strokeLinecap="round" />
+                    <defs>
+                      <linearGradient id="settings-swoosh-gradient" x1="0" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="hsl(var(--primary))" />
+                        <stop offset="0.5" stopColor="#38bdf8" />
+                        <stop offset="1" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
                 </h2>
               </div>
 
