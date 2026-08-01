@@ -28,7 +28,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
 
       </div>
 
-      <div className="max-w-5xl mx-auto relative z-10 text-center w-full">
+      <div className="max-w-7xl mx-auto relative z-10 text-center w-full">
         {/* Eyebrow Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 backdrop-blur-sm text-xs sm:text-sm font-semibold text-[#0088cc] mb-8 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
           <Send className="w-3.5 h-3.5 fill-[#0088cc]" />
@@ -40,7 +40,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           id="hero-heading"
           className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.15] mb-6 text-center animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]"
         >
-          <span className="block text-foreground">Post Up to 20 Quizzes to Your Telegram Channel</span>
+          <span className="block text-foreground sm:whitespace-nowrap">
+            Post Up to 20 Quizzes to Your Telegram Channel
+          </span>
           <span className="relative inline-block pb-3 mt-1 text-[#0088cc]">
             in Under a Minute
             {/* Multi-color gradient swoosh underline from screenshot */}
