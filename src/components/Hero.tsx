@@ -65,7 +65,25 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         >
           Save hours every week by generating, scheduling,
           <br className="hidden sm:block" />
-          and automatically publishing exam-quality Telegram quizzes from <span className="font-bold text-foreground">any topic or PDF.</span>
+          and automatically publishing exam-quality Telegram quizzes from{" "}
+          <span className="relative inline-block px-2.5 py-1 font-bold text-foreground">
+            any topic or PDF.
+            {/* Decorative red round oval loop SVG */}
+            <svg
+              className="absolute -inset-1.5 w-[calc(100%+12px)] h-[calc(100%+12px)] pointer-events-none overflow-visible"
+              viewBox="0 0 160 44"
+              fill="none"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M 12 22 C 8 8, 45 3, 85 3 C 135 3, 155 10, 153 23 C 150 36, 115 41, 70 41 C 25 41, 4 33, 15 17 C 20 10, 50 5, 90 5"
+                stroke="#ef4444"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
         </p>
 
         {/* CTAs */}
