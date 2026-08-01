@@ -208,37 +208,38 @@ export default function Settings() {
           <div className="absolute -top-12 -right-12 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none transition-all duration-700 group-hover:scale-125" />
           <div className="absolute -bottom-12 -left-12 h-64 w-64 rounded-full bg-accent/20 blur-3xl pointer-events-none transition-all duration-700 group-hover:scale-125" />
 
-          <div className="relative z-10 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/15 border border-primary/25 text-primary text-xs font-black uppercase tracking-widest shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
-              <span>TelePost Automation Engine</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm backdrop-blur-xl">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account status</p>
-              <p className="text-sm font-semibold">Protected and private</p>
-            </div>
-          </div>
-        </header>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/15 border border-primary/25 text-primary text-xs font-black uppercase tracking-widest shadow-sm">
+                <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                <span>TelePost Automation Engine</span>
+              </div>
 
-            <div className="space-y-1">
-              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
-                <span className="bg-gradient-to-r from-primary via-indigo-500 to-accent bg-clip-text text-transparent">
-                  Post Up to 20 Quizzes
-                </span>
-              </h1>
-              <h2 className="text-xl md:text-3xl font-extrabold text-foreground/90 tracking-tight">
-                to Your Telegram Channel in Under a Minute
-              </h2>
+              <div className="space-y-1">
+                <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
+                  <span className="bg-gradient-to-r from-primary via-indigo-500 to-accent bg-clip-text text-transparent">
+                    Post Up to 20 Quizzes
+                  </span>
+                </h1>
+                <h2 className="text-xl md:text-3xl font-extrabold text-foreground/90 tracking-tight">
+                  to Your Telegram Channel in Under a Minute
+                </h2>
+              </div>
+
+              <p className="text-sm md:text-base text-muted-foreground max-w-2xl font-medium leading-relaxed">
+                Configure your user profile, connect your Telegram bot token, and manage automated channel broadcasts.
+              </p>
             </div>
 
-            <p className="text-sm md:text-base text-muted-foreground max-w-2xl font-medium leading-relaxed">
-              Configure your user profile, connect your Telegram bot token, and manage automated channel broadcasts.
-            </p>
+            <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm backdrop-blur-xl shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Status</p>
+                <p className="text-sm font-semibold text-foreground">Protected & Secure</p>
+              </div>
+            </div>
           </div>
         </div>
 
