@@ -123,11 +123,7 @@ export default function Auth() {
     e.preventDefault();
     if (!valEmail(email)) return;
     if (!password) { setPasswordError("Password is required"); return; }
-    const rl = checkRateLimit('login', 5, 900000);
-    if (!rl.allowed) {
-      toast({ title: "Locked", description: `Wait ${Math.ceil((rl.resetTime - Date.now()) / 60000)} min`, variant: "destructive" });
-      return;
-    }
+    
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -136,13 +132,11 @@ export default function Auth() {
       if (error) throw error;
       localStorage.removeItem('ratelimit_login');
       if (data.session) {
-        // Explicit navigate — don't rely solely on onAuthStateChange, which may
-        // race with rendering and leave the button spinning indefinitely,
-        // especially when postAuthTarget is a deep path like /.lovable/oauth/consent.
         navigate(postAuthTarget);
       }
     } catch (err) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Failed to sign in";
+      toast({ title: "Sign In Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
