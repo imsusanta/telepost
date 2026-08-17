@@ -13,8 +13,6 @@ import {
     Target,
     Zap,
     Languages,
-    ShieldCheck,
-    AlertCircle,
     FileText
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,7 +55,6 @@ export function AutoScheduleCard() {
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
     const [showSettings, setShowSettings] = useState(false);
-    const [isInitializing, setIsInitializing] = useState(false);
 
     // Global settings
     const [sourceType, setSourceType] = useState<SourceType>("question_bank");
@@ -293,39 +290,6 @@ export function AutoScheduleCard() {
             });
         } finally {
             setIsSaving(false);
-        }
-    };
-
-    const handleInitializeSystem = async () => {
-        setIsInitializing(true);
-        try {
-            console.log("Initializing system configuration...");
-            const { data: _data, error } = await supabase.functions.invoke('process-auto-schedule', {
-                headers: {
-                    "X-Telepost-Repair-Secret": "fix-my-config-2026"
-                },
-                body: { 
-                    triggered_by: 'manual_initialization',
-                    triggered_at: new Date().toISOString()
-                }
-            });
-
-            if (error) throw error;
-
-            toast({
-                title: "✅ System Initialized",
-                description: "Background workers are now configured and will run automatically every minute.",
-                variant: "default",
-            });
-        } catch (error: any) {
-            console.error("Initialization error:", error);
-            toast({
-                title: "❌ Initialization Failed",
-                description: "Please try again or contact support if the issue persists.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsInitializing(false);
         }
     };
 

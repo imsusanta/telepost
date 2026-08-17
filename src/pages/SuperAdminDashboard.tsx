@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Shield, TrendingUp, Activity, Settings,
-  BarChart3, IndianRupee, Tag, Lock, AlertCircle, CheckCircle
+  BarChart3, Tag, Lock, AlertCircle, CheckCircle
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -327,11 +327,11 @@ export default function SuperAdminDashboard() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Total Discount</span>
-                    <span className="font-bold text-yellow-600">${stats.coupons.totalDiscount.toFixed(2)}</span>
+                    <span className="font-bold text-yellow-600">₹{stats.coupons.totalDiscount.toFixed(2)}</span>
                   </div>
                 </div>
                 <Button onClick={() => navigate('/dashboard/super-admin/coupons')} className="w-full">
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <Tag className="w-4 h-4 mr-2" />
                   Manage Coupons
                 </Button>
               </CardContent>
@@ -366,14 +366,14 @@ export default function SuperAdminDashboard() {
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Monthly Revenue</p>
                     <div className="text-2xl font-bold text-green-600">
-                      ${stats.subscriptions.revenue}
+                      ₹{stats.subscriptions.revenue}
                     </div>
                     <p className="text-xs text-muted-foreground">Recurring revenue</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Avg. User Value</p>
                     <div className="text-2xl font-bold text-purple-600">
-                      ${stats.users.total > 0 ? (stats.subscriptions.revenue / stats.users.total).toFixed(2) : '0.00'}
+                      ₹{stats.users.total > 0 ? (stats.subscriptions.revenue / stats.users.total).toFixed(2) : '0.00'}
                     </div>
                     <p className="text-xs text-muted-foreground">Per user per month</p>
                   </div>

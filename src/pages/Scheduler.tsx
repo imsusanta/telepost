@@ -18,7 +18,6 @@ import {
   Timer,
   History,
   MoreVertical,
-  ArrowRight,
   Info,
   ChevronLeft,
   ChevronRight

@@ -195,7 +195,7 @@ serve(async (req) => {
           while (retries < maxRetries) {
             const response = await fetch(url, options);
             if (response.status === 429) {
-              const data = await response.json();
+              const data = await response.json() as any;
               const retryAfter = (data.parameters?.retry_after || 5) * 1000;
               console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
               await new Promise(resolve => setTimeout(resolve, retryAfter));
@@ -241,7 +241,7 @@ serve(async (req) => {
         });
 
         if (!introResponse.ok) {
-          const introData = await introResponse.json();
+          const introData = await introResponse.json() as any;
           console.error(`Failed to send intro message:`, introData);
           throw new Error(`Bot access error: ${introData.description || "Failed to send message"}.`);
         }
@@ -305,7 +305,7 @@ serve(async (req) => {
           });
 
           if (!pollResponse.ok) {
-            const pollData = await pollResponse.json().catch(() => ({ description: "Failed to parse error response" }));
+            const pollData = (await pollResponse.json().catch(() => ({ description: "Failed to parse error response" }))) as any;
             console.error(`[Post ${post.id}] Failed to send poll ${i + 1}:`, pollData);
             throw new Error(`Failed to send poll: ${pollData.description || "Unknown error"}`);
           }

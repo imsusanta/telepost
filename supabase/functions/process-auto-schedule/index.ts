@@ -859,7 +859,7 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
                 const errText = await res.text();
                 throw new Error(`Gemini API error (${res.status}): ${errText.substring(0, 200)}`);
             }
-            const data = await res.json();
+            const data = await res.json() as any;
             content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
             const makeOpenRouterRequest = async (useModel: string) => {
@@ -902,7 +902,7 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
                     return { ok: false as const, errorMsg, status: res.status };
                 }
 
-                const data = await res.json();
+                const data = await res.json() as any;
                 const resultText = data.choices?.[0]?.message?.content || "";
                 return { ok: true as const, content: resultText };
             };
@@ -922,7 +922,7 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
                         })
                     });
                     if (geminiRes.ok) {
-                        const geminiData = await geminiRes.json();
+                        const geminiData = await geminiRes.json() as any;
                         const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (geminiContent) {
                             console.log("[generateAIQuiz] Direct Gemini fallback success.");
@@ -1084,7 +1084,7 @@ Output ONLY THE TOPIC STRING in ${topicLangInfo.name}, no quotes, no extra text.
                 const errText = await res.text();
                 throw new Error(`Gemini error (${res.status}): ${errText.substring(0, 200)}`);
             }
-            const data = await res.json();
+            const data = await res.json() as any;
             if (data.error) throw new Error(data.error.message);
             content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
@@ -1127,7 +1127,7 @@ Output ONLY THE TOPIC STRING in ${topicLangInfo.name}, no quotes, no extra text.
                     return { ok: false as const, errorMsg };
                 }
 
-            const data = await res.json();
+            const data = await res.json() as any;
             if (data.error) return { ok: false as const, errorMsg: data.error.message || JSON.stringify(data.error) };
             
             const resultText = data.choices?.[0]?.message?.content || "";
@@ -1159,7 +1159,7 @@ Output ONLY THE TOPIC STRING in ${topicLangInfo.name}, no quotes, no extra text.
                         })
                     });
                     if (geminiRes.ok) {
-                        const geminiData = await geminiRes.json();
+                        const geminiData = await geminiRes.json() as any;
                         const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         if (geminiContent) {
                             console.log("[generateAITopic] Direct Gemini fallback success.");
