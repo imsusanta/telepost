@@ -387,8 +387,8 @@ export default function SuperAdminSettings() {
                     <Select value={aiSettings.provider} onValueChange={(value) => handleProviderChange(value as SupportedAIProvider)}>
                       <SelectTrigger id="ai_provider"><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="openrouter">OpenRouter (Recommended)</SelectItem>
                         <SelectItem value="cloudflare">Cloudflare Workers AI</SelectItem>
-                        <SelectItem value="openrouter">OpenRouter</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
