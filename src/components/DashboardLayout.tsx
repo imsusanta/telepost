@@ -44,7 +44,6 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -56,7 +55,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// import type { Tables } from "@/integrations/supabase/types";
 type Profile = any;
 
 interface DashboardLayoutProps {
@@ -71,7 +69,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { toast } = useToast();
   const { profile, isUserSuperAdmin, signOut } = useAuth();
 
-  // Read sidebar state from cookie for persistence across navigation
   const [initialSidebarOpen] = useState(() => {
     if (typeof document === "undefined") return true;
     const cookie = document.cookie
@@ -80,12 +77,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (cookie) {
       return cookie.split("=")[1] === "true";
     }
-    return true; // Default to open
+    return true;
   });
   
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
-  // Restore sidebar scroll position
   useEffect(() => {
     const savedScrollPos = sessionStorage.getItem('sidebarScrollPosition');
     if (savedScrollPos && sidebarScrollRef.current) {
@@ -94,25 +90,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    sessionStorage.setItem('sidebarScrollPosition', String(scrollTop));
+    sessionStorage.setItem('sidebarScrollPosition', String(e.currentTarget.scrollTop));
   };
 
   const handleSignOut = useCallback(async () => {
     try {
       await signOut();
       navigate("/");
-      toast({
-        title: "Signed out successfully",
-        description: "Come back soon!",
-      });
+      toast({ title: "Signed out successfully", description: "Come back soon!" });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to sign out";
-      toast({
-        title: "Error",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: errorMsg, variant: "destructive" });
     }
   }, [navigate, toast, signOut]);
 
@@ -197,12 +185,27 @@ function DashboardLayoutInner({
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
 
+  const menuItemClass = (isActive: boolean) => `
+    group transition-all duration-300 ease-out rounded-xl relative h-11
+    ${isActive
+      ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
+      : "hover:bg-sidebar-accent/50 text-sidebar-foreground hover:translate-x-1"
+    }
+  `;
+
+  const menuIconClass = (isActive: boolean) => `
+    w-5 h-5 transition-all duration-300 ease-out
+    ${isActive
+      ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+      : "group-hover:scale-110 group-hover:-rotate-3"
+    }
+  `;
+
   return (
     <>
       <div className="flex min-h-screen w-full relative bg-background overflow-x-hidden">
         <KeyboardShortcuts />
 
-        {/* Persistent Edge Arrow Toggle - Outside Sidebar to prevent clipping */}
         <div
           className="hidden md:block fixed z-[100] transition-all duration-200 ease-linear"
           style={{
@@ -216,11 +219,7 @@ function DashboardLayoutInner({
             className="h-6 w-6 rounded-full bg-background border-sidebar-border shadow-md hover:bg-accent text-sidebar-foreground transition-all duration-300 ring-4 ring-background"
             onClick={toggleSidebar}
           >
-            {isCollapsed ? (
-              <ChevronRight className="h-3 w-3" />
-            ) : (
-              <ChevronLeft className="h-3 w-3" />
-            )}
+            {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </Button>
         </div>
 
@@ -238,14 +237,10 @@ function DashboardLayoutInner({
           <SidebarHeader className="border-b border-white/5 py-4">
             <div className="flex items-center justify-between px-3">
               <div className="flex items-center gap-2">
-                {/* Paper plane icon matching Navbar logo */}
                 <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
                   <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
                 </div>
-                {/* TelePost text - hidden when collapsed */}
-                <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">
-                  TelePost
-                </span>
+                <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">TelePost</span>
               </div>
               <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
                 <ThemeToggle />
@@ -257,12 +252,7 @@ function DashboardLayoutInner({
             </div>
           </SidebarHeader>
 
-          <SidebarContent
-            className="px-2"
-            ref={sidebarScrollRef}
-            onScroll={handleSidebarScroll}
-          >
-            {/* Telegram Quiz Section */}
+          <SidebarContent className="px-2" ref={sidebarScrollRef} onScroll={handleSidebarScroll}>
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
                 Telegram Quizzes
@@ -274,24 +264,11 @@ function DashboardLayoutInner({
                     const isActive = location.pathname === item.path;
                     return (
                       <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
-                            ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
-                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                            }`}
-                        >
-                          <Link
-                            to={item.path}
-                            className="flex items-center gap-3 px-3"
-                          >
-                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'group-hover:scale-110'}`} />
-                            <span className="font-semibold text-sm">{item.label}</span>
-                            {isActive && (
-                              <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in duration-500" />
-                            )}
+                        <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={menuItemClass(isActive)}>
+                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                            <Icon className={menuIconClass(isActive)} />
+                            <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
+                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in zoom-in duration-300" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -301,12 +278,8 @@ function DashboardLayoutInner({
               </SidebarGroupContent>
             </SidebarGroup>
 
-
-
-
             <SidebarSeparator className="my-2" />
 
-            {/* Settings Section */}
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
                 Settings & Analytics
@@ -316,24 +289,13 @@ function DashboardLayoutInner({
                   {settingsMenuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path;
-
                     return (
                       <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                          className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
-                            ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
-                            : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                            }`}
-                        >
+                        <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={menuItemClass(isActive)}>
                           <Link to={item.path} className="flex items-center gap-3 px-3">
-                            <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                            <span className="font-semibold text-sm">{item.label}</span>
-                            {isActive && (
-                              <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in duration-500" />
-                            )}
+                            <Icon className={menuIconClass(isActive)} />
+                            <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
+                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in zoom-in duration-300" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -343,7 +305,6 @@ function DashboardLayoutInner({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Super Admin Section */}
             {isUserSuperAdmin && (
               <>
                 <SidebarSeparator className="my-2" />
@@ -357,24 +318,21 @@ function DashboardLayoutInner({
                       {superAdminMenuItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
-
                         return (
                           <SidebarMenuItem key={item.path}>
                             <SidebarMenuButton
                               asChild
                               isActive={isActive}
                               tooltip={item.label}
-                              className={`transition-all duration-300 rounded-xl relative h-11 ${isActive
+                              className={`group transition-all duration-300 ease-out rounded-xl relative h-11 ${isActive
                                 ? "bg-orange-500/20 text-orange-500 font-bold shadow-lg scale-[1.02] border border-orange-500/20"
-                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                                }`}
+                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground hover:translate-x-1"
+                              }`}
                             >
                               <Link to={item.path} className="flex items-center gap-3 px-3">
-                                <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                                <span className="font-semibold text-sm">{item.label}</span>
-                                {isActive && (
-                                  <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-in fade-in duration-500" />
-                                )}
+                                <Icon className={`w-5 h-5 transition-all duration-300 ease-out ${isActive ? 'scale-110' : 'group-hover:scale-110 group-hover:-rotate-3'}`} />
+                                <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
+                                {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-in fade-in zoom-in duration-300" />}
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -393,22 +351,15 @@ function DashboardLayoutInner({
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton
-                        size="lg"
-                        className="floating-profile-card h-14 px-2 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:m-0"
-                      >
-                        <Avatar className="h-8 w-8 ring-1 ring-primary/20 shadow-md">
+                      <SidebarMenuButton size="lg" className="floating-profile-card h-14 px-2 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:m-0 transition-all duration-300 hover:scale-[1.01]">
+                        <Avatar className="h-8 w-8 ring-1 ring-primary/20 shadow-md transition-transform duration-300 group-hover:scale-105">
                           <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black text-xs">
-                            {getUserInitials()}
-                          </AvatarFallback>
+                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black text-xs">{getUserInitials()}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
-                          <span className="text-xs font-black tracking-tight truncate max-w-[150px]">
-                            {profile?.full_name || 'User'}
-                          </span>
+                          <span className="text-xs font-black tracking-tight truncate max-w-[150px]">{profile?.full_name || 'User'}</span>
                         </div>
-                        <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden opacity-40">
+                        <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden opacity-40 transition-transform duration-300 group-hover:translate-x-0.5">
                           <ChevronRight className="h-3 w-3" />
                         </div>
                       </SidebarMenuButton>
@@ -422,21 +373,10 @@ function DashboardLayoutInner({
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator className="opacity-10" />
                       <DropdownMenuItem asChild className="p-3 rounded-xl cursor-pointer font-bold">
-                        <Link to="/dashboard/settings">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Settings
-                        </Link>
+                        <Link to="/dashboard/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="p-3 rounded-xl cursor-pointer font-bold">
-                        <Link to="/dashboard">
-                          <User className="mr-2 h-4 w-4" />
-                          Profile
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator className="opacity-10" />
-                      <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive p-3 rounded-xl cursor-pointer font-bold">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sign Out
+                      <DropdownMenuItem onClick={handleSignOut} className="p-3 rounded-xl cursor-pointer font-bold">
+                        <LogOut className="mr-2 h-4 w-4" />Sign out
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -444,38 +384,10 @@ function DashboardLayoutInner({
               </SidebarMenu>
             </div>
           </SidebarFooter>
-
           <SidebarRail />
         </Sidebar>
 
-        {/* Main Content */}
-        <SidebarInset className="flex-1 subtle-mesh transition-colors duration-500 flex flex-col min-w-0 max-w-full overflow-x-hidden">
-          {/* Mobile Navigation Header - Only visible on mobile */}
-          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-xl relative z-40 shadow-sm">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-primary/10 shadow-sm transition-all active:scale-95" />
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
-                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
-                </div>
-                <span className="text-lg font-bold text-foreground">
-                  TelePost
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <ThemeToggle />
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg relative hover:bg-primary/5">
-                <Bell className="w-4 h-4 text-muted-foreground" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
-              </Button>
-            </div>
-          </header>
-
-          <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto w-full animate-in fade-in duration-700 ease-out flex-1 min-w-0 overflow-x-hidden" id="main-content">
-            {children}
-          </div>
-        </SidebarInset>
+        <SidebarInset className="min-w-0">{children}</SidebarInset>
       </div>
     </>
   );
