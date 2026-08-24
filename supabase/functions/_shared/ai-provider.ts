@@ -23,7 +23,7 @@ export interface ChatMessage {
 }
 
 const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
-const CLOUDFLARE_DEFAULT_MODEL = '@cf/openai/gpt-oss-20b';
+const CLOUDFLARE_DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
@@ -113,44 +113,66 @@ export async function chatCompletion(args: {
   }
 
   if (resolved.provider === 'cloudflare') {
-    const url = cloudflareChatUrl(resolved.accountId!, resolved.model);
-    const response = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resolved.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        stream: false,
-      }),
-    }, timeoutMs);
-
-    const body = await response.text();
-    if (!response.ok) throw providerError(resolved.provider, response.status, body);
-
-    let data: any;
-    try {
-      data = JSON.parse(body);
-    } catch {
-      throw new Error('Cloudflare Workers AI returned a non-JSON response.');
+    const candidateModels = [resolved.model];
+    if (resolved.model !== '@cf/meta/llama-3.3-70b-instruct-fp8-fast') {
+      candidateModels.push('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+    }
+    if (resolved.model !== '@cf/openai/gpt-oss-120b') {
+      candidateModels.push('@cf/openai/gpt-oss-120b');
+    }
+    if (resolved.model !== '@cf/meta/llama-3.1-8b-instruct') {
+      candidateModels.push('@cf/meta/llama-3.1-8b-instruct');
     }
 
-    if (data?.success === false) {
-      throw providerError(resolved.provider, response.status || 500, body);
+    let lastError: Error | null = null;
+
+    for (const modelToTry of candidateModels) {
+      try {
+        const url = cloudflareChatUrl(resolved.accountId!, modelToTry);
+        const response = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resolved.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+            stream: false,
+          }),
+        }, timeoutMs);
+
+        const body = await response.text();
+        if (!response.ok) throw providerError(resolved.provider, response.status, body);
+
+        let data: any;
+        try {
+          data = JSON.parse(body);
+        } catch {
+          throw new Error('Cloudflare Workers AI returned a non-JSON response.');
+        }
+
+        if (data?.success === false) {
+          throw providerError(resolved.provider, response.status || 500, body);
+        }
+
+        const text = data?.result?.response
+          || data?.result?.choices?.[0]?.message?.content
+          || data?.choices?.[0]?.message?.content
+          || '';
+
+        if (!text || typeof text !== 'string') {
+          throw new Error('Cloudflare Workers AI returned an empty response.');
+        }
+        return text;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[ai-provider] Cloudflare model ${modelToTry} failed: ${err.message}. Trying next candidate...`);
+      }
     }
 
-    const text = data?.result?.response
-      || data?.result?.choices?.[0]?.message?.content
-      || data?.choices?.[0]?.message?.content
-      || '';
-
-    if (!text || typeof text !== 'string') {
-      throw new Error('Cloudflare Workers AI returned an empty response.');
-    }
-    return text;
+    throw lastError || new Error('All Cloudflare models failed.');
   }
 
   const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
