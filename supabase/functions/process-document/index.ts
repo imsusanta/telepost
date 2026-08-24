@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import * as pdfjs from "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@1.0.2";
 import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
@@ -15,16 +15,10 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 }
 
 async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; pageCount: number }> {
-  const loadingTask = pdfjs.getDocument({ data: bytes, disableWorker: true, useWorkerFetch: false, isEvalSupported: false });
-  const pdf = await loadingTask.promise;
-  const pages: string[] = [];
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-    const pageText = content.items.map((item: any) => typeof item?.str === 'string' ? item.str : '').filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-    if (pageText) pages.push(pageText);
-  }
-  return { text: pages.join('\n\n'), pageCount: pdf.numPages };
+  const pdf = await getDocumentProxy(bytes);
+  const result = await extractText(pdf, { mergePages: true });
+  const text = Array.isArray(result.text) ? result.text.join('\n\n') : result.text;
+  return { text: String(text || '').trim(), pageCount: result.totalPages || 1 };
 }
 
 serve(async (req: Request) => {
