@@ -23,13 +23,15 @@ export interface ChatMessage {
 }
 
 const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
-const CLOUDFLARE_DEFAULT_MODEL = '@cf/openai/gpt-oss-20b';
-const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
+export const CLOUDFLARE_DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+export const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openrouter: OPENROUTER_DEFAULT_MODEL,
   cloudflare: CLOUDFLARE_DEFAULT_MODEL,
 };
+
+const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
  * Resolve the configured provider without silently switching providers.
@@ -60,7 +62,11 @@ export function cloudflareChatUrl(accountId: string, model = CLOUDFLARE_DEFAULT_
   if (!model.startsWith('@cf/')) {
     throw new Error(`Invalid Cloudflare Workers AI model ID: ${model}. Model IDs must start with @cf/.`);
   }
-  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${encodeURIComponent(model)}`;
+  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
+}
+
+export function cloudflareRunUrl(accountId: string, model: string): string {
+  return cloudflareChatUrl(accountId, model);
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -85,6 +91,16 @@ export function providerError(provider: string, status: number, body: string): E
   } catch {
     return new Error(`${provider} error (${status}): ${body.substring(0, 500)}`);
   }
+}
+
+/** OpenRouter returns 400/404 when a model ID was renamed or retired. */
+function isUnknownModelError(status: number, body: string): boolean {
+  if (status !== 400 && status !== 404) return false;
+  const lowered = body.toLowerCase();
+  return lowered.includes('no endpoints found')
+    || lowered.includes('not a valid model')
+    || lowered.includes('no allowed providers')
+    || lowered.includes('model not found');
 }
 
 export async function chatCompletion(args: {
@@ -153,23 +169,35 @@ export async function chatCompletion(args: {
     return text;
   }
 
-  const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resolved.apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://telepost.tech',
-      'X-Title': appTitle,
-    },
-    body: JSON.stringify({ model: resolved.model, messages, temperature, max_tokens: maxTokens }),
-  }, timeoutMs);
+  const callOpenRouter = async (model: string): Promise<{ ok: boolean; status: number; body: string }> => {
+    const response = await fetchWithTimeout(OPENROUTER_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resolved.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://telepost.tech',
+        'X-Title': appTitle,
+      },
+      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+    }, timeoutMs);
 
-  const body = await response.text();
-  if (!response.ok) throw providerError(resolved.provider, response.status, body);
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  };
+
+  let attempt = await callOpenRouter(resolved.model);
+
+  // Retired/renamed model IDs are a common cause of "AI not working".
+  // Retry once with the current default model instead of failing hard.
+  if (!attempt.ok && isUnknownModelError(attempt.status, attempt.body) && resolved.model !== OPENROUTER_DEFAULT_MODEL) {
+    console.warn(`[ai-provider] OpenRouter model "${resolved.model}" unavailable, retrying with ${OPENROUTER_DEFAULT_MODEL}.`);
+    attempt = await callOpenRouter(OPENROUTER_DEFAULT_MODEL);
+  }
+
+  if (!attempt.ok) throw providerError(resolved.provider, attempt.status, attempt.body);
 
   let data: any;
   try {
-    data = JSON.parse(body);
+    data = JSON.parse(attempt.body);
   } catch {
     throw new Error('OpenRouter returned a non-JSON response.');
   }

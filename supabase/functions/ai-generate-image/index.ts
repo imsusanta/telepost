@@ -1,241 +1,305 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { cloudflareRunUrl, providerError } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const OPENROUTER_DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const OPENAI_DEFAULT_IMAGE_MODEL = "dall-e-3";
+const CLOUDFLARE_DEFAULT_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
+
+type ImageProvider = "openrouter" | "cloudflare" | "openai";
+
 interface ImageGenerationRequest {
-    prompt: string;
-    style: "realistic" | "cartoon" | "minimalist" | "artistic";
-    aspectRatio: "1:1" | "16:9" | "9:16";
-    colorScheme: "vibrant" | "pastel" | "dark" | "auto";
+  prompt: string;
+  style: "realistic" | "cartoon" | "minimalist" | "artistic";
+  aspectRatio: "1:1" | "16:9" | "9:16";
+  colorScheme: "vibrant" | "pastel" | "dark" | "auto";
 }
 
 interface AISettings {
-    provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
-    model: string;
-    image_model: string;
-    openrouter_image_model?: string;
-    temperature: number;
-    system_prompt?: string;
-    openrouter_api_key?: string;
-    gemini_api_key?: string;
-    openai_api_key?: string;
+  provider: ImageProvider;
+  model: string;
+  image_model?: string;
+  openrouter_image_model?: string;
+  temperature: number;
+  system_prompt?: string;
+  openrouter_api_key?: string;
+  openai_api_key?: string;
+  cloudflare_account_id?: string;
+  cloudflare_api_token?: string;
 }
+
+interface ResolvedImageProvider {
+  provider: ImageProvider;
+  apiKey: string;
+  accountId?: string;
+  model: string;
+}
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, "Content-Type": "application/json" },
+});
 
 async function getAISettings(supabase: any): Promise<AISettings> {
-    try {
-        const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
-        if (data?.setting_value) return data.setting_value as AISettings;
-    } catch (e) { console.error("Settings fetch error:", e); }
-    return { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', image_model: 'dall-e-3', openrouter_image_model: 'openai/dall-e-3', temperature: 0.7 };
+  try {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "ai_settings")
+      .maybeSingle();
+    if (data?.setting_value) return data.setting_value as AISettings;
+  } catch (error) {
+    console.error("[ai-generate-image] Settings fetch error:", error);
+  }
+  return { provider: "openrouter", model: "", temperature: 0.7 };
 }
 
-function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKey: string; model: string } {
-    const provider = aiSettings.provider || 'openrouter';
-    let apiKey = '';
-    let finalProvider = provider;
-    let model = aiSettings.image_model || 'dall-e-3';
+/**
+ * Resolve the image provider from the configured text provider without
+ * silently swapping to a different vendor's credentials.
+ */
+function resolveImageProvider(settings: AISettings): ResolvedImageProvider {
+  const provider: ImageProvider = settings.provider === "cloudflare"
+    ? "cloudflare"
+    : settings.provider === "openai"
+      ? "openai"
+      : "openrouter";
 
-    if (provider === 'openrouter' || provider === 'lovable') {
-        model = aiSettings.openrouter_image_model || 'openai/dall-e-3';
+  if (provider === "cloudflare") {
+    const configured = settings.image_model?.trim();
+    return {
+      provider,
+      apiKey: settings.cloudflare_api_token?.trim() || "",
+      accountId: settings.cloudflare_account_id?.trim() || "",
+      model: configured?.startsWith("@cf/") ? configured : CLOUDFLARE_DEFAULT_IMAGE_MODEL,
+    };
+  }
+
+  if (provider === "openai") {
+    return {
+      provider,
+      apiKey: settings.openai_api_key?.trim() || "",
+      model: settings.image_model?.trim() || OPENAI_DEFAULT_IMAGE_MODEL,
+    };
+  }
+
+  return {
+    provider,
+    apiKey: settings.openrouter_api_key?.trim() || "",
+    model: settings.openrouter_image_model?.trim() || OPENROUTER_DEFAULT_IMAGE_MODEL,
+  };
+}
+
+function buildPrompt(body: ImageGenerationRequest): string {
+  const styleDescriptions = {
+    realistic: "photorealistic, high detail, professional photography style",
+    cartoon: "cartoon style, colorful, hand-drawn illustration, friendly and approachable",
+    minimalist: "minimalist design, clean lines, simple shapes, modern aesthetic",
+    artistic: "artistic, creative, painterly, expressive brush strokes, gallery-worthy",
+  };
+  const colorDescriptions = {
+    vibrant: "vibrant and saturated colors, bold color palette",
+    pastel: "soft pastel colors, gentle and soothing tones",
+    dark: "dark theme, moody lighting, deep shadows",
+    auto: "appropriate colors for the subject matter",
+  };
+  const aspectRatioMap = {
+    "1:1": "square (1024x1024)",
+    "16:9": "landscape (1792x1024)",
+    "9:16": "portrait (1024x1792)",
+  };
+
+  return `A ${styleDescriptions[body.style] || styleDescriptions.realistic} image of: ${body.prompt}. `
+    + `Aspect ratio: ${aspectRatioMap[body.aspectRatio] || aspectRatioMap["1:1"]}. `
+    + `Color scheme: ${colorDescriptions[body.colorScheme] || colorDescriptions.auto}. `
+    + "High quality, detailed, professional grade.";
+}
+
+const sizeMap: Record<string, string> = {
+  "1:1": "1024x1024",
+  "16:9": "1792x1024",
+  "9:16": "1024x1792",
+};
+
+function extractOpenRouterImage(data: any): string {
+  const message = data?.choices?.[0]?.message;
+  const fromImages = message?.images?.[0]?.image_url?.url || message?.images?.[0]?.url;
+  if (fromImages) return fromImages;
+
+  const content = message?.content;
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      const url = part?.image_url?.url || (part?.type === "image" ? part?.source?.data : "");
+      if (url) return url;
     }
+  }
+  if (typeof content === "string") {
+    const match = content.match(/https?:\/\/[^\s)]+/) || content.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
+    if (match) return match[0];
+  }
+  return "";
+}
 
-    const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
+async function generateWithOpenAICompatibleImages(resolved: ResolvedImageProvider, prompt: string, size: string): Promise<string> {
+  const url = resolved.provider === "openai"
+    ? "https://api.openai.com/v1/images/generations"
+    : "https://openrouter.ai/api/v1/images/generations";
 
-    if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
-        apiKey = aiSettings.gemini_api_key;
-        finalProvider = 'gemini';
-    } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
-        apiKey = aiSettings.openai_api_key;
-        finalProvider = 'openai';
-    } else if ((effectiveProvider === 'openrouter' || effectiveProvider === 'lovable') && aiSettings.openrouter_api_key) {
-        apiKey = aiSettings.openrouter_api_key;
-        finalProvider = 'openrouter';
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: resolved.model.replace(/^openai\//, ""),
+      prompt,
+      n: 1,
+      size,
+    }),
+  });
+
+  const body = await response.text();
+  if (!response.ok) throw providerError(resolved.provider, response.status, body);
+
+  const data = JSON.parse(body);
+  const item = data?.data?.[0];
+  const imageUrl = item?.url || (item?.b64_json ? `data:image/png;base64,${item.b64_json}` : "");
+  if (!imageUrl) throw new Error("Image provider returned no image.");
+  return imageUrl;
+}
+
+async function generateWithOpenRouterChat(resolved: ResolvedImageProvider, prompt: string): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://telepost.tech",
+      "X-Title": "TelePost",
+    },
+    body: JSON.stringify({
+      model: resolved.model,
+      modalities: ["image", "text"],
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  const body = await response.text();
+  if (!response.ok) throw providerError("OpenRouter", response.status, body);
+
+  const imageUrl = extractOpenRouterImage(JSON.parse(body));
+  if (!imageUrl) throw new Error("OpenRouter returned no image. Choose an image-capable model in Settings → AI.");
+  return imageUrl;
+}
+
+async function generateWithCloudflare(resolved: ResolvedImageProvider, prompt: string): Promise<string> {
+  const response = await fetch(cloudflareRunUrl(resolved.accountId!, resolved.model), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  if (!response.ok) {
+    throw providerError("Cloudflare", response.status, await response.text());
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const data = await response.json();
+    if (data?.success === false) {
+      throw providerError("Cloudflare", 500, JSON.stringify(data));
     }
+    const base64 = data?.result?.image || data?.result?.images?.[0];
+    if (!base64) throw new Error("Cloudflare Workers AI returned no image.");
+    return `data:image/jpeg;base64,${base64}`;
+  }
 
-    // FALLBACK
-    if (!apiKey) {
-        if (aiSettings.openrouter_api_key) {
-            apiKey = aiSettings.openrouter_api_key;
-            finalProvider = 'openrouter';
-            model = aiSettings.openrouter_image_model || 'openai/dall-e-3';
-        } else if (aiSettings.openai_api_key) {
-            apiKey = aiSettings.openai_api_key;
-            finalProvider = 'openai';
-            model = aiSettings.image_model || 'dall-e-3';
-        } else if (aiSettings.gemini_api_key) {
-            apiKey = aiSettings.gemini_api_key;
-            finalProvider = 'gemini';
-        }
-    }
-
-    return { finalProvider, apiKey, model };
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!bytes.length) throw new Error("Cloudflare Workers AI returned an empty image.");
+  return `data:${contentType || "image/png"};base64,${encodeBase64(bytes)}`;
 }
 
 serve(async (req) => {
-    if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return jsonResponse({ error: "Authentication required" }, 401);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error("Missing Supabase configuration");
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+
+    const body: ImageGenerationRequest = await req.json();
+    if (!body?.prompt?.trim()) return jsonResponse({ error: "Prompt is required" }, 400);
+
+    const aiSettings = await getAISettings(supabase);
+    const resolved = resolveImageProvider(aiSettings);
+
+    if (!resolved.apiKey || (resolved.provider === "cloudflare" && !resolved.accountId)) {
+      return jsonResponse({
+        error: `AI সার্ভিস কনফিগার করা হয়নি। Super Admin Settings → AI ট্যাবে ${resolved.provider} credentials সেট করুন।`,
+      }, 400);
+    }
+
+    const enhancedPrompt = buildPrompt(body);
+    const size = sizeMap[body.aspectRatio] || "1024x1024";
+    const startTime = Date.now();
+
+    console.log(`[ai-generate-image] user=${user.id}, provider=${resolved.provider}, model=${resolved.model}`);
+
+    let imageUrl = "";
+    if (resolved.provider === "cloudflare") {
+      imageUrl = await generateWithCloudflare(resolved, enhancedPrompt);
+    } else if (resolved.provider === "openai" || /dall-e|gpt-image/i.test(resolved.model)) {
+      imageUrl = await generateWithOpenAICompatibleImages(resolved, enhancedPrompt, size);
+    } else {
+      imageUrl = await generateWithOpenRouterChat(resolved, enhancedPrompt);
+    }
+
+    const generationTime = Date.now() - startTime;
 
     try {
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) throw new Error("Missing authorization header");
-
-        const body: ImageGenerationRequest = await req.json();
-
-        // Initialize Supabase
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-        // Get user
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !user) throw new Error("Unauthorized");
-
-        const aiSettings = await getAISettings(supabase);
-        const { finalProvider, apiKey, model } = resolveProvider(aiSettings);
-
-        if (!apiKey) throw new Error("AI Service not configured. Please set API Key in settings.");
-
-        const styleDescriptions = {
-            realistic: "photorealistic, high detail, professional photography style",
-            cartoon: "cartoon style, colorful, hand-drawn illustration, friendly and approachable",
-            minimalist: "minimalist design, clean lines, simple shapes, modern aesthetic",
-            artistic: "artistic, creative, painterly, expressive brush strokes, gallery-worthy",
-        };
-
-        const colorDescriptions = {
-            vibrant: "vibrant and saturated colors, bold color palette",
-            pastel: "soft pastel colors, gentle and soothing tones",
-            dark: "dark theme, moody lighting, deep shadows",
-            auto: "appropriate colors for the subject matter",
-        };
-
-        const aspectRatioMap = {
-            "1:1": "square (1024x1024)",
-            "16:9": "landscape (1792x1024)",
-            "9:16": "portrait (1024x1792)",
-        };
-
-        const sizeMap = {
-            "1:1": "1024x1024",
-            "16:9": "1792x1024",
-            "9:16": "1024x1792",
-        };
-
-        const enhancedPrompt = `A ${styleDescriptions[body.style]} image of: ${body.prompt}. 
-        Aspect ratio: ${aspectRatioMap[body.aspectRatio]}. 
-        Color scheme: ${colorDescriptions[body.colorScheme]}. 
-        High quality, detailed, professional grade.`;
-
-        const startTime = Date.now();
-        let imageUrl = null;
-
-        if (finalProvider === 'openai' || (finalProvider === 'openrouter' && model.includes('dall-e'))) {
-            // Use OpenAI Images API (or OpenRouter if it proxies this)
-            const fetchUrl = finalProvider === 'openai' 
-                ? "https://api.openai.com/v1/images/generations" 
-                : "https://openrouter.ai/api/v1/images/generations";
-
-            const res = await fetch(fetchUrl, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    model: model.replace('openai/', ''),
-                    prompt: enhancedPrompt,
-                    n: 1,
-                    size: sizeMap[body.aspectRatio] || "1024x1024",
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.text();
-                throw new Error(`Image API error (${res.status}): ${err}`);
-            }
-
-            const data = await res.json();
-            imageUrl = data.data?.[0]?.url;
-        } else if (finalProvider === 'openrouter') {
-            // Use OpenRouter Chat Completions for image generation
-            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://telepost.vercel.app",
-                    "X-Title": "TelePost",
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                {
-                                    type: "text",
-                                    text: enhancedPrompt
-                                }
-                            ]
-                        }
-                    ],
-                    response_format: { type: "json_object" } // Try to get structured response if supported
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.text();
-                throw new Error(`OpenRouter Chat-Image error (${res.status}): ${err}`);
-            }
-
-            const data = await res.json();
-            // OpenRouter image models usually return the URL in the content or as an attachment/url in the choice
-            // We'll check common locations
-            imageUrl = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.url;
-            
-            // If content is a URL, use it. If it's markdown, extract URL.
-            if (imageUrl && imageUrl.includes('http')) {
-                const urlMatch = imageUrl.match(/https?:\/\/[^\s\)]+/);
-                if (urlMatch) imageUrl = urlMatch[0];
-            }
-        } else if (finalProvider === 'gemini') {
-            // Basic Gemini Imagen support if available (requires specific model)
-            throw new Error("Direct Gemini image generation is not yet implemented. Please use OpenRouter with a Gemini model instead.");
-        } else {
-            throw new Error(`Provider ${finalProvider} does not support direct image generation in this version.`);
-        }
-
-        const generationTime = Date.now() - startTime;
-
-        // Log usage
-        await supabase.from("ai_usage_logs").insert({
-            user_id: user.id,
-            request_type: "image_generation",
-            prompt: body.prompt,
-            generation_time_ms: generationTime,
-            success: true,
-            metadata: { model, provider: finalProvider }
-        });
-
-        return new Response(
-            JSON.stringify({
-                imageUrl: imageUrl,
-                enhancedPrompt: enhancedPrompt.trim(),
-                generationTimeMs: generationTime,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-
-    } catch (error) {
-        console.error("[ai-generate-image] Error:", error.message);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+      await supabase.from("ai_usage_logs").insert({
+        user_id: user.id,
+        feature: "image-generation",
+        provider: resolved.provider,
+        model: resolved.model,
+        prompt: body.prompt,
+        status: "success",
+        success: true,
+        completed_at: new Date().toISOString(),
+        metadata: { model: resolved.model, provider: resolved.provider, generation_time_ms: generationTime },
+      });
+    } catch (logError) {
+      console.error("[ai-generate-image] Failed to log usage:", logError);
     }
+
+    return jsonResponse({
+      imageUrl,
+      provider: resolved.provider,
+      model: resolved.model,
+      enhancedPrompt: enhancedPrompt.trim(),
+      generationTimeMs: generationTime,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Image generation failed";
+    console.error("[ai-generate-image] Error:", message);
+    return jsonResponse({ error: message }, 400);
+  }
 });
