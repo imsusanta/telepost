@@ -25,7 +25,7 @@ export interface SystemMaintenance {
   maintenance_message: string;
 }
 
-export type AIProvider = 'openrouter' | 'lovable' | 'gemini' | 'openai' | 'cloudflare';
+export type AIProvider = 'openrouter' | 'cloudflare';
 
 export interface AISettings {
   provider: AIProvider;
