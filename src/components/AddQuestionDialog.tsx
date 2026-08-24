@@ -99,7 +99,6 @@ export function AddQuestionDialog({ onQuestionAdded, currentCount = 0 }: AddQues
     setExplanation("");
     setTopic("");
     setSubject("");
-    setDifficulty("medium");
     setLanguage("en");
     setTags("");
     setIsPublic(false);

@@ -42,7 +42,6 @@ export function QuestionSelectionDialog({
   onOpenChange,
   questions,
   defaultTopic = "",
-  defaultDifficulty = "medium",
   defaultLanguage = "en",
   onSaved,
 }: QuestionSelectionDialogProps) {

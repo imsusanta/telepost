@@ -54,8 +54,8 @@ export class QuestionBankService {
       user_id: userId,
       topic: q.topic || "General",
       subject: q.subject || undefined,
-      difficulty: q.difficulty || "medium",
-      language: q.language || "bn",
+      difficulty: q.difficulty ?? "medium",
+      language: q.language ?? "bn",
       source: "bulk_upload"
     }));
 

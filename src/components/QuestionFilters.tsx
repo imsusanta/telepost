@@ -690,7 +690,6 @@ export function QuestionFilters({
                             { id: 'latest' as const, label: 'Latest first' },
                             { id: 'oldest' as const, label: 'Oldest first' },
                             { id: 'a-z' as const, label: 'A-Z' },
-                            { id: 'difficulty' as const, label: 'By difficulty' },
                         ].map((option) => (
                             <Button
                                 key={option.id}
