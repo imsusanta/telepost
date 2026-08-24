@@ -1,0 +1,67 @@
+name: Build Hostinger production files
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "index.source.html"
+      - ".github/workflows/hostinger-production-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hostinger-production-build
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip hostinger build]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore the Vite source entry
+        run: cp index.source.html index.html
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Sync build output to Hostinger document root
+        run: |
+          rm -rf assets
+          rsync -a dist/ ./
+          rm -rf dist
+
+      - name: Commit production bundle
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Production bundle is already current."
+            exit 0
+          fi
+          git commit -m "deploy: publish Hostinger production build [skip hostinger build]"
+          git push origin HEAD:main
