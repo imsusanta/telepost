@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 serve(async (req) => {
@@ -11,30 +11,48 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // --- AUTH GATE: allow signed-in users OR requests with valid CRON_SECRET header ---
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // --- AUTH GATE ---
+  // Accepts, in order: the cron shared secret, the service role key (this is
+  // what pg_cron and internal dispatches send), or a signed-in user's JWT.
+  //
+  // Previously the service role key was only checked with auth.getUser(), which
+  // always fails for a service role JWT because it has no user attached, so
+  // every cron run was rejected with 401 and nothing was ever sent.
   {
     const cronSecret = Deno.env.get("CRON_SECRET");
-    const provided = req.headers.get("x-cron-secret");
+    const providedSecret = req.headers.get("x-cron-secret");
     const authHeader = req.headers.get("Authorization");
-    let allowed = !!(cronSecret && provided && provided === cronSecret);
-    if (!allowed && authHeader?.startsWith("Bearer ")) {
+    const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+    let allowed = !!(cronSecret && providedSecret && providedSecret === cronSecret);
+
+    if (!allowed && bearer && supabaseKey && bearer === supabaseKey) {
+      allowed = true;
+    }
+
+    if (!allowed && bearer) {
       try {
-        const tmp = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-        const { data } = await tmp.auth.getUser(authHeader.replace("Bearer ", ""));
+        const tmp = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+        const { data } = await tmp.auth.getUser(bearer);
         if (data?.user) allowed = true;
       } catch { /* ignore */ }
     }
+
     if (!allowed) {
+      console.warn("[process-scheduled-posts] Unauthorized invocation rejected.");
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // --- SELF-REPAIR CONFIGURATION BLOCK ---
+    // Keeps system_config in sync so the pg_cron workers can build the
+    // function URL and authenticate.
     const repairSecret = req.headers.get("X-Telepost-Repair-Secret");
     const isRepairRequest = repairSecret === "fix-my-config-2026";
 
@@ -45,10 +63,11 @@ serve(async (req) => {
         .in('key', ['supabase_url', 'supabase_service_role_key']);
 
       const currentKey = configData?.find(c => c.key === 'supabase_service_role_key')?.value;
+      const currentUrl = configData?.find(c => c.key === 'supabase_url')?.value;
 
-      // Repair if missing OR if explicitly requested via secret OR if key looks like a placeholder
       const needsRepair = !configData || configData.length < 2 ||
         isRepairRequest ||
+        currentUrl !== supabaseUrl ||
         (currentKey && !currentKey.includes('.'));
 
       if (needsRepair) {
@@ -77,6 +96,7 @@ serve(async (req) => {
     // ----------------------------------------
 
     const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    const TELEGRAM_API_ORIGIN = 'https:' + '//api.telegram.org';
 
     // Read body parameters if provided
     let reqBody: any = {};
@@ -88,7 +108,7 @@ serve(async (req) => {
 
     const isForce = reqBody?.force === true || reqBody?.triggered_by === 'manual';
 
-    // Safety Catch-Up 1: Reset stuck processing posts (> 5 minutes old) back to pending
+    // Safety Catch-Up: Reset stuck processing posts (> 5 minutes old) back to pending
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await supabase
       .from('scheduled_telegram_posts')
@@ -98,7 +118,7 @@ serve(async (req) => {
 
     // Atomically claim pending posts that are due
     let pendingPosts: any[] = [];
-    
+
     // Try RPC claim first
     try {
       const { data: claimedRpc, error: rpcError } = await supabase.rpc('claim_due_scheduled_posts');
@@ -115,7 +135,7 @@ serve(async (req) => {
     if (pendingPosts.length === 0) {
       // Look for pending posts that are due (with a 2-minute buffer for clock/timezone drift)
       // Or all pending posts if force/manual trigger
-      const dueThreshold = isForce 
+      const dueThreshold = isForce
         ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         : new Date(Date.now() + 2 * 60 * 1000).toISOString();
 
@@ -187,7 +207,16 @@ serve(async (req) => {
 
         console.log(`Processing post ${post.id} for chat ${post.chat_id} using ${channel?.telegram_bot_token ? 'channel-specific' : 'global'} bot token`);
 
-        const baseUrl = `https://api.telegram.org/bot${botToken}`;
+        const baseUrl = `${TELEGRAM_API_ORIGIN}/bot${botToken}`;
+
+        // Normalize chat ID - add -100 prefix for channels/supergroups if needed
+        let chatId = String(post.chat_id || '');
+        if (chatId && !chatId.startsWith('@') && !chatId.startsWith('-100')) {
+          const numericId = chatId.replace(/^-/, '');
+          if (/^\d+$/.test(numericId)) {
+            chatId = `-100${numericId}`;
+          }
+        }
 
         // Helper to send Telegram requests with retry logic for 429 errors
         async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
@@ -207,7 +236,6 @@ serve(async (req) => {
           return fetch(url, options); // Final attempt
         }
 
-        // Detect if questions contain Bengali text
         if (!post.quiz_data || !post.quiz_data.questions) {
           throw new Error("Invalid quiz data: Missing questions");
         }
@@ -229,12 +257,12 @@ serve(async (req) => {
             : `📝 *Quiz: ${post.quiz_data.topic || "General"}*\n\n📊 ${post.quiz_data.questions.length} questions for you! Answer the questions below:`;
 
         // Send intro message
-        console.log(`[Post ${post.id}] Sending intro message to ${post.chat_id}`);
+        console.log(`[Post ${post.id}] Sending intro message to ${chatId}`);
         const introResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chat_id: post.chat_id,
+            chat_id: chatId,
             text: introText,
             parse_mode: "Markdown",
           }),
@@ -271,7 +299,7 @@ serve(async (req) => {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                chat_id: post.chat_id,
+                chat_id: chatId,
                 text: safeTruncate(`*Question ${i + 1}:*\n${q.question}`, 4000),
                 parse_mode: "Markdown",
               }),
@@ -288,17 +316,22 @@ serve(async (req) => {
             pollOptions.push("Option " + (pollOptions.length + 1));
           }
 
+          const correctIndex = Number.parseInt(String(q.correct_option_index), 10);
+          const safeCorrectIndex = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < pollOptions.length
+            ? correctIndex
+            : 0;
+
           const pollExplanation = safeTruncate(q.explanation || "Correct", 150);
           console.log(`[Post ${post.id}] Sending poll for question ${i + 1}/${post.quiz_data.questions.length}`);
           const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              chat_id: post.chat_id,
+              chat_id: chatId,
               question: pollQuestion,
               options: pollOptions,
               type: "quiz",
-              correct_option_id: parseInt(String(q.correct_option_index)),
+              correct_option_id: safeCorrectIndex,
               explanation: pollExplanation,
               is_anonymous: true,
             }),
