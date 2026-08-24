@@ -23,10 +23,11 @@ export interface ChatMessage {
 }
 
 const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
+const CLOUDFLARE_DEFAULT_MODEL = '@cf/openai/gpt-oss-20b';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openrouter: 'google/gemini-2.0-flash-exp:free',
-  cloudflare: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  cloudflare: CLOUDFLARE_DEFAULT_MODEL,
 };
 
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
@@ -40,7 +41,7 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
       provider: 'cloudflare',
       apiKey: settings.cloudflare_api_token,
       accountId: settings.cloudflare_account_id,
-      model: cloudflareModel.startsWith('@cf/') ? cloudflareModel : DEFAULT_MODELS.cloudflare,
+      model: cloudflareModel.startsWith('@cf/') ? cloudflareModel : CLOUDFLARE_DEFAULT_MODEL,
     });
   }
   if (settings.openrouter_api_key) {
@@ -94,78 +95,34 @@ export async function chatCompletion(args: {
   timeoutMs?: number;
   appTitle?: string;
 }): Promise<string> {
-  const {
-    resolved,
-    messages,
-    temperature = 0.7,
-    maxTokens = 2048,
-    timeoutMs = 90000,
-    appTitle = 'TelePost',
-  } = args;
+  const { resolved, messages, temperature = 0.7, maxTokens = 2048, timeoutMs = 90000, appTitle = 'TelePost' } = args;
 
   if (!resolved.apiKey) throw new Error(`API credentials are missing for ${resolved.provider}.`);
-  if (resolved.provider === 'cloudflare' && !resolved.accountId) {
-    throw new Error('Cloudflare Account ID is missing.');
-  }
-  if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) {
-    throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
-  }
+  if (resolved.provider === 'cloudflare' && !resolved.accountId) throw new Error('Cloudflare Account ID is missing.');
+  if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
 
   if (resolved.provider === 'cloudflare') {
     const url = cloudflareChatUrl(resolved.accountId!, resolved.model);
-    const prompt = messages.map((message) => `${message.role}: ${message.content}`).join('\n\n');
-    const response = await fetchWithTimeout(
-      url,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resolved.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages,
-          prompt,
-          temperature,
-          max_tokens: maxTokens,
-          stream: false,
-        }),
-      },
-      timeoutMs,
-    );
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, temperature, max_tokens: maxTokens, stream: false }),
+    }, timeoutMs);
     const body = await response.text();
     if (!response.ok) throw providerError(resolved.provider, response.status, body);
-
     const data = JSON.parse(body);
-    const text = data?.result?.response
-      || data?.result?.choices?.[0]?.message?.content
-      || data?.choices?.[0]?.message?.content
-      || '';
+    const text = data?.result?.response || data?.result?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.content || '';
     if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
     return text;
   }
 
-  const response = await fetchWithTimeout(
-    'https://openrouter.ai/api/v1/chat/completions',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resolved.apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://telepost.tech',
-        'X-Title': appTitle,
-      },
-      body: JSON.stringify({
-        model: resolved.model,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-      }),
-    },
-    timeoutMs,
-  );
+  const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://telepost.tech', 'X-Title': appTitle },
+    body: JSON.stringify({ model: resolved.model, messages, temperature, max_tokens: maxTokens }),
+  }, timeoutMs);
   const body = await response.text();
   if (!response.ok) throw providerError(resolved.provider, response.status, body);
-
   const data = JSON.parse(body);
   const text = data?.choices?.[0]?.message?.content || '';
   if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
