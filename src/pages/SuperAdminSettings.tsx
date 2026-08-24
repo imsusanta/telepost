@@ -32,7 +32,7 @@ const CLOUDFLARE_MODELS = [
 ];
 
 type SupportedAIProvider = Extract<AIProvider, 'openrouter' | 'cloudflare'>;
-const PROVIDER_DEFAULT_MODELS: Record<SupportedAIProvider, string> = { openrouter: 'google/gemini-2.0-flash-exp:free', cloudflare: '@cf/openai/gpt-oss-120b' };
+const PROVIDER_DEFAULT_MODELS: Record<SupportedAIProvider, string> = { openrouter: 'google/gemini-2.0-flash-exp:free', cloudflare: '@cf/meta/llama-3.3-70b-instruct-fp8-fast' };
 const DEFAULT_AI_SETTINGS: AISettings = { provider: 'openrouter', model: PROVIDER_DEFAULT_MODELS.openrouter, image_model: '', openrouter_image_model: '', temperature: 0.7, system_prompt: '', openrouter_api_key: '', cloudflare_account_id: '', cloudflare_api_token: '' };
 
 function normalizeAISettings(settings: AISettings): AISettings {
