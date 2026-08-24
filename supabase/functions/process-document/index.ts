@@ -1,599 +1,98 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@1.0.2";
+import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface AISettings {
-  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
-  model: string;
-  temperature: number;
-  openrouter_api_key?: string;
-  gemini_api_key?: string;
-  openai_api_key?: string;
-  system_prompt?: string;
-}
-
-const RELIABLE_FREE_MODELS = [
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemini-2.0-flash-lite-preview-02-05:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'mistralai/pixtral-12b:free',
-  'deepseek/deepseek-chat:free'
-];
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAISettings(supabase: any): Promise<AISettings> {
-  try {
-    const { data } = await supabase
-      .from('system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'ai_settings')
-      .maybeSingle();
-
-    if (data?.setting_value) {
-      return data.setting_value as AISettings;
-    }
-  } catch (error) {
-    console.error("Failed to fetch AI settings:", error);
-  }
-
-  return {
-    provider: 'openrouter',
-    model: 'google/gemini-2.0-flash-exp:free',
-    temperature: 0.7,
-  };
+  const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
+  return data?.setting_value || { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', temperature: 0.7 };
 }
 
-/**
- * Resolve the best available provider + API key + model with fallback.
- */
-function resolveProvider(aiSettings: AISettings): { finalProvider: string; apiKey: string; model: string } {
-  const provider = aiSettings.provider || 'openrouter';
-  let apiKey = '';
-  let finalProvider = provider;
-  let model = aiSettings.model;
-  
-  // Add fallback if model is empty to prevent API errors
-  if (!model || model.trim() === '') {
-      if (provider === 'gemini') model = 'gemini-2.0-flash';
-      else if (provider === 'openai') model = 'gpt-4o-mini';
-      else model = 'google/gemini-2.0-flash-exp:free';
-  }
-
-  const effectiveProvider = provider === 'lovable' ? 'openrouter' : provider;
-
-  if (effectiveProvider === 'gemini' && aiSettings.gemini_api_key) {
-    apiKey = aiSettings.gemini_api_key;
-    finalProvider = 'gemini';
-  } else if (effectiveProvider === 'openai' && aiSettings.openai_api_key) {
-    apiKey = aiSettings.openai_api_key;
-    finalProvider = 'openai';
-  } else if (effectiveProvider === 'openrouter' && aiSettings.openrouter_api_key) {
-    apiKey = aiSettings.openrouter_api_key;
-    finalProvider = 'openrouter';
-  }
-
-  // FALLBACK
-  if (!apiKey) {
-    console.warn(`[process-document] No API key for ${effectiveProvider}, trying fallbacks...`);
-    if (aiSettings.openrouter_api_key) {
-      apiKey = aiSettings.openrouter_api_key;
-      finalProvider = 'openrouter';
-      if (!model.includes('/')) model = 'google/gemini-2.0-flash-exp:free';
-    } else if (aiSettings.gemini_api_key) {
-      apiKey = aiSettings.gemini_api_key;
-      finalProvider = 'gemini';
-      model = 'gemini-2.0-flash';
-    } else if (aiSettings.openai_api_key) {
-      apiKey = aiSettings.openai_api_key;
-      finalProvider = 'openai';
-      model = 'gpt-4o-mini';
-    }
-  }
-
-  // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
-  if (model && model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
-      apiKey = aiSettings.gemini_api_key;
-      finalProvider = 'gemini';
-  }
-
-  return { finalProvider, apiKey, model };
+async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; pageCount: number }> {
+  const pdf = await getDocumentProxy(bytes);
+  const result = await extractText(pdf, { mergePages: true });
+  const text = Array.isArray(result.text) ? result.text.join('\n\n') : result.text;
+  return { text: String(text || '').trim(), pageCount: result.totalPages || 1 };
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
-    console.log("=== PDF Processing Request Started ===");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Initialize Supabase with service role key for server-to-server operations
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const { documentId, storagePath, userId } = await req.json();
+    if (!documentId || !storagePath) return new Response(JSON.stringify({ error: 'documentId and storagePath are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase configuration");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error: Missing environment variables" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { data: document, error: documentError } = await supabase.from('documents').select('user_id').eq('id', documentId).single();
+    if (documentError || !document) return new Response(JSON.stringify({ error: 'Document not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (userId && userId !== document.user_id) return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: fileData, error: downloadError } = await supabase.storage.from('documents').download(storagePath);
+    if (downloadError || !fileData) throw new Error(`Failed to download PDF: ${downloadError?.message || 'No data'}`);
+    if (fileData.size === 0) throw new Error('The PDF file is empty.');
+    if (fileData.size > 50 * 1024 * 1024) return new Response(JSON.stringify({ error: 'File size exceeds maximum limit of 50MB' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const { documentId, storagePath, publicUrl, userId } = await req.json();
+    const bytes = new Uint8Array(await fileData.arrayBuffer());
+    if (bytes[0] !== 0x25 || bytes[1] !== 0x50 || bytes[2] !== 0x44 || bytes[3] !== 0x46) return new Response(JSON.stringify({ error: 'Invalid file format. Only PDF files are supported.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    if (!documentId) {
-      console.error("Missing documentId in request");
-      return new Response(
-        JSON.stringify({ error: "Missing documentId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!storagePath) {
-      console.error("Missing storagePath in request");
-      return new Response(
-        JSON.stringify({ error: "Missing storagePath" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Processing document ${documentId} from ${storagePath}`);
-
-    // SECURITY: Verify the document exists and get owner info
-    const { data: document, error: docError } = await supabase
-      .from('documents')
-      .select('user_id')
-      .eq('id', documentId)
-      .single();
-
-    if (docError || !document) {
-      console.error("Document not found:", docError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Document not found' }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // If userId was passed, verify it matches (optional extra security layer)
-    if (userId && document.user_id !== userId) {
-      console.error(`Unauthorized: Passed userId ${userId} does not match document owner ${document.user_id}`);
-      return new Response(
-        JSON.stringify({ error: 'Access denied' }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`✓ Document ownership verified for user ${document.user_id}`);
-
-    // Get AI settings from database
-    const aiSettings = await getAISettings(supabase);
-
-    // Resolve provider with fallback logic
-    const { finalProvider, apiKey, model: resolvedModel } = resolveProvider(aiSettings);
-
-    if (!apiKey) {
-      throw new Error(`AI service not configured. Please set an API Key in Super Admin → Settings → AI tab.`);
-    }
-
-    console.log(`[process-document] Using provider=${finalProvider}, model=${resolvedModel}, hasKey=${!!apiKey}`);
-
-    // Download PDF from storage
-    console.log(`Downloading file from storage: ${storagePath}`);
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from("documents")
-      .download(storagePath);
-
-    if (downloadError) {
-      console.error(`DOWNLOAD ERROR for ${storagePath}:`, JSON.stringify(downloadError));
-      throw new Error(`Failed to download PDF: ${downloadError.message || 'Unknown download error'}`);
-    }
-
-    if (!fileData) {
-      console.error(`No file data received for ${storagePath}`);
-      throw new Error("Failed to download PDF: No data received");
-    }
-
-    console.log(`✓ File downloaded successfully, size: ${fileData.size} bytes (${(fileData.size / 1024 / 1024).toFixed(2)} MB)`);
-
-    if (fileData.size === 0) {
-      console.error("Downloaded file is empty");
-      throw new Error("The PDF file is empty or could not be read from storage.");
-    }
-
-    // Server-side PDF validation: Check magic bytes
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-    if (fileData.size > MAX_FILE_SIZE) {
-      console.error(`File too large: ${fileData.size} bytes (max: ${MAX_FILE_SIZE})`);
-      return new Response(
-        JSON.stringify({ error: 'File size exceeds maximum limit of 50MB' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate PDF magic bytes (%PDF)
-    const headerBuffer = await fileData.slice(0, 4).arrayBuffer();
-    const header = new Uint8Array(headerBuffer);
-    const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46]; // %PDF
-    const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
-
-    if (!isPDF) {
-      console.error(`Invalid PDF: File does not have valid PDF signature. Got: ${Array.from(header).map(b => b.toString(16)).join(' ')}`);
-      return new Response(
-        JSON.stringify({ error: 'Invalid file format. Only PDF files are supported.' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`✓ PDF file validation passed`);
-
-    // Use AI to extract text from PDF
-    let extractedText = "";
+    let extractedText = '';
     let pageCount = 1;
-    let aiSummary = "";
-    let topics: string[] = [];
-
     try {
-      console.log("=== Starting AI Text Extraction ===");
-
-      // Convert blob to base64 in chunks to avoid stack overflow
-      console.log("Converting PDF to base64...");
-      const arrayBuffer = await fileData.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      let base64 = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-        base64 += String.fromCharCode(...chunk);
-      }
-      base64 = btoa(base64);
-      console.log(`✓ PDF converted to base64 (${base64.length} characters)`);
-
-      let isExtractOk = false;
-      let extractStatus = 0;
-
-      // --- EXTRACTION LOOP ---
-      const extractionModels = [resolvedModel];
-      
-      for (const currentModel of extractionModels) {
-        try {
-          console.log(`[process-document] Attempting extraction with model=${currentModel}...`);
-          
-          if (finalProvider === 'gemini') {
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
-            const extractResponse = await fetch(geminiUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: "Extract all text from this PDF document. Return only the extracted text content. No markdown code blocks." },
-                    { inlineData: { mimeType: "application/pdf", data: base64 } }
-                  ]
-                }],
-                generationConfig: { temperature: 0.1 }
-              })
-            });
-
-            isExtractOk = extractResponse.ok;
-            extractStatus = extractResponse.status;
-
-            if (isExtractOk) {
-              const geminiData = await extractResponse.json();
-              extractedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            } else {
-              const errorText = await extractResponse.text();
-              console.error(`Gemini Extraction Error (${currentModel}):`, errorText);
-            }
-          } else if (finalProvider === 'openai') {
-            const extractResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: currentModel,
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
-                  },
-                  {
-                    role: "user",
-                    content: [
-                      {
-                        type: "text",
-                        text: "Extract all text from this PDF document. Return only the extracted text content."
-                      },
-                      {
-                        type: "image_url",
-                        image_url: {
-                          url: `data:application/pdf;base64,${base64}`
-                        }
-                      }
-                    ]
-                  },
-                ],
-                temperature: 0.1,
-              }),
-            });
-
-            isExtractOk = extractResponse.ok;
-            extractStatus = extractResponse.status;
-
-            if (isExtractOk) {
-              const extractData = await extractResponse.json();
-              extractedText = extractData.choices?.[0]?.message?.content || "";
-            } else {
-              const errorText = await extractResponse.text();
-              console.error(`OpenAI extraction error (${currentModel}, status ${extractStatus}):`, errorText);
-            }
-          } else {
-            // OpenRouter
-            const extractResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": supabaseUrl,
-                "X-Title": "QuizMaker Document Processing",
-              },
-              body: JSON.stringify({
-                model: currentModel,
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a document analyzer. Extract all text content from the provided PDF document and return it as plain text.",
-                  },
-                  {
-                    role: "user",
-                    content: [
-                      {
-                        type: "text",
-                        text: "Extract all text from this PDF document. Return only the extracted text content."
-                      },
-                      {
-                        type: "image_url",
-                        image_url: {
-                          url: `data:application/pdf;base64,${base64}`
-                        }
-                      }
-                    ]
-                  },
-                ],
-                temperature: 0.1,
-              }),
-            });
-
-            isExtractOk = extractResponse.ok;
-            extractStatus = extractResponse.status;
-
-            if (isExtractOk) {
-              const extractData = await extractResponse.json();
-              extractedText = extractData.choices?.[0]?.message?.content || "";
-            } else {
-              const errorText = await extractResponse.text();
-              console.error(`OpenRouter extraction error (${currentModel}, status ${extractStatus}):`, errorText);
-            }
-          }
-
-          if (isExtractOk && extractedText && extractedText.length > 50) {
-            console.log(`✓ Successful extraction with ${currentModel}`);
-            break; // Exit the loop
-          }
-        } catch (err) {
-          console.error(`[process-document] Error during extraction with ${currentModel}:`, err);
-        }
-      }
-
-      if (isExtractOk) {
-        console.log(`✓ AI extraction response received (status: ${extractStatus})`);
-
-        if (extractedText && extractedText.length > 100) {
-          console.log(`✓ Text extraction successful: ${extractedText.length} characters`);
-
-          // Now analyze the extracted text for summary and topics
-          console.log("Analyzing extracted text for summary and topics...");
-
-          let analyzeOk = false;
-          let analyzeContent = "";
-
-          // --- ANALYSIS ---
-          const analysisModels = [resolvedModel];
-          for (const currentModel of analysisModels) {
-            try {
-              console.log(`[process-document] Attempting analysis with model=${currentModel}...`);
-              
-              if (finalProvider === 'gemini') {
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
-                const analyzeResponse = await fetch(geminiUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    contents: [{
-                      parts: [{ text: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}` }]
-                    }],
-                    generationConfig: { temperature: 0.3 }
-                  })
-                });
-                analyzeOk = analyzeResponse.ok;
-                if (analyzeOk) {
-                  const data = await analyzeResponse.json();
-                  analyzeContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                }
-              } else if (finalProvider === 'openai') {
-                const analyzeResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: currentModel,
-                    messages: [
-                      {
-                        role: "system",
-                        content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
-                      },
-                      {
-                        role: "user",
-                        content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
-                      },
-                    ],
-                    temperature: 0.3,
-                  }),
-                });
-                analyzeOk = analyzeResponse.ok;
-                if (analyzeOk) {
-                  const analyzeData = await analyzeResponse.json();
-                  analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
-                }
-              } else {
-                const analyzeResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": supabaseUrl,
-                    "X-Title": "QuizMaker Document Analysis",
-                  },
-                  body: JSON.stringify({
-                    model: currentModel,
-                    messages: [
-                      {
-                        role: "system",
-                        content: "You are a document analyzer. Analyze the document and provide a brief summary (2-3 sentences) and list of main topics as a JSON object with keys 'summary' and 'topics' (array of strings).",
-                      },
-                      {
-                        role: "user",
-                        content: `Analyze this document and provide:\n1. A brief summary (2-3 sentences)\n2. A list of main topics (3-5 topics as array)\n\nReturn ONLY a JSON object like: {"summary": "...", "topics": ["topic1", "topic2", ...]}\n\nDocument content:\n${extractedText.substring(0, 5000)}`,
-                      },
-                    ],
-                    temperature: 0.3,
-                  }),
-                });
-                analyzeOk = analyzeResponse.ok;
-                if (analyzeOk) {
-                  const analyzeData = await analyzeResponse.json();
-                  analyzeContent = analyzeData.choices?.[0]?.message?.content || "";
-                }
-              }
-
-              if (analyzeOk && analyzeContent) {
-                console.log(`✓ Successful analysis with ${currentModel}`);
-                break;
-              }
-            } catch (err) {
-              console.error(`[process-document] Error during analysis with ${currentModel}:`, err);
-            }
-          }
-
-          if (analyzeOk) {
-            console.log(`✓ Analysis response received`);
-
-            try {
-              let cleanedAnalyze = analyzeContent.trim();
-              const startPos = cleanedAnalyze.indexOf('{');
-              const endPos = cleanedAnalyze.lastIndexOf('}');
-
-              if (startPos !== -1 && endPos !== -1) {
-                cleanedAnalyze = cleanedAnalyze.substring(startPos, endPos + 1);
-              }
-
-              const parsed = JSON.parse(cleanedAnalyze);
-              aiSummary = parsed.summary || analyzeContent.split('\n').slice(0, 3).join(' ');
-              topics = Array.isArray(parsed.topics) && parsed.topics.length > 0
-                ? parsed.topics
-                : ["General"];
-              console.log(`✓ Extracted ${topics.length} topics: ${topics.join(', ')}`);
-            } catch (e) {
-              console.warn("Failed to parse analysis JSON, using fallback");
-              console.warn("Original content:", analyzeContent);
-              aiSummary = analyzeContent.substring(0, 300);
-              topics = ["General"];
-            }
-            console.log("✓ AI analysis completed successfully");
-          } else {
-            console.error(`AI analysis error`);
-            aiSummary = `Document processed with ${extractedText.length} characters`;
-            topics = ["General"];
-          }
-        } else {
-          console.warn("⚠ Insufficient text extracted from PDF (less than 100 characters)");
-          extractedText = "Document processed but text extraction was minimal. Please ensure the PDF is not encrypted or image-only.";
-          aiSummary = extractedText;
-          topics = ["General"];
-        }
-      } else {
-        // Check for specific error types
-        if (extractStatus === 401 || extractStatus === 403) {
-          // Authentication error is critical
-          console.error("AI API authentication failed");
-          extractedText = "AI API authentication failed. Please check your API key in the Settings page.";
-          aiSummary = extractedText;
-          topics = ["Needs Configuration"];
-        } else if (extractStatus === 429) {
-          extractedText = "AI API rate limit exceeded. Please try again later.";
-          aiSummary = extractedText;
-          topics = ["Rate Limited"];
-        } else if (extractStatus === 402) {
-          extractedText = "AI API quota exceeded. Please check your billing.";
-          aiSummary = extractedText;
-          topics = ["Quota Exceeded"];
-        } else {
-          // Non-critical failure (e.g., model doesn't support PDF)
-          console.warn(`AI extraction failed with status ${extractStatus}. Using fallback.`);
-          extractedText = "This document was uploaded but automatic text extraction was not possible. You can still use it for reference or try re-uploading with a different AI model configured (Gemini is recommended for PDFs).";
-          aiSummary = "Document uploaded. AI text extraction was not available for this file.";
-          topics = ["General"];
-        }
-      }
+      const extracted = await extractPdfText(bytes);
+      extractedText = extracted.text;
+      pageCount = extracted.pageCount;
     } catch (error) {
-      console.error("AI extraction failed:", error);
-      extractedText = `Error processing PDF: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      aiSummary = extractedText;
-      topics = ["General"];
+      console.error('[process-document] PDF text extraction failed:', error);
+      throw new Error('Could not read this PDF. It may be encrypted, image-only, or corrupted.');
     }
 
-    // Ensure we always have valid data
-    const response = {
-      extractedText: extractedText || "Error: Could not extract text from PDF",
-      pageCount: pageCount || 1,
-      aiSummary: aiSummary || "Document processed",
-      topics: (topics && topics.length > 0) ? topics : ["General"],
-    };
+    if (extractedText.length < 50) {
+      return new Response(JSON.stringify({
+        extractedText: 'This PDF contains little or no selectable text. OCR is required for scanned documents.',
+        pageCount,
+        aiSummary: 'Document uploaded, but automatic text extraction found no readable text.',
+        topics: ['Needs OCR'],
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
-    console.log(`=== Document ${documentId} processed successfully ===`);
-    console.log(`Final stats: ${response.extractedText.length} chars, ${response.pageCount} pages, ${response.topics.length} topics`);
+    const aiSettings = await getAISettings(supabase);
+    const resolved = resolveAIProvider(aiSettings);
+    if (!resolved.apiKey || (resolved.provider === 'cloudflare' && !resolved.accountId)) throw new Error(`AI credentials are missing for ${resolved.provider}. Configure Super Admin → Settings → AI.`);
 
-    return new Response(
-      JSON.stringify(response),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    const analysisPrompt = `Analyze this document. Return only JSON with a concise 2-3 sentence summary and 3-5 main topics:\n{"summary":"...","topics":["..."]}\n\nDOCUMENT:\n${extractedText.substring(0, 12000)}`;
+    let aiSummary = `Document processed with ${extractedText.length} characters.`;
+    let topics: string[] = ['General'];
+    try {
+      const analysisText = await chatCompletion({
+        resolved,
+        messages: [
+          { role: 'system', content: `${aiSettings.system_prompt || ''}\nYou are a document analyst. Output only valid JSON.` },
+          { role: 'user', content: analysisPrompt },
+        ],
+        temperature: 0.3,
+        maxTokens: 1024,
+        timeoutMs: 90000,
+        appTitle: 'TelePost Document Processing',
+      });
+      const parsed = parseJsonObject(analysisText) as any;
+      if (typeof parsed.summary === 'string' && parsed.summary.trim()) aiSummary = parsed.summary.trim();
+      if (Array.isArray(parsed.topics) && parsed.topics.length) topics = parsed.topics.filter((topic: unknown) => typeof topic === 'string').slice(0, 5);
+    } catch (analysisError) {
+      console.error('[process-document] AI analysis failed:', analysisError);
+    }
+
+    return new Response(JSON.stringify({ extractedText, pageCount, aiSummary, topics, provider: resolved.provider, model: resolved.model }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    console.error("=== ERROR PROCESSING DOCUMENT ===");
-    console.error("Error details:", error);
-
-    // Return a more descriptive error even in 500
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred while processing PDF";
-    const errorDetails = error instanceof Error ? error.stack : undefined;
-
-    return new Response(
-      JSON.stringify({
-        error: errorMessage,
-        details: errorDetails,
-        status: "failed"
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error('[process-document] Error:', error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error occurred while processing PDF', status: 'failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
