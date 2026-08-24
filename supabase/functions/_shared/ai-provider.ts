@@ -22,7 +22,7 @@ export interface ChatMessage {
   content: string;
 }
 
-const CLOUDFLARE_API_ORIGIN = 'https:' + '//api.cloudflare.com';
+const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openrouter: 'google/gemini-2.0-flash-exp:free',
@@ -40,7 +40,6 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
       provider: 'cloudflare',
       apiKey: settings.cloudflare_api_token,
       accountId: settings.cloudflare_account_id,
-      // Cloudflare only serves its own hosted Workers AI catalog (@cf/...).
       model: cloudflareModel.startsWith('@cf/') ? cloudflareModel : DEFAULT_MODELS.cloudflare,
     });
   }
@@ -60,7 +59,10 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
   };
 }
 
-export function cloudflareChatUrl(accountId: string): string {
+export function cloudflareChatUrl(accountId: string, model?: string): string {
+  if (model && model.startsWith('@cf/')) {
+    return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${encodeURIComponent(model)}`;
+  }
   return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/v1/chat/completions`;
 }
 
@@ -109,24 +111,49 @@ export async function chatCompletion(args: {
     throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
   }
 
-  const url = resolved.provider === 'cloudflare'
-    ? cloudflareChatUrl(resolved.accountId!)
-    : 'https://openrouter.ai/api/v1/chat/completions';
+  if (resolved.provider === 'cloudflare') {
+    const url = cloudflareChatUrl(resolved.accountId!, resolved.model);
+    const prompt = messages.map((message) => `${message.role}: ${message.content}`).join('\n\n');
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resolved.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          prompt,
+          temperature,
+          max_tokens: maxTokens,
+          stream: false,
+        }),
+      },
+      timeoutMs,
+    );
+    const body = await response.text();
+    if (!response.ok) throw providerError(resolved.provider, response.status, body);
 
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${resolved.apiKey}`,
-    'Content-Type': 'application/json',
-  };
-  if (resolved.provider === 'openrouter') {
-    headers['HTTP-Referer'] = 'https://telepost.tech';
-    headers['X-Title'] = appTitle;
+    const data = JSON.parse(body);
+    const text = data?.result?.response
+      || data?.result?.choices?.[0]?.message?.content
+      || data?.choices?.[0]?.message?.content
+      || '';
+    if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
+    return text;
   }
 
   const response = await fetchWithTimeout(
-    url,
+    'https://openrouter.ai/api/v1/chat/completions',
     {
       method: 'POST',
-      headers,
+      headers: {
+        Authorization: `Bearer ${resolved.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://telepost.tech',
+        'X-Title': appTitle,
+      },
       body: JSON.stringify({
         model: resolved.model,
         messages,
@@ -140,10 +167,7 @@ export async function chatCompletion(args: {
   if (!response.ok) throw providerError(resolved.provider, response.status, body);
 
   const data = JSON.parse(body);
-  const text = data?.choices?.[0]?.message?.content
-    || data?.result?.choices?.[0]?.message?.content
-    || data?.result?.response
-    || '';
+  const text = data?.choices?.[0]?.message?.content || '';
   if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
   return text;
 }
