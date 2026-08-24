@@ -25,8 +25,10 @@ export interface SystemMaintenance {
   maintenance_message: string;
 }
 
+export type AIProvider = 'openrouter' | 'lovable' | 'gemini' | 'openai' | 'cloudflare';
+
 export interface AISettings {
-  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
+  provider: AIProvider;
   model: string;
   image_model: string;
   openrouter_image_model?: string;
@@ -35,6 +37,8 @@ export interface AISettings {
   openrouter_api_key?: string;
   gemini_api_key?: string;
   openai_api_key?: string;
+  cloudflare_account_id?: string;
+  cloudflare_api_token?: string;
 }
 
 export interface TelegramSettings {
@@ -60,9 +64,20 @@ export interface SystemSettings {
 
 type SettingKey = keyof SystemSettings;
 
-/**
- * Get all system settings
- */
+const DEFAULT_AI_SETTINGS: AISettings = {
+  provider: 'openrouter',
+  model: '',
+  image_model: '',
+  openrouter_image_model: '',
+  temperature: 0.7,
+  system_prompt: '',
+  openrouter_api_key: '',
+  gemini_api_key: '',
+  openai_api_key: '',
+  cloudflare_account_id: '',
+  cloudflare_api_token: '',
+};
+
 export async function getAllSettings(): Promise<SystemSettings> {
   const { data, error } = await supabase
     .from('system_settings')
@@ -74,12 +89,8 @@ export async function getAllSettings(): Promise<SystemSettings> {
   }
 
   const settings: Record<string, unknown> = {};
+  for (const row of data || []) settings[row.setting_key] = row.setting_value;
 
-  for (const row of data || []) {
-    settings[row.setting_key] = row.setting_value;
-  }
-
-  // Return with defaults if any are missing
   return {
     invitation_defaults: (settings.invitation_defaults as InvitationDefaults) || {
       default_max_uses: 10,
@@ -102,15 +113,8 @@ export async function getAllSettings(): Promise<SystemSettings> {
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
     ai_settings: {
-      provider: (settings.ai_settings as AISettings)?.provider || 'openrouter',
-      model: (settings.ai_settings as AISettings)?.model || '',
-      image_model: (settings.ai_settings as AISettings)?.image_model || '',
-      openrouter_image_model: (settings.ai_settings as AISettings)?.openrouter_image_model || '',
-      temperature: (settings.ai_settings as AISettings)?.temperature ?? 0.7,
-      system_prompt: (settings.ai_settings as AISettings)?.system_prompt || '',
-      openrouter_api_key: (settings.ai_settings as AISettings)?.openrouter_api_key || '',
-      gemini_api_key: (settings.ai_settings as AISettings)?.gemini_api_key || '',
-      openai_api_key: (settings.ai_settings as AISettings)?.openai_api_key || '',
+      ...DEFAULT_AI_SETTINGS,
+      ...((settings.ai_settings as AISettings) || {}),
     },
     telegram_settings: (settings.telegram_settings as TelegramSettings) || {
       global_bot_token: '',
@@ -124,9 +128,6 @@ export async function getAllSettings(): Promise<SystemSettings> {
   };
 }
 
-/**
- * Get a specific setting
- */
 export async function getSetting<K extends SettingKey>(key: K): Promise<SystemSettings[K] | null> {
   const { data, error } = await supabase
     .from('system_settings')
@@ -142,16 +143,11 @@ export async function getSetting<K extends SettingKey>(key: K): Promise<SystemSe
   return data?.setting_value as SystemSettings[K] | null;
 }
 
-/**
- * Update a specific setting
- */
 export async function updateSetting<K extends SettingKey>(
   key: K,
   value: SystemSettings[K]
 ): Promise<void> {
-  // Get old value for audit log
   const oldValue = await getSetting(key);
-
   const { data: { user } } = await supabase.auth.getUser();
 
   const { error } = await supabase
@@ -167,7 +163,6 @@ export async function updateSetting<K extends SettingKey>(
     throw new Error(error.message);
   }
 
-  // Log the action
   await logAdminAction({
     action_type: 'system_setting_updated',
     target_resource_type: 'system_setting',
@@ -178,93 +173,47 @@ export async function updateSetting<K extends SettingKey>(
   });
 }
 
-/**
- * Update invitation defaults
- */
 export async function updateInvitationDefaults(defaults: InvitationDefaults): Promise<void> {
   return updateSetting('invitation_defaults', defaults);
 }
 
-/**
- * Update user defaults
- */
 export async function updateUserDefaults(defaults: UserDefaults): Promise<void> {
   return updateSetting('user_defaults', defaults);
 }
 
-/**
- * Update subscription defaults
- */
 export async function updateSubscriptionDefaults(defaults: SubscriptionDefaults): Promise<void> {
   return updateSetting('subscription_defaults', defaults);
 }
 
-/**
- * Update system maintenance settings
- */
 export async function updateMaintenanceSettings(settings: SystemMaintenance): Promise<void> {
   return updateSetting('system_maintenance', settings);
 }
 
-/**
- * Toggle maintenance mode
- */
 export async function toggleMaintenanceMode(enabled: boolean): Promise<void> {
   const current = await getSetting('system_maintenance');
   if (current) {
-    await updateSetting('system_maintenance', {
-      ...current,
-      maintenance_mode: enabled,
-    });
+    await updateSetting('system_maintenance', { ...current, maintenance_mode: enabled });
   }
 }
 
-/**
- * Get AI settings
- */
 export async function getAISettings(): Promise<AISettings> {
   const settings = await getSetting('ai_settings');
-  return {
-    provider: settings?.provider || 'openrouter',
-    model: settings?.model || '',
-    image_model: settings?.image_model || '',
-    openrouter_image_model: settings?.openrouter_image_model || '',
-    temperature: settings?.temperature ?? 0.7,
-    system_prompt: settings?.system_prompt || '',
-    openrouter_api_key: settings?.openrouter_api_key || '',
-    gemini_api_key: settings?.gemini_api_key || '',
-    openai_api_key: settings?.openai_api_key || '',
-  };
+  return { ...DEFAULT_AI_SETTINGS, ...(settings || {}) };
 }
 
-/**
- * Update AI settings
- */
 export async function updateAISettings(settings: AISettings): Promise<void> {
   return updateSetting('ai_settings', settings);
 }
 
-/**
- * Get Telegram settings
- */
 export async function getTelegramSettings(): Promise<TelegramSettings> {
   const settings = await getSetting('telegram_settings');
-  return settings || {
-    global_bot_token: '',
-    fallback_enabled: true,
-  };
+  return settings || { global_bot_token: '', fallback_enabled: true };
 }
 
-/**
- * Update Telegram settings
- */
 export async function updateTelegramSettings(settings: TelegramSettings): Promise<void> {
   return updateSetting('telegram_settings', settings);
 }
 
-/**
- * Get Payment settings
- */
 export async function getPaymentSettings(): Promise<PaymentSettings> {
   const settings = await getSetting('payment_settings');
   return settings || {
@@ -274,9 +223,6 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
   };
 }
 
-/**
- * Update Payment settings
- */
 export async function updatePaymentSettings(settings: PaymentSettings): Promise<void> {
   return updateSetting('payment_settings', settings);
 }
