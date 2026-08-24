@@ -9,9 +9,9 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_FALLBACK_MODEL = "google/gemini-2.0-flash-exp:free";
-const CLOUDFLARE_FALLBACK_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const CLOUDFLARE_FALLBACK_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-type AIProvider = "openrouter" | "lovable" | "gemini" | "openai" | "cloudflare";
+type AIProvider = "openrouter" | "cloudflare";
 
 interface AISettings {
   provider: AIProvider;
@@ -19,14 +19,12 @@ interface AISettings {
   temperature: number;
   system_prompt?: string;
   openrouter_api_key?: string;
-  gemini_api_key?: string;
-  openai_api_key?: string;
   cloudflare_account_id?: string;
   cloudflare_api_token?: string;
 }
 
 type ResolvedProvider = {
-  finalProvider: Exclude<AIProvider, "lovable">;
+  finalProvider: AIProvider;
   apiKey: string;
   accountId?: string;
   model: string;
@@ -52,24 +50,21 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 }
 
 function defaultModel(provider: AIProvider): string {
-  if (provider === "cloudflare") return CLOUDFLARE_FALLBACK_MODEL;
-  if (provider === "gemini") return "gemini-2.0-flash";
-  if (provider === "openai") return "gpt-4o-mini";
-  return OPENROUTER_FALLBACK_MODEL;
+  return provider === "cloudflare" ? CLOUDFLARE_FALLBACK_MODEL : OPENROUTER_FALLBACK_MODEL;
 }
 
 function resolveProvider(settings: AISettings): ResolvedProvider {
-  const requestedProvider = settings.provider || "openrouter";
-  const effectiveProvider = requestedProvider === "lovable" ? "openrouter" : requestedProvider;
-  const model = settings.model?.trim() || defaultModel(requestedProvider);
+  const effectiveProvider: AIProvider = settings.provider === "cloudflare" ? "cloudflare" : "openrouter";
+  const model = settings.model?.trim() || defaultModel(effectiveProvider);
 
   const candidates: ResolvedProvider[] = [];
   if (settings.cloudflare_api_token && settings.cloudflare_account_id) {
+    const cloudflareModel = effectiveProvider === "cloudflare" ? model : CLOUDFLARE_FALLBACK_MODEL;
     candidates.push({
       finalProvider: "cloudflare",
       apiKey: settings.cloudflare_api_token,
       accountId: settings.cloudflare_account_id,
-      model: effectiveProvider === "cloudflare" ? model : CLOUDFLARE_FALLBACK_MODEL,
+      model: cloudflareModel.startsWith("@cf/") ? cloudflareModel : CLOUDFLARE_FALLBACK_MODEL,
     });
   }
   if (settings.openrouter_api_key) {
@@ -77,20 +72,6 @@ function resolveProvider(settings: AISettings): ResolvedProvider {
       finalProvider: "openrouter",
       apiKey: settings.openrouter_api_key,
       model: effectiveProvider === "openrouter" ? model : OPENROUTER_FALLBACK_MODEL,
-    });
-  }
-  if (settings.gemini_api_key) {
-    candidates.push({
-      finalProvider: "gemini",
-      apiKey: settings.gemini_api_key,
-      model: effectiveProvider === "gemini" ? model : "gemini-2.0-flash",
-    });
-  }
-  if (settings.openai_api_key) {
-    candidates.push({
-      finalProvider: "openai",
-      apiKey: settings.openai_api_key,
-      model: effectiveProvider === "openai" ? model : "gpt-4o-mini",
     });
   }
 
@@ -104,6 +85,7 @@ function resolveProvider(settings: AISettings): ResolvedProvider {
     model,
   };
 }
+
 
 async function authenticateRequest(req: Request, supabase: any): Promise<string | null> {
   const authHeader = req.headers.get("Authorization");
@@ -176,30 +158,10 @@ serve(async (req) => {
     console.log(`[ai-generate-text] user=${userId}, provider=${finalProvider}, model=${model}`);
 
     const attemptGeneration = async (): Promise<string> => {
-      if (finalProvider === "gemini") {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${finalSystemPrompt}\n\nUSER PROMPT: ${prompt}` }] }],
-            generationConfig: {
-              temperature: aiSettings.temperature ?? temperature,
-              maxOutputTokens: 2048,
-            },
-          }),
-        });
-        if (!response.ok) throw new Error(`Gemini error (${response.status}): ${(await response.text()).substring(0, 500)}`);
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (!text) throw new Error("Gemini returned an empty response");
-        return text;
-      }
-
       const fetchUrl = finalProvider === "cloudflare"
         ? cloudflareChatUrl(accountId!)
-        : finalProvider === "openai"
-          ? "https://api.openai.com/v1/chat/completions"
-          : OPENROUTER_URL;
+        : OPENROUTER_URL;
+
       const headers: Record<string, string> = {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
