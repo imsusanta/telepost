@@ -4,6 +4,12 @@
 -- This migration updates the background workers to provide
 -- more detailed logging and better error handling
 -- =============================================
+--
+-- NOTE 2026-08-26: the two cron.schedule() calls at the bottom were written as
+--   SELECT cron.schedule(...) ON CONFLICT (name) DO UPDATE SET ...
+-- ON CONFLICT is INSERT syntax; cron.schedule is a function call, so this was a
+-- hard syntax error that aborted the entire migration run on every fresh
+-- database. Replaced with a guarded unschedule followed by a plain schedule.
 
 -- Improved trigger function for auto-scheduling
 CREATE OR REPLACE FUNCTION public.trigger_auto_schedule()
@@ -124,19 +130,29 @@ END;
 $$;
 
 -- Ensure both cron jobs are correctly scheduled
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname IN ('process-auto-schedule-cron', 'process-scheduled-posts-cron');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule existing scheduler cron jobs: %', SQLERRM;
+END;
+$cron$;
+
 -- 1. Auto-schedule generation (EF1)
 SELECT cron.schedule(
-  'process-auto-schedule-cron', 
-  '* * * * *',                  
+  'process-auto-schedule-cron',
+  '* * * * *',
   'SELECT public.trigger_auto_schedule()'
-) ON CONFLICT (name) DO UPDATE SET schedule = EXCLUDED.schedule;
+);
 
 -- 2. Post processing/sending (EF2)
 SELECT cron.schedule(
-  'process-scheduled-posts-cron', 
-  '* * * * *',                  
+  'process-scheduled-posts-cron',
+  '* * * * *',
   'SELECT public.process_scheduled_telegram_posts()'
-) ON CONFLICT (name) DO UPDATE SET schedule = EXCLUDED.schedule;
+);
 
 COMMENT ON FUNCTION public.trigger_auto_schedule() IS 'Triggers the auto-schedule generation logic';
 COMMENT ON FUNCTION public.process_scheduled_telegram_posts() IS 'Triggers the scheduled post sender worker';

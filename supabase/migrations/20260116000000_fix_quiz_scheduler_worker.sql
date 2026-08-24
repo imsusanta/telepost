@@ -4,6 +4,10 @@
 -- This migration updates the quiz scheduler worker to be more robust
 -- and ensures it correctly triggers the edge function.
 -- =============================================
+--
+-- NOTE 2026-08-26: the unguarded cron.unschedule() call at the bottom used to
+-- abort this migration on any database where the job did not already exist --
+-- i.e. every fresh database. It is now wrapped so it can be replayed.
 
 -- Ensure extensions are enabled
 CREATE EXTENSION IF NOT EXISTS pg_cron;
@@ -71,13 +75,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Ensure execute permission
 GRANT EXECUTE ON FUNCTION public.process_scheduled_telegram_posts() TO postgres;
 
--- Reset and reschedule the cron job to ensure it's active and correctly named
-SELECT cron.unschedule('process-scheduled-telegram-posts');
+-- Reset and reschedule the cron job to ensure it's active and correctly named.
+-- Guarded: cron.unschedule() raises if the job does not exist.
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'process-scheduled-telegram-posts';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule process-scheduled-telegram-posts: %', SQLERRM;
+END;
+$cron$;
 
 SELECT cron.schedule(
   'process-scheduled-telegram-posts',  -- Job name
   '* * * * *',                         -- Every minute
-  $$SELECT public.process_scheduled_telegram_posts()$$
+  'SELECT public.process_scheduled_telegram_posts()'
 );
 
 -- Fix any stuck processing posts from previous failed runs (Safety measure)
