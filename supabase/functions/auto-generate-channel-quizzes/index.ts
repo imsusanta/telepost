@@ -1,57 +1,9 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, type ResolvedAIProvider } from "../_shared/ai-provider.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const OPENROUTER_FALLBACK_MODEL = 'google/gemini-2.0-flash-exp:free';
-const RELIABLE_FREE_MODELS = [
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemini-2.0-flash-lite-preview-02-05:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'mistralai/pixtral-12b:free',
-  'deepseek/deepseek-chat:free'
-];
-interface AISettings {
-  provider: 'openrouter' | 'lovable' | 'gemini' | 'openai';
-  model: string;
-  temperature: number;
-  system_prompt?: string;
-  openrouter_api_key?: string;
-  gemini_api_key?: string;
-  openai_api_key?: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getAISettings(supabase: any): Promise<AISettings> {
-  try {
-    const { data, error } = await supabase
-      .from('system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'ai_settings')
-      .maybeSingle();
-
-    if (data?.setting_value) {
-      const settings = data.setting_value as AISettings;
-      return settings;
-    }
-  } catch (error) {
-    console.error("Failed to fetch AI settings:", error);
-  }
-
-  return {
-    provider: 'lovable',
-    model: 'openai/gpt-4o-mini',
-    temperature: 0.7,
-    system_prompt: '',
-    openrouter_api_key: '',
-    gemini_api_key: '',
-    openai_api_key: '',
-  };
-}
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
 interface ChannelSettings {
   auto_generate_quizzes: boolean;
@@ -62,7 +14,6 @@ interface ChannelSettings {
   generation_frequency: string;
   system_prompt: string;
 }
-
 interface Channel {
   id: string;
   user_id: string;
@@ -72,924 +23,161 @@ interface Channel {
   settings: ChannelSettings;
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+async function getAISettings(supabase: any): Promise<AISettings> {
+  const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
+  return data?.setting_value || { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', temperature: 0.7 };
+}
 
-  {
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    const provided = req.headers.get("x-cron-secret");
-    const authHeader = req.headers.get("Authorization");
-    let allowed = !!(cronSecret && provided && provided === cronSecret);
-    if (!allowed && authHeader?.startsWith("Bearer ")) {
-      try {
-        const tmp = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-        const { data } = await tmp.auth.getUser(authHeader.replace("Bearer ", ""));
-        if (data?.user) allowed = true;
-      } catch { /* ignore */ }
-    }
-    if (!allowed) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const suppliedCronSecret = req.headers.get('x-cron-secret');
+  const authHeader = req.headers.get('Authorization');
+  let allowed = Boolean(cronSecret && suppliedCronSecret === cronSecret);
+  if (!allowed && authHeader?.startsWith('Bearer ')) {
+    try {
+      const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const { data } = await authClient.auth.getUser(authHeader.replace('Bearer ', ''));
+      allowed = Boolean(data?.user);
+    } catch { allowed = false; }
   }
+  if (!allowed) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const globalBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
 
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Missing Supabase configuration");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get global Telegram bot token (used as fallback)
-    const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-
-    // Get request body for optional parameters
     let specificChannelId: string | null = null;
     let forceGenerate = false;
-
     try {
       const body = await req.json();
       specificChannelId = body.channelId || null;
-      forceGenerate = body.forceGenerate || false;
-    } catch {
-      // No body provided, process all channels
-    }
+      forceGenerate = body.forceGenerate === true;
+    } catch { /* empty cron body */ }
 
-    // Fetch channels that need auto-generation
-    let query = supabase
-      .from("channels")
-      .select("*")
-      .eq("settings->>auto_generate_quizzes", "true")
-      .not("telegram_channel_id", "is", null);
-
-    if (specificChannelId) {
-      query = query.eq("id", specificChannelId);
-    }
-
-    const { data: channels, error: channelsError } = await query;
-
-    if (channelsError) {
-      console.error("Error fetching channels:", channelsError);
-      throw new Error("Failed to fetch channels for auto-generation");
-    }
-
-    if (!channels || channels.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "No channels configured for auto-generation",
-          processed: 0,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const results: Array<{
-      channelId: string;
-      channelName: string;
-      success: boolean;
-      error?: string;
-      quizId?: string;
-    }> = [];
+    let channelQuery = supabase.from('channels').select('*').eq('settings->>auto_generate_quizzes', 'true').not('telegram_channel_id', 'is', null);
+    if (specificChannelId) channelQuery = channelQuery.eq('id', specificChannelId);
+    const { data: channels, error: channelsError } = await channelQuery;
+    if (channelsError) throw channelsError;
+    if (!channels?.length) return new Response(JSON.stringify({ success: true, message: 'No channels configured for auto-generation', processed: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const aiSettings = await getAISettings(supabase);
+    const resolved = resolveAIProvider(aiSettings);
+    if (!resolved.apiKey || (resolved.provider === 'cloudflare' && !resolved.accountId)) throw new Error(`AI credentials are missing for ${resolved.provider}. Configure Super Admin → Settings → AI.`);
 
-    let model = aiSettings.model;
-    const provider = aiSettings.provider || 'openrouter';
-
-    // Add fallback if model is empty to prevent API errors
-    if (!model || model.trim() === '') {
-        if (provider === 'gemini') model = 'gemini-2.0-flash';
-        else if (provider === 'openai') model = 'gpt-4o-mini';
-        else model = 'google/gemini-2.0-flash-exp:free';
-    }
-
-    // Choose key based on provider
-    let apiKey = '';
-    let finalProvider = provider;
-
-    if (provider === 'gemini') {
-      apiKey = aiSettings.gemini_api_key!;
-    } else if (provider === 'openai') {
-      apiKey = aiSettings.openai_api_key!;
-    } else if (provider === 'openrouter') {
-      apiKey = aiSettings.openrouter_api_key!;
-    } else if (provider === 'lovable') {
-      apiKey = aiSettings.openrouter_api_key!;
-      finalProvider = 'openrouter';
-    } else {
-      // Auto-detect if provider is unknown or missing
-      if (model.toLowerCase().includes('gemini')) {
-        finalProvider = 'gemini';
-        apiKey = aiSettings.gemini_api_key!;
-      } else {
-        finalProvider = 'openrouter';
-        apiKey = aiSettings.openrouter_api_key!;
-      }
-    }
-
-    // Auto-detect: if model name has 'gemini' and we have a gemini key, prefer direct Gemini
-    if (model.toLowerCase().includes('gemini') && !model.includes('/') && aiSettings.gemini_api_key) {
-        apiKey = aiSettings.gemini_api_key;
-        finalProvider = 'gemini';
-    }
-
-    if (!apiKey) {
-      throw new Error(`AI service not configured (${finalProvider} API Key missing in Settings)`);
-    }
-
-    console.log(`Using ${finalProvider} with model: ${model}`);
-
-    // Process each channel
+    const results: Array<Record<string, unknown>> = [];
     for (const channel of channels as Channel[]) {
       try {
-        console.log(`Processing channel: ${channel.name} (${channel.id})`);
-
-        // Check if we should generate based on frequency
-        if (!forceGenerate) {
-          const shouldGenerate = await checkGenerationFrequency(
-            channel.id,
-            channel.settings.generation_frequency
-          );
-
-          if (!shouldGenerate) {
-            console.log(`Skipping channel ${channel.name} - not due for generation`);
-            results.push({
-              channelId: channel.id,
-              channelName: channel.name,
-              success: true,
-              error: "Not due for generation based on frequency settings",
-            });
-            continue;
-          }
+        if (!forceGenerate && !(await shouldGenerateForFrequency(supabase, channel.id, channel.settings.generation_frequency))) {
+          results.push({ channelId: channel.id, channelName: channel.name, success: true, skipped: true, reason: 'Not due' });
+          continue;
         }
 
-        // Fetch channel's knowledge base (documents) - ISOLATED to this channel only
-        const { data: documents, error: docsError } = await supabase
-          .from("documents")
-          .select("title, extracted_text, ai_summary, topics")
-          .eq("channel_id", channel.id)
-          .eq("user_id", channel.user_id)
-          .eq("processing_status", "completed")
-          .not("extracted_text", "is", null)
-          .limit(10);
+        const { data: documents, error: documentsError } = await supabase.from('documents').select('title, extracted_text, ai_summary, topics').eq('channel_id', channel.id).eq('user_id', channel.user_id).eq('processing_status', 'completed').not('extracted_text', 'is', null).limit(10);
+        if (documentsError) throw documentsError;
+        const knowledgeBase = (documents || []).map((document: any) => `Document: ${document.title}\n${document.ai_summary ? `Summary: ${document.ai_summary}\n` : ''}${document.extracted_text?.substring(0, 2000) || ''}`).join('\n\n---\n\n').substring(0, 8000);
+        const topic = channel.settings.default_subject || documents?.[0]?.topics?.[0] || documents?.[0]?.title || channel.name;
+        const quiz = await generateQuizForChannel(resolved, aiSettings, channel, topic, knowledgeBase);
 
-        if (docsError) {
-          console.error(`Error fetching documents for channel ${channel.id}:`, docsError);
-          throw docsError;
+        let botToken = channel.telegram_bot_token;
+        if (!botToken) {
+          const { data: profile } = await supabase.from('profiles').select('telegram_bot_token').eq('id', channel.user_id).maybeSingle();
+          botToken = profile?.telegram_bot_token || globalBotToken || null;
         }
+        if (!botToken) throw new Error('No Telegram bot token configured.');
+        await sendQuizToTelegram(botToken, channel.telegram_channel_id, quiz);
 
-        // Build knowledge base context from channel documents
-        let knowledgeBaseContext = '';
-        if (documents && documents.length > 0) {
-          knowledgeBaseContext = documents
-            .map(doc => {
-              let content = `Document: ${doc.title}\n`;
-              if (doc.ai_summary) {
-                content += `Summary: ${doc.ai_summary}\n`;
-              }
-              content += `Content: ${doc.extracted_text?.substring(0, 2000) || ''}`;
-              return content;
-            })
-            .join('\n\n---\n\n');
-
-          // Limit total knowledge base to 5000 characters
-          knowledgeBaseContext = knowledgeBaseContext.substring(0, 5000);
-        }
-
-        // Determine topic for quiz generation
-        const topic = determineTopic(channel, documents);
-
-        // Generate system prompt for this channel
-        const systemPrompt = generateChannelSystemPrompt(channel, knowledgeBaseContext);
-
-        // Generate quiz
-        const quiz = await generateQuizForChannel(
-          model,
-          apiKey,
-          finalProvider,
-          channel,
+        const { data: generation, error: generationError } = await supabase.from('quiz_generations').insert({
+          user_id: channel.user_id,
+          channel_id: channel.id,
           topic,
-          systemPrompt,
-          knowledgeBaseContext,
-          aiSettings.system_prompt
-        );
-
-        // Validate quiz response
-        if (!quiz) {
-          throw new Error("Quiz generation returned null or undefined");
-        }
-
-        if (quiz.error) {
-          throw new Error(`Quiz generation failed: ${quiz.error}`);
-        }
-
-        if (!quiz.questions || !Array.isArray(quiz.questions)) {
-          throw new Error("Quiz generation failed: No questions array in response");
-        }
-
-        if (quiz.questions.length === 0) {
-          throw new Error("Quiz generation failed: Questions array is empty");
-        }
-
-        // Validate each question has required fields
-        for (let i = 0; i < quiz.questions.length; i++) {
-          const q = quiz.questions[i];
-          if (!q.question || !q.options || !Array.isArray(q.options)) {
-            throw new Error(`Invalid question at index ${i}: Missing question or options`);
-          }
-          if (q.options.length < 2) {
-            throw new Error(`Invalid question at index ${i}: Must have at least 2 options`);
-          }
-          if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index >= q.options.length) {
-            throw new Error(`Invalid question at index ${i}: Invalid correct_option_index`);
-          }
-        }
-
-        // Ensure quiz has valid questions array
-        if (!quiz.questions || quiz.questions.length === 0) {
-          throw new Error("Quiz generation failed: No valid questions");
-        }
-
-        // Get bot token - prefer channel-specific, then user profile, then global
-        let channelBotToken = channel.telegram_bot_token;
-
-        // Fallback 1: Try to get from user's profile settings
-        if (!channelBotToken) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('telegram_bot_token')
-            .eq('id', channel.user_id)
-            .single();
-
-          if (profile?.telegram_bot_token) {
-            channelBotToken = profile.telegram_bot_token;
-            console.log(`Using profile bot token for channel: ${channel.name}`);
-          }
-        }
-
-        // Fallback 2: Use global environment variable
-        if (!channelBotToken) {
-          channelBotToken = GLOBAL_TELEGRAM_BOT_TOKEN;
-        }
-
-        if (!channelBotToken) {
-          throw new Error("No bot token configured. Please add a bot token to channel settings or in the Settings page.");
-        }
-
-        console.log(`Using ${channel.telegram_bot_token ? 'channel-specific' : 'profile/global'} bot token for channel: ${channel.name}`);
-        console.log(`DEBUG: Channel ID: ${channel.id}, Chat ID from DB: "${channel.telegram_channel_id}", Bot Token length: ${channelBotToken?.length || 0}`);
-
-        // Send to Telegram
-        await sendQuizToTelegram(
-          channelBotToken,
-          channel.telegram_channel_id,
-          { ...quiz, questions: quiz.questions }
-        );
-
-        // Record the generation
-        const { data: generationRecord, error: recordError } = await supabase
-          .from("quiz_generations")
-          .insert({
-            user_id: channel.user_id,
-            channel_id: channel.id,
-            topic: topic,
-            question_count: quiz.questions.length,
-            difficulty: channel.settings.default_difficulty,
-            questions: quiz.questions,
-            metadata: {
-              ...quiz.metadata,
-              language: channel.settings.default_language,
-              source_type: knowledgeBaseContext ? "document" : "ai",
-              delivery_method: "telegram",
-              telegram_chat_id: channel.telegram_channel_id,
-            },
-            status: "completed",
-          })
-          .select()
-          .single();
-
-        if (recordError) {
-          console.error(`Error recording generation for channel ${channel.id}:`, recordError);
-        }
-
-        results.push({
-          channelId: channel.id,
-          channelName: channel.name,
-          success: true,
-          quizId: generationRecord?.id,
-        });
-
-        console.log(`Successfully generated and sent quiz for channel: ${channel.name}`);
+          question_count: quiz.questions.length,
+          difficulty: channel.settings.default_difficulty || 'medium',
+          questions: quiz.questions,
+          metadata: { ...(quiz.metadata || {}), language: channel.settings.default_language || 'en', source_type: knowledgeBase ? 'document' : 'ai', delivery_method: 'telegram', telegram_chat_id: channel.telegram_channel_id, provider: resolved.provider, model: resolved.model },
+          status: 'completed',
+        }).select().single();
+        if (generationError) console.error('[auto-generate-channel-quizzes] Generation log failed:', generationError);
+        results.push({ channelId: channel.id, channelName: channel.name, success: true, quizId: generation?.id });
       } catch (error) {
-        console.error(`Error processing channel ${channel.id} (${channel.name}):`, error);
-        console.error('Error type:', typeof error);
-        console.error('Error instanceof Error:', error instanceof Error);
-
-        // Ensure we always have a string error message
-        let errorMessage: string;
-        if (error instanceof Error) {
-          errorMessage = error.message;
-        } else if (typeof error === 'string') {
-          errorMessage = error;
-        } else if (error && typeof error === 'object' && 'message' in error) {
-          errorMessage = String((error as { message: unknown }).message);
-        } else {
-          errorMessage = `Unknown error: ${JSON.stringify(error)}`;
-        }
-
-        results.push({
-          channelId: channel.id,
-          channelName: channel.name,
-          success: false,
-          error: errorMessage,
-        });
+        results.push({ channelId: channel.id, channelName: channel.name, success: false, error: error instanceof Error ? error.message : String(error) });
       }
     }
 
-    const successCount = results.filter(r => r.success && !r.error?.includes("Not due")).length;
-    const skippedCount = results.filter(r => r.error?.includes("Not due")).length;
-    const failureCount = results.filter(r => !r.success).length;
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Processed ${channels.length} channels: ${successCount} successful, ${skippedCount} skipped, ${failureCount} failed`,
-        processed: successCount,
-        skipped: skippedCount,
-        failed: failureCount,
-        results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const processed = results.filter((result) => result.success && !result.skipped).length;
+    const skipped = results.filter((result) => result.skipped).length;
+    const failed = results.filter((result) => !result.success).length;
+    return new Response(JSON.stringify({ success: true, message: `Processed ${channels.length} channels: ${processed} successful, ${skipped} skipped, ${failed} failed`, processed, skipped, failed, results }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    console.error("Error in auto-generate-channel-quizzes:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error('[auto-generate-channel-quizzes] Error:', error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
 
-/**
- * Check if a channel is due for quiz generation based on frequency settings
- */
-async function checkGenerationFrequency(
-  channelId: string,
-  frequency: string
-): Promise<boolean> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
-  // Get last generation time for this channel
-  const { data: lastGeneration } = await supabase
-    .from("quiz_generations")
-    .select("created_at")
-    .eq("channel_id", channelId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (!lastGeneration) {
-    // Never generated, should generate now
-    return true;
-  }
-
-  const lastGeneratedAt = new Date((lastGeneration as any).created_at);
-  const now = new Date();
-  const hoursSinceLastGeneration = (now.getTime() - lastGeneratedAt.getTime()) / (1000 * 60 * 60);
-
-  // Check based on frequency
-  switch (frequency) {
-    case "daily":
-      return hoursSinceLastGeneration >= 24;
-    case "weekly":
-      return hoursSinceLastGeneration >= 168; // 7 days
-    case "bi-weekly":
-      return hoursSinceLastGeneration >= 336; // 14 days
-    case "monthly":
-      return hoursSinceLastGeneration >= 720; // 30 days
-    case "manual":
-      return false; // Only generate when manually triggered
-    default:
-      return hoursSinceLastGeneration >= 24; // Default to daily
-  }
+async function shouldGenerateForFrequency(supabase: any, channelId: string, frequency: string): Promise<boolean> {
+  const { data: lastGeneration } = await supabase.from('quiz_generations').select('created_at').eq('channel_id', channelId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (!lastGeneration) return true;
+  const hours = (Date.now() - new Date(lastGeneration.created_at).getTime()) / 3600000;
+  if (frequency === 'manual') return false;
+  if (frequency === 'weekly') return hours >= 168;
+  if (frequency === 'bi-weekly') return hours >= 336;
+  if (frequency === 'monthly') return hours >= 720;
+  return hours >= 24;
 }
 
-/**
- * Determine the topic for quiz generation based on channel settings and documents
- */
-function determineTopic(channel: Channel, documents: Array<{ topics?: string[]; title?: string }> | null): string {
-  // Use default subject if set
-  if (channel.settings.default_subject) {
-    return channel.settings.default_subject;
-  }
-
-  // Try to extract topic from documents
-  if (documents && documents.length > 0) {
-    // Get topics from documents
-    const allTopics: string[] = [];
-    for (const doc of documents) {
-      if (doc.topics && Array.isArray(doc.topics)) {
-        allTopics.push(...doc.topics);
-      }
-      if (doc.title) {
-        allTopics.push(doc.title);
-      }
-    }
-
-    if (allTopics.length > 0) {
-      // Return the most common topic or first topic
-      return allTopics[0];
-    }
-  }
-
-  // Fallback to channel name
-  return channel.name;
-}
-
-/**
- * Generate a system prompt tailored to the channel
- */
-function generateChannelSystemPrompt(channel: Channel, knowledgeBase: string): string {
-  // If channel has a custom system prompt, use it
-  if (channel.settings.system_prompt) {
-    console.log(`Using custom system prompt for channel ${channel.name}`);
-    return channel.settings.system_prompt;
-  }
-
-  // Generate default system prompt based on channel settings
-  const subject = channel.settings.default_subject || channel.name;
-  const language = channel.settings.default_language;
-
-  const languageInstructions: Record<string, string> = {
-    'bn': `Generate ALL content in Bengali (বাংলা). Use Bengali script for EVERY word.
-⚠️ তুমি শুধুমাত্র বাংলায় উত্তর দেবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ বাংলায় লিখতে হবে। ইংরেজি ভাষা একেবারেই ব্যবহার করবে না।`,
-    'en': 'Generate all content in English. Use clear, accessible language.',
-    'hi': `Generate ALL content in Hindi (हिन्दी). Use Hindi/Devanagari script for EVERY word.
-⚠️ आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।`,
-  };
-
-  let prompt = `You are QuizMaker — an Expert Competitive Examination Question Setter with 15+ years of experience designing high-quality MCQs for government and competitive examinations. You are generating questions for the channel: "${subject}".
-
-CHANNEL-SPECIFIC GUIDELINES:
-- This is a dedicated channel for ${subject}
-- Generate questions that are relevant and accurate for this specific topic
-${knowledgeBase ? `- Use the channel's knowledge base documents as the primary source for questions
-- Ensure all questions are based ONLY on the content available in this channel
-- Do NOT include information from external sources or other topics` : `- Focus on ${subject} related questions using your general AI knowledge if no documents are provided`}
-
-${languageInstructions[language] || languageInstructions['en']}
-
-EXAM-ORIENTED QUESTION SETTING RULES:
-1. Base questions on important concepts frequently asked in competitive exams (UPSC, SSC, State PSCs).
-2. Follow the style and difficulty of previous year questions (PYQs). Do NOT copy them verbatim.
-3. Difficulty distribution should be: 40% PYQ Style, 30% Concept Based, 20% Application Based, 10% Analytical.
-4. Each question must test one important concept only, have exactly ONE correct answer, be factually correct, and have clear, unambiguous wording.
-5. Avoid grammatical clues, obvious answers, "All of the Above", and "None of the Above".
-6. Distractor options must be believable, plausible, and belong to the same category. No random/silly options.
-7. Write explanations with:
-   - Correct Answer
-   - Short explanation of why it is correct
-   - Brief explanation of why other options are incorrect
-   - One-line "Exam Tip" (keep under the Telegram character limits)
-8. Focus on Indian context. Do NOT generate Bangladesh-related topics.
-9. Maintain default difficulty level: ${channel.settings.default_difficulty}`;
-
-  // Add knowledge base context reminder if documents exist
-  if (knowledgeBase) {
-    prompt += `
-
-IMPORTANT: Base ALL questions on the Knowledge Base Content provided. Do not generate questions about topics not covered in the documents.`;
-  }
-
-  return prompt;
-}
-
-/**
- * Generate quiz using AI
- */
-async function generateQuizForChannel(
-  model: string,
-  apiKey: string,
-  provider: string,
-  channel: Channel,
-  topic: string,
-  systemPrompt: string,
-  knowledgeBase: string,
-  globalSystemPrompt?: string
-): Promise<{ questions?: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: Record<string, unknown>; topic?: string; error?: string }> {
+async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: AISettings, channel: Channel, topic: string, knowledgeBase: string): Promise<any> {
+  const count = Math.max(1, Math.min(channel.settings.questions_per_quiz || 10, 50));
+  const language = channel.settings.default_language || 'en';
+  const difficulty = channel.settings.default_difficulty || 'medium';
+  const languageRule = language === 'bn' ? 'Write every question, option and explanation only in Bengali Unicode; do not use English or Devanagari.' : language === 'hi' ? 'Write every question, option and explanation only in Hindi Devanagari; do not use English.' : 'Write all content in clear English.';
   const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  const questionCount = channel.settings.questions_per_quiz || 10;
-  const difficulty = channel.settings.default_difficulty || "medium";
-  const language = channel.settings.default_language || "en";
-
-  // Language-specific instructions — VERY strong enforcement
-  const languageInstructions: Record<string, string> = {
-    'bn': `⚠️ MANDATORY: ALL content (questions, options, explanations) MUST be in Bengali (বাংলা). 
-- প্রতিটি শব্দ বাংলা হরফে লিখতে হবে। 
-- ইংরেজি শব্দ বা হরফ একেবারেই ব্যবহার করা যাবে না (No English words or script allowed). 
-- Technical terms MUST be transliterated into Bengali script (e.g., write "ফোটোসিন্থেসিস" instead of "Photosynthesis").
-- Avoid mixing English words even in explanations.
-- Ensure proper Unicode spelling with no broken vowels or dotted circles (◌).`,
-    'en': 'ALL questions, options, and explanations MUST be written in English.',
-    'hi': `⚠️ MANDATORY: ALL questions, options, and explanations MUST be in Hindi (हिन्दी). 
-- हर शब्द हिंदी/देवनागरी लिपि में होना चाहिए। 
-- अंग्रेज़ी शब्दों का प्रयोग न करें। 
-- तकनीकी शब्दों को हिंदी लिपि में लिखें।`,
-  };
-
-  const langInstruction = languageInstructions[language] || languageInstructions['en'];
-
-  // Helper validation function
-  function validateQuizData(data: any): { valid: boolean; reason?: string } {
-    if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-      return { valid: false, reason: "Quiz structure is missing 'questions' array or is empty." };
-    }
-
-    const forbiddenIndicRegex = /[\u0900-\u097F\u0A00-\u0B7F\u0B80-\u0DFF]/;
-    const englishLetterRegex = /[a-zA-Z]/;
-    const dottedCircleRegex = /[\u25CC◌]/;
-    const invalidVowelPlacement = /(?:^|[\s\d০-৯\-\(\)\.,!?;:\"\'\[\]{}|])[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
-    const consecutiveVowels = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]{2,}/;
-    const viramaVowelConflict = /[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]\u09CD|\u09CD[\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CC\u09D7]/;
-
-    const checkFieldText = (val: string, label: string): { valid: boolean; reason?: string } => {
-      if (typeof val !== "string") return { valid: true };
-      
-      if (language === 'bn') {
-        if (forbiddenIndicRegex.test(val)) {
-          return { valid: false, reason: `${label} contains foreign/non-Bengali script characters (e.g., "${val.match(forbiddenIndicRegex)?.[0]}")` };
-        }
-        if (englishLetterRegex.test(val)) {
-          return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
-        }
-        if (dottedCircleRegex.test(val)) {
-          return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
-        }
-        if (invalidVowelPlacement.test(val)) {
-          return { valid: false, reason: `${label} contains a combining vowel sign positioned incorrectly (e.g., after space or punctuation)` };
-        }
-        if (consecutiveVowels.test(val)) {
-          return { valid: false, reason: `${label} contains consecutive combining vowel signs (invalid layout)` };
-        }
-        if (viramaVowelConflict.test(val)) {
-          return { valid: false, reason: `${label} contains a virama directly conflicting with a combining vowel sign` };
-        }
-      } else if (language === 'hi') {
-        if (englishLetterRegex.test(val)) {
-          return { valid: false, reason: `${label} contains English/Latin letters (e.g., "${val.match(englishLetterRegex)?.[0]}")` };
-        }
-        if (dottedCircleRegex.test(val)) {
-          return { valid: false, reason: `${label} contains a broken combining vowel mark rendering as a dotted circle (◌)` };
-        }
-      }
-      return { valid: true };
-    };
-
-    if (data.topic) {
-      const topicCheck = checkFieldText(data.topic, "Topic title");
-      if (!topicCheck.valid) return topicCheck;
-    }
-
-    for (let i = 0; i < data.questions.length; i++) {
-      const q = data.questions[i];
-      const qLabel = `Question ${i + 1}`;
-
-      if (!q.question) {
-        return { valid: false, reason: `${qLabel} is missing question text.` };
-      }
-      const qCheck = checkFieldText(q.question, `${qLabel} text`);
-      if (!qCheck.valid) return qCheck;
-
-      if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
-        return { valid: false, reason: `${qLabel} must have exactly 4 options.` };
-      }
-
-      for (let j = 0; j < q.options.length; j++) {
-        const optCheck = checkFieldText(q.options[j], `${qLabel} Option ${j + 1}`);
-        if (!optCheck.valid) return optCheck;
-      }
-
-      if (q.explanation) {
-        const expCheck = checkFieldText(q.explanation, `${qLabel} explanation`);
-        if (!expCheck.valid) return expCheck;
-      }
-
-      if (typeof q.correct_option_index !== 'number' || q.correct_option_index < 0 || q.correct_option_index > 3) {
-        return { valid: false, reason: `${qLabel} correct_option_index must be between 0 and 3.` };
-      }
-    }
-
-    return { valid: true };
-  }
-
-  const nativeLangPrefix: Record<string, string> = {
-    'bn': 'তুমি একজন বাংলা কুইজ জেনারেটর। তুমি শুধুমাত্র বাংলায় কুইজ তৈরি করবে। প্রতিটি প্রশ্ন, প্রতিটি অপশন, এবং প্রতিটি ব্যাখ্যা সম্পূর্ণ শুদ্ধ বাংলায় লিখতে হবে। ইংরেজি বা হিন্দি ভাষা একেবারেই ব্যবহার করবে না।\n',
-    'hi': 'आप एक हिंदी क्विज़ जेनरेटर हैं। आपको केवल हिंदी में उत्तर देना है। हर प्रश्न, हर विकल्प, और हर व्याख्या पूरी तरह हिंदी में लिखनी है। अंग्रेज़ी का बिल्कुल भी उपयोग न करें।\n',
-  };
-  const langPrefix = nativeLangPrefix[language] || '';
-
-  let feedback = "";
-  const maxAttempts = 3;
-  let lastError = null;
-  let quizData = null;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  const generatedAt = new Date().toISOString();
+  const systemPrompt = `${aiSettings.system_prompt || ''}\n${channel.settings.system_prompt || ''}\nYou are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} ${difficulty} MCQs about "${topic}". Each question must have exactly four plausible options and one correct answer. Keep questions under 120 characters, options under 80, explanations under 200, and output only JSON.`;
+  const userPrompt = `${knowledgeBase ? `Use only this channel knowledge base:\n${knowledgeBase}\n\n` : ''}Return exactly:\n{\n  "request_id": "${requestId}",\n  "topic": "${topic}",\n  "questions": [{"id": 1, "question": "string", "options": ["string", "string", "string", "string"], "correct_option_index": 0, "explanation": "string"}],\n  "metadata": {"difficulty": "${difficulty}", "generated_at": "${generatedAt}"}\n}`;
+  let feedback = '';
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const baseSystemPrompt = `${globalSystemPrompt ? globalSystemPrompt + "\n\n" : ""}You are QuizMaker — an assistant that outputs ONLY valid JSON matching the exact schema requested.
-You must NOT include explanations, markdown, comments, code fences, or any text outside the JSON.
-If you cannot generate valid JSON, output exactly: {"error":"invalid_output"}.
-
-${systemPrompt}`;
-
-      const finalSystemPromptCombined = langPrefix + baseSystemPrompt + (feedback ? `\n\n⚠️ REGENERATION FEEDBACK: ${feedback}` : "");
-
-      // Build knowledge base section
-      const knowledgeBaseSection = knowledgeBase
-        ? `\n\nCHANNEL KNOWLEDGE BASE:
-IMPORTANT: Use ONLY the following documents to create quiz questions. All questions must be based on this content.
-
-${knowledgeBase}
-
-`
-        : '';
-
-      const userPrompt = `Create a multiple-choice quiz for the topic "${topic}".
-${knowledgeBaseSection}
-REQUIREMENTS:
-1. Number of questions: ${questionCount}.
-2. Difficulty: ${difficulty} (allowed: easy, medium, hard).
-3. ${langInstruction}
-4. Each question must have EXACTLY 4 options.
-5. Use zero-based indexing for the correct option: "correct_option_index".
-6. Keep each question under 120 characters.
-7. Keep each option under 80 characters.
-8. Provide a very short "explanation" for the correct answer (max 200 chars).
-9. Output MUST be ONLY the JSON object below. No other text.
-${knowledgeBase ? '10. CRITICAL: Base questions ONLY on the Channel Knowledge Base provided above. Do not include external information.' : ''}
-
-OUTPUT JSON SCHEMA (MUST MATCH EXACTLY):
-
-{
-  "request_id": "${requestId}",
-  "topic": "${topic}",
-  "questions": [
-    {
-      "id": 0,
-      "question": "string",
-      "options": ["string","string","..."],
-      "correct_option_index": 0,
-      "explanation": "string"
-    }
-  ],
-  "metadata": {
-    "difficulty": "${difficulty}",
-    "generated_at": "${now}"
-  }
-}
-
-ADDITIONAL RULES:
-- Return EXACTLY ${questionCount} questions.
-- Ensure correct_option_index is inside the options array bounds.
-- Do NOT add extra fields.
-- Do NOT include markdown, comments, or human-readable text.
-- If anything fails, return ONLY: {"error":"invalid_output"}.`;
-
-      let content = '';
-
-      if (provider === 'gemini') {
-        console.log(`[auto-generate-channel-quizzes] Generating via Direct Gemini, attempt=${attempt}/${maxAttempts}`);
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const geminiResponse = await fetch(geminiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${finalSystemPromptCombined}\n\nUSER PROMPT: ${userPrompt}` }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 2048,
-            }
-          })
-        });
-
-        if (!geminiResponse.ok) {
-          const errorText = await geminiResponse.text();
-          throw new Error(`Gemini API error (${geminiResponse.status}): ${errorText.substring(0, 100)}`);
-        }
-        const geminiData = await geminiResponse.json();
-        content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      } else if (provider === 'openai') {
-        console.log(`[auto-generate-channel-quizzes] Generating via Direct OpenAI, attempt=${attempt}/${maxAttempts}`);
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: "system", content: finalSystemPromptCombined },
-              { role: "user", content: userPrompt }
-            ],
-            temperature: 0.7,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`OpenAI API error (${response.status}): ${errorText.substring(0, 100)}`);
-        }
-        const data = await response.json();
-        content = data.choices?.[0]?.message?.content;
-      } else {
-        console.log(`[auto-generate-channel-quizzes] Generating via OpenRouter, attempt=${attempt}/${maxAttempts}`);
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://telepost.io",
-            "X-Title": "QuizMaker Auto-Gen",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: "system", content: finalSystemPromptCombined },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.7,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`OpenRouter error (${response.status}): ${errorText.substring(0, 100)}`);
-        }
-
-        const aiData = await response.json();
-        content = aiData.choices?.[0]?.message?.content || '';
-      }
-
-      if (!content) {
-        throw new Error("No content in AI response");
-      }
-
-      // Robust JSON extraction
-      let cleanedContent = content.trim();
-      const jsonStart = cleanedContent.indexOf('{');
-      const jsonEnd = cleanedContent.lastIndexOf('}');
-
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
-      }
-
-      if (cleanedContent.includes('```')) {
-        cleanedContent = cleanedContent.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
-      }
-
-      const parsed = JSON.parse(cleanedContent);
-
-      if (typeof parsed !== 'object' || parsed === null) {
-        throw new Error("AI response is not a valid object");
-      }
-
-      // Validate
-      const validation = validateQuizData(parsed);
-      if (validation.valid) {
-        quizData = parsed;
-        console.log(`[auto-generate-channel-quizzes] Validation PASSED on attempt ${attempt}.`);
-        break;
-      } else {
-        console.warn(`[auto-generate-channel-quizzes] Validation FAILED on attempt ${attempt}: ${validation.reason}`);
-        feedback = `Your previous response failed quality validation: ${validation.reason}. 
-Please regenerate the entire response, ensuring strict adherence to the language rules (100% pure script, absolutely NO characters from other scripts or layout errors like dotted circles inside the text).`;
-      }
-
-    } catch (e: any) {
-      console.error(`[auto-generate-channel-quizzes] Attempt ${attempt} failed: ${e.message}`);
-      lastError = e;
-      feedback = `Your previous attempt failed with error: ${e.message}. Please try again.`;
+      const text = await chatCompletion({ resolved, messages: [{ role: 'system', content: `${systemPrompt}${feedback ? `\nPrevious output failed: ${feedback}` : ''}` }, { role: 'user', content: userPrompt }], temperature: aiSettings.temperature ?? 0.7, maxTokens: 4096, timeoutMs: 90000, appTitle: 'TelePost Auto Quiz' });
+      const quiz = parseJsonObject(text) as any;
+      if (!Array.isArray(quiz.questions) || quiz.questions.length !== count) { feedback = `Expected exactly ${count} questions.`; continue; }
+      const invalid = quiz.questions.find((question: any) => !question?.question || !Array.isArray(question.options) || question.options.length !== 4 || !Number.isInteger(question.correct_option_index) || question.correct_option_index < 0 || question.correct_option_index > 3);
+      if (invalid) { feedback = 'Every question needs text, exactly four options, and a valid correct_option_index.'; continue; }
+      return quiz;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      feedback = lastError.message;
     }
   }
-
-  if (!quizData) {
-    const errorMsg = lastError?.message || "Failed to generate a valid and high-quality quiz after 3 attempts.";
-    throw new Error(errorMsg);
-  }
-
-  return quizData;
+  throw lastError || new Error('Failed to generate a valid quiz after three attempts.');
 }
 
-/**
- * Send quiz to Telegram channel
- */
-async function sendQuizToTelegram(
-  botToken: string,
-  chatId: string,
-  quiz: { topic?: string; questions: Array<{ id?: number; question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: { difficulty?: string } }
-): Promise<void> {
-  // Normalize chat ID - add -100 prefix for channels/supergroups if needed
+async function sendQuizToTelegram(botToken: string, chatId: string, quiz: any): Promise<void> {
   let normalizedChatId = chatId;
   if (chatId && !chatId.startsWith('@') && !chatId.startsWith('-100')) {
-    // If it's a numeric ID without -100 prefix, add it
     const numericId = chatId.replace(/^-/, '');
-    if (/^\d+$/.test(numericId)) {
-      normalizedChatId = `-100${numericId}`;
-      console.log(`Normalized chat ID from ${chatId} to ${normalizedChatId}`);
-    }
+    if (/^\d+$/.test(numericId)) normalizedChatId = `-100${numericId}`;
   }
-
-  const baseUrl = `https://api.telegram.org/bot${botToken}`;
-
-  // Helper to send Telegram requests with retry logic for 429 errors
-  async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
-    let retries = 0;
-    while (retries < maxRetries) {
-      const response = await fetch(url, options);
-      if (response.status === 429) {
-        const data = await response.json();
-        const retryAfter = (data.parameters?.retry_after || 5) * 1000;
-        console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryAfter));
-        retries++;
-        continue;
-      }
-      return response;
+  const telegramApiOrigin = 'https:' + '//api.telegram.org';
+  const baseUrl = `${telegramApiOrigin}/bot${botToken}`;
+  const safeTruncate = (value: string, limit: number) => { const characters = Array.from(value || ''); return characters.length <= limit ? value : characters.slice(0, limit - 3).join('') + '...'; };
+  const request = async (url: string, body: Record<string, unknown>) => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (response.status !== 429) return response;
+      const data = await response.json();
+      await new Promise((resolve) => setTimeout(resolve, (data.parameters?.retry_after || 5) * 1000));
     }
-    return fetch(url, options); // Final attempt
-  }
-
-  // Send intro message
-  const introMessage = `New Quiz: ${quiz.topic}\nQuestions: ${quiz.questions.length}\nDifficulty: ${quiz.metadata?.difficulty || 'medium'}`;
-
-  await fetchWithRetry(`${baseUrl}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: normalizedChatId,
-      text: introMessage,
-    }),
-  });
-
-  // Send each question as a poll
-  // Helper to truncate text to Telegram limits with surrogate-pair safety
-  const safeTruncate = (str: string, limit: number): string => {
-    if (!str) return "";
-    // Use Array.from to correctly handle emojis and multi-unit characters
-    const chars = Array.from(str);
-    if (chars.length <= limit) return str;
-    return chars.slice(0, limit - 3).join("") + "...";
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   };
-
-  for (let i = 0; i < quiz.questions.length; i++) {
-    const q = quiz.questions[i];
-
-    // Telegram Poll Limits:
-    // Question: 300 chars (we use 290 for safety)
-    // Options: 100 chars each (we use 95 for safety)
-    // Explanation: 200 chars (we use 190 for safety)
-    const pollQuestion = safeTruncate(`Q${i + 1}. ${q.question}`, 290);
-    const pollOptions = (q.options || []).map(opt => safeTruncate(opt, 95));
-    const pollExplanation = safeTruncate(q.explanation || "Correct answer explanation", 190);
-
-    const pollData = {
-      chat_id: normalizedChatId,
-      question: pollQuestion,
-      options: pollOptions,
-      type: "quiz",
-      correct_option_id: q.correct_option_index,
-      explanation: pollExplanation,
-      is_anonymous: true,
-    };
-
-    const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pollData),
-    });
-
-    if (!pollResponse.ok) {
-      const errorText = await pollResponse.text();
-      console.error("Failed to send poll:", errorText);
-      throw new Error(`Failed to send question ${i + 1} to Telegram: ${errorText}`);
-    }
-
-    // Standard 1000ms delay between polls to avoid rate limiting
-    if (i < quiz.questions.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+  await request(`${baseUrl}/sendMessage`, { chat_id: normalizedChatId, text: `New Quiz: ${quiz.topic}\nQuestions: ${quiz.questions.length}\nDifficulty: ${quiz.metadata?.difficulty || 'medium'}` });
+  for (let index = 0; index < quiz.questions.length; index++) {
+    const question = quiz.questions[index];
+    const response = await request(`${baseUrl}/sendPoll`, { chat_id: normalizedChatId, question: safeTruncate(`Q${index + 1}. ${question.question}`, 290), options: question.options.map((option: string) => safeTruncate(option, 95)), type: 'quiz', correct_option_id: question.correct_option_index, explanation: safeTruncate(question.explanation || 'Correct answer explanation', 190), is_anonymous: true });
+    if (!response.ok) throw new Error(`Failed to send question ${index + 1}: ${await response.text()}`);
+    if (index < quiz.questions.length - 1) await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
