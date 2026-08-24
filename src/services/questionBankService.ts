@@ -54,10 +54,10 @@ export class QuestionBankService {
       user_id: userId,
       topic: q.topic || "General",
       subject: q.subject || undefined,
-      difficulty: (q.difficulty || "medium") as string,
-      language: (q.language || "bn") as string,
+      difficulty: q.difficulty || "medium",
+      language: q.language || "bn",
       source: "bulk_upload"
-    })) as Array<Record<string, unknown> & { question: string; options: string[]; correct_option_index: number; topic: string; difficulty: string; language: string; user_id: string }>;
+    }));
 
     const { data, error } = await supabase
       .from("question_banks")
@@ -79,6 +79,9 @@ export class QuestionBankService {
       .from("question_banks")
       .insert({
         ...question,
+        difficulty: question.difficulty || "medium",
+        language: question.language || "bn",
+        topic: question.topic || "General",
         user_id: userId,
       })
       .select()
