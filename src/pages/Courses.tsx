@@ -48,7 +48,6 @@ const CATEGORIES = [
   "science", "mathematics", "language", "arts", "health"
 ];
 
-const DIFFICULTY_LEVELS = ["beginner", "intermediate", "advanced"];
 
 export default function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);

@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock, Activity, TrendingUp, Sparkle, Heart, Layers, ArrowUpRight, Zap, CheckCircle2 } from "lucide-react";
+import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock, Activity, TrendingUp, Sparkle, ArrowUpRight, Zap, CheckCircle2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
