@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const CLOUDFLARE_FALLBACK_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const CLOUDFLARE_FALLBACK_MODEL = "@cf/openai/gpt-oss-20b";
 const OPENROUTER_FALLBACK_MODEL = "google/gemini-2.0-flash-exp:free";
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
@@ -20,10 +20,35 @@ function parseProviderError(provider: string, status: number, body: string): str
   try {
     const data = JSON.parse(body);
     const message = data?.error?.message || data?.errors?.[0]?.message || data?.result?.error || body;
-    return `${provider} error (${status}): ${String(message).substring(0, 300)}`;
+    return `${provider} error (${status}): ${String(message).substring(0, 500)}`;
   } catch {
-    return `${provider} error (${status}): ${body.substring(0, 300)}`;
+    return `${provider} error (${status}): ${body.substring(0, 500)}`;
   }
+}
+
+async function getCloudflareModelAccess(accountId: string, apiToken: string, model: string) {
+  const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/models/search`);
+  url.searchParams.set("search", model);
+  url.searchParams.set("per_page", "20");
+  url.searchParams.set("hide_experimental", "true");
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(parseProviderError("Cloudflare model catalog", response.status, body));
+  }
+
+  const data = JSON.parse(body);
+  const models = Array.isArray(data?.result) ? data.result : [];
+  const normalized = model.toLowerCase();
+  const match = models.find((item: any) => {
+    const ids = [item?.id, item?.model, item?.name, item?.slug].filter(Boolean).map((value) => String(value).toLowerCase());
+    return ids.includes(normalized) || ids.some((id) => id.endsWith(normalized));
+  });
+
+  return { available: Boolean(match), models: models.slice(0, 20) };
 }
 
 serve(async (req) => {
@@ -64,6 +89,22 @@ serve(async (req) => {
         return jsonResponse({ success: false, error: "Cloudflare Workers AI model IDs must start with @cf/." });
       }
 
+      let catalog;
+      try {
+        catalog = await getCloudflareModelAccess(accountId, apiToken, cloudflareModel);
+      } catch (error) {
+        return jsonResponse({ success: false, error: error instanceof Error ? error.message : "Unable to read Cloudflare Workers AI model catalog." });
+      }
+
+      if (!catalog.available) {
+        return jsonResponse({
+          success: false,
+          error: `Cloudflare account does not expose ${cloudflareModel} in its Workers AI model catalog. Verify the Account ID, create an API Token with Workers AI Read/Write permission, and check Workers AI access/billing for this account.`,
+          provider: "cloudflare",
+          model: cloudflareModel,
+        });
+      }
+
       const response = await fetch(cloudflareChatUrl(accountId, cloudflareModel), {
         method: "POST",
         headers: {
@@ -71,9 +112,10 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: "Reply with exactly: Cloudflare Workers AI OK",
+          messages: [{ role: "user", content: "Reply with exactly: Cloudflare Workers AI OK" }],
           temperature: 0,
           max_tokens: 40,
+          stream: false,
         }),
       });
       const responseBody = await response.text();
