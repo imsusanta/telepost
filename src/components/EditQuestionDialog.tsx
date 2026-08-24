@@ -110,7 +110,6 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                 correct_option_index: formData.correct_option_index,
                 subject: formData.subject,
                 topic: formData.topic,
-                difficulty: formData.difficulty,
                 language: formData.language,
                 explanation: formData.explanation || undefined,
             });

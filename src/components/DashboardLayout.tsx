@@ -16,7 +16,6 @@ import {
   Users,
   ChevronRight,
   ChevronLeft,
-  User,
   PenLine,
   Calendar,
   CreditCard,

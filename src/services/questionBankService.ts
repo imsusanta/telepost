@@ -49,7 +49,7 @@ export class QuestionBankService {
     userId: string,
     questions: Array<Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">>
   ): Promise<QuestionBankItem[]> {
-    const formattedQuestions = questions.map(q => ({
+    const formattedQuestions = questions.map((q) => ({
       ...q,
       user_id: userId,
       topic: q.topic || "General",
@@ -79,6 +79,9 @@ export class QuestionBankService {
       .from("question_banks")
       .insert({
         ...question,
+        difficulty: question.difficulty || "medium",
+        language: question.language || "bn",
+        topic: question.topic || "General",
         user_id: userId,
       })
       .select()

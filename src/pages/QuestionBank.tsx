@@ -79,7 +79,7 @@ export default function QuestionBank() {
   const [showSelectionDialog, setShowSelectionDialog] = useState(false);
   const [aiListRefreshKey, setAiListRefreshKey] = useState(0);
   const [defaultTopic, setDefaultTopic] = useState("");
-  const [defaultDifficulty, setDefaultDifficulty] = useState("medium");
+  const [defaultDifficulty] = useState("medium");
   const [defaultLanguage, setDefaultLanguage] = useState("en");
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
   const [editingQuestion, setEditingQuestion] = useState<QuestionBankItem | null>(null);

@@ -11,6 +11,7 @@ import SuperAdminRoute from "./components/SuperAdminRoute";
 // Lazy load all pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const CreateQuizPage = lazy(() => import("./pages/CreateQuizPage"));

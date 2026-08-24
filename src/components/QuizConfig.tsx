@@ -65,9 +65,6 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
         if (channel.settings.default_subject) {
           setTopic(channel.settings.default_subject);
         }
-        if (channel.settings.default_difficulty) {
-          setDifficulty(channel.settings.default_difficulty);
-        }
         if (channel.settings.default_language) {
           setLanguage(channel.settings.default_language);
         }

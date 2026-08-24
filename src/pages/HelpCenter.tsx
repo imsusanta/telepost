@@ -2,7 +2,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { LifeBuoy, BookOpen, Zap, Shield, CreditCard, Users, Bot, FileText, ArrowRight, MessageCircle, Search } from "lucide-react";
+import { LifeBuoy, BookOpen, Zap, Shield, CreditCard, Bot, FileText, ArrowRight, MessageCircle, Search } from "lucide-react";
 import { useState } from "react";
 
 const HelpCenter = () => {

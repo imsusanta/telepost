@@ -178,15 +178,6 @@ export default function Tests() {
     }
   };
 
-  const getDifficultyColor = (difficulty: string | null) => {
-    switch (difficulty) {
-      case "easy": return "bg-green-500/10 text-green-500";
-      case "medium": return "bg-yellow-500/10 text-yellow-500";
-      case "hard": return "bg-red-500/10 text-red-500";
-      default: return "bg-gray-500/10 text-gray-500";
-    }
-  };
-
   const TestCard = ({ test }: { test: Test }) => (
     <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-indigo-500">
       <CardHeader className="pb-3">

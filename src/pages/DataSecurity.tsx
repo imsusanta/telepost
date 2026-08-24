@@ -2,7 +2,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Lock, Database, Key, Server, Cpu, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Lock, Database, Key, Cpu, CheckCircle2 } from "lucide-react";
 
 const DataSecurity = () => {
   const navigate = useNavigate();

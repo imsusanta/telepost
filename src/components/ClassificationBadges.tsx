@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { getSubjectColor, getSubjectIcon, getDifficultyConfig } from "@/services/classificationService";
+import { getSubjectColor, getSubjectIcon } from "@/services/classificationService";
 import { BookOpen, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -14,11 +14,9 @@ interface ClassificationBadgesProps {
 export function ClassificationBadges({
     subject,
     topic,
-    difficulty,
     createdAt,
     compact = false,
 }: ClassificationBadgesProps) {
-    const difficultyConfig = getDifficultyConfig(difficulty || 'medium');
     const subjectColor = getSubjectColor(subject || '');
     const subjectIcon = getSubjectIcon(subject || '');
 
