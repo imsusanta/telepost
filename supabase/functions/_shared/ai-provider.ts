@@ -60,7 +60,7 @@ export function cloudflareChatUrl(accountId: string, model = CLOUDFLARE_DEFAULT_
   if (!model.startsWith('@cf/')) {
     throw new Error(`Invalid Cloudflare Workers AI model ID: ${model}. Model IDs must start with @cf/.`);
   }
-  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${encodeURIComponent(model)}`;
+  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
