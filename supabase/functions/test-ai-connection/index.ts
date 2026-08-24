@@ -64,15 +64,14 @@ serve(async (req) => {
         return jsonResponse({ success: false, error: "Cloudflare Workers AI model IDs must start with @cf/." });
       }
 
-      const response = await fetch(cloudflareChatUrl(accountId), {
+      const response = await fetch(cloudflareChatUrl(accountId, cloudflareModel), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: cloudflareModel,
-          messages: [{ role: "user", content: "Reply with exactly: Cloudflare Workers AI OK" }],
+          prompt: "Reply with exactly: Cloudflare Workers AI OK",
           temperature: 0,
           max_tokens: 40,
         }),
@@ -83,9 +82,9 @@ serve(async (req) => {
       let responseText = "Cloudflare Workers AI connected successfully";
       try {
         const data = JSON.parse(responseBody);
-        responseText = data?.choices?.[0]?.message?.content
+        responseText = data?.result?.response
           || data?.result?.choices?.[0]?.message?.content
-          || data?.result?.response
+          || data?.choices?.[0]?.message?.content
           || responseText;
       } catch {
         // Non-JSON success bodies fall back to the generic message.
