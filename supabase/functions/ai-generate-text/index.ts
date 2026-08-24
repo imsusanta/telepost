@@ -158,30 +158,10 @@ serve(async (req) => {
     console.log(`[ai-generate-text] user=${userId}, provider=${finalProvider}, model=${model}`);
 
     const attemptGeneration = async (): Promise<string> => {
-      if (finalProvider === "gemini") {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${finalSystemPrompt}\n\nUSER PROMPT: ${prompt}` }] }],
-            generationConfig: {
-              temperature: aiSettings.temperature ?? temperature,
-              maxOutputTokens: 2048,
-            },
-          }),
-        });
-        if (!response.ok) throw new Error(`Gemini error (${response.status}): ${(await response.text()).substring(0, 500)}`);
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (!text) throw new Error("Gemini returned an empty response");
-        return text;
-      }
-
       const fetchUrl = finalProvider === "cloudflare"
         ? cloudflareChatUrl(accountId!)
-        : finalProvider === "openai"
-          ? "https://api.openai.com/v1/chat/completions"
-          : OPENROUTER_URL;
+        : OPENROUTER_URL;
+
       const headers: Record<string, string> = {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
