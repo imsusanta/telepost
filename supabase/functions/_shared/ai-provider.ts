@@ -1,4 +1,4 @@
-export type AIProvider = 'openrouter' | 'lovable' | 'gemini' | 'openai' | 'cloudflare';
+export type AIProvider = 'openrouter' | 'cloudflare';
 
 export interface AISettings {
   provider: AIProvider;
@@ -6,14 +6,12 @@ export interface AISettings {
   temperature: number;
   system_prompt?: string;
   openrouter_api_key?: string;
-  gemini_api_key?: string;
-  openai_api_key?: string;
   cloudflare_account_id?: string;
   cloudflare_api_token?: string;
 }
 
 export interface ResolvedAIProvider {
-  provider: Exclude<AIProvider, 'lovable'>;
+  provider: AIProvider;
   model: string;
   apiKey: string;
   accountId?: string;
@@ -25,28 +23,25 @@ export interface ChatMessage {
 }
 
 const CLOUDFLARE_API_ORIGIN = 'https:' + '//api.cloudflare.com';
-const GEMINI_API_ORIGIN = 'https:' + '//generativelanguage.googleapis.com';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openrouter: 'google/gemini-2.0-flash-exp:free',
-  lovable: 'google/gemini-2.0-flash-exp:free',
-  gemini: 'gemini-2.0-flash',
-  openai: 'gpt-4o-mini',
-  cloudflare: '@cf/meta/llama-3.1-8b-instruct',
+  cloudflare: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
 };
 
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
-  const requested = settings.provider || 'openrouter';
-  const preferred = requested === 'lovable' ? 'openrouter' : requested;
-  const requestedModel = settings.model?.trim() || DEFAULT_MODELS[requested];
+  const preferred: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
+  const requestedModel = settings.model?.trim() || DEFAULT_MODELS[preferred];
 
   const candidates: ResolvedAIProvider[] = [];
   if (settings.cloudflare_api_token && settings.cloudflare_account_id) {
+    const cloudflareModel = preferred === 'cloudflare' ? requestedModel : DEFAULT_MODELS.cloudflare;
     candidates.push({
       provider: 'cloudflare',
       apiKey: settings.cloudflare_api_token,
       accountId: settings.cloudflare_account_id,
-      model: preferred === 'cloudflare' ? requestedModel : DEFAULT_MODELS.cloudflare,
+      // Cloudflare only serves its own hosted Workers AI catalog (@cf/...).
+      model: cloudflareModel.startsWith('@cf/') ? cloudflareModel : DEFAULT_MODELS.cloudflare,
     });
   }
   if (settings.openrouter_api_key) {
@@ -54,20 +49,6 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
       provider: 'openrouter',
       apiKey: settings.openrouter_api_key,
       model: preferred === 'openrouter' ? requestedModel : DEFAULT_MODELS.openrouter,
-    });
-  }
-  if (settings.gemini_api_key) {
-    candidates.push({
-      provider: 'gemini',
-      apiKey: settings.gemini_api_key,
-      model: preferred === 'gemini' ? requestedModel : DEFAULT_MODELS.gemini,
-    });
-  }
-  if (settings.openai_api_key) {
-    candidates.push({
-      provider: 'openai',
-      apiKey: settings.openai_api_key,
-      model: preferred === 'openai' ? requestedModel : DEFAULT_MODELS.openai,
     });
   }
 
@@ -79,7 +60,7 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
   };
 }
 
-function cloudflareChatUrl(accountId: string): string {
+export function cloudflareChatUrl(accountId: string): string {
   return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/v1/chat/completions`;
 }
 
@@ -93,7 +74,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
-function providerError(provider: string, status: number, body: string): Error {
+export function providerError(provider: string, status: number, body: string): Error {
   try {
     const data = JSON.parse(body);
     const message = data?.error?.message || data?.errors?.[0]?.message || data?.result?.error || body;
@@ -124,34 +105,13 @@ export async function chatCompletion(args: {
   if (resolved.provider === 'cloudflare' && !resolved.accountId) {
     throw new Error('Cloudflare Account ID is missing.');
   }
-
-  if (resolved.provider === 'gemini') {
-    const prompt = messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join('\n\n');
-    const response = await fetchWithTimeout(
-      `${GEMINI_API_ORIGIN}/v1beta/models/${resolved.model}:generateContent?key=${resolved.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature, maxOutputTokens: maxTokens },
-        }),
-      },
-      timeoutMs,
-    );
-    const body = await response.text();
-    if (!response.ok) throw providerError('gemini', response.status, body);
-    const data = JSON.parse(body);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) throw new Error('Gemini returned an empty response.');
-    return text;
+  if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) {
+    throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
   }
 
   const url = resolved.provider === 'cloudflare'
     ? cloudflareChatUrl(resolved.accountId!)
-    : resolved.provider === 'openai'
-      ? 'https://api.openai.com/v1/chat/completions'
-      : 'https://openrouter.ai/api/v1/chat/completions';
+    : 'https://openrouter.ai/api/v1/chat/completions';
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${resolved.apiKey}`,
@@ -180,7 +140,10 @@ export async function chatCompletion(args: {
   if (!response.ok) throw providerError(resolved.provider, response.status, body);
 
   const data = JSON.parse(body);
-  const text = data?.choices?.[0]?.message?.content || data?.result?.choices?.[0]?.message?.content || '';
+  const text = data?.choices?.[0]?.message?.content
+    || data?.result?.choices?.[0]?.message?.content
+    || data?.result?.response
+    || '';
   if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
   return text;
 }
