@@ -14,7 +14,6 @@ interface ClassificationBadgesProps {
 export function ClassificationBadges({
     subject,
     topic,
-    difficulty,
     createdAt,
     compact = false,
 }: ClassificationBadgesProps) {
