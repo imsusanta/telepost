@@ -20,6 +20,11 @@ function parseProviderError(provider: string, status: number, body: string): str
   try {
     const data = JSON.parse(body);
     const message = data?.error?.message || data?.errors?.[0]?.message || data?.result?.error || data?.message || body;
+    if (String(message).includes('not available on the Workers Free plan') || status === 403) {
+      if (String(message).includes('Workers Free plan')) {
+        return `Cloudflare Plan Limit: This model requires Cloudflare Workers Paid plan. Please choose a Free tier model (e.g. @cf/meta/llama-3.3-70b-instruct-fp8-fast, @cf/openai/gpt-oss-120b, @cf/openai/gpt-oss-20b).`;
+      }
+    }
     return `${provider} error (${status}): ${String(message).substring(0, 500)}`;
   } catch {
     return `${provider} error (${status}): ${body.substring(0, 500)}`;
@@ -36,10 +41,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return jsonResponse({ success: false, error: "Authentication required" }, 401);
+    if (!authHeader) return jsonResponse({ success: false, error: "Authentication required" });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authError || !user) return jsonResponse({ success: false, error: "Unauthorized" }, 401);
+    if (authError || !user) return jsonResponse({ success: false, error: "Unauthorized" });
 
     const body = await req.json().catch(() => ({}));
     const { data: settingsRow } = await supabase
@@ -59,10 +64,10 @@ serve(async (req) => {
       const cloudflareModel = model || CLOUDFLARE_FALLBACK_MODEL;
 
       if (!accountId || !apiToken) {
-        return jsonResponse({ success: false, error: "Cloudflare Account ID and API token are required." }, 400);
+        return jsonResponse({ success: false, error: "Cloudflare Account ID and API token are required." });
       }
       if (!cloudflareModel.startsWith("@cf/")) {
-        return jsonResponse({ success: false, error: "Cloudflare Workers AI model IDs must start with @cf/." }, 400);
+        return jsonResponse({ success: false, error: "Cloudflare Workers AI model IDs must start with @cf/." });
       }
 
       const response = await fetch(cloudflareChatUrl(accountId, cloudflareModel), {
@@ -80,24 +85,24 @@ serve(async (req) => {
       });
 
       const responseBody = await response.text();
-      if (!response.ok) return jsonResponse({ success: false, error: parseProviderError("Cloudflare", response.status, responseBody) }, response.status);
+      if (!response.ok) return jsonResponse({ success: false, error: parseProviderError("Cloudflare", response.status, responseBody) });
 
       let data: any;
       try {
         data = JSON.parse(responseBody);
       } catch {
-        return jsonResponse({ success: false, error: "Cloudflare returned a non-JSON response." }, 502);
+        return jsonResponse({ success: false, error: "Cloudflare returned a non-JSON response." });
       }
 
       if (data?.success === false) {
-        return jsonResponse({ success: false, error: parseProviderError("Cloudflare", 500, responseBody) }, 502);
+        return jsonResponse({ success: false, error: parseProviderError("Cloudflare", 500, responseBody) });
       }
 
       const responseText = data?.result?.response
         || data?.result?.choices?.[0]?.message?.content
         || data?.choices?.[0]?.message?.content
         || "";
-      if (!responseText) return jsonResponse({ success: false, error: "Cloudflare Workers AI returned an empty response." }, 502);
+      if (!responseText) return jsonResponse({ success: false, error: "Cloudflare Workers AI returned an empty response." });
 
       return jsonResponse({
         success: true,
@@ -109,7 +114,7 @@ serve(async (req) => {
 
     const apiKey = String(body.openrouter_api_key || dbSettings.openrouter_api_key || "").trim();
     const selectedModel = model || OPENROUTER_FALLBACK_MODEL;
-    if (!apiKey) return jsonResponse({ success: false, error: "OpenRouter API key is missing." }, 400);
+    if (!apiKey) return jsonResponse({ success: false, error: "OpenRouter API key is missing." });
 
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -127,11 +132,11 @@ serve(async (req) => {
     });
 
     const responseBody = await response.text();
-    if (!response.ok) return jsonResponse({ success: false, error: parseProviderError("OpenRouter", response.status, responseBody) }, response.status);
+    if (!response.ok) return jsonResponse({ success: false, error: parseProviderError("OpenRouter", response.status, responseBody) });
 
     return jsonResponse({ success: true, provider: "openrouter", model: selectedModel, response: "openrouter working" });
   } catch (error) {
     console.error("[test-ai-connection] Error:", error);
-    return jsonResponse({ success: false, error: error instanceof Error ? error.message : "Error" }, 500);
+    return jsonResponse({ success: false, error: error instanceof Error ? error.message : "Error" });
   }
 });
