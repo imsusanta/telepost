@@ -24,47 +24,43 @@ export interface ChatMessage {
 
 const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
 const CLOUDFLARE_DEFAULT_MODEL = '@cf/openai/gpt-oss-20b';
+const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
 
 const DEFAULT_MODELS: Record<AIProvider, string> = {
-  openrouter: 'google/gemini-2.0-flash-exp:free',
+  openrouter: OPENROUTER_DEFAULT_MODEL,
   cloudflare: CLOUDFLARE_DEFAULT_MODEL,
 };
 
+/**
+ * Resolve the configured provider without silently switching providers.
+ * If Cloudflare is selected, a missing/invalid Cloudflare credential must
+ * fail instead of unexpectedly using an OpenRouter key.
+ */
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
-  const preferred: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
-  const requestedModel = settings.model?.trim() || DEFAULT_MODELS[preferred];
+  const provider: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
+  const requestedModel = settings.model?.trim() || DEFAULT_MODELS[provider];
 
-  const candidates: ResolvedAIProvider[] = [];
-  if (settings.cloudflare_api_token && settings.cloudflare_account_id) {
-    const cloudflareModel = preferred === 'cloudflare' ? requestedModel : DEFAULT_MODELS.cloudflare;
-    candidates.push({
-      provider: 'cloudflare',
-      apiKey: settings.cloudflare_api_token,
-      accountId: settings.cloudflare_account_id,
-      model: cloudflareModel.startsWith('@cf/') ? cloudflareModel : CLOUDFLARE_DEFAULT_MODEL,
-    });
-  }
-  if (settings.openrouter_api_key) {
-    candidates.push({
-      provider: 'openrouter',
-      apiKey: settings.openrouter_api_key,
-      model: preferred === 'openrouter' ? requestedModel : DEFAULT_MODELS.openrouter,
-    });
+  if (provider === 'cloudflare') {
+    return {
+      provider,
+      model: requestedModel.startsWith('@cf/') ? requestedModel : CLOUDFLARE_DEFAULT_MODEL,
+      apiKey: settings.cloudflare_api_token?.trim() || '',
+      accountId: settings.cloudflare_account_id?.trim() || '',
+    };
   }
 
-  return candidates.find((candidate) => candidate.provider === preferred) || candidates[0] || {
-    provider: preferred,
+  return {
+    provider,
     model: requestedModel,
-    apiKey: '',
-    accountId: settings.cloudflare_account_id,
+    apiKey: settings.openrouter_api_key?.trim() || '',
   };
 }
 
-export function cloudflareChatUrl(accountId: string, model?: string): string {
-  if (model && model.startsWith('@cf/')) {
-    return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${encodeURIComponent(model)}`;
+export function cloudflareChatUrl(accountId: string, model = CLOUDFLARE_DEFAULT_MODEL): string {
+  if (!model.startsWith('@cf/')) {
+    throw new Error(`Invalid Cloudflare Workers AI model ID: ${model}. Model IDs must start with @cf/.`);
   }
-  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/v1/chat/completions`;
+  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${encodeURIComponent(model)}`;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -80,7 +76,11 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 export function providerError(provider: string, status: number, body: string): Error {
   try {
     const data = JSON.parse(body);
-    const message = data?.error?.message || data?.errors?.[0]?.message || data?.result?.error || body;
+    const message = data?.error?.message
+      || data?.errors?.[0]?.message
+      || data?.result?.error
+      || data?.message
+      || body;
     return new Error(`${provider} error (${status}): ${String(message).substring(0, 500)}`);
   } catch {
     return new Error(`${provider} error (${status}): ${body.substring(0, 500)}`);
@@ -95,37 +95,87 @@ export async function chatCompletion(args: {
   timeoutMs?: number;
   appTitle?: string;
 }): Promise<string> {
-  const { resolved, messages, temperature = 0.7, maxTokens = 2048, timeoutMs = 90000, appTitle = 'TelePost' } = args;
+  const {
+    resolved,
+    messages,
+    temperature = 0.7,
+    maxTokens = 2048,
+    timeoutMs = 90000,
+    appTitle = 'TelePost',
+  } = args;
 
   if (!resolved.apiKey) throw new Error(`API credentials are missing for ${resolved.provider}.`);
-  if (resolved.provider === 'cloudflare' && !resolved.accountId) throw new Error('Cloudflare Account ID is missing.');
-  if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
+  if (resolved.provider === 'cloudflare' && !resolved.accountId) {
+    throw new Error('Cloudflare Account ID is missing.');
+  }
+  if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) {
+    throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
+  }
 
   if (resolved.provider === 'cloudflare') {
     const url = cloudflareChatUrl(resolved.accountId!, resolved.model);
     const response = await fetchWithTimeout(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, temperature, max_tokens: maxTokens, stream: false }),
+      headers: {
+        Authorization: `Bearer ${resolved.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
     }, timeoutMs);
+
     const body = await response.text();
     if (!response.ok) throw providerError(resolved.provider, response.status, body);
-    const data = JSON.parse(body);
-    const text = data?.result?.response || data?.result?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.content || '';
-    if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
+
+    let data: any;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      throw new Error('Cloudflare Workers AI returned a non-JSON response.');
+    }
+
+    if (data?.success === false) {
+      throw providerError(resolved.provider, response.status || 500, body);
+    }
+
+    const text = data?.result?.response
+      || data?.result?.choices?.[0]?.message?.content
+      || data?.choices?.[0]?.message?.content
+      || '';
+
+    if (!text || typeof text !== 'string') {
+      throw new Error('Cloudflare Workers AI returned an empty response.');
+    }
     return text;
   }
 
   const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://telepost.tech', 'X-Title': appTitle },
+    headers: {
+      Authorization: `Bearer ${resolved.apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://telepost.tech',
+      'X-Title': appTitle,
+    },
     body: JSON.stringify({ model: resolved.model, messages, temperature, max_tokens: maxTokens }),
   }, timeoutMs);
+
   const body = await response.text();
   if (!response.ok) throw providerError(resolved.provider, response.status, body);
-  const data = JSON.parse(body);
+
+  let data: any;
+  try {
+    data = JSON.parse(body);
+  } catch {
+    throw new Error('OpenRouter returned a non-JSON response.');
+  }
+
   const text = data?.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error(`${resolved.provider} returned an empty response.`);
+  if (!text || typeof text !== 'string') throw new Error('OpenRouter returned an empty response.');
   return text;
 }
 
