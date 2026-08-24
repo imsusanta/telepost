@@ -49,15 +49,15 @@ export class QuestionBankService {
     userId: string,
     questions: Array<Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">>
   ): Promise<QuestionBankItem[]> {
-    const formattedQuestions = questions.map(({ difficulty: _d, language: _l, ...q }) => ({
+    const formattedQuestions = questions.map((q) => ({
       ...q,
       user_id: userId,
       topic: q.topic || "General",
       subject: q.subject || undefined,
-      difficulty: _d ?? "medium",
-      language: _l ?? "bn",
+      difficulty: (q.difficulty || "medium") as string,
+      language: (q.language || "bn") as string,
       source: "bulk_upload"
-    }));
+    })) as Array<Record<string, unknown> & { question: string; options: string[]; correct_option_index: number; topic: string; difficulty: string; language: string; user_id: string }>;
 
     const { data, error } = await supabase
       .from("question_banks")
