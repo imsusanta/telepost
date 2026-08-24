@@ -1,0 +1,3 @@
+Hostinger production deployment trigger
+Source commit: de2147549e8a4cb82f6ccda0e5c2c0729c8ce9db
+Triggered: 2026-08-24T05:27:00Z
