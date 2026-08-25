@@ -26,16 +26,19 @@ const CLOUDFLARE_MODELS = [
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
   '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  '@cf/deepseek-ai/deepseek-v4-pro-0813',
+  '@cf/deepseek-ai/deepseek-v4-flash-0731',
 ];
 
 type SupportedAIProvider = Extract<AIProvider, 'openrouter' | 'cloudflare'>;
-const PROVIDER_DEFAULT_MODELS: Record<SupportedAIProvider, string> = { openrouter: 'google/gemini-2.0-flash-exp:free', cloudflare: '@cf/openai/gpt-oss-120b' };
+const PROVIDER_DEFAULT_MODELS: Record<SupportedAIProvider, string> = { openrouter: 'google/gemini-2.0-flash-exp:free', cloudflare: '@cf/meta/llama-3.3-70b-instruct-fp8-fast' };
 const DEFAULT_AI_SETTINGS: AISettings = { provider: 'openrouter', model: PROVIDER_DEFAULT_MODELS.openrouter, image_model: '', openrouter_image_model: '', temperature: 0.7, system_prompt: '', openrouter_api_key: '', cloudflare_account_id: '', cloudflare_api_token: '' };
 
 function normalizeAISettings(settings: AISettings): AISettings {
   const provider: SupportedAIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
   const providerChanged = provider !== settings.provider;
-  const validCloudflareModel = settings.model?.startsWith('@cf/') && CLOUDFLARE_MODELS.includes(settings.model);
+  const validCloudflareModel = settings.model?.startsWith('@cf/');
   return { ...DEFAULT_AI_SETTINGS, ...settings, provider, model: providerChanged || !settings.model?.trim() || (provider === 'cloudflare' && !validCloudflareModel) ? PROVIDER_DEFAULT_MODELS[provider] : settings.model };
 }
 

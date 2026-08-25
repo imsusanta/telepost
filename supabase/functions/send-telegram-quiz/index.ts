@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Built by concatenation so the literal never collides with URL rewriting in
+// tooling that processes this file.
+const TELEGRAM_API_ORIGIN = 'https:' + '//api.telegram.org';
+
 interface TelegramQuizRequest {
   chatId: string;
   channelId?: string; // NEW: Channel ID for ownership verification
@@ -122,9 +126,15 @@ serve(async (req: Request) => {
       TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
     }
 
-    // SECURITY: Restrict specific administrative bot token to super admins only
-    const ADMIN_BOT_TOKEN = "8478847750:AAF58NI0nqfxEzEqe7npy9s0CwEJN9PuX4k";
-    if (TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
+    // SECURITY: Restrict the shared administrative bot token to super admins only.
+    //
+    // This token used to be a hardcoded string literal in this file, which meant
+    // anyone with repository access held a live Telegram bot credential. It now
+    // comes from the ADMIN_BOT_TOKEN secret. Set it to the same value that is
+    // configured for the administrative bot; if it is unset, the restriction is
+    // simply not applicable and no comparison is made.
+    const ADMIN_BOT_TOKEN = Deno.env.get("ADMIN_BOT_TOKEN");
+    if (ADMIN_BOT_TOKEN && TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
       console.log(`Checking if user ${user.id} has super admin permissions to use the admin bot token...`);
       const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
 
@@ -239,7 +249,7 @@ serve(async (req: Request) => {
     }
 
     // Send immediately using the channel-specific bot token
-    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+    const baseUrl = `${TELEGRAM_API_ORIGIN}/bot${TELEGRAM_BOT_TOKEN}`;
 
     // Helper to truncate text to Telegram limits with surrogate-pair safety
     const safeTruncate = (str: string, limit: number): string => {
@@ -264,10 +274,10 @@ serve(async (req: Request) => {
 
     // Language-aware intro message
     const introText = hasBengaliText
-      ? `📚 বিষয়: ${quiz.topic}\n\nআপনার জন্য ${quiz.questions.length}টি প্রশ্ন রয়েছে! নীচের প্রশ্নগুলির উত্তর দিন:`
+      ? `\ud83d\udcda \u0982\u09bf\u09b7\u09af\u09bc: ${quiz.topic}\n\n\u0986\u09aa\u09a8\u09be\u09b0 \u099c\u09a8\u09cd\u09af ${quiz.questions.length}\u099f\u09bf \u09aa\u09cd\u09b0\u09b6\u09cd\u09a8 \u09b0\u09af\u09bc\u09c7\u099b\u09c7! \u09a8\u09c0\u099a\u09c7\u09b0 \u09aa\u09cd\u09b0\u09b6\u09cd\u09a8\u0997\u09c1\u09b2\u09bf\u09b0 \u0989\u09a4\u09cd\u09a4\u09b0 \u09a6\u09bf\u09a8:`
       : hasHindiText
-        ? `📚 विषय: ${quiz.topic}\n\nआपके लिए ${quiz.questions.length} प्रश्न! नीचे दिए गए प्रश्नों के उत्तर दें:`
-        : `📚 Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the questions below:`;
+        ? `\ud83d\udcda \u0935\u093f\u0937\u092f: ${quiz.topic}\n\n\u0906\u092a\u0915\u0947 \u0932\u093f\u090f ${quiz.questions.length} \u092a\u094d\u0930\u0936\u094d\u0928! \u0928\u0940\u091a\u0947 \u0926\u093f\u090f \u0917\u090f \u092a\u094d\u0930\u0936\u094d\u0928\u094b\u0902 \u0915\u0947 \u0909\u0924\u094d\u0924\u0930 \u0926\u0947\u0902:`
+        : `\ud83d\udcda Topic: ${quiz.topic}\n\nHere are ${quiz.questions.length} questions for you! Answer the questions below:`;
 
     // Send intro message
     const introResponse = await fetch(`${baseUrl}/sendMessage`, {
@@ -362,6 +372,17 @@ serve(async (req: Request) => {
         pollOptions.push("Option " + (pollOptions.length + 1));
       }
 
+      // Telegram rejects the whole poll when correct_option_id falls outside the
+      // options array, which happens whenever the model returns an out-of-range
+      // or non-numeric index. Clamp it to the options we actually built.
+      const rawCorrectIndex = Number(q.correct_option_index);
+      const correctOptionId = Number.isInteger(rawCorrectIndex) && rawCorrectIndex >= 0 && rawCorrectIndex < pollOptions.length
+        ? rawCorrectIndex
+        : 0;
+      if (correctOptionId !== rawCorrectIndex) {
+        console.warn(`Q${i + 1}: correct_option_index ${q.correct_option_index} is out of range for ${pollOptions.length} options. Defaulting to 0.`);
+      }
+
       const pollExplanation = safeTruncate(q.explanation || "Correct", 150);
 
       try {
@@ -373,7 +394,7 @@ serve(async (req: Request) => {
             question: pollQuestion,
             options: pollOptions,
             type: "quiz",
-            correct_option_id: q.correct_option_index,
+            correct_option_id: correctOptionId,
             explanation: pollExplanation,
             is_anonymous: true,
           }),

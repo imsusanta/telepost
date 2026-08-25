@@ -249,7 +249,7 @@ export class DocumentService {
       .select("*")
       .eq("user_id", userId);
 
-    if (channelId) {
+    if (channelId && channelId !== "all") {
       query = query.eq("channel_id", channelId);
     }
 
@@ -332,7 +332,7 @@ export class DocumentService {
       .select("*")
       .eq("user_id", userId);
 
-    if (channelId) {
+    if (channelId && channelId !== "all") {
       dbQuery = dbQuery.eq("channel_id", channelId);
     }
 

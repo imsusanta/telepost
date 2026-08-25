@@ -1,5 +1,20 @@
 project_id = "wpkxbrdgktmwnowvmwue"
 
+# ---------------------------------------------------------------------------
+# verify_jwt notes
+#
+# Supabase defaults verify_jwt to true for any function not listed here.
+# Functions are therefore listed EXPLICITLY so the intent is reviewable and a
+# missing entry cannot silently change behaviour.
+#
+# verify_jwt = false is only used for:
+#   - endpoints called by pg_cron (they authenticate with the service role key
+#     or CRON_SECRET, checked inside the function)
+#   - the Razorpay webhook (authenticated by HMAC signature, checked inside the
+#     function). Razorpay does not send a Supabase JWT, so verify_jwt = true
+#     rejects every delivery before the signature check can run.
+# ---------------------------------------------------------------------------
+
 [functions.generate-quiz]
 verify_jwt = true
 
@@ -24,6 +39,9 @@ verify_jwt = false
 [functions.process-scheduled-stories]
 verify_jwt = false
 
+[functions.process-scheduled-telegram-posts]
+verify_jwt = false
+
 [functions.send-telegram-story]
 verify_jwt = true
 
@@ -41,3 +59,29 @@ verify_jwt = true
 
 [functions.process-auto-schedule]
 verify_jwt = false
+
+# Razorpay delivers webhooks without a Supabase JWT. The function verifies the
+# x-razorpay-signature HMAC itself.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = true
+
+[functions.verify-razorpay-payment]
+verify_jwt = true
+
+[functions.admin-reset-password]
+verify_jwt = true
+
+[functions.ai-generate-text]
+verify_jwt = true
+
+[functions.ai-generate-image]
+verify_jwt = true
+
+[functions.ai-save-api-key]
+verify_jwt = true
+
+[functions.ai-test-connection]
+verify_jwt = true

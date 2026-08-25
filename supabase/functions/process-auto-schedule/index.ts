@@ -4,29 +4,35 @@ import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, ty
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
+
+const FALLBACK_MODEL = 'google/gemini-2.0-flash-001';
+
 const TOPIC_LIBRARY = [
   'সিন্ধু সভ্যতা', 'পলাশীর যুদ্ধ', 'ভারতের সংবিধান', 'মৌলিক কর্তব্য', 'ভারতের নদী',
   'ভারতের জলবায়ু', 'কোষ জীববিজ্ঞান', 'মানবদেহ', 'নিউটনের সূত্র', 'অম্ল ও ক্ষার',
-  'ভারতীয় অর্থনীতি', 'জিএসটি', 'রিজার্ভ ব্যাঙ্ক', 'আন্তর্জাতিক সংস্থা', 'ভারতীয় শিল্প ও সংস্কৃতি',
+  'ভারতীয় অর্থনীতি', 'জিঔসটি', 'রিজার্ভ ব্যাঙ্ক', 'আন্তর্জাতিক সংস্থা', 'ভারতীয় শিল্প ও সংস্কৃতি',
   'মহাকাশ গবেষণা', 'পরিবেশ ও বাস্তুতন্ত্র', 'জাতীয় উদ্যান', 'খেলাধুলা ও পুরস্কার', 'কম্পিউটার সাধারণ জ্ঞান',
 ];
 
 async function getAISettings(supabase: any): Promise<AISettings> {
   const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'ai_settings').maybeSingle();
-  return data?.setting_value || { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', temperature: 0.7 };
+  return data?.setting_value || { provider: 'openrouter', model: FALLBACK_MODEL, temperature: 0.7 };
 }
+
 function rotatedTopic(channelId: string, slotIndex: number, dayNumber: number): string {
   let hash = 0;
   for (let index = 0; index < channelId.length; index++) hash = ((hash << 5) - hash + channelId.charCodeAt(index)) | 0;
   return TOPIC_LIBRARY[(Math.abs(hash) + dayNumber * 12 + slotIndex) % TOPIC_LIBRARY.length];
 }
+
 function getLocalTime(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
   return `${parts.find((part) => part.type === 'hour')?.value || '00'}:${parts.find((part) => part.type === 'minute')?.value || '00'}`;
 }
+
 function computeScheduledDate(time: string, timeZone: string, now: Date): Date {
   const [hour, minute] = time.substring(0, 5).split(':').map(Number);
   const localDate = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -43,22 +49,35 @@ function computeScheduledDate(time: string, timeZone: string, now: Date): Date {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  // AUTH GATE: cron shared secret, service role key (used by pg_cron and
+  // internal dispatches), or a signed-in user's JWT.
+  //
+  // The service role key previously only went through auth.getUser(), which
+  // never resolves a user for a service role JWT, so every cron run was 401.
   const cronSecret = Deno.env.get('CRON_SECRET');
   const suppliedCronSecret = req.headers.get('x-cron-secret');
   const authHeader = req.headers.get('Authorization');
-  let allowed = Boolean(cronSecret && suppliedCronSecret === cronSecret);
-  if (!allowed && authHeader?.startsWith('Bearer ')) {
+  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+  let allowed = Boolean(cronSecret && suppliedCronSecret && suppliedCronSecret === cronSecret);
+  if (!allowed && bearer && serviceRoleKey && bearer === serviceRoleKey) allowed = true;
+  if (!allowed && bearer) {
     try {
-      const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
-      const { data } = await authClient.auth.getUser(authHeader.replace('Bearer ', ''));
+      const authClient = createClient(supabaseUrl!, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const { data } = await authClient.auth.getUser(bearer);
       allowed = Boolean(data?.user);
     } catch { allowed = false; }
   }
-  if (!allowed) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  if (!allowed) {
+    console.warn('[process-auto-schedule] Unauthorized invocation rejected.');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     let force = false;
@@ -142,9 +161,10 @@ Deno.serve(async (req) => {
         const { error: insertError } = await supabase.from('scheduled_telegram_posts').insert({ user_id: setting.user_id, chat_id: setting.channels?.telegram_channel_id || setting.channel_id, channel_id: setting.channel_id, quiz_data: quizData, scheduled_time: scheduledDate.toISOString(), status: 'pending' });
         if (insertError?.code === '23505') { results.push({ channel_id: setting.channel_id, success: true, skipped: true, reason: 'Duplicate prevented' }); continue; }
         if (insertError) throw insertError;
-        results.push({ channel_id: setting.channel_id, success: true, scheduled_time: scheduledDate.toISOString() });
+        results.push({ channel_id: setting.channel_id, success: true, scheduled_time: scheduledDate.toISOString(), question_count: quizData.questions.length });
         fetch(`${supabaseUrl}/functions/v1/process-scheduled-posts`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceRoleKey}` }, body: JSON.stringify({ triggered_by: 'auto_schedule_generator', force }) }).catch((error) => console.error('[process-auto-schedule] Dispatch failed:', error));
       } catch (error) {
+        console.error('[process-auto-schedule] Channel failed:', setting.channel_id, error);
         results.push({ channel_id: setting.channel_id, success: false, error: error instanceof Error ? error.message : String(error) });
       }
     }
@@ -155,6 +175,15 @@ Deno.serve(async (req) => {
   }
 });
 
+function isValidQuestion(question: any): boolean {
+  return Boolean(question?.question)
+    && Array.isArray(question.options)
+    && question.options.length === 4
+    && Number.isInteger(question.correct_option_index)
+    && question.correct_option_index >= 0
+    && question.correct_option_index <= 3;
+}
+
 async function generateAIQuiz(setting: any, topic: string, aiSettings: AISettings, resolved: ResolvedAIProvider, supabase: any): Promise<any> {
   const count = Math.max(1, Math.min(setting.questions_per_post || 5, 50));
   const language = setting.language || 'bn';
@@ -163,22 +192,48 @@ async function generateAIQuiz(setting: any, topic: string, aiSettings: AISetting
     const { data: documents } = await supabase.from('documents').select('title, extracted_text').eq('channel_id', setting.channel_id).eq('processing_status', 'completed').limit(10);
     knowledgeBase = (documents || []).map((document: any) => `Document: ${document.title}\n${document.extracted_text?.substring(0, 2000) || ''}`).join('\n\n---\n\n').substring(0, 8000);
   }
-  const languageRule = language === 'bn' ? 'Write every question, option and explanation only in Bengali Unicode; do not use English or Devanagari.' : language === 'hi' ? 'Write every question, option and explanation only in Hindi Devanagari; do not use English.' : 'Write all content in clear English.';
+  const languageRule = language === 'bn'
+    ? 'Write questions, options and explanations in Bengali. Widely used English acronyms, names and units may stay in Latin script.'
+    : language === 'hi'
+      ? 'Write questions, options and explanations in Hindi (Devanagari). Widely used English acronyms, names and units may stay in Latin script.'
+      : 'Write all content in clear English.';
   const systemPrompt = `${aiSettings.system_prompt || ''}\n${setting.custom_prompt || ''}\nYou are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} MCQs strictly about "${topic}". Each question must have exactly four plausible options and one correct answer. Keep explanations concise and output only JSON.`;
   const userPrompt = `${knowledgeBase ? `Use only this knowledge base:\n${knowledgeBase}\n\n` : ''}Return exactly: {"questions":[{"question":"string","options":["string","string","string","string"],"correct_option_index":0,"explanation":"string"}]}`;
+
+  // Token budget must scale with the question count: a fixed 4096 truncated the
+  // JSON for larger Bengali/Hindi batches, which failed every attempt.
+  const maxTokens = Math.min(8192, 800 + count * 420);
+
   let feedback = '';
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const text = await chatCompletion({ resolved, messages: [{ role: 'system', content: `${systemPrompt}${feedback ? `\nPrevious output failed: ${feedback}` : ''}` }, { role: 'user', content: userPrompt }], temperature: aiSettings.temperature ?? 0.7, maxTokens: 4096, timeoutMs: 90000, appTitle: 'TelePost Auto Schedule' });
+      const text = await chatCompletion({
+        resolved,
+        messages: [
+          { role: 'system', content: `${systemPrompt}${feedback ? `\nPrevious output failed: ${feedback}` : ''}` },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: aiSettings.temperature ?? 0.7,
+        maxTokens,
+        timeoutMs: 90000,
+        appTitle: 'TelePost Auto Schedule',
+      });
       const quiz = parseJsonObject(text) as any;
-      if (!Array.isArray(quiz.questions) || quiz.questions.length !== count) { feedback = `Expected exactly ${count} questions.`; continue; }
-      const invalid = quiz.questions.find((question: any) => !question?.question || !Array.isArray(question.options) || question.options.length !== 4 || !Number.isInteger(question.correct_option_index) || question.correct_option_index < 0 || question.correct_option_index > 3);
-      if (invalid) { feedback = 'Every question needs exactly four options and a valid correct_option_index.'; continue; }
-      return quiz;
+      const valid = Array.isArray(quiz?.questions) ? quiz.questions.filter(isValidQuestion) : [];
+      if (!valid.length) {
+        feedback = 'Every question needs exactly four options and a valid correct_option_index.';
+        continue;
+      }
+      // Accept a partial batch rather than dropping a usable quiz entirely.
+      if (valid.length < count) {
+        console.warn(`[process-auto-schedule] Partial quiz for "${topic}": ${valid.length}/${count} questions.`);
+      }
+      return { ...quiz, questions: valid.slice(0, count) };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       feedback = lastError.message;
+      console.error(`[process-auto-schedule] Quiz attempt ${attempt} failed: ${feedback}`);
     }
   }
   throw lastError || new Error('Failed to generate a valid scheduled quiz after three attempts.');

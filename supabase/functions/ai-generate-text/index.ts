@@ -45,7 +45,7 @@ async function authenticateRequest(req: Request, supabase: any): Promise<string 
     const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!error && user) return user.id;
   } catch {
-    // The caller receives a generic authentication error below.
+    // Auth error handled below
   }
   return null;
 }
@@ -60,10 +60,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const userId = await authenticateRequest(req, supabase);
-    if (!userId) return jsonResponse({ error: "Authentication required. Please log in." }, 401);
+    if (!userId) {
+      return jsonResponse({ error: "Authentication required. Please log in." }, 200);
+    }
 
-    const { prompt, systemPrompt, temperature = 0.7 } = await req.json();
-    if (!prompt?.trim()) return jsonResponse({ error: "Prompt is required" }, 400);
+    const { prompt, systemPrompt, temperature = 0.7 } = await req.json().catch(() => ({}));
+    if (!prompt?.trim()) {
+      return jsonResponse({ error: "Prompt is required" }, 200);
+    }
 
     const aiSettings = await getAISettings(supabase);
     const resolved = resolveAIProvider(aiSettings);
@@ -72,7 +76,7 @@ serve(async (req) => {
     if (!apiKey || (provider === "cloudflare" && !accountId)) {
       return jsonResponse({
         error: `AI সার্ভিস কনফিগার করা হয়নি। Super Admin Settings → AI ট্যাবে ${provider} credentials সেট করুন।`,
-      });
+      }, 200);
     }
 
     let finalSystemPrompt = "";
@@ -107,8 +111,8 @@ serve(async (req) => {
       console.error(`[ai-generate-text] Generation failed: ${lastError.message}`);
     }
 
-    if (!text) {
-      const errorMessage = lastError?.message || "No text returned from AI";
+    if (!text || !text.trim()) {
+      const errorMessage = lastError?.message || "AI returned an empty response";
       try {
         await supabase.from("ai_usage_logs").insert({
           user_id: userId,
@@ -124,7 +128,7 @@ serve(async (req) => {
       } catch (logError) {
         console.error("[ai-generate-text] Failed to log error:", logError);
       }
-      return jsonResponse({ error: errorMessage }, 500);
+      return jsonResponse({ error: errorMessage }, 200);
     }
 
     try {
@@ -149,6 +153,6 @@ serve(async (req) => {
     console.error("[ai-generate-text] Error:", error);
     return jsonResponse({
       error: error instanceof Error ? error.message : "An unexpected error occurred",
-    }, 500);
+    }, 200);
   }
 });

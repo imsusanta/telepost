@@ -4,6 +4,18 @@
 -- This migration sets up the cron job to automatically
 -- process auto-scheduling settings and queue quizzes
 -- =============================================
+--
+-- RENAMED 2026-08-26: this file was 20260209000001_setup_auto_schedule_cron.sql.
+-- It shared the version prefix 20260209000001 with
+-- 20260209000001_add_timezone_to_scheduler.sql. A migration version must be
+-- unique -- with a collision the CLI cannot order the two files and one is
+-- skipped, so a fresh database ends up missing objects.
+--
+-- The bare cron.schedule() call below was also made repeatable. The legacy
+-- 'process-auto-schedule-worker' job it creates is superseded later by
+-- 'process-auto-schedule-cron' in 20260825001000_auto_scheduler_architecture.sql;
+-- that migration runs after this one, so the end state is still correct.
+-- =============================================
 
 -- Create function to process auto-schedules by calling the edge function
 CREATE OR REPLACE FUNCTION process_auto_schedule_worker()
@@ -43,11 +55,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grant execute permission
 GRANT EXECUTE ON FUNCTION process_auto_schedule_worker() TO postgres;
 
--- Schedule the cron job to run every minute
+-- Schedule the cron job to run every minute.
+-- Drop any existing job with this name first so re-running is safe.
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'process-auto-schedule-worker';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule process-auto-schedule-worker: %', SQLERRM;
+END;
+$cron$;
+
 SELECT cron.schedule(
-  'process-auto-schedule-worker',  -- Job name
-  '* * * * *',                   -- Every minute
-  $$SELECT process_auto_schedule_worker()$$
+  'process-auto-schedule-worker',
+  '* * * * *',
+  'SELECT process_auto_schedule_worker()'
 );
 
 COMMENT ON FUNCTION process_auto_schedule_worker() IS 'Triggers the Edge Function to process Auto-Schedule settings every minute';
