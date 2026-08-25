@@ -74,6 +74,27 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   cloudflare_api_token: '',
 };
 
+const SENSITIVE_AI_FIELDS = new Set([
+  'openrouter_api_key',
+  'cloudflare_api_token',
+]);
+
+function sanitizeForAudit(key: SettingKey, value: unknown): Record<string, unknown> {
+  if (key !== 'ai_settings' || !value || typeof value !== 'object') {
+    return (value && typeof value === 'object' ? value : { value }) as Record<string, unknown>;
+  }
+
+  const settings = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(settings).map(([field, fieldValue]) => [
+      field,
+      SENSITIVE_AI_FIELDS.has(field) && typeof fieldValue === 'string' && fieldValue.length > 0
+        ? '[REDACTED]'
+        : fieldValue,
+    ]),
+  );
+}
+
 export async function getAllSettings(): Promise<SystemSettings> {
   const { data, error } = await supabase
     .from('system_settings')
@@ -161,8 +182,8 @@ export async function updateSetting<K extends SettingKey>(
       action_type: 'system_setting_updated',
       target_resource_type: 'system_setting',
       target_resource_id: key,
-      old_value: oldValue as unknown as Record<string, unknown>,
-      new_value: value as unknown as Record<string, unknown>,
+      old_value: sanitizeForAudit(key, oldValue),
+      new_value: sanitizeForAudit(key, value),
       metadata: { setting_key: key },
     });
   } catch (auditError) {
