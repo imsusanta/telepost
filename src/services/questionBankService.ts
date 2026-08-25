@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Canonical Question Bank domain model.
+ *
+ * `difficulty` is intentionally kept optional only for backwards compatibility
+ * with older records/types. New Question Bank writes never persist or filter it.
+ */
 export interface QuestionBankItem {
   id: string;
   user_id: string;
@@ -10,9 +16,11 @@ export interface QuestionBankItem {
   explanation?: string;
   topic: string;
   subject?: string;
+  /** @deprecated Government-exam standard is automatic; do not use for new logic. */
   difficulty?: string;
   tags?: string[];
   source?: string;
+  source_document_id?: string;
   usage_count?: number;
   success_rate?: number;
   times_used: number;
@@ -22,472 +30,285 @@ export interface QuestionBankItem {
   is_public: boolean;
   is_active: boolean;
   classification_confidence?: number;
-  classification_source?: 'auto' | 'manual';
+  classification_source?: "auto" | "manual";
   created_at: string;
   updated_at: string;
 }
 
 export interface QuestionBankFilters {
   topic?: string | string[];
-  difficulty?: string;
   language?: string;
   subject?: string | string[];
   source?: string;
   tags?: string[];
   channelId?: string;
   includePublic?: boolean;
-  isPublicOnly?: boolean; // Filter to show ONLY public questions
+  isPublicOnly?: boolean;
   unclassifiedOnly?: boolean;
+  /** @deprecated Ignored. Government-exam standard is automatic. */
+  difficulty?: string;
 }
 
+export interface QuestionBankStatistics {
+  total: number;
+  byTopic: Record<string, number>;
+  bySubject: Record<string, number>;
+  byLanguage: Record<string, number>;
+  unclassifiedCount: number;
+  publicCount: number;
+  privateCount: number;
+}
+
+type QuestionInput = Omit<
+  QuestionBankItem,
+  "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id"
+>;
+
+const stripLegacyDifficulty = <T extends Record<string, unknown>>(value: T): Omit<T, "difficulty"> => {
+  const { difficulty: _ignored, ...clean } = value;
+  return clean;
+};
+
+const normalizeQuestionInput = (question: Record<string, unknown>, source?: string) => {
+  const clean = stripLegacyDifficulty(question);
+  return {
+    ...clean,
+    topic: typeof clean.topic === "string" && clean.topic.trim() ? clean.topic.trim() : "General",
+    subject: typeof clean.subject === "string" && clean.subject.trim() ? clean.subject.trim() : null,
+    language: typeof clean.language === "string" && clean.language.trim() ? clean.language : "bn",
+    source: source ?? (typeof clean.source === "string" && clean.source ? clean.source : "manual"),
+  };
+};
+
+function applyVisibility(query: any, userId: string, filters?: QuestionBankFilters) {
+  if (filters?.isPublicOnly) return query.eq("is_public", true);
+  if (filters?.includePublic) return query.or(`user_id.eq.${userId},is_public.eq.true`);
+  return query.eq("user_id", userId);
+}
+
+function applyCommonFilters(query: any, filters?: QuestionBankFilters) {
+  if (filters?.topic) {
+    query = Array.isArray(filters.topic) ? query.in("topic", filters.topic) : query.eq("topic", filters.topic);
+  }
+  if (filters?.subject) {
+    query = Array.isArray(filters.subject) ? query.in("subject", filters.subject) : query.eq("subject", filters.subject);
+  }
+  if (filters?.language) query = query.eq("language", filters.language);
+  if (filters?.source) query = query.eq("source", filters.source);
+  if (filters?.channelId && filters.channelId !== "all") query = query.eq("channel_id", filters.channelId);
+  if (filters?.tags?.length) query = query.contains("tags", filters.tags);
+  if (filters?.unclassifiedOnly) query = query.or('subject.is.null,subject.eq.""');
+  return query;
+}
 
 export class QuestionBankService {
-  /**
-   * Bulk add questions to bank
-   */
-  static async bulkAddQuestions(
-    userId: string,
-    questions: Array<Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">>
-  ): Promise<QuestionBankItem[]> {
-    const formattedQuestions = questions.map((q) => ({
-      ...q,
-      user_id: userId,
-      topic: q.topic || "General",
-      subject: q.subject || undefined,
-      difficulty: q.difficulty || "medium",
-      language: q.language || "bn",
-      source: "bulk_upload"
-    }));
-
-    const { data, error } = await supabase
-      .from("question_banks")
-      .insert(formattedQuestions)
-      .select();
-
+  static async bulkAddQuestions(userId: string, questions: QuestionInput[]): Promise<QuestionBankItem[]> {
+    if (!questions.length) return [];
+    const records = questions.map((question) => normalizeQuestionInput({ ...question, user_id: userId }, "bulk_upload"));
+    const { data, error } = await supabase.from("question_banks").insert(records).select();
     if (error) throw error;
-    return (data || []) as QuestionBankItem[];
+    return (data ?? []) as QuestionBankItem[];
   }
 
-  /**
-   * Add question to bank
-   */
-  static async addQuestion(
-    userId: string,
-    question: Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">
-  ): Promise<QuestionBankItem> {
-    const { data, error } = await supabase
-      .from("question_banks")
-      .insert({
-        ...question,
-        difficulty: question.difficulty || "medium",
-        language: question.language || "bn",
-        topic: question.topic || "General",
-        user_id: userId,
-      })
-      .select()
-      .single();
-
+  static async addQuestion(userId: string, question: QuestionInput): Promise<QuestionBankItem> {
+    const record = normalizeQuestionInput({ ...question, user_id: userId });
+    const { data, error } = await supabase.from("question_banks").insert(record).select().single();
     if (error) throw error;
     return data as QuestionBankItem;
   }
 
-  /**
-   * Get questions from bank with pagination and search
-   */
   static async getQuestions(
     userId: string,
-    filters?: QuestionBankFilters,
-    limit: number = 20,
-    offset: number = 0,
+    filters: QuestionBankFilters = { includePublic: true },
+    limit = 20,
+    offset = 0,
     search?: string,
-    sortOrder: 'asc' | 'desc' = 'desc'
+    sortOrder: "asc" | "desc" = "desc",
   ): Promise<{ data: QuestionBankItem[]; count: number }> {
-    let query = supabase
-      .from("question_banks")
-      .select("*", { count: "exact" });
-
-    // Handle user filtering with public questions option
-    if (filters?.isPublicOnly) {
-      // Show ONLY public questions (from any user)
-      query = query.eq("is_public", true);
-    } else if (filters?.includePublic) {
-      // Show user's own questions + public questions
-      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
-    } else {
-      // Show only user's own questions (private)
-      query = query.eq("user_id", userId);
-    }
-
-
-    // Apply filters
-    if (filters?.topic) {
-      if (Array.isArray(filters.topic)) {
-        query = query.in("topic", filters.topic);
-      } else {
-        query = query.eq("topic", filters.topic);
-      }
-    }
-    if (filters?.subject) {
-      if (Array.isArray(filters.subject)) {
-        query = query.in("subject", filters.subject);
-      } else {
-        query = query.eq("subject", filters.subject);
-      }
-    }
-    if (filters?.difficulty) {
-      query = query.eq("difficulty", filters.difficulty);
-    }
-    if (filters?.language) {
-      query = query.eq("language", filters.language);
-    }
-    if (filters?.source) {
-      query = query.eq("source", filters.source);
-    }
-    if (filters?.channelId && filters.channelId !== "all") {
-      query = query.eq("channel_id", filters.channelId);
-    }
-    if (filters?.tags && filters.tags.length > 0) {
-      query = query.contains("tags", filters.tags);
-    }
-    if (filters?.unclassifiedOnly) {
-      query = query.or("subject.is.null,subject.eq.\"\"");
-    }
-
-    // Apply search
-    if (search?.trim()) {
-      query = query.ilike("question", `%${search.trim()}%`);
-    }
-
+    const safeLimit = Math.max(1, Math.min(limit, 100));
+    const safeOffset = Math.max(0, offset);
+    let query = supabase.from("question_banks").select("*", { count: "exact" });
+    query = applyVisibility(query, userId, filters);
+    query = applyCommonFilters(query, filters);
+    if (search?.trim()) query = query.ilike("question", `%${search.trim()}%`);
     const { data, error, count } = await query
-      .order("created_at", { ascending: sortOrder === 'asc' })
-      .range(offset, offset + limit - 1);
-
+      .order("created_at", { ascending: sortOrder === "asc" })
+      .range(safeOffset, safeOffset + safeLimit - 1);
     if (error) throw error;
-    return {
-      data: (data || []) as QuestionBankItem[],
-      count: count || 0
-    };
+    return { data: (data ?? []) as QuestionBankItem[], count: count ?? 0 };
   }
 
-  /**
-   * Get questions by their IDs - useful for fetching selected questions across pages
-   */
-  static async getQuestionsByIds(
-    questionIds: string[]
-  ): Promise<QuestionBankItem[]> {
-    if (questionIds.length === 0) return [];
-
-    console.log(`[getQuestionsByIds] Fetching ${questionIds.length} questions...`);
-
-    const { data, error, count } = await supabase
-      .from("question_banks")
-      .select("*", { count: "exact" })
-      .in("id", questionIds);
-
-    if (error) {
-      console.error(`[getQuestionsByIds] Error:`, error);
-      throw error;
-    }
-
-    console.log(`[getQuestionsByIds] Received ${data?.length || 0} questions (count: ${count})`);
-
-    // Warn if there's a mismatch
-    if (data && data.length !== questionIds.length) {
-      console.warn(`[getQuestionsByIds] WARNING: Requested ${questionIds.length} IDs but got ${data.length} results. Some IDs may not exist in database.`);
-    }
-
-    return (data || []) as QuestionBankItem[];
+  static async getQuestionsByIds(questionIds: string[]): Promise<QuestionBankItem[]> {
+    if (!questionIds.length) return [];
+    const { data, error } = await supabase.from("question_banks").select("*").in("id", questionIds);
+    if (error) throw error;
+    return (data ?? []) as QuestionBankItem[];
   }
 
-  /**
-   * Get question IDs by range (1-indexed positions) - for selecting questions across pages
-   */
   static async getQuestionIdsByRange(
     userId: string,
     fromPosition: number,
     toPosition: number,
-    filters?: QuestionBankFilters,
-    sortOrder: 'asc' | 'desc' = 'desc'
+    filters: QuestionBankFilters = { includePublic: true },
+    sortOrder: "asc" | "desc" = "desc",
   ): Promise<string[]> {
-    let query = supabase
-      .from("question_banks")
-      .select("id");
-
-    // Handle user filtering with public questions option
-    if (filters?.isPublicOnly) {
-      query = query.eq("is_public", true);
-    } else if (filters?.includePublic) {
-      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
-    } else {
-      query = query.eq("user_id", userId);
-    }
-
-    // Apply filters
-    if (filters?.topic) {
-      if (Array.isArray(filters.topic)) {
-        query = query.in("topic", filters.topic);
-      } else {
-        query = query.eq("topic", filters.topic);
-      }
-    }
-    if (filters?.subject) {
-      if (Array.isArray(filters.subject)) {
-        query = query.in("subject", filters.subject);
-      } else {
-        query = query.eq("subject", filters.subject);
-      }
-    }
-    if (filters?.difficulty) {
-      query = query.eq("difficulty", filters.difficulty);
-    }
-    if (filters?.language) {
-      query = query.eq("language", filters.language);
-    }
-
-    // Get the range (convert 1-indexed to 0-indexed)
-    const offset = fromPosition - 1;
-    const limit = toPosition - fromPosition + 1;
-
+    const from = Math.max(1, fromPosition);
+    const to = Math.max(from, toPosition);
+    const limit = Math.min(to - from + 1, 5000);
+    let query = supabase.from("question_banks").select("id");
+    query = applyVisibility(query, userId, filters);
+    query = applyCommonFilters(query, filters);
     const { data, error } = await query
-      .order("created_at", { ascending: sortOrder === 'asc' })
-      .range(offset, offset + limit - 1);
-
+      .order("created_at", { ascending: sortOrder === "asc" })
+      .range(from - 1, from - 1 + limit - 1);
     if (error) throw error;
-    return (data || []).map(q => q.id);
+    return (data ?? []).map((question) => question.id);
   }
+
   static async getRandomQuestions(
     userId: string,
     count: number,
-    filters?: QuestionBankFilters
+    filters: QuestionBankFilters = { includePublic: true },
   ): Promise<QuestionBankItem[]> {
-    // First, get all matching questions
-    const { data: allQuestions } = await this.getQuestions(userId, filters, 1000);
+    const safeCount = Math.max(1, Math.min(count, 100));
+    const { data, error } = await supabase.rpc("get_random_question_bank_questions", {
+      p_user_id: userId,
+      p_count: safeCount,
+      p_subject: Array.isArray(filters.subject) ? null : filters.subject ?? null,
+      p_topic: Array.isArray(filters.topic) ? null : filters.topic ?? null,
+      p_language: filters.language ?? null,
+      p_include_public: filters.isPublicOnly ? true : filters.includePublic !== false,
+    });
+    if (!error && data) return data as QuestionBankItem[];
 
-    // Shuffle and take requested count
-    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    // Backwards-compatible fallback until the migration is deployed.
+    const { data: fallback } = await this.getQuestions(userId, filters, Math.max(100, safeCount * 5), 0);
+    return [...fallback].sort(() => Math.random() - 0.5).slice(0, safeCount);
   }
 
-  /**
-   * Import questions from quiz
-   */
   static async importQuestionsFromQuiz(
     userId: string,
-    quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>; metadata?: { difficulty?: string } },
+    quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }> },
     topic: string,
-    options?: {
-      channelId?: string;
-    }
+    options?: { channelId?: string },
   ): Promise<QuestionBankItem[]> {
-    const questions = quizData.questions.map((q) => ({
+    const records = quizData.questions.map((question) => normalizeQuestionInput({
       user_id: userId,
-      question: q.question,
-      options: q.options,
-      correct_option_index: q.correct_option_index,
-      explanation: q.explanation,
-      topic: topic,
-      difficulty: quizData.metadata?.difficulty || "medium",
-      source: "quiz_import",
-      channel_id: options?.channelId || null,
-    }));
-
-    const { data, error } = await supabase
-      .from("question_banks")
-      .insert(questions)
-      .select();
-
+      question: question.question,
+      options: question.options,
+      correct_option_index: question.correct_option_index,
+      explanation: question.explanation,
+      topic,
+      channel_id: options?.channelId ?? null,
+    }, "quiz_import"));
+    if (!records.length) return [];
+    const { data, error } = await supabase.from("question_banks").insert(records).select();
     if (error) throw error;
-    return (data || []) as QuestionBankItem[];
+    return (data ?? []) as QuestionBankItem[];
   }
 
-  /**
-   * Import questions from document
-   */
   static async importQuestionsFromDocument(
     userId: string,
-    _documentId: string,
-    questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string; difficulty?: string }>,
-    options?: {
-      topic?: string;
-      channelId?: string;
-    }
+    documentId: string,
+    questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>,
+    options?: { topic?: string; channelId?: string },
   ): Promise<QuestionBankItem[]> {
-    const questionRecords = questions.map((q) => ({
+    const records = questions.map((question) => normalizeQuestionInput({
       user_id: userId,
-      question: q.question,
-      options: q.options,
-      correct_option_index: q.correct_option_index,
-      explanation: q.explanation,
-      topic: options?.topic || "General",
-      difficulty: q.difficulty || "medium",
-      source: "document",
-      channel_id: options?.channelId || null,
-    }));
-
-    const { data, error } = await supabase
-      .from("question_banks")
-      .insert(questionRecords)
-      .select();
-
+      question: question.question,
+      options: question.options,
+      correct_option_index: question.correct_option_index,
+      explanation: question.explanation,
+      topic: options?.topic ?? "General",
+      channel_id: options?.channelId ?? null,
+      source_document_id: documentId,
+    }, "document"));
+    if (!records.length) return [];
+    const { data, error } = await supabase.from("question_banks").insert(records).select();
     if (error) throw error;
-    return (data || []) as QuestionBankItem[];
+    return (data ?? []) as QuestionBankItem[];
   }
 
-  /**
-   * Update question
-   */
-  static async updateQuestion(
-    questionId: string,
-    userId: string,
-    updates: Partial<QuestionBankItem>
-  ): Promise<QuestionBankItem> {
+  static async updateQuestion(questionId: string, userId: string, updates: Partial<QuestionBankItem>): Promise<QuestionBankItem> {
+    const clean = stripLegacyDifficulty({ ...updates } as Record<string, unknown>);
+    delete (clean as any).id;
+    delete (clean as any).user_id;
+    delete (clean as any).created_at;
+    delete (clean as any).updated_at;
+    delete (clean as any).times_used;
+    delete (clean as any).times_correct;
+    delete (clean as any).times_incorrect;
     const { data, error } = await supabase
       .from("question_banks")
-      .update(updates)
+      .update(clean)
       .eq("id", questionId)
       .eq("user_id", userId)
       .select()
       .single();
-
     if (error) throw error;
     return data as QuestionBankItem;
   }
 
-  /**
-   * Delete question
-   */
   static async deleteQuestion(questionId: string, userId: string): Promise<void> {
-    const { error } = await supabase
-      .from("question_banks")
-      .delete()
-      .eq("id", questionId)
-      .eq("user_id", userId);
-
+    const { error } = await supabase.from("question_banks").delete().eq("id", questionId).eq("user_id", userId);
     if (error) throw error;
   }
 
-  /**
-   * Bulk update classification for questions
-   */
-  static async bulkUpdateClassification(
-    questionIds: string[],
-    userId: string,
-    subject: string,
-    topic: string
-  ): Promise<void> {
+  static async bulkUpdateClassification(questionIds: string[], userId: string, subject: string, topic: string): Promise<void> {
+    if (!questionIds.length) return;
     const { error } = await supabase
       .from("question_banks")
-      .update({ subject, topic })
+      .update({ subject: subject.trim(), topic: topic.trim() || "General", classification_source: "manual" })
       .in("id", questionIds)
       .eq("user_id", userId);
-
     if (error) throw error;
   }
 
-  /**
-   * Get question bank statistics
-   */
-  static async getStatistics(userId: string, includePublic: boolean = false): Promise<{
-    total: number;
-    byTopic: Record<string, number>;
-    bySubject: Record<string, number>;
-    byDifficulty: Record<string, number>;
-    byLanguage: Record<string, number>;
-    unclassifiedCount: number;
-    publicCount: number;
-    privateCount: number;
-  }> {
-    let query = supabase
-      .from("question_banks")
-      .select("topic, subject, difficulty, language, is_public, user_id");
-
-    // Include public questions if requested
-    if (includePublic) {
-      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
-    } else {
-      query = query.eq("user_id", userId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    const questionsData = data as any[];
-
-    const stats = {
-      total: questionsData.length,
-      byTopic: {} as Record<string, number>,
-      bySubject: {} as Record<string, number>,
-      byDifficulty: {} as Record<string, number>,
-      byLanguage: {} as Record<string, number>,
-      unclassifiedCount: 0,
-      publicCount: 0,
-      privateCount: 0,
-    };
-
-
-    questionsData.forEach((q) => {
-      // By topic
-      if (q.topic) stats.byTopic[q.topic] = (stats.byTopic[q.topic] || 0) + 1;
-
-      // By subject
-      if (q.subject) {
-        stats.bySubject[q.subject] = (stats.bySubject[q.subject] || 0) + 1;
-      } else {
-        stats.unclassifiedCount++;
-      }
-
-      // By difficulty
-      stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1;
-
-      // By language
-      if (q.language) {
-        stats.byLanguage[q.language] = (stats.byLanguage[q.language] || 0) + 1;
-      }
-
-      // Count public vs private
-      if (q.is_public) {
-        stats.publicCount++;
-      } else {
-        stats.privateCount++;
-      }
+  static async getStatistics(userId: string, includePublic = false): Promise<QuestionBankStatistics> {
+    const { data, error } = await supabase.rpc("question_bank_statistics", {
+      p_user_id: userId,
+      p_include_public: includePublic,
     });
+    if (!error && data) return data as QuestionBankStatistics;
 
-
+    // Fallback keeps the UI working if the migration has not reached Supabase yet.
+    let query = supabase.from("question_banks").select("topic, subject, language, is_public, user_id");
+    query = includePublic ? query.or(`user_id.eq.${userId},is_public.eq.true`) : query.eq("user_id", userId);
+    const { data: rows, error: fallbackError } = await query;
+    if (fallbackError) throw fallbackError;
+    const stats: QuestionBankStatistics = {
+      total: rows?.length ?? 0,
+      byTopic: {}, bySubject: {}, byLanguage: {},
+      unclassifiedCount: 0, publicCount: 0, privateCount: 0,
+    };
+    for (const row of rows ?? []) {
+      if (row.topic) stats.byTopic[row.topic] = (stats.byTopic[row.topic] ?? 0) + 1;
+      if (row.subject) stats.bySubject[row.subject] = (stats.bySubject[row.subject] ?? 0) + 1;
+      else stats.unclassifiedCount++;
+      if (row.language) stats.byLanguage[row.language] = (stats.byLanguage[row.language] ?? 0) + 1;
+      if (row.is_public) stats.publicCount++;
+      else stats.privateCount++;
+    }
     return stats;
   }
 
-  /**
-   * Seed sample questions (for demo/testing)
-   */
+  /** Seed sample questions for local/demo environments only. */
   static async seedSampleQuestions(userId: string): Promise<void> {
-    const sampleQuestions = [
+    await this.bulkAddQuestions(userId, [
       {
-        user_id: userId,
         question: "ভারতের রাজধানী কোথায়?",
-        options: ["মুম্বাই", "দিল্লি", "কলকাতা", "চেন্নাই"],
+        options: ["মুম্বাই", "নতুন দিল্লি", "কলকাতা", "চেন্নাই"],
         correct_option_index: 1,
-        explanation: "ভারতের রাজধানী নতুন দিল্লি",
-        topic: "Geography",
-        difficulty: "easy",
-        source: "sample",
+        explanation: "ভারতের রাজধানী নতুন দিল্লি।",
+        topic: "ভারতের ভূগোল", subject: "ভূগোল", language: "bn", is_public: false, is_active: true,
       },
       {
-        user_id: userId,
         question: "২ + ২ = ?",
         options: ["৩", "৪", "৫", "৬"],
         correct_option_index: 1,
-        explanation: "২ + ২ = ৪",
-        topic: "Mathematics",
-        difficulty: "easy",
-        source: "sample",
+        explanation: "২ + ২ = ৪।",
+        topic: "মৌলিক গণিত", subject: "গণিত", language: "bn", is_public: false, is_active: true,
       },
-    ];
-
-    const { error } = await supabase
-      .from("question_banks")
-      .insert(sampleQuestions);
-
-    if (error) throw error;
+    ] as QuestionInput[]);
   }
 }
