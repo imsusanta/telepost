@@ -15,6 +15,8 @@ concurrency:
 
 jobs:
   build-and-publish:
+    # Avoid rebuilding the generated production commit itself.
+    if: ${{ !startsWith(github.event.head_commit.message, 'deploy: publish Hostinger production build') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -31,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore Vite source entry
+      - name: Restore the Vite source entry
         run: cp index.source.html index.html
 
       - name: Typecheck
@@ -43,7 +45,7 @@ jobs:
       - name: Build production application
         run: npm run build
 
-      - name: Publish production files
+      - name: Sync build output to document root
         run: |
           rm -rf assets
           rsync -a dist/ ./
@@ -58,5 +60,5 @@ jobs:
             echo "Production bundle is already current."
             exit 0
           fi
-          git commit -m "deploy: publish Hostinger production build [skip ci]"
+          git commit -m "deploy: publish Hostinger production build [skip hostinger build]"
           git push origin HEAD:${GITHUB_REF_NAME}

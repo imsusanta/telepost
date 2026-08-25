@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bot,
-  CheckCircle2,
   CreditCard,
   Eye,
   EyeOff,
@@ -69,7 +68,24 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   openrouter_image_model: '',
   temperature: 0.7,
   system_prompt: '',
+  openrouter_api_key: '',
+  cloudflare_account_id: '',
+  cloudflare_api_token: '',
 };
+
+function normalizeAISettings(settings: AISettings): AISettings {
+  const provider: SupportedAIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
+  const providerChanged = provider !== settings.provider;
+  const validCloudflareModel = settings.model?.startsWith('@cf/');
+  return {
+    ...DEFAULT_AI_SETTINGS,
+    ...settings,
+    provider,
+    model: providerChanged || !settings.model?.trim() || (provider === 'cloudflare' && !validCloudflareModel)
+      ? PROVIDER_DEFAULT_MODELS[provider]
+      : settings.model,
+  };
+}
 
 type SecretInputProps = {
   id: string;
@@ -110,19 +126,6 @@ function SecretInput({ id, label, value, placeholder, visible, onToggle, onChang
   );
 }
 
-function normalizeAISettings(settings: AISettings): AISettings {
-  const provider: SupportedAIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
-  const validCloudflareModel = settings.model?.startsWith('@cf/');
-  return {
-    ...DEFAULT_AI_SETTINGS,
-    ...settings,
-    provider,
-    model: !settings.model?.trim() || (provider === 'cloudflare' && !validCloudflareModel)
-      ? PROVIDER_DEFAULT_MODELS[provider]
-      : settings.model,
-  };
-}
-
 export default function SuperAdminSettings() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -141,8 +144,15 @@ export default function SuperAdminSettings() {
     maintenance_message: 'System is under maintenance. Please try again later.',
   });
   const [aiSettings, setAISettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
-  const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>({ global_bot_token: '', fallback_enabled: true });
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ razorpay_key_id: '', razorpay_key_secret: '', razorpay_webhook_secret: '' });
+  const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>({
+    global_bot_token: '',
+    fallback_enabled: true,
+  });
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({
+    razorpay_key_id: '',
+    razorpay_key_secret: '',
+    razorpay_webhook_secret: '',
+  });
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -151,6 +161,7 @@ export default function SuperAdminSettings() {
         navigate('/dashboard');
         return;
       }
+
       try {
         const data = await getAllSettings();
         setUserDefaults(data.user_defaults);
@@ -165,12 +176,17 @@ export default function SuperAdminSettings() {
         setLoading(false);
       }
     };
+
     loadSettings();
   }, [navigate, toast]);
 
-  const quickModels = useMemo(() => (aiSettings.provider === 'cloudflare' ? CLOUDFLARE_MODELS : []), [aiSettings.provider]);
+  const quickModels = useMemo(
+    () => (aiSettings.provider === 'cloudflare' ? CLOUDFLARE_MODELS : []),
+    [aiSettings.provider]
+  );
 
-  const toggleSecret = (key: string) => setVisibleSecrets((previous) => ({ ...previous, [key]: !previous[key] }));
+  const toggleSecret = (key: string) =>
+    setVisibleSecrets((previous) => ({ ...previous, [key]: !previous[key] }));
 
   const save = async (action: () => Promise<void>, successMessage: string) => {
     try {
@@ -178,26 +194,56 @@ export default function SuperAdminSettings() {
       await action();
       toast({ title: 'Success', description: successMessage });
     } catch (error) {
-      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to save settings', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save settings',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleProviderChange = (provider: SupportedAIProvider) =>
-    setAISettings((previous) => ({ ...previous, provider, model: PROVIDER_DEFAULT_MODELS[provider] }));
+    setAISettings((previous) => ({
+      ...previous,
+      provider,
+      model: PROVIDER_DEFAULT_MODELS[provider],
+    }));
 
   const handleSaveAISettings = async () => {
     const sanitizedSettings: AISettings = {
       ...aiSettings,
       model: aiSettings.model.trim(),
-      image_model: aiSettings.image_model?.trim() || '',
-      openrouter_image_model: aiSettings.openrouter_image_model?.trim() || '',
+      openrouter_api_key: aiSettings.openrouter_api_key?.trim() || '',
+      cloudflare_account_id: aiSettings.cloudflare_account_id?.trim() || '',
+      cloudflare_api_token: aiSettings.cloudflare_api_token?.trim() || '',
       system_prompt: aiSettings.system_prompt?.trim() || '',
     };
 
     if (!sanitizedSettings.model) {
       toast({ title: 'Model required', description: 'Enter an AI model ID.', variant: 'destructive' });
+      return;
+    }
+
+    if (sanitizedSettings.provider === 'openrouter' && !sanitizedSettings.openrouter_api_key) {
+      toast({
+        title: 'OpenRouter API Key required',
+        description: 'Please enter your OpenRouter API key or switch to Cloudflare Workers AI.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (
+      sanitizedSettings.provider === 'cloudflare' &&
+      (!sanitizedSettings.cloudflare_account_id || !sanitizedSettings.cloudflare_api_token)
+    ) {
+      toast({
+        title: 'Cloudflare credentials required',
+        description: 'Enter both the Cloudflare Account ID and API token.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -214,62 +260,102 @@ export default function SuperAdminSettings() {
           model: aiSettings.model,
           temperature: aiSettings.temperature,
           system_prompt: aiSettings.system_prompt,
+          openrouter_api_key: aiSettings.openrouter_api_key,
+          cloudflare_account_id: aiSettings.cloudflare_account_id,
+          cloudflare_api_token: aiSettings.cloudflare_api_token,
         },
       });
+
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Unknown AI connection error');
-      toast({ title: 'Connection Successful', description: `${data.provider || aiSettings.provider} / ${data.model || aiSettings.model} is working.` });
+
+      toast({
+        title: 'Connection Successful',
+        description: `${data.provider || aiSettings.provider} / ${data.model || aiSettings.model} is working.`,
+      });
     } catch (error) {
-      toast({ title: 'Connection Failed', description: error instanceof Error ? error.message : 'Failed to connect to AI', variant: 'destructive' });
+      toast({
+        title: 'Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to AI',
+        variant: 'destructive',
+      });
     } finally {
       setTestingAI(false);
     }
   };
 
   if (loading) {
-    return <DashboardLayout><div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></DashboardLayout>;
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 dashboard-page">
+      <div className="space-y-6">
         <div>
-          <h1 className="bg-gradient-to-r from-primary to-accent bg-clip-text text-3xl font-bold text-transparent">System Settings</h1>
+          <h1 className="bg-gradient-to-r from-primary to-accent bg-clip-text text-3xl font-bold text-transparent">
+            System Settings
+          </h1>
           <p className="text-muted-foreground">Configure system-wide services and defaults</p>
         </div>
 
         {maintenanceSettings.maintenance_mode && (
-          <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Maintenance Mode Active</AlertTitle><AlertDescription>{maintenanceSettings.maintenance_message}</AlertDescription></Alert>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Maintenance Mode Active</AlertTitle>
+            <AlertDescription>{maintenanceSettings.maintenance_message}</AlertDescription>
+          </Alert>
         )}
 
         <Tabs defaultValue="ai" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:inline-flex lg:w-auto">
-            <TabsTrigger value="ai" className="gap-2"><Bot className="h-4 w-4" /><span className="hidden sm:inline">AI</span></TabsTrigger>
-            <TabsTrigger value="telegram" className="gap-2"><Send className="h-4 w-4" /><span className="hidden sm:inline">Telegram</span></TabsTrigger>
-            <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Payments</span></TabsTrigger>
-            <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /><span className="hidden sm:inline">Users</span></TabsTrigger>
-            <TabsTrigger value="maintenance" className="gap-2"><Wrench className="h-4 w-4" /><span className="hidden sm:inline">Maintenance</span></TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">AI</span>
+            </TabsTrigger>
+            <TabsTrigger value="telegram" className="gap-2">
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">Telegram</span>
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Payments</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Maintenance</span>
+            </TabsTrigger>
           </TabsList>
 
+          {/* AI Settings Tab */}
           <TabsContent value="ai">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" />AI Provider</CardTitle>
-                <CardDescription>Choose the provider and model. API credentials are kept in Supabase Edge Function secrets, never in the database or browser.</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5" />
+                  AI Provider
+                </CardTitle>
+                <CardDescription>Configure the provider and credentials used for AI generation</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Alert>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>Secure AI credentials</AlertTitle>
-                  <AlertDescription>
-                    Configure <code>OPENROUTER_API_KEY</code> for OpenRouter, or <code>CLOUDFLARE_API_TOKEN</code> + <code>CLOUDFLARE_ACCOUNT_ID</code> for Cloudflare in Supabase Edge Function secrets. These values are intentionally not editable here.
-                  </AlertDescription>
-                </Alert>
-
                 <div className="space-y-2">
                   <Label htmlFor="ai_provider">AI Provider</Label>
-                  <Select value={aiSettings.provider} onValueChange={(value) => handleProviderChange(value as SupportedAIProvider)}>
-                    <SelectTrigger id="ai_provider"><SelectValue /></SelectTrigger>
+                  <Select
+                    value={aiSettings.provider}
+                    onValueChange={(value) => handleProviderChange(value as SupportedAIProvider)}
+                  >
+                    <SelectTrigger id="ai_provider">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="openrouter">OpenRouter (Recommended)</SelectItem>
                       <SelectItem value="cloudflare">Cloudflare Workers AI</SelectItem>
@@ -280,74 +366,280 @@ export default function SuperAdminSettings() {
                 <div className="space-y-2">
                   <Label htmlFor="ai_model">Model</Label>
                   {quickModels.length > 0 ? (
-                    <Select value={aiSettings.model} onValueChange={(value) => setAISettings((p) => ({ ...p, model: value }))}>
-                      <SelectTrigger id="ai_model"><SelectValue placeholder="Select Cloudflare model" /></SelectTrigger>
-                      <SelectContent>{quickModels.map((model) => <SelectItem key={model} value={model}>{model}</SelectItem>)}</SelectContent>
+                    <Select
+                      value={aiSettings.model}
+                      onValueChange={(value) => setAISettings((p) => ({ ...p, model: value }))}
+                    >
+                      <SelectTrigger id="ai_model">
+                        <SelectValue placeholder="Select Cloudflare model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quickModels.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   ) : (
-                    <Input id="ai_model" value={aiSettings.model} onChange={(event) => setAISettings((p) => ({ ...p, model: event.target.value }))} placeholder="e.g. google/gemini-2.0-flash-001" />
+                    <Input
+                      id="ai_model"
+                      value={aiSettings.model}
+                      onChange={(event) => setAISettings((p) => ({ ...p, model: event.target.value }))}
+                      placeholder="e.g. google/gemini-2.0-flash-001"
+                    />
                   )}
                 </div>
 
+                {/* OpenRouter Credentials */}
+                {aiSettings.provider === 'openrouter' && (
+                  <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                    <SecretInput
+                      id="openrouter_api_key"
+                      label="OpenRouter API Key"
+                      value={aiSettings.openrouter_api_key || ''}
+                      placeholder="sk-or-v1-..."
+                      visible={Boolean(visibleSecrets.openrouterApiKey)}
+                      onToggle={() => toggleSecret('openrouterApiKey')}
+                      onChange={(value) => setAISettings((p) => ({ ...p, openrouter_api_key: value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Get your API key from <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-primary underline">openrouter.ai/keys</a>. Free models like <code className="text-xs">google/gemini-2.0-flash-001</code> work with standard credits.
+                    </p>
+                  </div>
+                )}
+
+                {/* Cloudflare Credentials */}
+                {aiSettings.provider === 'cloudflare' && (
+                  <div className="grid gap-4 md:grid-cols-2 rounded-xl border bg-muted/20 p-4">
+                    <SecretInput
+                      id="cloudflare_account_id"
+                      label="Cloudflare Account ID"
+                      value={aiSettings.cloudflare_account_id || ''}
+                      placeholder="32-char Account ID"
+                      visible={Boolean(visibleSecrets.cloudflareAccountId)}
+                      onToggle={() => toggleSecret('cloudflareAccountId')}
+                      onChange={(value) => setAISettings((p) => ({ ...p, cloudflare_account_id: value }))}
+                    />
+                    <SecretInput
+                      id="cloudflare_api_token"
+                      label="Cloudflare API Token"
+                      value={aiSettings.cloudflare_api_token || ''}
+                      placeholder="API Token (Workers AI Read/Edit)"
+                      visible={Boolean(visibleSecrets.cloudflareToken)}
+                      onToggle={() => toggleSecret('cloudflareToken')}
+                      onChange={(value) => setAISettings((p) => ({ ...p, cloudflare_api_token: value }))}
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label>Temperature ({aiSettings.temperature})</Label>
-                  <Slider value={[aiSettings.temperature]} onValueChange={([value]) => setAISettings((p) => ({ ...p, temperature: value }))} min={0} max={1} step={0.1} />
+                  <Slider
+                    value={[aiSettings.temperature]}
+                    onValueChange={([value]) => setAISettings((p) => ({ ...p, temperature: value }))}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label>System Prompt (Optional)</Label>
-                  <Textarea value={aiSettings.system_prompt || ''} onChange={(event) => setAISettings((p) => ({ ...p, system_prompt: event.target.value }))} placeholder="You are an expert quiz generator and Indian competitive exam setter..." rows={4} />
+                  <Textarea
+                    value={aiSettings.system_prompt || ''}
+                    onChange={(event) => setAISettings((p) => ({ ...p, system_prompt: event.target.value }))}
+                    placeholder="You are an expert quiz generator and Indian competitive exam setter..."
+                    rows={4}
+                  />
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={handleTestAIConnection} disabled={testingAI || saving} variant="outline" className="gap-2">
-                    {testingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}Test Connection
+                  <Button
+                    onClick={handleTestAIConnection}
+                    disabled={testingAI || saving}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {testingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                    Test Connection
                   </Button>
-                  <Button onClick={handleSaveAISettings} disabled={saving || testingAI} className="gap-2">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save AI Settings
+                  <Button
+                    onClick={handleSaveAISettings}
+                    disabled={saving || testingAI}
+                    className="gap-2"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save AI Settings
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Telegram Settings Tab */}
           <TabsContent value="telegram">
-            <Card><CardHeader><CardTitle>Global Telegram Bot</CardTitle><CardDescription>Fallback bot credentials used across the workspace</CardDescription></CardHeader>
+            <Card>
+              <CardHeader>
+                <CardTitle>Global Telegram Bot</CardTitle>
+                <CardDescription>Fallback bot credentials used across the workspace</CardDescription>
+              </CardHeader>
               <CardContent className="space-y-6">
-                <SecretInput id="global_bot_token" label="Global Bot Token" value={telegramSettings.global_bot_token} placeholder="123456:ABC..." visible={Boolean(visibleSecrets.telegram)} onToggle={() => toggleSecret('telegram')} onChange={(value) => setTelegramSettings((p) => ({ ...p, global_bot_token: value }))} />
-                <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-4"><div><Label>Enable Fallback</Label><p className="text-sm text-muted-foreground">Use this bot when a channel has no bot token.</p></div><Switch checked={telegramSettings.fallback_enabled} onCheckedChange={(checked) => setTelegramSettings((p) => ({ ...p, fallback_enabled: checked }))} /></div>
-                <Button onClick={() => save(() => updateTelegramSettings(telegramSettings), 'Telegram settings saved')} disabled={saving} className="gap-2"><Save className="h-4 w-4" />Save Telegram Settings</Button>
+                <SecretInput
+                  id="global_bot_token"
+                  label="Global Bot Token"
+                  value={telegramSettings.global_bot_token}
+                  placeholder="123456:ABC..."
+                  visible={Boolean(visibleSecrets.telegram)}
+                  onToggle={() => toggleSecret('telegram')}
+                  onChange={(value) => setTelegramSettings((p) => ({ ...p, global_bot_token: value }))}
+                />
+                <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-4">
+                  <div>
+                    <Label>Enable Fallback</Label>
+                    <p className="text-sm text-muted-foreground">Use this bot when a channel has no bot token.</p>
+                  </div>
+                  <Switch
+                    checked={telegramSettings.fallback_enabled}
+                    onCheckedChange={(checked) => setTelegramSettings((p) => ({ ...p, fallback_enabled: checked }))}
+                  />
+                </div>
+                <Button
+                  onClick={() => save(() => updateTelegramSettings(telegramSettings), 'Telegram settings saved')}
+                  disabled={saving}
+                  className="gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Save Telegram Settings
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Payments Settings Tab */}
           <TabsContent value="payments">
-            <Card><CardHeader><CardTitle>Razorpay</CardTitle><CardDescription>Subscription payment credentials</CardDescription></CardHeader>
+            <Card>
+              <CardHeader>
+                <CardTitle>Razorpay</CardTitle>
+                <CardDescription>Subscription payment credentials</CardDescription>
+              </CardHeader>
               <CardContent className="space-y-5">
-                <SecretInput id="razorpay_key_id" label="Razorpay Key ID" value={paymentSettings.razorpay_key_id} placeholder="rzp_test_..." visible={Boolean(visibleSecrets.razorpayId)} onToggle={() => toggleSecret('razorpayId')} onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_key_id: value }))} />
-                <SecretInput id="razorpay_key_secret" label="Razorpay Key Secret" value={paymentSettings.razorpay_key_secret} placeholder="Enter key secret" visible={Boolean(visibleSecrets.razorpaySecret)} onToggle={() => toggleSecret('razorpaySecret')} onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_key_secret: value }))} />
-                <SecretInput id="razorpay_webhook_secret" label="Webhook Secret" value={paymentSettings.razorpay_webhook_secret} placeholder="Enter webhook secret" visible={Boolean(visibleSecrets.razorpayWebhook)} onToggle={() => toggleSecret('razorpayWebhook')} onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_webhook_secret: value }))} />
-                <Button onClick={() => save(() => updatePaymentSettings(paymentSettings), 'Payment settings saved')} disabled={saving}><Save className="h-4 w-4" />Save Payment Settings</Button>
+                <SecretInput
+                  id="razorpay_key_id"
+                  label="Razorpay Key ID"
+                  value={paymentSettings.razorpay_key_id}
+                  placeholder="rzp_test_..."
+                  visible={Boolean(visibleSecrets.razorpayId)}
+                  onToggle={() => toggleSecret('razorpayId')}
+                  onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_key_id: value }))}
+                />
+                <SecretInput
+                  id="razorpay_key_secret"
+                  label="Razorpay Key Secret"
+                  value={paymentSettings.razorpay_key_secret}
+                  placeholder="Enter key secret"
+                  visible={Boolean(visibleSecrets.razorpaySecret)}
+                  onToggle={() => toggleSecret('razorpaySecret')}
+                  onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_key_secret: value }))}
+                />
+                <SecretInput
+                  id="razorpay_webhook_secret"
+                  label="Webhook Secret"
+                  value={paymentSettings.razorpay_webhook_secret}
+                  placeholder="Enter webhook secret"
+                  visible={Boolean(visibleSecrets.razorpayWebhook)}
+                  onToggle={() => toggleSecret('razorpayWebhook')}
+                  onChange={(value) => setPaymentSettings((p) => ({ ...p, razorpay_webhook_secret: value }))}
+                />
+                <Button
+                  onClick={() => save(() => updatePaymentSettings(paymentSettings), 'Payment settings saved')}
+                  disabled={saving}
+                >
+                  <Save className="h-4 w-4" />
+                  Save Payment Settings
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Users Settings Tab */}
           <TabsContent value="users">
-            <Card><CardHeader><CardTitle>User Defaults</CardTitle><CardDescription>Defaults applied to new accounts</CardDescription></CardHeader>
+            <Card>
+              <CardHeader>
+                <CardTitle>User Defaults</CardTitle>
+                <CardDescription>Defaults applied to new accounts</CardDescription>
+              </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border p-4"><div><Label>Auto-approve signups</Label><p className="text-sm text-muted-foreground">Allow new users to access Telepost immediately.</p></div><Switch checked={userDefaults.auto_approve_signups} onCheckedChange={(checked) => setUserDefaults((p) => ({ ...p, auto_approve_signups: checked }))} /></div>
-                <div className="flex items-center justify-between rounded-lg border p-4"><div><Label>Require email verification</Label><p className="text-sm text-muted-foreground">Require verified email addresses for new users.</p></div><Switch checked={userDefaults.email_verification_required} onCheckedChange={(checked) => setUserDefaults((p) => ({ ...p, email_verification_required: checked }))} /></div>
-                <Button onClick={() => save(() => updateUserDefaults(userDefaults), 'User defaults saved')} disabled={saving}><Save className="h-4 w-4" />Save User Defaults</Button>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <Label>Auto-approve signups</Label>
+                    <p className="text-sm text-muted-foreground">Allow new users to access Telepost immediately.</p>
+                  </div>
+                  <Switch
+                    checked={userDefaults.auto_approve_signups}
+                    onCheckedChange={(checked) => setUserDefaults((p) => ({ ...p, auto_approve_signups: checked }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <Label>Require email verification</Label>
+                    <p className="text-sm text-muted-foreground">Require verified email addresses for new users.</p>
+                  </div>
+                  <Switch
+                    checked={userDefaults.email_verification_required}
+                    onCheckedChange={(checked) =>
+                      setUserDefaults((p) => ({ ...p, email_verification_required: checked }))
+                    }
+                  />
+                </div>
+                <Button
+                  onClick={() => save(() => updateUserDefaults(userDefaults), 'User defaults saved')}
+                  disabled={saving}
+                >
+                  <Save className="h-4 w-4" />
+                  Save User Defaults
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Maintenance Settings Tab */}
           <TabsContent value="maintenance">
-            <Card><CardHeader><CardTitle>Maintenance</CardTitle><CardDescription>Control maintenance mode</CardDescription></CardHeader>
+            <Card>
+              <CardHeader>
+                <CardTitle>Maintenance</CardTitle>
+                <CardDescription>Control maintenance mode</CardDescription>
+              </CardHeader>
               <CardContent className="space-y-5">
-                <div className="flex items-center justify-between rounded-lg border p-4"><div><Label>Maintenance Mode</Label><p className="text-sm text-muted-foreground">Temporarily disable access for regular users.</p></div><Switch checked={maintenanceSettings.maintenance_mode} onCheckedChange={(checked) => setMaintenanceSettings((p) => ({ ...p, maintenance_mode: checked }))} /></div>
-                <div className="space-y-2"><Label>Maintenance Message</Label><Textarea value={maintenanceSettings.maintenance_message} onChange={(event) => setMaintenanceSettings((p) => ({ ...p, maintenance_message: event.target.value }))} rows={3} /></div>
-                <Button onClick={() => save(() => updateMaintenanceSettings(maintenanceSettings), 'Maintenance settings saved')} disabled={saving}><Save className="h-4 w-4" />Save Maintenance Settings</Button>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <Label>Maintenance Mode</Label>
+                    <p className="text-sm text-muted-foreground">Temporarily disable access for regular users.</p>
+                  </div>
+                  <Switch
+                    checked={maintenanceSettings.maintenance_mode}
+                    onCheckedChange={(checked) =>
+                      setMaintenanceSettings((p) => ({ ...p, maintenance_mode: checked }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Maintenance Message</Label>
+                  <Textarea
+                    value={maintenanceSettings.maintenance_message}
+                    onChange={(event) =>
+                      setMaintenanceSettings((p) => ({ ...p, maintenance_message: event.target.value }))
+                    }
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  onClick={() => save(() => updateMaintenanceSettings(maintenanceSettings), 'Maintenance settings saved')}
+                  disabled={saving}
+                >
+                  <Save className="h-4 w-4" />
+                  Save Maintenance Settings
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

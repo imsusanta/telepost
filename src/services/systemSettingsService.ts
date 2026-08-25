@@ -34,6 +34,9 @@ export interface AISettings {
   openrouter_image_model?: string;
   temperature: number;
   system_prompt?: string;
+  openrouter_api_key?: string;
+  cloudflare_account_id?: string;
+  cloudflare_api_token?: string;
 }
 
 export interface TelegramSettings {
@@ -66,23 +69,30 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   openrouter_image_model: '',
   temperature: 0.7,
   system_prompt: '',
+  openrouter_api_key: '',
+  cloudflare_account_id: '',
+  cloudflare_api_token: '',
 };
 
-function sanitizeForAudit(key: SettingKey, value: unknown): Record<string, unknown> {
-  if (value && typeof value === 'object') return value as Record<string, unknown>;
-  return { value };
-}
+const SENSITIVE_AI_FIELDS = new Set([
+  'openrouter_api_key',
+  'cloudflare_api_token',
+]);
 
-function sanitizeAISettings(value: unknown): AISettings {
-  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  return {
-    provider: raw.provider === 'cloudflare' ? 'cloudflare' : 'openrouter',
-    model: typeof raw.model === 'string' ? raw.model : '',
-    image_model: typeof raw.image_model === 'string' ? raw.image_model : '',
-    openrouter_image_model: typeof raw.openrouter_image_model === 'string' ? raw.openrouter_image_model : '',
-    temperature: typeof raw.temperature === 'number' ? raw.temperature : 0.7,
-    system_prompt: typeof raw.system_prompt === 'string' ? raw.system_prompt : '',
-  };
+function sanitizeForAudit(key: SettingKey, value: unknown): Record<string, unknown> {
+  if (key !== 'ai_settings' || !value || typeof value !== 'object') {
+    return (value && typeof value === 'object' ? value : { value }) as Record<string, unknown>;
+  }
+
+  const settings = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(settings).map(([field, fieldValue]) => [
+      field,
+      SENSITIVE_AI_FIELDS.has(field) && typeof fieldValue === 'string' && fieldValue.length > 0
+        ? '[REDACTED]'
+        : fieldValue,
+    ]),
+  );
 }
 
 export async function getAllSettings(): Promise<SystemSettings> {
@@ -116,7 +126,10 @@ export async function getAllSettings(): Promise<SystemSettings> {
       maintenance_mode: false,
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
-    ai_settings: sanitizeAISettings(settings.ai_settings),
+    ai_settings: {
+      ...DEFAULT_AI_SETTINGS,
+      ...((settings.ai_settings as Partial<AISettings> | undefined) ?? {}),
+    },
     telegram_settings: (settings.telegram_settings as TelegramSettings | undefined) ?? {
       global_bot_token: '',
       fallback_enabled: true,
@@ -141,7 +154,6 @@ export async function getSetting<K extends SettingKey>(key: K): Promise<SystemSe
     return null;
   }
 
-  if (key === 'ai_settings') return sanitizeAISettings(data?.setting_value) as SystemSettings[K];
   return data?.setting_value as SystemSettings[K] | null;
 }
 

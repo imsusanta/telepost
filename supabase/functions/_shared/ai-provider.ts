@@ -5,8 +5,9 @@ export interface AISettings {
   model: string;
   temperature: number;
   system_prompt?: string;
-  image_model?: string;
-  openrouter_image_model?: string;
+  openrouter_api_key?: string;
+  cloudflare_account_id?: string;
+  cloudflare_api_token?: string;
 }
 
 export interface ResolvedAIProvider {
@@ -21,10 +22,23 @@ export interface ChatMessage {
   content: string;
 }
 
-interface CloudflareChoice { message?: { content?: string }; }
-interface CloudflareResult { response?: string; choices?: CloudflareChoice[]; error?: string; }
-interface CloudflareResponse { success?: boolean; result?: CloudflareResult; errors?: Array<{ message?: string }>; message?: string; }
-interface OpenRouterResponse { choices?: Array<{ message?: { content?: string } }>; }
+interface CloudflareChoice {
+  message?: { content?: string };
+}
+interface CloudflareResult {
+  response?: string;
+  choices?: CloudflareChoice[];
+  error?: string;
+}
+interface CloudflareResponse {
+  success?: boolean;
+  result?: CloudflareResult;
+  errors?: Array<{ message?: string }>;
+  message?: string;
+}
+interface OpenRouterResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
 
 export const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
 export const CLOUDFLARE_DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -46,14 +60,13 @@ function getEnv(key: string): string {
   return '';
 }
 
-/**
- * Resolve credentials exclusively from Supabase Edge Function secrets.
- * system_settings contains configuration only (provider/model/prompt).
- */
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
-  const openrouterKey = getEnv('OPENROUTER_API_KEY');
-  const cfToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const cfAccountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
+  // Prefer managed Edge Function secrets. Database values remain only as a
+  // backwards-compatible migration path and should be removed after secrets
+  // are configured in the deployment environment.
+  const openrouterKey = getEnv('OPENROUTER_API_KEY') || settings.openrouter_api_key?.trim() || '';
+  const cfToken = getEnv('CLOUDFLARE_API_TOKEN') || settings.cloudflare_api_token?.trim() || '';
+  const cfAccountId = getEnv('CLOUDFLARE_ACCOUNT_ID') || settings.cloudflare_account_id?.trim() || '';
 
   let provider: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
   if (provider === 'cloudflare' && (!cfToken || !cfAccountId) && openrouterKey) provider = 'openrouter';
@@ -89,8 +102,11 @@ export function cloudflareRunUrl(accountId: string, model: string): string {
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(url, { ...init, signal: controller.signal }); }
-  finally { clearTimeout(timeout); }
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function parseBody(body: string): unknown {
@@ -155,8 +171,8 @@ export async function chatCompletion(args: {
 }): Promise<string> {
   const { resolved, messages, temperature = 0.7, maxTokens = 2048, timeoutMs = 90000, appTitle = 'TelePost' } = args;
 
-  if (!resolved.apiKey) throw new Error(`API credentials are missing for ${resolved.provider}. Configure the corresponding Supabase Edge Function secret.`);
-  if (resolved.provider === 'cloudflare' && !resolved.accountId) throw new Error('Cloudflare Account ID is missing. Configure CLOUDFLARE_ACCOUNT_ID as an Edge Function secret.');
+  if (!resolved.apiKey) throw new Error(`API credentials are missing for ${resolved.provider}.`);
+  if (resolved.provider === 'cloudflare' && !resolved.accountId) throw new Error('Cloudflare Account ID is missing.');
   if (resolved.provider === 'cloudflare' && !resolved.model.startsWith('@cf/')) throw new Error('Cloudflare Workers AI model IDs must start with @cf/.');
 
   if (resolved.provider === 'cloudflare') {

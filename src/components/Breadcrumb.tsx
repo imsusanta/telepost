@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
 
-export function Breadcrumb() {
+export function Breadcrumb({ className = "" }: { className?: string }) {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter((x) => x);
 
@@ -17,15 +17,15 @@ export function Breadcrumb() {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-6">
-      <ol className="flex items-center space-x-2 text-sm">
+    <nav aria-label="Breadcrumb" className={className}>
+      <ol className="flex items-center space-x-1.5 text-xs font-medium">
         <li>
           <Link
-            to="/"
+            to="/dashboard"
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Home"
+            aria-label="Dashboard"
           >
-            <Home className="w-4 h-4" />
+            <Home className="w-3.5 h-3.5" />
           </Link>
         </li>
         {pathnames.map((path, index) => {
@@ -33,10 +33,10 @@ export function Breadcrumb() {
           const isLast = index === pathnames.length - 1;
 
           return (
-            <li key={routeTo} className="flex items-center space-x-2">
-              <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <li key={routeTo} className="flex items-center space-x-1.5">
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" aria-hidden="true" />
               {isLast ? (
-                <span className="font-medium text-foreground" aria-current="page">
+                <span className="text-foreground font-semibold" aria-current="page">
                   {formatBreadcrumb(path)}
                 </span>
               ) : (

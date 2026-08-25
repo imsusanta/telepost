@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
@@ -28,6 +29,10 @@ interface AISettings {
   openrouter_image_model?: string;
   temperature: number;
   system_prompt?: string;
+  openrouter_api_key?: string;
+  openai_api_key?: string;
+  cloudflare_account_id?: string;
+  cloudflare_api_token?: string;
 }
 
 interface ResolvedImageProvider {
@@ -42,58 +47,52 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) => new Respon
   headers: { ...corsHeaders, "Content-Type": "application/json" },
 });
 
-async function getAISettings(supabase: ReturnType<typeof createClient>): Promise<AISettings> {
+async function getAISettings(supabase: any): Promise<AISettings> {
   try {
     const { data } = await supabase
       .from("system_settings")
       .select("setting_value")
       .eq("setting_key", "ai_settings")
       .maybeSingle();
-    if (data?.setting_value && typeof data.setting_value === "object") return data.setting_value as AISettings;
+    if (data?.setting_value) return data.setting_value as AISettings;
   } catch (error) {
     console.error("[ai-generate-image] Settings fetch error:", error);
   }
   return { provider: "openrouter", model: "", temperature: 0.7 };
 }
 
-function env(name: string): string {
-  return Deno.env.get(name)?.trim() || "";
-}
-
-/** Resolve image credentials only from Edge Function environment secrets. */
+/**
+ * Resolve the image provider from the configured text provider without
+ * silently swapping to a different vendor's credentials.
+ */
 function resolveImageProvider(settings: AISettings): ResolvedImageProvider {
-  const openrouterKey = env("OPENROUTER_API_KEY");
-  const openaiKey = env("OPENAI_API_KEY");
-  const cloudflareToken = env("CLOUDFLARE_API_TOKEN");
-  const cloudflareAccountId = env("CLOUDFLARE_ACCOUNT_ID");
-
-  const configuredProvider = settings.provider === "cloudflare"
+  const provider: ImageProvider = settings.provider === "cloudflare"
     ? "cloudflare"
     : settings.provider === "openai"
       ? "openai"
       : "openrouter";
 
-  if (configuredProvider === "cloudflare") {
+  if (provider === "cloudflare") {
     const configured = settings.image_model?.trim();
     return {
-      provider: "cloudflare",
-      apiKey: cloudflareToken,
-      accountId: cloudflareAccountId,
+      provider,
+      apiKey: settings.cloudflare_api_token?.trim() || "",
+      accountId: settings.cloudflare_account_id?.trim() || "",
       model: configured?.startsWith("@cf/") ? configured : CLOUDFLARE_DEFAULT_IMAGE_MODEL,
     };
   }
 
-  if (configuredProvider === "openai") {
+  if (provider === "openai") {
     return {
-      provider: "openai",
-      apiKey: openaiKey,
+      provider,
+      apiKey: settings.openai_api_key?.trim() || "",
       model: settings.image_model?.trim() || OPENAI_DEFAULT_IMAGE_MODEL,
     };
   }
 
   return {
-    provider: "openrouter",
-    apiKey: openrouterKey,
+    provider,
+    apiKey: settings.openrouter_api_key?.trim() || "",
     model: settings.openrouter_image_model?.trim() || OPENROUTER_DEFAULT_IMAGE_MODEL,
   };
 }
@@ -129,24 +128,20 @@ const sizeMap: Record<string, string> = {
   "9:16": "1024x1792",
 };
 
-function extractOpenRouterImage(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  const message = (data as { choices?: Array<{ message?: unknown }> }).choices?.[0]?.message;
-  if (!message || typeof message !== "object") return "";
-  const record = message as { images?: Array<{ image_url?: { url?: string }; url?: string }>; content?: unknown };
-  const fromImages = record.images?.[0]?.image_url?.url || record.images?.[0]?.url;
+function extractOpenRouterImage(data: any): string {
+  const message = data?.choices?.[0]?.message;
+  const fromImages = message?.images?.[0]?.image_url?.url || message?.images?.[0]?.url;
   if (fromImages) return fromImages;
 
-  if (Array.isArray(record.content)) {
-    for (const part of record.content) {
-      if (!part || typeof part !== "object") continue;
-      const item = part as { image_url?: { url?: string }; type?: string; source?: { data?: string } };
-      const url = item.image_url?.url || (item.type === "image" ? item.source?.data : "");
+  const content = message?.content;
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      const url = part?.image_url?.url || (part?.type === "image" ? part?.source?.data : "");
       if (url) return url;
     }
   }
-  if (typeof record.content === "string") {
-    const match = record.content.match(/https?:\/\/[^\s)]+/) || record.content.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
+  if (typeof content === "string") {
+    const match = content.match(/https?:\/\/[^\s)]+/) || content.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
     if (match) return match[0];
   }
   return "";
@@ -163,14 +158,19 @@ async function generateWithOpenAICompatibleImages(resolved: ResolvedImageProvide
       Authorization: `Bearer ${resolved.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model: resolved.model.replace(/^openai\//, ""), prompt, n: 1, size }),
+    body: JSON.stringify({
+      model: resolved.model.replace(/^openai\//, ""),
+      prompt,
+      n: 1,
+      size,
+    }),
   });
 
   const body = await response.text();
   if (!response.ok) throw providerError(resolved.provider, response.status, body);
-  const data: unknown = JSON.parse(body);
-  if (!data || typeof data !== "object") throw new Error("Image provider returned an invalid response.");
-  const item = (data as { data?: Array<{ url?: string; b64_json?: string }> }).data?.[0];
+
+  const data = JSON.parse(body);
+  const item = data?.data?.[0];
   const imageUrl = item?.url || (item?.b64_json ? `data:image/png;base64,${item.b64_json}` : "");
   if (!imageUrl) throw new Error("Image provider returned no image.");
   return imageUrl;
@@ -185,33 +185,42 @@ async function generateWithOpenRouterChat(resolved: ResolvedImageProvider, promp
       "HTTP-Referer": "https://telepost.tech",
       "X-Title": "TelePost",
     },
-    body: JSON.stringify({ model: resolved.model, modalities: ["image", "text"], messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({
+      model: resolved.model,
+      modalities: ["image", "text"],
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
 
   const body = await response.text();
   if (!response.ok) throw providerError("OpenRouter", response.status, body);
-  const imageUrl = extractOpenRouterImage(JSON.parse(body) as unknown);
+
+  const imageUrl = extractOpenRouterImage(JSON.parse(body));
   if (!imageUrl) throw new Error("OpenRouter returned no image. Choose an image-capable model in Settings → AI.");
   return imageUrl;
 }
 
 async function generateWithCloudflare(resolved: ResolvedImageProvider, prompt: string): Promise<string> {
-  if (!resolved.accountId) throw new Error("Cloudflare Account ID is missing. Configure CLOUDFLARE_ACCOUNT_ID as an Edge Function secret.");
-  const response = await fetch(cloudflareRunUrl(resolved.accountId, resolved.model), {
+  const response = await fetch(cloudflareRunUrl(resolved.accountId!, resolved.model), {
     method: "POST",
-    headers: { Authorization: `Bearer ${resolved.apiKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ prompt }),
   });
 
-  if (!response.ok) throw providerError("Cloudflare", response.status, await response.text());
+  if (!response.ok) {
+    throw providerError("Cloudflare", response.status, await response.text());
+  }
 
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    const data: unknown = await response.json();
-    if (!data || typeof data !== "object") throw new Error("Cloudflare returned an invalid image response.");
-    const record = data as { success?: boolean; result?: { image?: string; images?: string[] } };
-    if (record.success === false) throw providerError("Cloudflare", 500, JSON.stringify(data));
-    const base64 = record.result?.image || record.result?.images?.[0];
+    const data = await response.json();
+    if (data?.success === false) {
+      throw providerError("Cloudflare", 500, JSON.stringify(data));
+    }
+    const base64 = data?.result?.image || data?.result?.images?.[0];
     if (!base64) throw new Error("Cloudflare Workers AI returned no image.");
     return `data:image/jpeg;base64,${base64}`;
   }
@@ -236,14 +245,16 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const body = await req.json() as ImageGenerationRequest;
+    const body: ImageGenerationRequest = await req.json();
     if (!body?.prompt?.trim()) return jsonResponse({ error: "Prompt is required" }, 400);
 
     const aiSettings = await getAISettings(supabase);
     const resolved = resolveImageProvider(aiSettings);
 
     if (!resolved.apiKey || (resolved.provider === "cloudflare" && !resolved.accountId)) {
-      return jsonResponse({ error: `AI service is not configured for ${resolved.provider}. Configure the corresponding Edge Function secret.` }, 503);
+      return jsonResponse({
+        error: `AI service is not configured. Please configure ${resolved.provider} credentials in Super Admin Settings → AI tab.`,
+      }, 400);
     }
 
     const enhancedPrompt = buildPrompt(body);
@@ -253,9 +264,13 @@ serve(async (req) => {
     console.log(`[ai-generate-image] user=${user.id}, provider=${resolved.provider}, model=${resolved.model}`);
 
     let imageUrl = "";
-    if (resolved.provider === "cloudflare") imageUrl = await generateWithCloudflare(resolved, enhancedPrompt);
-    else if (resolved.provider === "openai" || /dall-e|gpt-image/i.test(resolved.model)) imageUrl = await generateWithOpenAICompatibleImages(resolved, enhancedPrompt, size);
-    else imageUrl = await generateWithOpenRouterChat(resolved, enhancedPrompt);
+    if (resolved.provider === "cloudflare") {
+      imageUrl = await generateWithCloudflare(resolved, enhancedPrompt);
+    } else if (resolved.provider === "openai" || /dall-e|gpt-image/i.test(resolved.model)) {
+      imageUrl = await generateWithOpenAICompatibleImages(resolved, enhancedPrompt, size);
+    } else {
+      imageUrl = await generateWithOpenRouterChat(resolved, enhancedPrompt);
+    }
 
     const generationTime = Date.now() - startTime;
 
@@ -275,10 +290,16 @@ serve(async (req) => {
       console.error("[ai-generate-image] Failed to log usage:", logError);
     }
 
-    return jsonResponse({ imageUrl, provider: resolved.provider, model: resolved.model, enhancedPrompt: enhancedPrompt.trim(), generationTimeMs: generationTime });
+    return jsonResponse({
+      imageUrl,
+      provider: resolved.provider,
+      model: resolved.model,
+      enhancedPrompt: enhancedPrompt.trim(),
+      generationTimeMs: generationTime,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Image generation failed";
     console.error("[ai-generate-image] Error:", message);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: message }, 400);
   }
 });

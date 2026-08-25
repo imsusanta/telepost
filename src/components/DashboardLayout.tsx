@@ -5,7 +5,6 @@ import {
   Database,
   FileText,
   Image,
-  Keyboard,
   LayoutDashboard,
   LogOut,
   Radio,
@@ -15,11 +14,11 @@ import {
   Tag,
   Users,
   ChevronRight,
-  ChevronLeft,
   PenLine,
   Calendar,
   CreditCard,
   Send,
+  Plus,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import {
   Sidebar,
   SidebarContent,
@@ -35,12 +35,13 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   SidebarSeparator,
-  useSidebar,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -199,93 +200,56 @@ function DashboardLayoutInner({
 }: DashboardLayoutInnerProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, toggleSidebar } = useSidebar();
-  const isCollapsed = state === "collapsed";
 
   const menuItemClass = (isActive: boolean) => `
-    group transition-all duration-300 ease-out rounded-xl relative h-11
+    group transition-colors duration-150 rounded-lg relative h-10 px-3
     ${isActive
-      ? "bg-[#eaf7ff] text-[#0088cc] font-bold shadow-sm border border-[#cceeff]"
-      : "hover:bg-[#f3fbff] text-sidebar-foreground hover:translate-x-1"
+      ? "bg-primary/10 text-primary font-semibold"
+      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
     }
   `;
 
   const menuIconClass = (isActive: boolean) => `
-    w-5 h-5 transition-all duration-300 ease-out
-    ${isActive
-      ? "scale-110 text-[#0088cc]"
-      : "group-hover:scale-110 group-hover:-rotate-3"
-    }
+    w-4 h-4 shrink-0 transition-colors
+    ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}
   `;
 
   return (
     <>
-      <div className="flex min-h-screen w-full relative bg-background overflow-x-hidden">
+      <div className="flex min-h-screen w-full bg-background">
         <KeyboardShortcuts />
 
-        <div
-          className="hidden md:block fixed z-[100] transition-all duration-200 ease-linear"
-          style={{
-            left: isCollapsed ? "calc(var(--sidebar-width-icon) - 12px)" : "calc(var(--sidebar-width) - 12px)",
-            top: "22px",
-          }}
-        >
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-6 w-6 rounded-full bg-background border-sidebar-border shadow-md hover:bg-accent text-sidebar-foreground transition-all duration-300 ring-4 ring-background"
-            onClick={toggleSidebar}
-          >
-            {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-          </Button>
-        </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          className="hidden md:flex fixed bottom-6 right-6 z-50 glass-card shadow-xl rounded-full w-12 h-12 hover:scale-110 transition-transform items-center justify-center"
-          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }))}
-        >
-          <Keyboard className="w-5 h-5" />
-        </Button>
-
-        <Sidebar collapsible="icon" className="border-r-0 z-50">
-          <div className="absolute inset-0 sidebar-glass -z-10" />
-          <SidebarHeader className="border-b border-white/5 py-4">
-            <div className="flex items-center justify-between px-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0 text-[#0088cc]">
-                  <Send className="w-6 h-6 fill-[#0088cc] text-[#0088cc]" />
-                </div>
-                <span className="text-xl font-bold text-foreground group-data-[collapsible=icon]:hidden">TelePost</span>
+        {/* Sidebar */}
+        <Sidebar collapsible="icon" className="border-r border-border/60 bg-sidebar">
+          <SidebarHeader className="border-b border-border/40 h-14 flex items-center justify-between px-3">
+            <Link to="/dashboard" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+                <Send className="w-4 h-4 fill-current text-primary" />
               </div>
-              <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
-                <ThemeToggle />
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative hover:bg-primary/5 transition-all">
-                  <Bell className="w-4 h-4 text-muted-foreground" />
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-sm" />
-                </Button>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                <span className="text-base font-bold text-foreground leading-none">TelePost</span>
+                <span className="text-[10px] text-muted-foreground font-medium mt-0.5">Quiz Platform</span>
               </div>
-            </div>
+            </Link>
           </SidebarHeader>
 
-          <SidebarContent className="px-2" ref={sidebarScrollRef} onScroll={handleSidebarScroll}>
+          <SidebarContent className="px-2 py-2" ref={sidebarScrollRef} onScroll={handleSidebarScroll}>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
+              <SidebarGroupLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-1.5">
                 Telegram Quizzes
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
+                <SidebarMenu className="gap-0.5">
                   {telegramMenuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path;
                     return (
                       <SidebarMenuItem key={item.path}>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={menuItemClass(isActive)}>
-                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                          <Link to={item.path} className="flex items-center gap-3">
                             <Icon className={menuIconClass(isActive)} />
-                            <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-[#0088cc] rounded-full shadow-[0_0_8px_rgba(0,136,204,0.35)] animate-in fade-in zoom-in duration-300" />}
+                            <span className="text-sm">{item.label}</span>
+                            {isActive && <div className="ml-auto w-1.5 h-1.5 bg-primary rounded-full" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -298,21 +262,21 @@ function DashboardLayoutInner({
             <SidebarSeparator className="my-2" />
 
             <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2">
+              <SidebarGroupLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-1.5">
                 Settings & Analytics
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
+                <SidebarMenu className="gap-0.5">
                   {settingsMenuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path;
                     return (
                       <SidebarMenuItem key={item.path}>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={menuItemClass(isActive)}>
-                          <Link to={item.path} className="flex items-center gap-3 px-3">
+                          <Link to={item.path} className="flex items-center gap-3">
                             <Icon className={menuIconClass(isActive)} />
-                            <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-[#0088cc] rounded-full shadow-[0_0_8px_rgba(0,136,204,0.35)] animate-in fade-in zoom-in duration-300" />}
+                            <span className="text-sm">{item.label}</span>
+                            {isActive && <div className="ml-auto w-1.5 h-1.5 bg-primary rounded-full" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -326,12 +290,12 @@ function DashboardLayoutInner({
               <>
                 <SidebarSeparator className="my-2" />
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5" />
+                  <SidebarGroupLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2.5 py-1.5 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-orange-500" />
                     <span>Super Admin</span>
                   </SidebarGroupLabel>
                   <SidebarGroupContent>
-                    <SidebarMenu className="gap-1">
+                    <SidebarMenu className="gap-0.5">
                       {superAdminMenuItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
@@ -341,15 +305,15 @@ function DashboardLayoutInner({
                               asChild
                               isActive={isActive}
                               tooltip={item.label}
-                              className={`group transition-all duration-300 ease-out rounded-xl relative h-11 ${isActive
-                                ? "bg-orange-50 text-orange-500 font-bold shadow-sm border border-orange-100"
-                                : "hover:bg-orange-50/60 text-sidebar-foreground hover:translate-x-1"
+                              className={`group transition-colors duration-150 rounded-lg relative h-10 px-3 ${isActive
+                                ? "bg-orange-500/10 text-orange-500 font-semibold"
+                                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                               }`}
                             >
-                              <Link to={item.path} className="flex items-center gap-3 px-3">
-                                <Icon className={`w-5 h-5 transition-all duration-300 ease-out ${isActive ? "scale-110 text-orange-500" : "group-hover:scale-110 group-hover:-rotate-3"}`} />
-                                <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                                {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.35)] animate-in fade-in zoom-in duration-300" />}
+                              <Link to={item.path} className="flex items-center gap-3">
+                                <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? "text-orange-500" : "text-muted-foreground group-hover:text-foreground"}`} />
+                                <span className="text-sm">{item.label}</span>
+                                {isActive && <div className="ml-auto w-1.5 h-1.5 bg-orange-500 rounded-full" />}
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -362,41 +326,77 @@ function DashboardLayoutInner({
             )}
           </SidebarContent>
 
-          <SidebarFooter className="p-0 border-t-0 pb-6">
-            <div className="group-data-[collapsible=icon]:p-1 group-data-[collapsible=expanded]:px-3">
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton size="lg" className="floating-profile-card h-14 px-2 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:m-0 transition-all duration-300 hover:scale-[1.01]">
-                        <Avatar className="h-8 w-8 ring-1 ring-primary/20 shadow-md transition-transform duration-300 group-hover:scale-105">
-                          <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "User"} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black text-xs">{getUserInitials()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
-                          <span className="font-bold text-sm truncate w-full text-foreground">{profile?.full_name || "User"}</span>
-                          <span className="text-xs text-muted-foreground truncate w-full">{profile?.email || ""}</span>
-                        </div>
-                        <ChevronRight className="ml-auto w-4 h-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" side="top" className="w-56">
-                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>Settings</DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sign out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </div>
+          <SidebarFooter className="border-t border-border/40 p-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton size="lg" className="h-11 px-2 hover:bg-accent/60 transition-colors rounded-lg">
+                      <Avatar className="h-7 w-7 ring-1 ring-primary/20 shrink-0">
+                        <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "User"} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{getUserInitials()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
+                        <span className="font-semibold text-xs truncate w-full text-foreground">{profile?.full_name || "User"}</span>
+                        <span className="text-[10px] text-muted-foreground truncate w-full">{profile?.email || ""}</span>
+                      </div>
+                      <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top" className="w-52">
+                    <DropdownMenuLabel className="text-xs">My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/dashboard/settings")} className="text-xs cursor-pointer">
+                      <Settings className="mr-2 h-3.5 w-3.5" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSignOut} className="text-xs text-destructive focus:text-destructive cursor-pointer">
+                      <LogOut className="mr-2 h-3.5 w-3.5" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 min-w-0">{children}</main>
+        {/* Main Content with Top Navigation Bar */}
+        <SidebarInset className="flex-1 min-w-0 flex flex-col bg-background">
+          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/40 bg-background/90 backdrop-blur-sm px-4 md:px-6">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="h-8 w-8 rounded-md hover:bg-accent" />
+              <div className="hidden sm:block">
+                <Breadcrumb />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-medium"
+                onClick={() => navigate("/dashboard/create-quiz")}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">New Quiz</span>
+              </Button>
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-md relative hover:bg-accent"
+                onClick={() => navigate("/dashboard/scheduler")}
+                title="Schedules & Notices"
+              >
+                <Bell className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full" id="main-content">
+            {children}
+          </main>
+        </SidebarInset>
       </div>
     </>
   );
