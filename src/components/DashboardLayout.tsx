@@ -386,7 +386,11 @@ function DashboardLayoutInner({
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-w-0">{children}</SidebarInset>
+        <SidebarInset className="min-w-0 flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto w-full">
+          <div className="w-full max-w-7xl mx-auto space-y-6">
+            {children}
+          </div>
+        </SidebarInset>
       </div>
     </>
   );
