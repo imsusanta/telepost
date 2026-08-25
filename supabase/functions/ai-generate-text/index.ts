@@ -58,7 +58,6 @@ async function getAISettings(supabase: SupabaseClient): Promise<AISettings> {
 async function authenticateRequest(req: Request, supabase: SupabaseClient): Promise<string | null> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
-
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
 
@@ -94,26 +93,19 @@ serve(async (req: Request) => {
     if (!prompt) return jsonResponse({ error: "Prompt is required" }, 400);
 
     const requestedSystemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt.trim() : "";
-    const requestedTemperature = typeof body.temperature === "number" && Number.isFinite(body.temperature)
-      ? body.temperature
-      : 0.7;
-
+    const requestedTemperature = typeof body.temperature === "number" && Number.isFinite(body.temperature) ? body.temperature : 0.7;
     const aiSettings = await getAISettings(supabase);
     const resolved = resolveAIProvider(aiSettings);
     const { provider, model, apiKey, accountId } = resolved;
 
     if (!apiKey || (provider === "cloudflare" && !accountId)) {
-      return jsonResponse({
-        error: `AI service is not configured. Please configure ${provider} credentials in Super Admin Settings → AI tab.`,
-      }, 503);
+      return jsonResponse({ error: `AI service is not configured. Please configure ${provider} credentials in Super Admin Settings → AI tab.` }, 503);
     }
 
     let finalSystemPrompt = "";
     if (requestedSystemPrompt) {
-      const isQuizPrompt = aiSettings.system_prompt?.toLowerCase().includes("mcq")
-        || aiSettings.system_prompt?.toLowerCase().includes("question");
-      const isPostRequest = requestedSystemPrompt.toLowerCase().includes("post")
-        || requestedSystemPrompt.toLowerCase().includes("social media");
+      const isQuizPrompt = aiSettings.system_prompt?.toLowerCase().includes("mcq") || aiSettings.system_prompt?.toLowerCase().includes("question");
+      const isPostRequest = requestedSystemPrompt.toLowerCase().includes("post") || requestedSystemPrompt.toLowerCase().includes("social media");
       finalSystemPrompt = isQuizPrompt && isPostRequest
         ? `${requestedSystemPrompt}\n\n[GENERAL STYLE & LANGUAGE RULES]:\n${aiSettings.system_prompt ?? ""}`
         : requestedSystemPrompt + (aiSettings.system_prompt ? `\n\n${aiSettings.system_prompt}` : "");
@@ -147,7 +139,7 @@ serve(async (req: Request) => {
           prompt: prompt.substring(0, 2000),
           status: "success",
           success: true,
-          tokens_used: 0,
+          metadata: { usage_source: "provider_usage_not_exposed_by_shared_client" },
           completed_at: new Date().toISOString(),
         });
       } catch (logError) {
@@ -179,8 +171,6 @@ serve(async (req: Request) => {
     }
   } catch (error) {
     console.error("[ai-generate-text] Error:", error);
-    return jsonResponse({
-      error: error instanceof Error ? error.message : "An unexpected error occurred",
-    }, 500);
+    return jsonResponse({ error: error instanceof Error ? error.message : "An unexpected error occurred" }, 500);
   }
 });
