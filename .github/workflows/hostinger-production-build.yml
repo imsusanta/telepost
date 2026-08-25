@@ -15,8 +15,7 @@ concurrency:
 
 jobs:
   build-and-publish:
-    # Avoid rebuilding the generated production commit itself.
-    if: ${{ !startsWith(github.event.head_commit.message, 'deploy: publish Hostinger production build') }}
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message != 'deploy: publish Hostinger production build [skip hostinger build]'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -33,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore the Vite source entry
+      - name: Restore Vite source entry
         run: cp index.source.html index.html
 
       - name: Typecheck
