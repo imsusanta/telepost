@@ -145,22 +145,29 @@ export async function updateSetting<K extends SettingKey>(
 
   const { error } = await supabase
     .from('system_settings')
-    .update({
+    .upsert({
+      setting_key: key,
       setting_value: JSON.parse(JSON.stringify(value)),
       updated_by: user?.id,
-    })
-    .eq('setting_key', key);
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'setting_key',
+    });
 
   if (error) throw new Error(`Failed to update ${String(key)}: ${error.message}`);
 
-  await logAdminAction({
-    action_type: 'system_setting_updated',
-    target_resource_type: 'system_setting',
-    target_resource_id: key,
-    old_value: oldValue as unknown as Record<string, unknown>,
-    new_value: value as unknown as Record<string, unknown>,
-    metadata: { setting_key: key },
-  });
+  try {
+    await logAdminAction({
+      action_type: 'system_setting_updated',
+      target_resource_type: 'system_setting',
+      target_resource_id: key,
+      old_value: oldValue as unknown as Record<string, unknown>,
+      new_value: value as unknown as Record<string, unknown>,
+      metadata: { setting_key: key },
+    });
+  } catch (auditError) {
+    console.warn('Failed to record admin audit log for setting update:', auditError);
+  }
 }
 
 export const updateInvitationDefaults = (value: InvitationDefaults) => updateSetting('invitation_defaults', value);

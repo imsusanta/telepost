@@ -106,7 +106,7 @@ function SecretInput({ id, label, value, placeholder, visible, onToggle, onChang
           id={id}
           type={visible ? 'text' : 'password'}
           value={value}
-          onChange={(event) => onChange(event.target.value.trim())}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           className="pr-11 font-mono text-xs"
           autoComplete="off"
@@ -212,12 +212,21 @@ export default function SuperAdminSettings() {
     }));
 
   const handleSaveAISettings = async () => {
-    if (!aiSettings.model.trim()) {
+    const sanitizedSettings: AISettings = {
+      ...aiSettings,
+      model: aiSettings.model.trim(),
+      openrouter_api_key: aiSettings.openrouter_api_key?.trim() || '',
+      cloudflare_account_id: aiSettings.cloudflare_account_id?.trim() || '',
+      cloudflare_api_token: aiSettings.cloudflare_api_token?.trim() || '',
+      system_prompt: aiSettings.system_prompt?.trim() || '',
+    };
+
+    if (!sanitizedSettings.model) {
       toast({ title: 'Model required', description: 'Enter an AI model ID.', variant: 'destructive' });
       return;
     }
 
-    if (aiSettings.provider === 'openrouter' && !aiSettings.openrouter_api_key?.trim()) {
+    if (sanitizedSettings.provider === 'openrouter' && !sanitizedSettings.openrouter_api_key) {
       toast({
         title: 'OpenRouter API Key required',
         description: 'Please enter your OpenRouter API key or switch to Cloudflare Workers AI.',
@@ -227,8 +236,8 @@ export default function SuperAdminSettings() {
     }
 
     if (
-      aiSettings.provider === 'cloudflare' &&
-      (!aiSettings.cloudflare_account_id?.trim() || !aiSettings.cloudflare_api_token?.trim())
+      sanitizedSettings.provider === 'cloudflare' &&
+      (!sanitizedSettings.cloudflare_account_id || !sanitizedSettings.cloudflare_api_token)
     ) {
       toast({
         title: 'Cloudflare credentials required',
@@ -238,7 +247,8 @@ export default function SuperAdminSettings() {
       return;
     }
 
-    await save(() => updateAISettings(aiSettings), 'AI settings saved successfully');
+    setAISettings(sanitizedSettings);
+    await save(() => updateAISettings(sanitizedSettings), 'AI settings saved successfully');
   };
 
   const handleTestAIConnection = async () => {
