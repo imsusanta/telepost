@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
+import "./sidebar-active.css";
 
 // Auto-reload on stale chunk error after new deployment
 window.addEventListener("vite:preloadError", (event) => {
