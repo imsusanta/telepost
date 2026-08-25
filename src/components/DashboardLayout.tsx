@@ -146,7 +146,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (profile?.full_name) {
       return profile.full_name
         .split(" ")
-        .map((name) => name[0])
+        .map((name: string) => name[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
@@ -198,6 +198,7 @@ function DashboardLayoutInner({
   superAdminMenuItems,
 }: DashboardLayoutInnerProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
 
