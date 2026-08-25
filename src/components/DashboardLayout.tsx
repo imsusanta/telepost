@@ -221,7 +221,7 @@ function DashboardLayoutInner({
 
         {/* Sidebar */}
         <Sidebar collapsible="icon" className="border-r border-border/60 bg-sidebar">
-          <SidebarHeader className="border-b border-border/40 h-14 flex items-center justify-between px-3">
+          <SidebarHeader className="border-b border-border/40 h-14 flex items-center justify-between px-5">
             <Link to="/dashboard" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
                 <Send className="w-4 h-4 fill-current text-primary" />
