@@ -124,35 +124,23 @@ export default function CreateQuizPage() {
 
   const loadDocuments = useCallback(async () => {
     try {
+      setDocumentsLoading(true);
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) {
-        console.error("Auth error loading documents:", authError);
-        toast({
-          title: "Authentication Error",
-          description: "Please try logging in again",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!user) {
-        console.error("No user found when loading documents");
+      if (authError || !user) {
+        setDocumentsLoading(false);
         return;
       }
 
-      const docs = await DocumentService.getUserDocuments(user.id, selectedChannel || undefined);
-      setDocuments(docs);
+      const channelFilter = selectedChannel && selectedChannel !== "all" ? selectedChannel : undefined;
+      const docs = await DocumentService.getUserDocuments(user.id, channelFilter);
+      setDocuments(Array.isArray(docs) ? docs : []);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load documents";
       console.error("Failed to load documents:", error);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+      setDocuments([]);
     } finally {
       setDocumentsLoading(false);
     }
-  }, [selectedChannel, toast]);
+  }, [selectedChannel]);
 
   const loadStorageInfo = useCallback(async () => {
     try {

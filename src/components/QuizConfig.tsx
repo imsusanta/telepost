@@ -59,30 +59,50 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
 
   useEffect(() => {
     // Auto-fill settings from selected channel safely
-    if (selectedChannel) {
+    if (selectedChannel && selectedChannel !== "none") {
       const channel = channels.find((c) => c.id === selectedChannel);
-      let s: any = channel?.settings;
+      if (!channel) return;
+
+      let s: any = channel.settings;
       if (typeof s === "string") {
         try {
           s = JSON.parse(s);
         } catch {
-          s = undefined;
+          s = null;
         }
       }
+
       if (s && typeof s === "object") {
-        if (s.default_subject && typeof s.default_subject === "string") {
-          setTopic(s.default_subject);
+        if (typeof s.default_subject === "string" && s.default_subject.trim()) {
+          setTopic(s.default_subject.trim());
+        } else if (s.default_subject && typeof s.default_subject === "object") {
+          const subText = s.default_subject.name || s.default_subject.title || s.default_subject.bn || s.default_subject.en || "";
+          if (typeof subText === "string" && subText.trim()) {
+            setTopic(subText.trim());
+          }
         }
-        if (s.default_language && typeof s.default_language === "string") {
+
+        if (typeof s.default_language === "string") {
           const lang = s.default_language.toLowerCase().trim();
-          if (lang === "bn" || lang === "bengali" || lang === "bangla") setLanguage("bn");
-          else if (lang === "en" || lang === "english") setLanguage("en");
-          else if (lang === "hi" || lang === "hindi") setLanguage("hi");
-          else setLanguage("bn");
+          if (lang === "bn" || lang === "bengali" || lang === "bangla") {
+            setLanguage("bn");
+          } else if (lang === "en" || lang === "english") {
+            setLanguage("en");
+          } else if (lang === "hi" || lang === "hindi") {
+            setLanguage("hi");
+          } else {
+            setLanguage("bn");
+          }
+        } else {
+          setLanguage("bn");
         }
-        if (s.system_prompt && typeof s.system_prompt === "string") {
+
+        if (typeof s.system_prompt === "string") {
           setSystemPrompt(s.system_prompt);
+        } else if (s.system_prompt && typeof s.system_prompt === "object") {
+          setSystemPrompt(JSON.stringify(s.system_prompt));
         }
+
         if (s.questions_per_quiz !== undefined && s.questions_per_quiz !== null) {
           const num = Number(s.questions_per_quiz);
           if (!isNaN(num) && num > 0) {
