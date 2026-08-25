@@ -135,7 +135,10 @@ export default function Auth() {
         navigate(postAuthTarget);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to sign in";
+      let msg = err instanceof Error ? err.message : "Failed to sign in";
+      if (msg.toLowerCase().includes("failed to fetch")) {
+        msg = "Network request failed. If using Brave Shields or an adblocker, please allow telepost.tech and refresh.";
+      }
       toast({ title: "Sign In Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
