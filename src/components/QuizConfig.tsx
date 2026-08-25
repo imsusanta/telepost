@@ -174,7 +174,7 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="channel" className="text-sm font-medium">Channel (Optional)</Label>
-          <Select value={selectedChannel || undefined} onValueChange={(val) => setSelectedChannel(val === "none" ? "" : val)} disabled={channelsLoading}>
+          <Select value={selectedChannel || "none"} onValueChange={(val) => setSelectedChannel(val === "none" ? "" : val)} disabled={channelsLoading}>
             <SelectTrigger id="channel" className="h-12">
               {channelsLoading ? (
                 <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading channels...</span>
