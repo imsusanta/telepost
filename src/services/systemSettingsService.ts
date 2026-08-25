@@ -35,8 +35,6 @@ export interface AISettings {
   temperature: number;
   system_prompt?: string;
   openrouter_api_key?: string;
-  gemini_api_key?: string;
-  openai_api_key?: string;
   cloudflare_account_id?: string;
   cloudflare_api_token?: string;
 }
@@ -72,8 +70,6 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   temperature: 0.7,
   system_prompt: '',
   openrouter_api_key: '',
-  gemini_api_key: '',
-  openai_api_key: '',
   cloudflare_account_id: '',
   cloudflare_api_token: '',
 };
@@ -83,44 +79,41 @@ export async function getAllSettings(): Promise<SystemSettings> {
     .from('system_settings')
     .select('setting_key, setting_value');
 
-  if (error) {
-    console.error('Error fetching system settings:', error);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(`Failed to fetch system settings: ${error.message}`);
 
   const settings: Record<string, unknown> = {};
-  for (const row of data || []) settings[row.setting_key] = row.setting_value;
+  for (const row of data ?? []) settings[row.setting_key] = row.setting_value;
 
   return {
-    invitation_defaults: (settings.invitation_defaults as InvitationDefaults) || {
+    invitation_defaults: (settings.invitation_defaults as InvitationDefaults | undefined) ?? {
       default_max_uses: 10,
       default_expiry_days: 30,
       allow_unlimited: true,
       allow_custom_codes: true,
     },
-    user_defaults: (settings.user_defaults as UserDefaults) || {
+    user_defaults: (settings.user_defaults as UserDefaults | undefined) ?? {
       auto_approve_signups: true,
       default_role: 'user',
       email_verification_required: true,
     },
-    subscription_defaults: (settings.subscription_defaults as SubscriptionDefaults) || {
+    subscription_defaults: (settings.subscription_defaults as SubscriptionDefaults | undefined) ?? {
       trial_days: 7,
       grace_period_days: 3,
       auto_cancel_expired: false,
     },
-    system_maintenance: (settings.system_maintenance as SystemMaintenance) || {
+    system_maintenance: (settings.system_maintenance as SystemMaintenance | undefined) ?? {
       maintenance_mode: false,
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
     ai_settings: {
       ...DEFAULT_AI_SETTINGS,
-      ...((settings.ai_settings as AISettings) || {}),
+      ...((settings.ai_settings as Partial<AISettings> | undefined) ?? {}),
     },
-    telegram_settings: (settings.telegram_settings as TelegramSettings) || {
+    telegram_settings: (settings.telegram_settings as TelegramSettings | undefined) ?? {
       global_bot_token: '',
       fallback_enabled: true,
     },
-    payment_settings: (settings.payment_settings as PaymentSettings) || {
+    payment_settings: (settings.payment_settings as PaymentSettings | undefined) ?? {
       razorpay_key_id: '',
       razorpay_key_secret: '',
       razorpay_webhook_secret: '',
@@ -145,7 +138,7 @@ export async function getSetting<K extends SettingKey>(key: K): Promise<SystemSe
 
 export async function updateSetting<K extends SettingKey>(
   key: K,
-  value: SystemSettings[K]
+  value: SystemSettings[K],
 ): Promise<void> {
   const oldValue = await getSetting(key);
   const { data: { user } } = await supabase.auth.getUser();
@@ -158,10 +151,7 @@ export async function updateSetting<K extends SettingKey>(
     })
     .eq('setting_key', key);
 
-  if (error) {
-    console.error(`Error updating setting ${key}:`, error);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(`Failed to update ${String(key)}: ${error.message}`);
 
   await logAdminAction({
     action_type: 'system_setting_updated',
@@ -173,56 +163,33 @@ export async function updateSetting<K extends SettingKey>(
   });
 }
 
-export async function updateInvitationDefaults(defaults: InvitationDefaults): Promise<void> {
-  return updateSetting('invitation_defaults', defaults);
-}
-
-export async function updateUserDefaults(defaults: UserDefaults): Promise<void> {
-  return updateSetting('user_defaults', defaults);
-}
-
-export async function updateSubscriptionDefaults(defaults: SubscriptionDefaults): Promise<void> {
-  return updateSetting('subscription_defaults', defaults);
-}
-
-export async function updateMaintenanceSettings(settings: SystemMaintenance): Promise<void> {
-  return updateSetting('system_maintenance', settings);
-}
+export const updateInvitationDefaults = (value: InvitationDefaults) => updateSetting('invitation_defaults', value);
+export const updateUserDefaults = (value: UserDefaults) => updateSetting('user_defaults', value);
+export const updateSubscriptionDefaults = (value: SubscriptionDefaults) => updateSetting('subscription_defaults', value);
+export const updateMaintenanceSettings = (value: SystemMaintenance) => updateSetting('system_maintenance', value);
 
 export async function toggleMaintenanceMode(enabled: boolean): Promise<void> {
   const current = await getSetting('system_maintenance');
-  if (current) {
-    await updateSetting('system_maintenance', { ...current, maintenance_mode: enabled });
-  }
+  if (current) await updateSetting('system_maintenance', { ...current, maintenance_mode: enabled });
 }
 
 export async function getAISettings(): Promise<AISettings> {
   const settings = await getSetting('ai_settings');
-  return { ...DEFAULT_AI_SETTINGS, ...(settings || {}) };
+  return { ...DEFAULT_AI_SETTINGS, ...(settings ?? {}) };
 }
 
-export async function updateAISettings(settings: AISettings): Promise<void> {
-  return updateSetting('ai_settings', settings);
-}
+export const updateAISettings = (value: AISettings) => updateSetting('ai_settings', value);
 
 export async function getTelegramSettings(): Promise<TelegramSettings> {
   const settings = await getSetting('telegram_settings');
-  return settings || { global_bot_token: '', fallback_enabled: true };
+  return settings ?? { global_bot_token: '', fallback_enabled: true };
 }
 
-export async function updateTelegramSettings(settings: TelegramSettings): Promise<void> {
-  return updateSetting('telegram_settings', settings);
-}
+export const updateTelegramSettings = (value: TelegramSettings) => updateSetting('telegram_settings', value);
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
   const settings = await getSetting('payment_settings');
-  return settings || {
-    razorpay_key_id: '',
-    razorpay_key_secret: '',
-    razorpay_webhook_secret: '',
-  };
+  return settings ?? { razorpay_key_id: '', razorpay_key_secret: '', razorpay_webhook_secret: '' };
 }
 
-export async function updatePaymentSettings(settings: PaymentSettings): Promise<void> {
-  return updateSetting('payment_settings', settings);
-}
+export const updatePaymentSettings = (value: PaymentSettings) => updateSetting('payment_settings', value);
