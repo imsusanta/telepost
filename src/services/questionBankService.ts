@@ -1,11 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Canonical Question Bank domain model.
- *
- * `difficulty` is intentionally kept optional only for backwards compatibility
- * with older records/types. New Question Bank writes never persist or filter it.
- */
 export interface QuestionBankItem {
   id: string;
   user_id: string;
@@ -53,18 +47,13 @@ export interface QuestionBankStatistics {
   total: number;
   byTopic: Record<string, number>;
   bySubject: Record<string, number>;
-  /** @deprecated Kept as an empty compatibility field; difficulty is no longer a Question Bank dimension. */
-  byDifficulty: Record<string, number>;
   byLanguage: Record<string, number>;
   unclassifiedCount: number;
   publicCount: number;
   privateCount: number;
 }
 
-type QuestionInput = Omit<
-  QuestionBankItem,
-  "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id"
->;
+type QuestionInput = Omit<QuestionBankItem, "id" | "created_at" | "updated_at" | "times_used" | "times_correct" | "times_incorrect" | "user_id">;
 
 const stripLegacyDifficulty = <T extends Record<string, unknown>>(value: T): Omit<T, "difficulty"> => {
   const { difficulty: _ignored, ...clean } = value;
@@ -89,12 +78,8 @@ function applyVisibility(query: any, userId: string, filters?: QuestionBankFilte
 }
 
 function applyCommonFilters(query: any, filters?: QuestionBankFilters) {
-  if (filters?.topic) {
-    query = Array.isArray(filters.topic) ? query.in("topic", filters.topic) : query.eq("topic", filters.topic);
-  }
-  if (filters?.subject) {
-    query = Array.isArray(filters.subject) ? query.in("subject", filters.subject) : query.eq("subject", filters.subject);
-  }
+  if (filters?.topic) query = Array.isArray(filters.topic) ? query.in("topic", filters.topic) : query.eq("topic", filters.topic);
+  if (filters?.subject) query = Array.isArray(filters.subject) ? query.in("subject", filters.subject) : query.eq("subject", filters.subject);
   if (filters?.language) query = query.eq("language", filters.language);
   if (filters?.source) query = query.eq("source", filters.source);
   if (filters?.channelId && filters.channelId !== "all") query = query.eq("channel_id", filters.channelId);
@@ -119,23 +104,14 @@ export class QuestionBankService {
     return data as QuestionBankItem;
   }
 
-  static async getQuestions(
-    userId: string,
-    filters: QuestionBankFilters = { includePublic: true },
-    limit = 20,
-    offset = 0,
-    search?: string,
-    sortOrder: "asc" | "desc" = "desc",
-  ): Promise<{ data: QuestionBankItem[]; count: number }> {
+  static async getQuestions(userId: string, filters: QuestionBankFilters = { includePublic: true }, limit = 20, offset = 0, search?: string, sortOrder: "asc" | "desc" = "desc"): Promise<{ data: QuestionBankItem[]; count: number }> {
     const safeLimit = Math.max(1, Math.min(limit, 100));
     const safeOffset = Math.max(0, offset);
     let query = supabase.from("question_banks").select("*", { count: "exact" });
     query = applyVisibility(query, userId, filters);
     query = applyCommonFilters(query, filters);
     if (search?.trim()) query = query.ilike("question", `%${search.trim()}%`);
-    const { data, error, count } = await query
-      .order("created_at", { ascending: sortOrder === "asc" })
-      .range(safeOffset, safeOffset + safeLimit - 1);
+    const { data, error, count } = await query.order("created_at", { ascending: sortOrder === "asc" }).range(safeOffset, safeOffset + safeLimit - 1);
     if (error) throw error;
     return { data: (data ?? []) as QuestionBankItem[], count: count ?? 0 };
   }
@@ -147,31 +123,19 @@ export class QuestionBankService {
     return (data ?? []) as QuestionBankItem[];
   }
 
-  static async getQuestionIdsByRange(
-    userId: string,
-    fromPosition: number,
-    toPosition: number,
-    filters: QuestionBankFilters = { includePublic: true },
-    sortOrder: "asc" | "desc" = "desc",
-  ): Promise<string[]> {
+  static async getQuestionIdsByRange(userId: string, fromPosition: number, toPosition: number, filters: QuestionBankFilters = { includePublic: true }, sortOrder: "asc" | "desc" = "desc"): Promise<string[]> {
     const from = Math.max(1, fromPosition);
     const to = Math.max(from, toPosition);
     const limit = Math.min(to - from + 1, 5000);
     let query = supabase.from("question_banks").select("id");
     query = applyVisibility(query, userId, filters);
     query = applyCommonFilters(query, filters);
-    const { data, error } = await query
-      .order("created_at", { ascending: sortOrder === "asc" })
-      .range(from - 1, from - 1 + limit - 1);
+    const { data, error } = await query.order("created_at", { ascending: sortOrder === "asc" }).range(from - 1, from - 1 + limit - 1);
     if (error) throw error;
     return (data ?? []).map((question) => question.id);
   }
 
-  static async getRandomQuestions(
-    userId: string,
-    count: number,
-    filters: QuestionBankFilters = { includePublic: true },
-  ): Promise<QuestionBankItem[]> {
+  static async getRandomQuestions(userId: string, count: number, filters: QuestionBankFilters = { includePublic: true }): Promise<QuestionBankItem[]> {
     const safeCount = Math.max(1, Math.min(count, 100));
     const { data, error } = await supabase.rpc("get_random_question_bank_questions", {
       p_user_id: userId,
@@ -186,35 +150,16 @@ export class QuestionBankService {
     return [...fallback].sort(() => Math.random() - 0.5).slice(0, safeCount);
   }
 
-  static async importQuestionsFromQuiz(
-    userId: string,
-    quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }> },
-    topic: string,
-    options?: { channelId?: string },
-  ): Promise<QuestionBankItem[]> {
-    const records = quizData.questions.map((question) => normalizeQuestionInput({
-      user_id: userId, question: question.question, options: question.options,
-      correct_option_index: question.correct_option_index, explanation: question.explanation,
-      topic, channel_id: options?.channelId ?? null,
-    }, "quiz_import"));
+  static async importQuestionsFromQuiz(userId: string, quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }> }, topic: string, options?: { channelId?: string }): Promise<QuestionBankItem[]> {
+    const records = quizData.questions.map((question) => normalizeQuestionInput({ user_id: userId, question: question.question, options: question.options, correct_option_index: question.correct_option_index, explanation: question.explanation, topic, channel_id: options?.channelId ?? null }, "quiz_import"));
     if (!records.length) return [];
     const { data, error } = await supabase.from("question_banks").insert(records).select();
     if (error) throw error;
     return (data ?? []) as QuestionBankItem[];
   }
 
-  static async importQuestionsFromDocument(
-    userId: string,
-    documentId: string,
-    questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>,
-    options?: { topic?: string; channelId?: string },
-  ): Promise<QuestionBankItem[]> {
-    const records = questions.map((question) => normalizeQuestionInput({
-      user_id: userId, question: question.question, options: question.options,
-      correct_option_index: question.correct_option_index, explanation: question.explanation,
-      topic: options?.topic ?? "General", channel_id: options?.channelId ?? null,
-      source_document_id: documentId,
-    }, "document"));
+  static async importQuestionsFromDocument(userId: string, documentId: string, questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>, options?: { topic?: string; channelId?: string }): Promise<QuestionBankItem[]> {
+    const records = questions.map((question) => normalizeQuestionInput({ user_id: userId, question: question.question, options: question.options, correct_option_index: question.correct_option_index, explanation: question.explanation, topic: options?.topic ?? "General", channel_id: options?.channelId ?? null, source_document_id: documentId }, "document"));
     if (!records.length) return [];
     const { data, error } = await supabase.from("question_banks").insert(records).select();
     if (error) throw error;
@@ -237,35 +182,26 @@ export class QuestionBankService {
 
   static async bulkUpdateClassification(questionIds: string[], userId: string, subject: string, topic: string): Promise<void> {
     if (!questionIds.length) return;
-    const { error } = await supabase.from("question_banks")
-      .update({ subject: subject.trim(), topic: topic.trim() || "General", classification_source: "manual" })
-      .in("id", questionIds).eq("user_id", userId);
+    const { error } = await supabase.from("question_banks").update({ subject: subject.trim(), topic: topic.trim() || "General", classification_source: "manual" }).in("id", questionIds).eq("user_id", userId);
     if (error) throw error;
   }
 
   static async getStatistics(userId: string, includePublic = false): Promise<QuestionBankStatistics> {
     const { data, error } = await supabase.rpc("question_bank_statistics", { p_user_id: userId, p_include_public: includePublic });
-    if (!error && data) return { ...(data as QuestionBankStatistics), byDifficulty: {} };
-
-    let query = supabase.from("question_banks").select("topic, subject, language, is_public, user_id");
-    query = includePublic ? query.or(`user_id.eq.${userId},is_public.eq.true`) : query.eq("user_id", userId);
-    const { data: rows, error: fallbackError } = await query;
-    if (fallbackError) throw fallbackError;
-    const stats: QuestionBankStatistics = {
-      total: rows?.length ?? 0, byTopic: {}, bySubject: {}, byDifficulty: {}, byLanguage: {},
-      unclassifiedCount: 0, publicCount: 0, privateCount: 0,
+    if (error) throw new Error(error.message || "Failed to load Question Bank statistics");
+    if (!data || typeof data !== "object") throw new Error("Question Bank statistics returned an invalid response");
+    const raw = data as Record<string, unknown>;
+    return {
+      total: Number(raw.total ?? 0),
+      byTopic: (raw.byTopic && typeof raw.byTopic === "object" ? raw.byTopic : {}) as Record<string, number>,
+      bySubject: (raw.bySubject && typeof raw.bySubject === "object" ? raw.bySubject : {}) as Record<string, number>,
+      byLanguage: (raw.byLanguage && typeof raw.byLanguage === "object" ? raw.byLanguage : {}) as Record<string, number>,
+      unclassifiedCount: Number(raw.unclassifiedCount ?? 0),
+      publicCount: Number(raw.publicCount ?? 0),
+      privateCount: Number(raw.privateCount ?? 0),
     };
-    for (const row of rows ?? []) {
-      if (row.topic) stats.byTopic[row.topic] = (stats.byTopic[row.topic] ?? 0) + 1;
-      if (row.subject) stats.bySubject[row.subject] = (stats.bySubject[row.subject] ?? 0) + 1;
-      else stats.unclassifiedCount++;
-      if (row.language) stats.byLanguage[row.language] = (stats.byLanguage[row.language] ?? 0) + 1;
-      if (row.is_public) stats.publicCount++; else stats.privateCount++;
-    }
-    return stats;
   }
 
-  /** Seed sample questions for local/demo environments only. */
   static async seedSampleQuestions(userId: string): Promise<void> {
     await this.bulkAddQuestions(userId, [
       { question: "ভারতের রাজধানী কোথায়?", options: ["মুম্বাই", "নতুন দিল্লি", "কলকাতা", "চেন্নাই"], correct_option_index: 1, explanation: "ভারতের রাজধানী নতুন দিল্লি।", topic: "ভারতের ভূগোল", subject: "ভূগোল", language: "bn", is_public: false, is_active: true },
