@@ -60,7 +60,7 @@ serve(async (req) => {
     const aiSettings = await getAISettings(supabase);
     const resolved = resolveAIProvider(aiSettings);
     if (!resolved.apiKey || (resolved.provider === 'cloudflare' && !resolved.accountId)) {
-      return jsonResponse({ error: `AI \u09b8\u09be\u09b0\u09cd\u09ad\u09bf\u09b8 \u0995\u09a8\u09ab\u09bf\u0997\u09be\u09b0 \u0995\u09b0\u09be \u09b9\u09af\u09bc\u09a8\u09bf\u0964 Super Admin Settings \u2192 AI \u099f\u09cd\u09af\u09be\u09ac\u09c7 ${resolved.provider} credentials \u09b8\u09c7\u099f \u0995\u09b0\u09c1\u09a8\u0964` });
+      return jsonResponse({ error: `AI service is not configured. Please configure ${resolved.provider} credentials in Super Admin Settings → AI tab.` });
     }
 
     const requestId = crypto.randomUUID();

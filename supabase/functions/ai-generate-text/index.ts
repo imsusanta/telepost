@@ -75,7 +75,7 @@ serve(async (req) => {
 
     if (!apiKey || (provider === "cloudflare" && !accountId)) {
       return jsonResponse({
-        error: `AI সার্ভিস কনফিগার করা হয়নি। Super Admin Settings → AI ট্যাবে ${provider} credentials সেট করুন।`,
+        error: `AI service is not configured. Please configure ${provider} credentials in Super Admin Settings → AI tab.`,
       }, 200);
     }
 
