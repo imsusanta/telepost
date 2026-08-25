@@ -1,12 +1,22 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
-import { chatCompletion, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
+import {
+  chatCompletion,
+  resolveAIProvider,
+  OPENROUTER_DEFAULT_MODEL,
+  type AISettings,
+} from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, "Content-Type": "application/json" },
+});
 
 async function getAISettings(supabase: any): Promise<AISettings> {
   try {
@@ -22,7 +32,7 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 
   return {
     provider: "openrouter",
-    model: "google/gemini-2.0-flash-exp:free",
+    model: OPENROUTER_DEFAULT_MODEL,
     temperature: 0.7,
   };
 }
@@ -44,36 +54,29 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error("Missing Supabase configuration");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const userId = await authenticateRequest(req, supabase);
     if (!userId) {
-      return new Response(JSON.stringify({ error: "Authentication required. Please log in." }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Authentication required. Please log in." }, 200);
     }
 
     const { prompt, systemPrompt, temperature = 0.7 } = await req.json().catch(() => ({}));
     if (!prompt?.trim()) {
-      return new Response(JSON.stringify({ error: "Prompt is required" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Prompt is required" }, 200);
     }
 
     const aiSettings = await getAISettings(supabase);
     const resolved = resolveAIProvider(aiSettings);
+    const { provider, model, apiKey, accountId } = resolved;
 
-    if (!resolved.apiKey || (resolved.provider === "cloudflare" && !resolved.accountId)) {
-      return new Response(JSON.stringify({
-        error: `AI সার্ভিস কনফিগার করা হয়নি। Settings এ গিয়ে ${resolved.provider} credentials সেট করুন।`,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!apiKey || (provider === "cloudflare" && !accountId)) {
+      return jsonResponse({
+        error: `AI সার্ভিস কনফিগার করা হয়নি। Super Admin Settings → AI ট্যাবে ${provider} credentials সেট করুন।`,
+      }, 200);
     }
 
     let finalSystemPrompt = "";
@@ -87,9 +90,10 @@ serve(async (req) => {
       finalSystemPrompt = aiSettings.system_prompt || "You are a helpful AI assistant.";
     }
 
-    console.log(`[ai-generate-text] user=${userId}, provider=${resolved.provider}, model=${resolved.model}`);
+    console.log(`[ai-generate-text] user=${userId}, provider=${provider}, model=${model}`);
 
     let text = "";
+    let lastError: Error | null = null;
     try {
       text = await chatCompletion({
         resolved,
@@ -99,17 +103,22 @@ serve(async (req) => {
         ],
         temperature: aiSettings.temperature ?? temperature,
         maxTokens: 2048,
-        timeoutMs: 60000,
+        timeoutMs: 90000,
+        appTitle: "TelePost",
       });
-    } catch (error: any) {
-      console.error(`[ai-generate-text] Generation failed: ${error.message}`);
-      const errorMessage = error.message || "Failed to generate text from AI";
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[ai-generate-text] Generation failed: ${lastError.message}`);
+    }
+
+    if (!text || !text.trim()) {
+      const errorMessage = lastError?.message || "AI returned an empty response";
       try {
         await supabase.from("ai_usage_logs").insert({
           user_id: userId,
           feature: "text-generation",
-          provider: resolved.provider,
-          model: resolved.model,
+          provider,
+          model,
           prompt,
           status: "error",
           success: false,
@@ -119,25 +128,15 @@ serve(async (req) => {
       } catch (logError) {
         console.error("[ai-generate-text] Failed to log error:", logError);
       }
-      return new Response(JSON.stringify({ error: errorMessage }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!text?.trim()) {
-      return new Response(JSON.stringify({ error: "AI returned an empty response" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: errorMessage }, 200);
     }
 
     try {
       await supabase.from("ai_usage_logs").insert({
         user_id: userId,
         feature: "text-generation",
-        provider: resolved.provider,
-        model: resolved.model,
+        provider,
+        model,
         prompt,
         response: text,
         status: "success",
@@ -149,16 +148,11 @@ serve(async (req) => {
       console.error("[ai-generate-text] Failed to log usage:", logError);
     }
 
-    return new Response(JSON.stringify({ text, provider: resolved.provider, model: resolved.model }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ text, provider, model });
   } catch (error) {
-    console.error("[ai-generate-text] Fatal error:", error);
-    return new Response(JSON.stringify({
+    console.error("[ai-generate-text] Error:", error);
+    return jsonResponse({
       error: error instanceof Error ? error.message : "An unexpected error occurred",
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }, 200);
   }
 });
