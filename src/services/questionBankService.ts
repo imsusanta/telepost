@@ -143,7 +143,7 @@ export class QuestionBankService {
     if (filters?.source) {
       query = query.eq("source", filters.source);
     }
-    if (filters?.channelId) {
+    if (filters?.channelId && filters.channelId !== "all") {
       query = query.eq("channel_id", filters.channelId);
     }
     if (filters?.tags && filters.tags.length > 0) {

@@ -672,7 +672,7 @@ export default function CreateQuizPage() {
                         <Label htmlFor="manual-channel-select" className="text-sm mb-2 block">
                           Target Channel
                         </Label>
-                        <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                        <Select value={selectedChannel || "all"} onValueChange={setSelectedChannel}>
                           <SelectTrigger id="manual-channel-select">
                             <SelectValue placeholder="Select channel" />
                           </SelectTrigger>
@@ -680,7 +680,7 @@ export default function CreateQuizPage() {
                             <SelectItem value="all">All Channels</SelectItem>
                             {channels.map((channel) => (
                               <SelectItem key={channel.id} value={channel.id}>
-                                {channel.name}
+                                {channel.name || "Unnamed Channel"}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -719,7 +719,7 @@ export default function CreateQuizPage() {
                         <Label htmlFor="channel-select" className="text-sm mb-2 block">
                           Channel
                         </Label>
-                        <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                        <Select value={selectedChannel || "all"} onValueChange={setSelectedChannel}>
                           <SelectTrigger id="channel-select">
                             <SelectValue placeholder="Select channel" />
                           </SelectTrigger>
@@ -727,7 +727,7 @@ export default function CreateQuizPage() {
                             <SelectItem value="all">All Channels</SelectItem>
                             {channels.map((channel) => (
                               <SelectItem key={channel.id} value={channel.id}>
-                                {channel.name}
+                                {channel.name || "Unnamed Channel"}
                               </SelectItem>
                             ))}
                           </SelectContent>

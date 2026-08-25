@@ -58,26 +58,41 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
   }, [loadChannels]);
 
   useEffect(() => {
-    // Auto-fill settings from selected channel
+    // Auto-fill settings from selected channel safely
     if (selectedChannel) {
       const channel = channels.find((c) => c.id === selectedChannel);
-      if (channel?.settings) {
-        if (channel.settings.default_subject) {
-          setTopic(channel.settings.default_subject);
+      let s: any = channel?.settings;
+      if (typeof s === "string") {
+        try {
+          s = JSON.parse(s);
+        } catch {
+          s = undefined;
         }
-        if (channel.settings.default_language) {
-          setLanguage(channel.settings.default_language);
+      }
+      if (s && typeof s === "object") {
+        if (s.default_subject && typeof s.default_subject === "string") {
+          setTopic(s.default_subject);
         }
-        if (channel.settings.system_prompt) {
-          setSystemPrompt(channel.settings.system_prompt);
+        if (s.default_language && typeof s.default_language === "string") {
+          const lang = s.default_language.toLowerCase().trim();
+          if (lang === "bn" || lang === "bengali" || lang === "bangla") setLanguage("bn");
+          else if (lang === "en" || lang === "english") setLanguage("en");
+          else if (lang === "hi" || lang === "hindi") setLanguage("hi");
+          else setLanguage("bn");
         }
-        if (channel.settings.questions_per_quiz) {
-          const count = channel.settings.questions_per_quiz.toString();
-          if (["3", "5", "10", "15"].includes(count)) {
-            setQuestionCount(count);
-          } else {
-            setQuestionCount("custom");
-            setCustomQuestionCount(count);
+        if (s.system_prompt && typeof s.system_prompt === "string") {
+          setSystemPrompt(s.system_prompt);
+        }
+        if (s.questions_per_quiz !== undefined && s.questions_per_quiz !== null) {
+          const num = Number(s.questions_per_quiz);
+          if (!isNaN(num) && num > 0) {
+            const countStr = num.toString();
+            if (["3", "5", "10", "15"].includes(countStr)) {
+              setQuestionCount(countStr);
+            } else {
+              setQuestionCount("custom");
+              setCustomQuestionCount(countStr);
+            }
           }
         }
       }
@@ -139,7 +154,7 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="channel" className="text-sm font-medium">Channel (Optional)</Label>
-          <Select value={selectedChannel} onValueChange={setSelectedChannel} disabled={channelsLoading}>
+          <Select value={selectedChannel || undefined} onValueChange={(val) => setSelectedChannel(val === "none" ? "" : val)} disabled={channelsLoading}>
             <SelectTrigger id="channel" className="h-12">
               {channelsLoading ? (
                 <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading channels...</span>
@@ -148,11 +163,12 @@ export const QuizConfigForm = ({ onStartQuiz, isGenerating, maxQuestions = 50 }:
               )}
             </SelectTrigger>
             <SelectContent>
-              {channels.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">No channels found. Create a channel first.</div>
-              ) : (
-                channels.map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.name}</SelectItem>)
-              )}
+              <SelectItem value="none">No channel (Default)</SelectItem>
+              {channels.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  {channel.name || "Unnamed Channel"}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
