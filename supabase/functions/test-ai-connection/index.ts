@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { cloudflareChatUrl } from "../_shared/ai-provider.ts";
+import { cloudflareChatUrl, CLOUDFLARE_DEFAULT_MODEL, OPENROUTER_DEFAULT_MODEL } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,8 +8,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const CLOUDFLARE_FALLBACK_MODEL = "@cf/openai/gpt-oss-20b";
-const OPENROUTER_FALLBACK_MODEL = "google/gemini-2.0-flash-exp:free";
+const CLOUDFLARE_FALLBACK_MODEL = CLOUDFLARE_DEFAULT_MODEL;
+const OPENROUTER_FALLBACK_MODEL = OPENROUTER_DEFAULT_MODEL;
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
   status,
