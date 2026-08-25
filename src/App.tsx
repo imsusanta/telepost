@@ -29,12 +29,13 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
   });
 }
 
-// Lazy load all pages for code splitting with retry
-const Index = lazyWithRetry(() => import("./pages/Index"));
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
+
+// Lazy load remaining pages for code splitting with retry
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
-const Auth = lazyWithRetry(() => import("./pages/Auth"));
-const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const CreateQuizPage = lazyWithRetry(() => import("./pages/CreateQuizPage"));
 const Scheduler = lazyWithRetry(() => import("./pages/Scheduler"));
 const Settings = lazyWithRetry(() => import("./pages/Settings"));
