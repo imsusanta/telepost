@@ -27,6 +27,11 @@ export interface SystemMaintenance {
 
 export type AIProvider = 'openrouter' | 'cloudflare';
 
+/**
+ * AI configuration is intentionally non-secret.
+ * Provider credentials are deployment secrets and must never be returned to
+ * the browser or persisted in system_settings.
+ */
 export interface AISettings {
   provider: AIProvider;
   model: string;
@@ -34,9 +39,6 @@ export interface AISettings {
   openrouter_image_model?: string;
   temperature: number;
   system_prompt?: string;
-  openrouter_api_key?: string;
-  cloudflare_account_id?: string;
-  cloudflare_api_token?: string;
 }
 
 export interface TelegramSettings {
@@ -69,30 +71,11 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   openrouter_image_model: '',
   temperature: 0.7,
   system_prompt: '',
-  openrouter_api_key: '',
-  cloudflare_account_id: '',
-  cloudflare_api_token: '',
 };
 
-const SENSITIVE_AI_FIELDS = new Set([
-  'openrouter_api_key',
-  'cloudflare_api_token',
-]);
-
 function sanitizeForAudit(key: SettingKey, value: unknown): Record<string, unknown> {
-  if (key !== 'ai_settings' || !value || typeof value !== 'object') {
-    return (value && typeof value === 'object' ? value : { value }) as Record<string, unknown>;
-  }
-
-  const settings = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.entries(settings).map(([field, fieldValue]) => [
-      field,
-      SENSITIVE_AI_FIELDS.has(field) && typeof fieldValue === 'string' && fieldValue.length > 0
-        ? '[REDACTED]'
-        : fieldValue,
-    ]),
-  );
+  if (value && typeof value === 'object') return value as Record<string, unknown>;
+  return { value };
 }
 
 export async function getAllSettings(): Promise<SystemSettings> {
