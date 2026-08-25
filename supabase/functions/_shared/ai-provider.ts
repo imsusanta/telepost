@@ -22,6 +22,7 @@ export interface ChatMessage {
   content: string;
 }
 
+export const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
 export const CLOUDFLARE_DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
 
@@ -33,27 +34,48 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
- * Resolve the configured provider without silently switching providers.
- * If Cloudflare is selected, a missing/invalid Cloudflare credential must
- * fail instead of unexpectedly using an OpenRouter key.
+ * Resolve the configured provider with environment fallback and intelligent provider switching.
  */
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
-  const provider: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
+  const getEnv = (key: string): string => {
+    try {
+      if (typeof Deno !== 'undefined' && Deno.env) {
+        return Deno.env.get(key)?.trim() || '';
+      }
+    } catch {
+      // Env access may fail in restricted sandboxes
+    }
+    return '';
+  };
+
+  const openrouterKey = settings.openrouter_api_key?.trim() || getEnv('OPENROUTER_API_KEY') || '';
+  const cfToken = settings.cloudflare_api_token?.trim() || getEnv('CLOUDFLARE_API_TOKEN') || '';
+  const cfAccountId = settings.cloudflare_account_id?.trim() || getEnv('CLOUDFLARE_ACCOUNT_ID') || '';
+
+  // Determine provider: use selected provider, but fallback if credentials exist only for the other provider
+  let provider: AIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
+
+  if (provider === 'cloudflare' && (!cfToken || !cfAccountId) && openrouterKey) {
+    provider = 'openrouter';
+  } else if (provider === 'openrouter' && !openrouterKey && (cfToken && cfAccountId)) {
+    provider = 'cloudflare';
+  }
+
   const requestedModel = settings.model?.trim() || DEFAULT_MODELS[provider];
 
   if (provider === 'cloudflare') {
     return {
       provider,
       model: requestedModel.startsWith('@cf/') ? requestedModel : CLOUDFLARE_DEFAULT_MODEL,
-      apiKey: settings.cloudflare_api_token?.trim() || '',
-      accountId: settings.cloudflare_account_id?.trim() || '',
+      apiKey: cfToken,
+      accountId: cfAccountId,
     };
   }
 
   return {
     provider,
-    model: requestedModel,
-    apiKey: settings.openrouter_api_key?.trim() || '',
+    model: requestedModel.startsWith('@cf/') ? OPENROUTER_DEFAULT_MODEL : requestedModel,
+    apiKey: openrouterKey,
   };
 }
 
