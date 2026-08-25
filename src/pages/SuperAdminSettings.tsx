@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Bot, CreditCard, Eye, EyeOff, Loader2, RefreshCcw, Save, Send, Users, Wrench, Zap,
+  AlertTriangle, Bot, CreditCard, Eye, EyeOff, Loader2, RefreshCcw, Save, Send, Users, Wrench,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';

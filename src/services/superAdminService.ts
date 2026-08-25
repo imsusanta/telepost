@@ -542,7 +542,7 @@ export async function createSubscriptionPlan(
 ) {
   const { data, error } = await supabase
     .from('subscription_plans')
-    .insert(plan)
+    .insert(plan as any)
     .select()
     .single();
 
