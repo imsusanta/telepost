@@ -1,0 +1,26 @@
+/* Sidebar active navigation state — intentionally overrides the default shadcn sidebar accent. */
+[data-sidebar="menu-button"][data-active="true"] {
+  background-color: #eaf7ff !important;
+  color: #0088cc !important;
+  border: 1px solid #cceeff !important;
+  box-shadow: 0 1px 3px rgba(0, 136, 204, 0.08) !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"]:hover {
+  background-color: #eaf7ff !important;
+  color: #0088cc !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"] svg {
+  color: #0088cc !important;
+}
+
+.dark [data-sidebar="menu-button"][data-active="true"] {
+  background-color: rgba(0, 136, 204, 0.16) !important;
+  color: #55c7ff !important;
+  border-color: rgba(0, 136, 204, 0.28) !important;
+}
+
+.dark [data-sidebar="menu-button"][data-active="true"] svg {
+  color: #55c7ff !important;
+}
