@@ -1,4 +1,4 @@
-import { ReactNode, useState, useCallback, useEffect, useRef } from "react";
+import { ReactNode, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   BarChart3,
   Bell,
@@ -19,7 +19,7 @@ import {
   PenLine,
   Calendar,
   CreditCard,
-  Send
+  Send,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,6 @@ import { useToast } from "@/hooks/use-toast";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
 import {
   Sidebar,
   SidebarContent,
@@ -36,12 +35,10 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -54,14 +51,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-type Profile = any;
+import { useAuth } from "@/contexts/AuthContext";
+
+type Profile = {
+  full_name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+};
+
+type MenuItem = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  path: string;
+};
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
-
-import { useAuth } from "@/contexts/AuthContext";
-import { useMemo } from "react";
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
@@ -73,23 +79,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const cookie = document.cookie
       .split("; ")
       .find((row) => row.startsWith("sidebar:state="));
-    if (cookie) {
-      return cookie.split("=")[1] === "true";
-    }
-    return true;
+    return cookie ? cookie.split("=")[1] === "true" : true;
   });
-  
+
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const savedScrollPos = sessionStorage.getItem('sidebarScrollPosition');
+    const savedScrollPos = sessionStorage.getItem("sidebarScrollPosition");
     if (savedScrollPos && sidebarScrollRef.current) {
       sidebarScrollRef.current.scrollTop = parseInt(savedScrollPos, 10);
     }
   }, []);
 
   const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    sessionStorage.setItem('sidebarScrollPosition', String(e.currentTarget.scrollTop));
+    sessionStorage.setItem("sidebarScrollPosition", String(e.currentTarget.scrollTop));
   };
 
   const handleSignOut = useCallback(async () => {
@@ -105,42 +108,56 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const { canAccess } = useSubscription();
 
-  const telegramMenuItems = useMemo(() => [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    ...(canAccess('create_quiz') ? [{ icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" }] : []),
-    ...(canAccess('create_post') ? [{ icon: PenLine, label: "Create Post", path: "/dashboard/create-post" }] : []),
-    ...(canAccess('channels') ? [{ icon: Radio, label: "Channels", path: "/dashboard/channels" }] : []),
-    ...(canAccess('stories') ? [{ icon: Image, label: "Stories", path: "/dashboard/stories" }] : []),
-    ...(canAccess('question_bank') ? [{ icon: Database, label: "Question Bank", path: "/dashboard/question-bank" }] : []),
-    ...(canAccess('knowledge_base') ? [{ icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" }] : []),
-    ...(canAccess('scheduler') ? [{ icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" }] : []),
-  ], [canAccess]);
+  const telegramMenuItems = useMemo<MenuItem[]>(
+    () => [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+      ...(canAccess("create_quiz") ? [{ icon: Sparkles, label: "Create Quiz", path: "/dashboard/create-quiz" }] : []),
+      ...(canAccess("create_post") ? [{ icon: PenLine, label: "Create Post", path: "/dashboard/create-post" }] : []),
+      ...(canAccess("channels") ? [{ icon: Radio, label: "Channels", path: "/dashboard/channels" }] : []),
+      ...(canAccess("stories") ? [{ icon: Image, label: "Stories", path: "/dashboard/stories" }] : []),
+      ...(canAccess("question_bank") ? [{ icon: Database, label: "Question Bank", path: "/dashboard/question-bank" }] : []),
+      ...(canAccess("knowledge_base") ? [{ icon: FileText, label: "Knowledge Base", path: "/dashboard/documents" }] : []),
+      ...(canAccess("scheduler") ? [{ icon: Calendar, label: "Scheduler", path: "/dashboard/scheduler" }] : []),
+    ],
+    [canAccess],
+  );
 
-  const settingsMenuItems = useMemo(() => [
-    { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
-  ], []);
+  const settingsMenuItems = useMemo<MenuItem[]>(
+    () => [
+      { icon: BarChart3, label: "Analytics", path: "/dashboard/analytics" },
+      { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+    ],
+    [],
+  );
 
-  const superAdminMenuItems = useMemo(() => [
-    { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
-    { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
-    { icon: CreditCard, label: "Subscriptions", path: "/dashboard/super-admin/subscriptions" },
-    { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
-    { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
-    { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },
-  ], []);
+  const superAdminMenuItems = useMemo<MenuItem[]>(
+    () => [
+      { icon: Shield, label: "Admin Dashboard", path: "/dashboard/super-admin" },
+      { icon: Users, label: "Manage Users", path: "/dashboard/super-admin/users" },
+      { icon: CreditCard, label: "Subscriptions", path: "/dashboard/super-admin/subscriptions" },
+      { icon: Tag, label: "Manage Coupons", path: "/dashboard/super-admin/coupons" },
+      { icon: BarChart3, label: "Audit Logs", path: "/dashboard/super-admin/audit-logs" },
+      { icon: Settings, label: "Admin Settings", path: "/dashboard/super-admin/settings" },
+    ],
+    [],
+  );
 
   const getUserInitials = useCallback(() => {
     if (profile?.full_name) {
-      return profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+      return profile.full_name
+        .split(" ")
+        .map((name) => name[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
     }
-    return profile?.email?.slice(0, 2).toUpperCase() || 'U';
+    return profile?.email?.slice(0, 2).toUpperCase() || "U";
   }, [profile]);
 
   return (
     <SidebarProvider defaultOpen={initialSidebarOpen}>
       <DashboardLayoutInner
-        profile={profile}
+        profile={profile as Profile | null}
         isUserSuperAdmin={isUserSuperAdmin}
         handleSignOut={handleSignOut}
         sidebarScrollRef={sidebarScrollRef}
@@ -163,9 +180,9 @@ interface DashboardLayoutInnerProps extends DashboardLayoutProps {
   sidebarScrollRef: React.RefObject<HTMLDivElement>;
   handleSidebarScroll: (e: React.UIEvent<HTMLDivElement>) => void;
   getUserInitials: () => string;
-  telegramMenuItems: any[];
-  settingsMenuItems: any[];
-  superAdminMenuItems: any[];
+  telegramMenuItems: MenuItem[];
+  settingsMenuItems: MenuItem[];
+  superAdminMenuItems: MenuItem[];
 }
 
 function DashboardLayoutInner({
@@ -187,15 +204,15 @@ function DashboardLayoutInner({
   const menuItemClass = (isActive: boolean) => `
     group transition-all duration-300 ease-out rounded-xl relative h-11
     ${isActive
-      ? "bg-white/10 text-white font-bold shadow-lg scale-[1.02] border border-white/20"
-      : "hover:bg-sidebar-accent/50 text-sidebar-foreground hover:translate-x-1"
+      ? "bg-[#eaf7ff] text-[#0088cc] font-bold shadow-sm border border-[#cceeff]"
+      : "hover:bg-[#f3fbff] text-sidebar-foreground hover:translate-x-1"
     }
   `;
 
   const menuIconClass = (isActive: boolean) => `
     w-5 h-5 transition-all duration-300 ease-out
     ${isActive
-      ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+      ? "scale-110 text-[#0088cc]"
       : "group-hover:scale-110 group-hover:-rotate-3"
     }
   `;
@@ -209,7 +226,7 @@ function DashboardLayoutInner({
           className="hidden md:block fixed z-[100] transition-all duration-200 ease-linear"
           style={{
             left: isCollapsed ? "calc(var(--sidebar-width-icon) - 12px)" : "calc(var(--sidebar-width) - 12px)",
-            top: "22px"
+            top: "22px",
           }}
         >
           <Button
@@ -226,7 +243,7 @@ function DashboardLayoutInner({
           variant="outline"
           size="icon"
           className="hidden md:flex fixed bottom-6 right-6 z-50 glass-card shadow-xl rounded-full w-12 h-12 hover:scale-110 transition-transform items-center justify-center"
-          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))}
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }))}
         >
           <Keyboard className="w-5 h-5" />
         </Button>
@@ -267,7 +284,7 @@ function DashboardLayoutInner({
                           <Link to={item.path} className="flex items-center gap-3 px-3">
                             <Icon className={menuIconClass(isActive)} />
                             <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in zoom-in duration-300" />}
+                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-[#0088cc] rounded-full shadow-[0_0_8px_rgba(0,136,204,0.35)] animate-in fade-in zoom-in duration-300" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -294,7 +311,7 @@ function DashboardLayoutInner({
                           <Link to={item.path} className="flex items-center gap-3 px-3">
                             <Icon className={menuIconClass(isActive)} />
                             <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white] animate-in fade-in zoom-in duration-300" />}
+                            {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-[#0088cc] rounded-full shadow-[0_0_8px_rgba(0,136,204,0.35)] animate-in fade-in zoom-in duration-300" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -324,14 +341,14 @@ function DashboardLayoutInner({
                               isActive={isActive}
                               tooltip={item.label}
                               className={`group transition-all duration-300 ease-out rounded-xl relative h-11 ${isActive
-                                ? "bg-orange-500/20 text-orange-500 font-bold shadow-lg scale-[1.02] border border-orange-500/20"
-                                : "hover:bg-sidebar-accent/50 text-sidebar-foreground hover:translate-x-1"
+                                ? "bg-orange-50 text-orange-500 font-bold shadow-sm border border-orange-100"
+                                : "hover:bg-orange-50/60 text-sidebar-foreground hover:translate-x-1"
                               }`}
                             >
                               <Link to={item.path} className="flex items-center gap-3 px-3">
-                                <Icon className={`w-5 h-5 transition-all duration-300 ease-out ${isActive ? 'scale-110' : 'group-hover:scale-110 group-hover:-rotate-3'}`} />
+                                <Icon className={`w-5 h-5 transition-all duration-300 ease-out ${isActive ? "scale-110 text-orange-500" : "group-hover:scale-110 group-hover:-rotate-3"}`} />
                                 <span className="font-semibold text-sm transition-transform duration-300 group-hover:translate-x-0.5">{item.label}</span>
-                                {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-in fade-in zoom-in duration-300" />}
+                                {isActive && <div className="absolute right-2 w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.35)] animate-in fade-in zoom-in duration-300" />}
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -352,30 +369,23 @@ function DashboardLayoutInner({
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton size="lg" className="floating-profile-card h-14 px-2 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:m-0 transition-all duration-300 hover:scale-[1.01]">
                         <Avatar className="h-8 w-8 ring-1 ring-primary/20 shadow-md transition-transform duration-300 group-hover:scale-105">
-                          <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
+                          <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "User"} />
                           <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-black text-xs">{getUserInitials()}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
-                          <span className="text-xs font-black tracking-tight truncate max-w-[150px]">{profile?.full_name || 'User'}</span>
+                          <span className="font-bold text-sm truncate w-full text-foreground">{profile?.full_name || "User"}</span>
+                          <span className="text-xs text-muted-foreground truncate w-full">{profile?.email || ""}</span>
                         </div>
-                        <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden opacity-40 transition-transform duration-300 group-hover:translate-x-0.5">
-                          <ChevronRight className="h-3 w-3" />
-                        </div>
+                        <ChevronRight className="ml-auto w-4 h-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 glass-card p-2" align="end" side="top" sideOffset={12}>
-                      <DropdownMenuLabel className="font-normal p-4">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-base font-black tracking-tight">{profile?.full_name || 'User'}</p>
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{profile?.email || ''}</p>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator className="opacity-10" />
-                      <DropdownMenuItem asChild className="p-3 rounded-xl cursor-pointer font-bold">
-                        <Link to="/dashboard/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleSignOut} className="p-3 rounded-xl cursor-pointer font-bold">
-                        <LogOut className="mr-2 h-4 w-4" />Sign out
+                    <DropdownMenuContent align="end" side="top" className="w-56">
+                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate("/dashboard/settings")}>Settings</DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign out
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -383,14 +393,9 @@ function DashboardLayoutInner({
               </SidebarMenu>
             </div>
           </SidebarFooter>
-          <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-w-0 flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto w-full">
-          <div className="w-full max-w-7xl mx-auto space-y-6">
-            {children}
-          </div>
-        </SidebarInset>
+        <main className="flex-1 min-w-0">{children}</main>
       </div>
     </>
   );
