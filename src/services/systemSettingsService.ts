@@ -27,11 +27,6 @@ export interface SystemMaintenance {
 
 export type AIProvider = 'openrouter' | 'cloudflare';
 
-/**
- * AI configuration is intentionally non-secret.
- * Provider credentials are deployment secrets and must never be returned to
- * the browser or persisted in system_settings.
- */
 export interface AISettings {
   provider: AIProvider;
   model: string;
@@ -78,6 +73,18 @@ function sanitizeForAudit(key: SettingKey, value: unknown): Record<string, unkno
   return { value };
 }
 
+function sanitizeAISettings(value: unknown): AISettings {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    provider: raw.provider === 'cloudflare' ? 'cloudflare' : 'openrouter',
+    model: typeof raw.model === 'string' ? raw.model : '',
+    image_model: typeof raw.image_model === 'string' ? raw.image_model : '',
+    openrouter_image_model: typeof raw.openrouter_image_model === 'string' ? raw.openrouter_image_model : '',
+    temperature: typeof raw.temperature === 'number' ? raw.temperature : 0.7,
+    system_prompt: typeof raw.system_prompt === 'string' ? raw.system_prompt : '',
+  };
+}
+
 export async function getAllSettings(): Promise<SystemSettings> {
   const { data, error } = await supabase
     .from('system_settings')
@@ -109,10 +116,7 @@ export async function getAllSettings(): Promise<SystemSettings> {
       maintenance_mode: false,
       maintenance_message: 'System is under maintenance. Please try again later.',
     },
-    ai_settings: {
-      ...DEFAULT_AI_SETTINGS,
-      ...((settings.ai_settings as Partial<AISettings> | undefined) ?? {}),
-    },
+    ai_settings: sanitizeAISettings(settings.ai_settings),
     telegram_settings: (settings.telegram_settings as TelegramSettings | undefined) ?? {
       global_bot_token: '',
       fallback_enabled: true,
@@ -137,6 +141,7 @@ export async function getSetting<K extends SettingKey>(key: K): Promise<SystemSe
     return null;
   }
 
+  if (key === 'ai_settings') return sanitizeAISettings(data?.setting_value) as SystemSettings[K];
   return data?.setting_value as SystemSettings[K] | null;
 }
 
