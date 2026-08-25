@@ -8,50 +8,70 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SuperAdminRoute from "./components/SuperAdminRoute";
 
-// Lazy load all pages for code splitting
-const Index = lazy(() => import("./pages/Index"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
-const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const CreateQuizPage = lazy(() => import("./pages/CreateQuizPage"));
-const Scheduler = lazy(() => import("./pages/Scheduler"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Documents = lazy(() => import("./pages/Documents"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const QuestionBank = lazy(() => import("./pages/QuestionBank"));
-const Channels = lazy(() => import("./pages/Channels"));
-const CreatePost = lazy(() => import("./pages/CreatePost"));
-const Stories = lazy(() => import("./pages/Stories"));
-const Courses = lazy(() => import("./pages/Courses"));
-const CourseEditor = lazy(() => import("./pages/CourseEditor"));
-const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
-const Batches = lazy(() => import("./pages/Batches"));
-const LiveClasses = lazy(() => import("./pages/LiveClasses"));
-const Notices = lazy(() => import("./pages/Notices"));
-const Tests = lazy(() => import("./pages/Tests"));
-const TestEditor = lazy(() => import("./pages/TestEditor"));
+// Safe dynamic import with automatic retry and reload on deploy chunk mismatch
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (error) {
+      // Check if we already reloaded in this session for this route
+      const lastReload = sessionStorage.getItem("last_chunk_reload");
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+        sessionStorage.setItem("last_chunk_reload", String(now));
+        window.location.reload();
+        return new Promise(() => {}); // pause until reload triggers
+      }
+      throw error;
+    }
+  });
+}
 
+// Lazy load all pages for code splitting with retry
+const Index = lazyWithRetry(() => import("./pages/Index"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
+const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
+const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const CreateQuizPage = lazyWithRetry(() => import("./pages/CreateQuizPage"));
+const Scheduler = lazyWithRetry(() => import("./pages/Scheduler"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const Documents = lazyWithRetry(() => import("./pages/Documents"));
+const Analytics = lazyWithRetry(() => import("./pages/Analytics"));
+const QuestionBank = lazyWithRetry(() => import("./pages/QuestionBank"));
+const Channels = lazyWithRetry(() => import("./pages/Channels"));
+const CreatePost = lazyWithRetry(() => import("./pages/CreatePost"));
+const Stories = lazyWithRetry(() => import("./pages/Stories"));
+const Courses = lazyWithRetry(() => import("./pages/Courses"));
+const CourseEditor = lazyWithRetry(() => import("./pages/CourseEditor"));
+const StudentDashboard = lazyWithRetry(() => import("./pages/StudentDashboard"));
+const Batches = lazyWithRetry(() => import("./pages/Batches"));
+const LiveClasses = lazyWithRetry(() => import("./pages/LiveClasses"));
+const Notices = lazyWithRetry(() => import("./pages/Notices"));
+const Tests = lazyWithRetry(() => import("./pages/Tests"));
+const TestEditor = lazyWithRetry(() => import("./pages/TestEditor"));
 
-const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
-const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
-const SuperAdminCoupons = lazy(() => import("./pages/SuperAdminCoupons"));
-const SuperAdminUsers = lazy(() => import("./pages/SuperAdminUsers"));
-const SuperAdminSubscriptions = lazy(() => import("./pages/SuperAdminSubscriptions"));
+const TeacherDashboard = lazyWithRetry(() => import("./pages/TeacherDashboard"));
+const SuperAdminDashboard = lazyWithRetry(() => import("./pages/SuperAdminDashboard"));
+const SuperAdminCoupons = lazyWithRetry(() => import("./pages/SuperAdminCoupons"));
+const SuperAdminUsers = lazyWithRetry(() => import("./pages/SuperAdminUsers"));
+const SuperAdminSubscriptions = lazyWithRetry(() => import("./pages/SuperAdminSubscriptions"));
 
-const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
-const SuperAdminSettings = lazy(() => import("./pages/SuperAdminSettings"));
-const SuperAdminMcpHealth = lazy(() => import("./pages/SuperAdminMcpHealth"));
-const SuperAdminLogin = lazy(() => import("./pages/SuperAdminLogin"));
-const Install = lazy(() => import("./pages/Install"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
-const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
-const DataSecurity = lazy(() => import("./pages/DataSecurity"));
-const Documentation = lazy(() => import("./pages/Documentation"));
-const ContactSupport = lazy(() => import("./pages/ContactSupport"));
-const VideoTutorials = lazy(() => import("./pages/VideoTutorials"));
-const HelpCenter = lazy(() => import("./pages/HelpCenter"));
+const SuperAdminAuditLogs = lazyWithRetry(() => import("./pages/SuperAdminAuditLogs"));
+const SuperAdminSettings = lazyWithRetry(() => import("./pages/SuperAdminSettings"));
+const SuperAdminMcpHealth = lazyWithRetry(() => import("./pages/SuperAdminMcpHealth"));
+const SuperAdminLogin = lazyWithRetry(() => import("./pages/SuperAdminLogin"));
+const Install = lazyWithRetry(() => import("./pages/Install"));
+const Privacy = lazyWithRetry(() => import("./pages/Privacy"));
+const Terms = lazyWithRetry(() => import("./pages/Terms"));
+const RefundPolicy = lazyWithRetry(() => import("./pages/RefundPolicy"));
+const DataSecurity = lazyWithRetry(() => import("./pages/DataSecurity"));
+const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
+const ContactSupport = lazyWithRetry(() => import("./pages/ContactSupport"));
+const VideoTutorials = lazyWithRetry(() => import("./pages/VideoTutorials"));
+const HelpCenter = lazyWithRetry(() => import("./pages/HelpCenter"));
 
 import { AuthProvider } from "./contexts/AuthContext";
 
