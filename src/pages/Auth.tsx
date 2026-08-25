@@ -137,9 +137,38 @@ export default function Auth() {
     } catch (err) {
       let msg = err instanceof Error ? err.message : "Failed to sign in";
       if (msg.toLowerCase().includes("failed to fetch")) {
-        msg = "Network request failed. If using Brave Shields or an adblocker, please allow telepost.tech and refresh.";
+        msg = "Network connection failed. If you have Brave Shields or an adblocker active, please disable it for telepost.tech and refresh.";
+      } else if (msg.toLowerCase().includes("invalid login credentials") || msg.toLowerCase().includes("invalid_credentials")) {
+        msg = "Incorrect email or password. Please verify your email spelling or use 'Forgot password?' below.";
       }
       toast({ title: "Sign In Error", description: msg, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!valEmail(email)) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your valid registered email address in the box above.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/auth?mode=reset`
+      });
+      if (error) throw error;
+      toast({
+        title: "Reset Link Sent",
+        description: `We have sent a password reset link to ${email}. Check your inbox or spam folder.`
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send password reset email";
+      toast({ title: "Reset Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -356,7 +385,7 @@ export default function Auth() {
                   <motion.div className="auth-fld" variants={stagger(1)} initial="hidden" animate="visible">
                     <div className="auth-fld-label-row">
                       <label className="auth-fld-label">Password</label>
-                      <button type="button" className="auth-fld-forgot">Forgot password?</button>
+                      <button type="button" onClick={handleForgotPassword} className="auth-fld-forgot">Forgot password?</button>
                     </div>
                     <div className="auth-inp-wrap">
                       <Lock className="auth-inp-icon" />
