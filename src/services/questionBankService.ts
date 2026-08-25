@@ -53,6 +53,8 @@ export interface QuestionBankStatistics {
   total: number;
   byTopic: Record<string, number>;
   bySubject: Record<string, number>;
+  /** @deprecated Kept as an empty compatibility field; difficulty is no longer a Question Bank dimension. */
+  byDifficulty: Record<string, number>;
   byLanguage: Record<string, number>;
   unclassifiedCount: number;
   publicCount: number;
@@ -180,8 +182,6 @@ export class QuestionBankService {
       p_include_public: filters.isPublicOnly ? true : filters.includePublic !== false,
     });
     if (!error && data) return data as QuestionBankItem[];
-
-    // Backwards-compatible fallback until the migration is deployed.
     const { data: fallback } = await this.getQuestions(userId, filters, Math.max(100, safeCount * 5), 0);
     return [...fallback].sort(() => Math.random() - 0.5).slice(0, safeCount);
   }
@@ -193,13 +193,9 @@ export class QuestionBankService {
     options?: { channelId?: string },
   ): Promise<QuestionBankItem[]> {
     const records = quizData.questions.map((question) => normalizeQuestionInput({
-      user_id: userId,
-      question: question.question,
-      options: question.options,
-      correct_option_index: question.correct_option_index,
-      explanation: question.explanation,
-      topic,
-      channel_id: options?.channelId ?? null,
+      user_id: userId, question: question.question, options: question.options,
+      correct_option_index: question.correct_option_index, explanation: question.explanation,
+      topic, channel_id: options?.channelId ?? null,
     }, "quiz_import"));
     if (!records.length) return [];
     const { data, error } = await supabase.from("question_banks").insert(records).select();
@@ -214,13 +210,9 @@ export class QuestionBankService {
     options?: { topic?: string; channelId?: string },
   ): Promise<QuestionBankItem[]> {
     const records = questions.map((question) => normalizeQuestionInput({
-      user_id: userId,
-      question: question.question,
-      options: question.options,
-      correct_option_index: question.correct_option_index,
-      explanation: question.explanation,
-      topic: options?.topic ?? "General",
-      channel_id: options?.channelId ?? null,
+      user_id: userId, question: question.question, options: question.options,
+      correct_option_index: question.correct_option_index, explanation: question.explanation,
+      topic: options?.topic ?? "General", channel_id: options?.channelId ?? null,
       source_document_id: documentId,
     }, "document"));
     if (!records.length) return [];
@@ -231,20 +223,9 @@ export class QuestionBankService {
 
   static async updateQuestion(questionId: string, userId: string, updates: Partial<QuestionBankItem>): Promise<QuestionBankItem> {
     const clean = stripLegacyDifficulty({ ...updates } as Record<string, unknown>);
-    delete (clean as any).id;
-    delete (clean as any).user_id;
-    delete (clean as any).created_at;
-    delete (clean as any).updated_at;
-    delete (clean as any).times_used;
-    delete (clean as any).times_correct;
-    delete (clean as any).times_incorrect;
-    const { data, error } = await supabase
-      .from("question_banks")
-      .update(clean)
-      .eq("id", questionId)
-      .eq("user_id", userId)
-      .select()
-      .single();
+    delete (clean as any).id; delete (clean as any).user_id; delete (clean as any).created_at; delete (clean as any).updated_at;
+    delete (clean as any).times_used; delete (clean as any).times_correct; delete (clean as any).times_incorrect;
+    const { data, error } = await supabase.from("question_banks").update(clean).eq("id", questionId).eq("user_id", userId).select().single();
     if (error) throw error;
     return data as QuestionBankItem;
   }
@@ -256,29 +237,22 @@ export class QuestionBankService {
 
   static async bulkUpdateClassification(questionIds: string[], userId: string, subject: string, topic: string): Promise<void> {
     if (!questionIds.length) return;
-    const { error } = await supabase
-      .from("question_banks")
+    const { error } = await supabase.from("question_banks")
       .update({ subject: subject.trim(), topic: topic.trim() || "General", classification_source: "manual" })
-      .in("id", questionIds)
-      .eq("user_id", userId);
+      .in("id", questionIds).eq("user_id", userId);
     if (error) throw error;
   }
 
   static async getStatistics(userId: string, includePublic = false): Promise<QuestionBankStatistics> {
-    const { data, error } = await supabase.rpc("question_bank_statistics", {
-      p_user_id: userId,
-      p_include_public: includePublic,
-    });
-    if (!error && data) return data as QuestionBankStatistics;
+    const { data, error } = await supabase.rpc("question_bank_statistics", { p_user_id: userId, p_include_public: includePublic });
+    if (!error && data) return { ...(data as QuestionBankStatistics), byDifficulty: {} };
 
-    // Fallback keeps the UI working if the migration has not reached Supabase yet.
     let query = supabase.from("question_banks").select("topic, subject, language, is_public, user_id");
     query = includePublic ? query.or(`user_id.eq.${userId},is_public.eq.true`) : query.eq("user_id", userId);
     const { data: rows, error: fallbackError } = await query;
     if (fallbackError) throw fallbackError;
     const stats: QuestionBankStatistics = {
-      total: rows?.length ?? 0,
-      byTopic: {}, bySubject: {}, byLanguage: {},
+      total: rows?.length ?? 0, byTopic: {}, bySubject: {}, byDifficulty: {}, byLanguage: {},
       unclassifiedCount: 0, publicCount: 0, privateCount: 0,
     };
     for (const row of rows ?? []) {
@@ -286,8 +260,7 @@ export class QuestionBankService {
       if (row.subject) stats.bySubject[row.subject] = (stats.bySubject[row.subject] ?? 0) + 1;
       else stats.unclassifiedCount++;
       if (row.language) stats.byLanguage[row.language] = (stats.byLanguage[row.language] ?? 0) + 1;
-      if (row.is_public) stats.publicCount++;
-      else stats.privateCount++;
+      if (row.is_public) stats.publicCount++; else stats.privateCount++;
     }
     return stats;
   }
@@ -295,20 +268,8 @@ export class QuestionBankService {
   /** Seed sample questions for local/demo environments only. */
   static async seedSampleQuestions(userId: string): Promise<void> {
     await this.bulkAddQuestions(userId, [
-      {
-        question: "ভারতের রাজধানী কোথায়?",
-        options: ["মুম্বাই", "নতুন দিল্লি", "কলকাতা", "চেন্নাই"],
-        correct_option_index: 1,
-        explanation: "ভারতের রাজধানী নতুন দিল্লি।",
-        topic: "ভারতের ভূগোল", subject: "ভূগোল", language: "bn", is_public: false, is_active: true,
-      },
-      {
-        question: "২ + ২ = ?",
-        options: ["৩", "৪", "৫", "৬"],
-        correct_option_index: 1,
-        explanation: "২ + ২ = ৪।",
-        topic: "মৌলিক গণিত", subject: "গণিত", language: "bn", is_public: false, is_active: true,
-      },
+      { question: "ভারতের রাজধানী কোথায়?", options: ["মুম্বাই", "নতুন দিল্লি", "কলকাতা", "চেন্নাই"], correct_option_index: 1, explanation: "ভারতের রাজধানী নতুন দিল্লি।", topic: "ভারতের ভূগোল", subject: "ভূগোল", language: "bn", is_public: false, is_active: true },
+      { question: "২ + ২ = ?", options: ["৩", "৪", "৫", "৬"], correct_option_index: 1, explanation: "২ + ২ = ৪।", topic: "মৌলিক গণিত", subject: "গণিত", language: "bn", is_public: false, is_active: true },
     ] as QuestionInput[]);
   }
 }
