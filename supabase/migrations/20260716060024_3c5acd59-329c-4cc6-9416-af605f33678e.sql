@@ -9,12 +9,15 @@ DROP POLICY IF EXISTS "System can insert usage" ON public.usage_tracking;
 DROP POLICY IF EXISTS "System can update usage" ON public.usage_tracking;
 
 -- Allow users to init/update their own usage_tracking row (used from client hooks)
+DROP POLICY IF EXISTS "Users can insert own usage" ON public.usage_tracking;
 CREATE POLICY "Users can insert own usage" ON public.usage_tracking
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own usage" ON public.usage_tracking;
 CREATE POLICY "Users can update own usage" ON public.usage_tracking
   FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Allow users to insert story analytics only for their own stories
+DROP POLICY IF EXISTS "Users can insert analytics for own stories" ON public.story_analytics;
 CREATE POLICY "Users can insert analytics for own stories" ON public.story_analytics
   FOR INSERT TO authenticated
   WITH CHECK (EXISTS (
@@ -23,11 +26,13 @@ CREATE POLICY "Users can insert analytics for own stories" ON public.story_analy
   ));
 
 -- Allow users to insert verification codes only for themselves
+DROP POLICY IF EXISTS "Users can insert own verification codes" ON public.email_verification_codes;
 CREATE POLICY "Users can insert own verification codes" ON public.email_verification_codes
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- 2. Restrict public story-media SELECT so clients cannot list the bucket
 DROP POLICY IF EXISTS "Anyone can view public story media" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view own story media" ON storage.objects;
 CREATE POLICY "Users can view own story media"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'story-media' AND (storage.foldername(name))[1] = auth.uid()::text);

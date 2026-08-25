@@ -18,6 +18,16 @@ DELETE FROM public.quiz_generations
 WHERE created_at < NOW() - INTERVAL '60 days';
 
 -- 6. Schedule automated daily cleanup of pg_net logs (runs daily at 3 AM UTC)
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'cleanup-pg-net-logs';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule cleanup-pg-net-logs: %', SQLERRM;
+END;
+$cron$;
+
 SELECT cron.schedule(
     'cleanup-pg-net-logs',
     '0 3 * * *',
@@ -25,6 +35,16 @@ SELECT cron.schedule(
 );
 
 -- 7. Schedule automated daily cleanup of pg_cron logs (runs daily at 3 AM UTC)
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'cleanup-pg-cron-logs';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule cleanup-pg-cron-logs: %', SQLERRM;
+END;
+$cron$;
+
 SELECT cron.schedule(
     'cleanup-pg-cron-logs',
     '0 3 * * *',

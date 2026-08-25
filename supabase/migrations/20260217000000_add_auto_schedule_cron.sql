@@ -62,6 +62,16 @@ END;
 $$;
 
 -- Schedule the cron job to run every minute
+DO $cron$
+BEGIN
+  PERFORM cron.unschedule(jobid)
+  FROM cron.job
+  WHERE jobname = 'process-auto-schedule-cron';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not unschedule process-auto-schedule-cron: %', SQLERRM;
+END;
+$cron$;
+
 SELECT cron.schedule(
   'process-auto-schedule-cron', -- job name
   '* * * * *',                  -- every minute

@@ -16,30 +16,35 @@ CREATE TABLE IF NOT EXISTS public.user_templates (
 ALTER TABLE public.user_templates ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can view their own templates and all default templates
+DROP POLICY IF EXISTS "Users can view own and default templates" ON public.user_templates;
 CREATE POLICY "Users can view own and default templates"
     ON public.user_templates
     FOR SELECT
     USING (user_id = auth.uid() OR is_default = true);
 
 -- Policy: Users can insert their own templates
+DROP POLICY IF EXISTS "Users can insert own templates" ON public.user_templates;
 CREATE POLICY "Users can insert own templates"
     ON public.user_templates
     FOR INSERT
     WITH CHECK (user_id = auth.uid() AND is_default = false);
 
 -- Policy: Users can update their own non-default templates
+DROP POLICY IF EXISTS "Users can update own templates" ON public.user_templates;
 CREATE POLICY "Users can update own templates"
     ON public.user_templates
     FOR UPDATE
     USING (user_id = auth.uid() AND is_default = false);
 
 -- Policy: Users can delete their own non-default templates
+DROP POLICY IF EXISTS "Users can delete own templates" ON public.user_templates;
 CREATE POLICY "Users can delete own templates"
     ON public.user_templates
     FOR DELETE
     USING (user_id = auth.uid() AND is_default = false);
 
 -- Policy: Super admins can manage all templates including defaults
+DROP POLICY IF EXISTS "Super admins can manage all templates" ON public.user_templates;
 CREATE POLICY "Super admins can manage all templates"
     ON public.user_templates
     FOR ALL

@@ -19,25 +19,29 @@ CREATE TABLE IF NOT EXISTS auto_schedule_settings (
 ALTER TABLE auto_schedule_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies
+DROP POLICY IF EXISTS "Users can view their own auto-schedule settings" ON auto_schedule_settings;
 CREATE POLICY "Users can view their own auto-schedule settings"
   ON auto_schedule_settings FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own auto-schedule settings" ON auto_schedule_settings;
 CREATE POLICY "Users can insert their own auto-schedule settings"
   ON auto_schedule_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own auto-schedule settings" ON auto_schedule_settings;
 CREATE POLICY "Users can update their own auto-schedule settings"
   ON auto_schedule_settings FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own auto-schedule settings" ON auto_schedule_settings;
 CREATE POLICY "Users can delete their own auto-schedule settings"
   ON auto_schedule_settings FOR DELETE
   USING (auth.uid() = user_id);
 
 -- Index for efficient querying
-CREATE INDEX idx_auto_schedule_user_enabled ON auto_schedule_settings(user_id, enabled);
-CREATE INDEX idx_auto_schedule_channel ON auto_schedule_settings(channel_id);
+CREATE INDEX IF NOT EXISTS idx_auto_schedule_user_enabled ON auto_schedule_settings(user_id, enabled);
+CREATE INDEX IF NOT EXISTS idx_auto_schedule_channel ON auto_schedule_settings(channel_id);
 
 -- Trigger for updated_at
 CREATE OR REPLACE FUNCTION update_auto_schedule_updated_at()
@@ -48,6 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_auto_schedule_updated_at ON auto_schedule_settings;
 CREATE TRIGGER trigger_auto_schedule_updated_at
   BEFORE UPDATE ON auto_schedule_settings
   FOR EACH ROW

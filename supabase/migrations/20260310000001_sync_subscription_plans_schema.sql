@@ -18,6 +18,7 @@ ADD COLUMN IF NOT EXISTS max_kb_docs INTEGER DEFAULT 5;
 -- Note: 'Anyone can view subscription plans' already exists for SELECT
 
 -- Policy for UPDATE: Only super_admin can update plans
+DROP POLICY IF EXISTS "Super admins can update subscription plans" ON public.subscription_plans;
 CREATE POLICY "Super admins can update subscription plans"
 ON public.subscription_plans FOR UPDATE
 USING (
@@ -29,6 +30,7 @@ USING (
 );
 
 -- Policy for INSERT: Only super_admin can create plans
+DROP POLICY IF EXISTS "Super admins can create subscription plans" ON public.subscription_plans;
 CREATE POLICY "Super admins can create subscription plans"
 ON public.subscription_plans FOR INSERT
 WITH CHECK (
@@ -40,6 +42,7 @@ WITH CHECK (
 );
 
 -- Policy for DELETE: Only super_admin can delete plans
+DROP POLICY IF EXISTS "Super admins can delete subscription plans" ON public.subscription_plans;
 CREATE POLICY "Super admins can delete subscription plans"
 ON public.subscription_plans FOR DELETE
 USING (

@@ -1,7 +1,7 @@
 
 -- Scope invoices teacher access to teacher's own courses
 DROP POLICY IF EXISTS "Teachers can manage invoices" ON public.invoices;
-
+DROP POLICY IF EXISTS "Teachers can view invoices for own courses" ON public.invoices;
 CREATE POLICY "Teachers can view invoices for own courses"
 ON public.invoices FOR SELECT
 USING (
@@ -13,6 +13,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Teachers can insert invoices for own courses" ON public.invoices;
 CREATE POLICY "Teachers can insert invoices for own courses"
 ON public.invoices FOR INSERT
 WITH CHECK (
@@ -24,6 +25,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Teachers can update invoices for own courses" ON public.invoices;
 CREATE POLICY "Teachers can update invoices for own courses"
 ON public.invoices FOR UPDATE
 USING (
@@ -35,6 +37,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Teachers can delete invoices for own courses" ON public.invoices;
 CREATE POLICY "Teachers can delete invoices for own courses"
 ON public.invoices FOR DELETE
 USING (
@@ -49,6 +52,7 @@ USING (
 -- Scope payment_transactions teacher access to their own courses
 DROP POLICY IF EXISTS "Teachers can view payments" ON public.payment_transactions;
 DROP POLICY IF EXISTS "Teachers can record payments" ON public.payment_transactions;
+DROP POLICY IF EXISTS "Teachers can view payments for own courses" ON public.payment_transactions;
 
 CREATE POLICY "Teachers can view payments for own courses"
 ON public.payment_transactions FOR SELECT
@@ -61,6 +65,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Teachers can insert payments for own courses" ON public.payment_transactions;
 CREATE POLICY "Teachers can insert payments for own courses"
 ON public.payment_transactions FOR INSERT
 WITH CHECK (

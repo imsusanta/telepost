@@ -14,14 +14,20 @@ declare namespace Deno {
 }
 
 // Module declarations for Deno imports
-declare module "https://deno.land/std@0.168.0/http/server.ts" {
+declare module "https://deno.land/std*" {
   export function serve(handler: (req: Request) => Response | Promise<Response>): void;
+  export function createHmac(algorithm: string, key: any): any;
 }
 
-declare module "https://esm.sh/@supabase/supabase-js@2.39.0" {
+declare module "https://esm.sh/@supabase/supabase-js*" {
   export { createClient, SupabaseClient } from "@supabase/supabase-js";
 }
 
-declare module "https://esm.sh/@supabase/supabase-js@2" {
+declare module "npm:@supabase/supabase-js*" {
   export { createClient, SupabaseClient } from "@supabase/supabase-js";
+}
+
+declare module "https://esm.sh/unpdf*" {
+  export function extractText(data: any): Promise<any>;
+  export function getDocumentProxy(data: any): Promise<any>;
 }

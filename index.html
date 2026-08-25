@@ -1,119 +1,64 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>TelePost - AI-Powered Quiz Generator for Telegram</title>
+    <meta name="description" content="Transform study materials into engaging quizzes with AI. Auto-post to Telegram, deliver instant explanations, and track student progress." />
+    <meta name="keywords" content="quiz maker, AI quiz generator, Telegram bot, automated quiz, education" />
+    <meta name="author" content="TelePost" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0f" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>TelePost - AI-Powered Quiz Generator for Telegram</title>
-  <meta name="description"
-    content="Transform study materials into engaging quizzes with AI. Auto-post to Telegram, deliver instant explanations, and track student progress. Trusted by 500+ institutes." />
-  <meta name="keywords"
-    content="quiz maker, AI quiz generator, custom quizzes, online quiz, education, learning, telegram bot, automated quiz, student engagement" />
-  <meta name="author" content="TelePost" />
+    <meta property="og:title" content="TelePost - AI-Powered Quiz Generator for Telegram" />
+    <meta property="og:description" content="Transform study materials into engaging quizzes with AI." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://telepost.tech/og-image.png" />
+    <meta property="og:url" content="https://telepost.tech" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TelePost - AI-Powered Quiz Generator for Telegram" />
+    <meta name="twitter:description" content="Create custom quizzes on any topic with AI" />
+    <meta name="twitter:image" content="https://telepost.tech/og-image.png" />
 
-  <!-- Theme Color - Adapts to light/dark mode -->
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TelePost" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/manifest-BSy7lgQm.webmanifest" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-  <!-- Security Headers -->
-  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="X-Frame-Options" content="DENY" />
-  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
-  <!-- CACHE BUSTER & SW RESET -->
-  <script>
-    (function () {
-      console.log('Checking for updates... [v2.0.1]');
-      if ('serviceWorker' in navigator) {
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          for (let registration of registrations) {
-            console.log('Unregistering old service worker...');
-            registration.unregister();
-          }
-          if (registrations.length > 0) {
-            console.log('Service workers cleared. Reloading...');
-            window.location.reload(true);
-          }
-        });
-      }
-    })();
-  </script>
-
-  <!-- Open Graph / Facebook -->
-  <meta property="og:title" content="TelePost - AI-Powered Quiz Generator for Telegram" />
-  <meta property="og:description"
-    content="Transform study materials into engaging quizzes with AI. Auto-post to Telegram and track student progress." />
-  <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://telepost.tech/og-image.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:url" content="https://telepost.tech" />
-  <meta property="og:locale" content="en_US" />
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="TelePost - AI-Powered Quiz Generator for Telegram" />
-  <meta name="twitter:description" content="Create custom quizzes on any topic with AI" />
-  <meta name="twitter:image" content="https://telepost.tech/og-image.png" />
-
-  <!-- Apple Mobile Web App -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="TelePost" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.webmanifest" />
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=3" />
-  <link rel="apple-touch-icon" href="/favicon-192x192.png" />
-
-  <!-- Preconnect to external domains for performance -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://wpkxbrdgktmwnowvmwue.supabase.co" crossorigin />
-  <link rel="dns-prefetch" href="https://wpkxbrdgktmwnowvmwue.supabase.co" />
-
-  <!-- Structured Data for SEO -->
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "TelePost",
-      "applicationCategory": "EducationalApplication",
-      "description": "AI-powered quiz generator for Telegram. Transform study materials into engaging quizzes with automatic posting and instant explanations.",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD",
-        "availability": "https://schema.org/InStock"
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "500"
-      }
-    }
+          return Promise.all(registrations.map(function (registration) {
+            return registration.unregister();
+          }));
+        }).catch(function () {});
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+          }).catch(function () {});
+        }
+      })();
     </script>
-  <script type="module" crossorigin src="/assets/index-uGv6Srkn.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/vendor-react-Bj6Tv0k8.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-ui-p5Vs906c.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-recharts-BBfNJ8B2.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-query-aZwRb222.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-Cxj50Fxc.js">
-  <link rel="stylesheet" crossorigin href="/assets/index-DGXsgTao.css">
-<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
-
-<body>
-  <div id="root"></div>
-</body>
-
+    <script type="module" crossorigin src="/assets/index-CbQJV9Go.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-Bj6Tv0k8.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-p5Vs906c.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-recharts-BBfNJ8B2.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-query-aZwRb222.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-Cxj50Fxc.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-B6NxBi76.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>

@@ -91,6 +91,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS check_profiles_billing_update ON public.profiles;
 CREATE TRIGGER check_profiles_billing_update
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
