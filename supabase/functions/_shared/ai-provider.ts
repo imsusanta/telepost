@@ -23,8 +23,8 @@ interface GeminiResponse { candidates?: Array<{ content?: { parts?: Array<{ text
 
 export const CLOUDFLARE_API_ORIGIN = 'https://api.cloudflare.com';
 export const CLOUDFLARE_DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
-export const OPENROUTER_DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
-export const GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
+export const OPENROUTER_DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+export const GEMINI_DEFAULT_MODEL = 'gemini-3.5-flash';
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GEMINI_API_ORIGIN = 'https://generativelanguage.googleapis.com/v1beta/models';
 const PROVIDER_COOLDOWN_MS = 30 * 60 * 1000;

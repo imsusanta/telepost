@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
 
-const FALLBACK_MODEL = 'google/gemini-2.0-flash-001';
+const FALLBACK_MODEL = 'gemini-3.5-flash';
 
 const TOPIC_LIBRARY = [
   'সিন্ধু সভ্যতা', 'পলাশীর যুদ্ধ', 'ভারতের সংবিধান', 'মৌলিক কর্তব্য', 'ভারতের নদী',
