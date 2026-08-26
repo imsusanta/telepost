@@ -177,15 +177,15 @@ function DashboardLayoutInner({
   );
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
       <KeyboardShortcuts />
-      <Sidebar collapsible="icon" className="border-r border-border/60 bg-sidebar">
+      <Sidebar collapsible="offcanvas" className="border-r border-border/60 bg-sidebar">
         <SidebarHeader className="border-b border-border/40 h-16 flex items-center px-3">
           <Link to="/dashboard" className="flex items-center gap-3 w-full pl-3">
             <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
               <Send className="w-4 h-4 fill-current text-primary" />
             </div>
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <div className="flex flex-col">
               <span className="text-base font-bold text-foreground leading-none">TelePost</span>
               <span className="text-[10px] text-muted-foreground font-medium mt-1">Quiz Platform</span>
             </div>
@@ -216,7 +216,7 @@ function DashboardLayoutInner({
           )}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-border/40 p-3">
+        <SidebarFooter className="border-t border-border/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <SidebarMenu>
             <SidebarMenuItem>
               <DropdownMenu>
@@ -226,18 +226,18 @@ function DashboardLayoutInner({
                       <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "User"} />
                       <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{getUserInitials()}</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col items-start text-left group-data-[collapsible=icon]:hidden overflow-hidden ml-2">
+                    <div className="flex flex-col items-start text-left overflow-hidden ml-2">
                       <span className="font-semibold text-xs truncate w-full text-foreground">{profile?.full_name || "User"}</span>
                       <span className="text-[10px] text-muted-foreground truncate w-full">{profile?.email || ""}</span>
                     </div>
-                    <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                    <ChevronRight className="ml-auto w-3.5 h-3.5 text-muted-foreground" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top" className="w-52">
+                <DropdownMenuContent align="end" side="top" className="w-52 max-w-[calc(100vw-2rem)]">
                   <DropdownMenuLabel className="text-xs">My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/dashboard/settings")} className="text-xs cursor-pointer"><Settings className="mr-2 h-3.5 w-3.5" />Settings</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut} className="text-xs text-destructive focus:text-destructive cursor-pointer"><LogOut className="mr-2 h-3.5 w-3.5" />Sign out</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard/settings")} className="min-h-11 text-xs cursor-pointer"><Settings className="mr-2 h-3.5 w-3.5" />Settings</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="min-h-11 text-xs text-destructive focus:text-destructive cursor-pointer"><LogOut className="mr-2 h-3.5 w-3.5" />Sign out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarMenuItem>
@@ -245,16 +245,16 @@ function DashboardLayoutInner({
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset className="flex-1 min-w-0 flex flex-col bg-background">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/40 bg-background/90 backdrop-blur-sm px-4 md:px-6">
-          <div className="flex items-center gap-3"><SidebarTrigger className="h-8 w-8 rounded-md hover:bg-accent" /><div className="hidden sm:block"><Breadcrumb /></div></div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium" onClick={() => navigate("/dashboard/create-quiz")}><Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">New Quiz</span></Button>
+      <SidebarInset className="flex-1 min-w-0 flex flex-col bg-background overflow-x-hidden">
+        <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-background/90 backdrop-blur-sm px-3 sm:px-4 md:px-6 pt-[env(safe-area-inset-top)]">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3"><SidebarTrigger className="h-9 w-9 shrink-0 rounded-md hover:bg-accent" /><div className="hidden sm:block min-w-0 truncate"><Breadcrumb /></div></div>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="h-9 min-w-9 gap-1.5 px-2 sm:px-3 text-xs font-medium" onClick={() => navigate("/dashboard/create-quiz")} aria-label="New Quiz"><Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">New Quiz</span></Button>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md relative hover:bg-accent" onClick={() => navigate("/dashboard/scheduler")} title="Schedules & Notices"><Bell className="w-4 h-4 text-muted-foreground" /></Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md relative hover:bg-accent" onClick={() => navigate("/dashboard/scheduler")} title="Schedules & Notices" aria-label="Schedules & Notices"><Bell className="w-4 h-4 text-muted-foreground" /></Button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full" id="main-content">{children}</main>
+        <main className="flex-1 min-w-0 px-3 py-4 sm:px-4 md:px-6 lg:px-8 md:py-6 lg:py-8 max-w-7xl mx-auto w-full overflow-x-hidden" id="main-content">{children}</main>
       </SidebarInset>
     </div>
   );
