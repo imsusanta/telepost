@@ -140,11 +140,15 @@ function DashboardLayoutInner({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const menuItemClass = (active: boolean) => `group transition-colors duration-150 rounded-lg relative h-10 px-3 ${
-    active ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+  const menuItemClass = (active: boolean) => `group rounded-lg relative h-10 px-3 transition-all duration-200 ease-out motion-reduce:transition-none ${
+    active
+      ? "bg-primary/10 text-primary font-semibold shadow-[inset_3px_0_0_hsl(var(--primary)/0.8)]"
+      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-0.5 active:scale-[0.985]"
   }`;
-  const menuIconClass = (active: boolean) => `w-4 h-4 shrink-0 transition-colors ${
-    active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+  const menuIconClass = (active: boolean) => `w-4 h-4 shrink-0 transition-all duration-200 ease-out motion-reduce:transition-none ${
+    active
+      ? "text-primary scale-105"
+      : "text-muted-foreground group-hover:text-foreground group-hover:scale-110 group-hover:-rotate-3"
   }`;
 
   const renderMenu = (items: MenuItem[], admin = false) => (
@@ -159,15 +163,15 @@ function DashboardLayoutInner({
               isActive={isActive}
               tooltip={item.label}
               className={admin
-                ? `group transition-colors duration-150 rounded-lg relative h-10 px-3 ${isActive ? "bg-orange-500/10 text-orange-500 font-semibold" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`
+                ? `group rounded-lg relative h-10 px-3 transition-all duration-200 ease-out motion-reduce:transition-none ${isActive ? "bg-orange-500/10 text-orange-500 font-semibold shadow-[inset_3px_0_0_rgb(249_115_22_/_0.8)]" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-0.5 active:scale-[0.985]"}`
                 : menuItemClass(isActive)}
             >
               <Link to={item.path} className="flex items-center gap-4 px-1">
                 <Icon className={admin
-                  ? `w-4 h-4 shrink-0 transition-colors ${isActive ? "text-orange-500" : "text-muted-foreground group-hover:text-foreground"}`
+                  ? `w-4 h-4 shrink-0 transition-all duration-200 ease-out motion-reduce:transition-none ${isActive ? "text-orange-500 scale-105" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110 group-hover:-rotate-3"}`
                   : menuIconClass(isActive)} />
-                <span className="text-sm">{item.label}</span>
-                {isActive && <div className={admin ? "ml-auto w-1.5 h-1.5 bg-orange-500 rounded-full" : "ml-auto w-1.5 h-1.5 bg-primary rounded-full"} />}
+                <span className="text-sm transition-transform duration-200 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none">{item.label}</span>
+                {isActive && <div className={admin ? "ml-auto w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" : "ml-auto w-1.5 h-1.5 bg-primary rounded-full animate-pulse"} />}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
