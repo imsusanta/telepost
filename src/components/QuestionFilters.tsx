@@ -130,14 +130,19 @@ export function QuestionFilters({
 
     // Build combined topic list (metadata + usage)
     const allDisplayTopics = useMemo(() => {
-        // Start with metadata topics
+        const hasSelectedSubjects = selectedSubjects.length > 0;
+        const selectedSubjectIds = new Set(
+            (fullSubjects || [])
+                .filter((s: any) => s && selectedSubjects.includes(s.name))
+                .map((s: any) => s.id)
+        );
+
+        // Filter metadata topics by selected subjects if any subject is selected
         const topics = (fullTopics || [])
             .filter(Boolean)
             .filter((t: any) => {
-                // If one subject is selected, only show its topics
-                if (selectedSubjects.length === 1) {
-                    const subject = (fullSubjects || []).find((s: any) => s && s.name === selectedSubjects[0]);
-                    return subject && t?.subject_id === subject.id;
+                if (hasSelectedSubjects) {
+                    return selectedSubjectIds.has(t?.subject_id);
                 }
                 return true;
             })
@@ -147,16 +152,18 @@ export function QuestionFilters({
             }))
             .filter(t => t.topic.length > 0);
 
-        // Always add topics from actual usage that are NOT in metadata
-        (topicsWithCounts || []).filter(Boolean).forEach((twc: any) => {
-            const topName = String(twc?.topic || "").trim();
-            if (topName && !topics.find((t: any) => t.topic === topName)) {
-                topics.push({
-                    topic: topName,
-                    count: twc?.count || 0
-                });
-            }
-        });
+        // If NO subject is selected, also add topics from usage that are not in metadata
+        if (!hasSelectedSubjects) {
+            (topicsWithCounts || []).filter(Boolean).forEach((twc: any) => {
+                const topName = String(twc?.topic || "").trim();
+                if (topName && !topics.find((t: any) => t.topic === topName)) {
+                    topics.push({
+                        topic: topName,
+                        count: twc?.count || 0
+                    });
+                }
+            });
+        }
 
         return topics.sort((a: any, b: any) => (b.count || 0) - (a.count || 0) || String(a.topic || "").localeCompare(String(b.topic || "")));
     }, [fullTopics, topicsWithCounts, selectedSubjects, fullSubjects]);
@@ -172,7 +179,27 @@ export function QuestionFilters({
             ? selectedSubjects.filter((s) => s !== subject)
             : [...selectedSubjects, subject];
         setSelectedSubjects(newSubjects);
-        updateFilters({ subjects: newSubjects });
+
+        // Filter valid topics for the new subjects selection
+        let validSelectedTopics = selectedTopics;
+        if (newSubjects.length > 0) {
+            const newSubjectIds = new Set(
+                (fullSubjects || [])
+                    .filter((s: any) => s && newSubjects.includes(s.name))
+                    .map((s: any) => s.id)
+            );
+            const validTopicNames = new Set(
+                (fullTopics || [])
+                    .filter((t: any) => t && newSubjectIds.has(t.subject_id))
+                    .map((t: any) => String(t.name || t.topic || "").trim())
+            );
+            validSelectedTopics = selectedTopics.filter((topic) => validTopicNames.has(topic));
+            if (validSelectedTopics.length !== selectedTopics.length) {
+                setSelectedTopics(validSelectedTopics);
+            }
+        }
+
+        updateFilters({ subjects: newSubjects, topics: validSelectedTopics });
     };
 
     // Handle topic toggle
