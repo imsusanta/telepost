@@ -49,17 +49,18 @@ export interface ClassificationRequest {
     explanation?: string;
 }
 
-// Get subject by ID or Name
-export function getSubjectById(idOrName: string) {
+export function getSubjectById(idOrName?: string | null) {
+    if (!idOrName || typeof idOrName !== 'string') return undefined;
+    const target = idOrName.toLowerCase().trim();
     // Try cache first
     const dynamicSubject = cachedSubjects.find(
-        s => s.id === idOrName || s.name.toLowerCase() === idOrName.toLowerCase()
+        s => s && (s.id === idOrName || (s.name && s.name.toLowerCase().trim() === target))
     );
     if (dynamicSubject) return dynamicSubject;
 
     // Fallback to predefined
     return PREDEFINED_SUBJECTS.find(
-        s => s.id === idOrName || s.name.toLowerCase() === idOrName.toLowerCase()
+        s => s && (s.id === idOrName || (s.name && s.name.toLowerCase().trim() === target))
     );
 }
 

@@ -99,61 +99,71 @@ export function QuestionFilters({
     // Build combined subject list (metadata + usage)
     const allDisplaySubjects = useMemo(() => {
         // Start with metadata subjects
-        const subjects = fullSubjects.map((s: any) => ({
-            id: s.id,
-            subject: s.name,
-            count: subjectsWithCounts.find((swc: any) => swc.subject === s.name)?.count || 0
-        }));
+        const subjects = (fullSubjects || [])
+            .filter(Boolean)
+            .map((s: any) => ({
+                id: s?.id || s?.name || "subject",
+                subject: String(s?.name || s?.subject || "").trim(),
+                count: (subjectsWithCounts || []).find((swc: any) => String(swc?.subject || "").trim() === String(s?.name || s?.subject || "").trim())?.count || 0
+            }))
+            .filter(s => s.subject.length > 0);
 
         // Add subjects from usage that are NOT in metadata (legacy)
-        subjectsWithCounts.forEach((swc: any) => {
-            if (!subjects.find((s: any) => s.subject === swc.subject)) {
+        (subjectsWithCounts || []).filter(Boolean).forEach((swc: any) => {
+            const subjName = String(swc?.subject || "").trim();
+            if (subjName && !subjects.find((s: any) => s.subject === subjName)) {
                 subjects.push({
-                    id: swc.subject, // Fallback ID
-                    subject: swc.subject,
-                    count: swc.count
+                    id: subjName, // Fallback ID
+                    subject: subjName,
+                    count: swc?.count || 0
                 });
             }
         });
 
-        return subjects.sort((a: any, b: any) => b.count - a.count || a.subject.localeCompare(b.subject));
+        return subjects.sort((a: any, b: any) => (b.count || 0) - (a.count || 0) || String(a.subject || "").localeCompare(String(b.subject || "")));
     }, [fullSubjects, subjectsWithCounts]);
 
     // Filter subjects by search
     const filteredSubjects = allDisplaySubjects.filter((s: any) =>
-        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
+        String(s?.subject || "").toLowerCase().includes(String(subjectSearch || "").toLowerCase())
     );
 
     // Build combined topic list (metadata + usage)
     const allDisplayTopics = useMemo(() => {
         // Start with metadata topics
-        const topics = fullTopics
+        const topics = (fullTopics || [])
+            .filter(Boolean)
             .filter((t: any) => {
                 // If one subject is selected, only show its topics
                 if (selectedSubjects.length === 1) {
-                    const subject = fullSubjects.find((s: any) => s.name === selectedSubjects[0]);
-                    return subject && t.subject_id === subject.id;
+                    const subject = (fullSubjects || []).find((s: any) => s && s.name === selectedSubjects[0]);
+                    return subject && t?.subject_id === subject.id;
                 }
                 return true;
             })
             .map((t: any) => ({
-                topic: t.name,
-                count: topicsWithCounts.find((twc: any) => twc.topic === t.name)?.count || 0
-            }));
+                topic: String(t?.name || t?.topic || "").trim(),
+                count: (topicsWithCounts || []).find((twc: any) => String(twc?.topic || "").trim() === String(t?.name || t?.topic || "").trim())?.count || 0
+            }))
+            .filter(t => t.topic.length > 0);
 
         // Always add topics from actual usage that are NOT in metadata
-        topicsWithCounts.forEach((twc: any) => {
-            if (!topics.find((t: any) => t.topic === twc.topic)) {
-                topics.push(twc);
+        (topicsWithCounts || []).filter(Boolean).forEach((twc: any) => {
+            const topName = String(twc?.topic || "").trim();
+            if (topName && !topics.find((t: any) => t.topic === topName)) {
+                topics.push({
+                    topic: topName,
+                    count: twc?.count || 0
+                });
             }
         });
 
-        return topics.sort((a: any, b: any) => b.count - a.count || a.topic.localeCompare(b.topic));
+        return topics.sort((a: any, b: any) => (b.count || 0) - (a.count || 0) || String(a.topic || "").localeCompare(String(b.topic || "")));
     }, [fullTopics, topicsWithCounts, selectedSubjects, fullSubjects]);
 
     // Filter topics by search
     const filteredTopics = allDisplayTopics.filter((t: any) =>
-        t.topic.toLowerCase().includes(topicSearch.toLowerCase())
+        String(t?.topic || "").toLowerCase().includes(String(topicSearch || "").toLowerCase())
     );
 
     // Handle subject toggle
