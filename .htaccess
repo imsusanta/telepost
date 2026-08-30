@@ -1,3 +1,12 @@
+<IfModule mod_headers.c>
+  # Never cache HTML so users always get the latest bundle hash immediately
+  <FilesMatch "\.(html|htm|webmanifest)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
