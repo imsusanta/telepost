@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Database, RefreshCw, Search, Trash2, Sparkles, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz, Globe, Lock } from "lucide-react";
+import { Database, RefreshCw, Search, Trash2, FileText, List, Zap, Download, Pencil, ChevronLeft, ChevronRight, ArrowDownAz, ArrowUpAz, Globe, Lock } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,16 +49,10 @@ export default function QuestionBank() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [rangeFrom, setRangeFrom] = useState("");
-  const [rangeTo, setRangeTo] = useState("");
   const [subjectsWithCounts, setSubjectsWithCounts] = useState<{ subject: string; count: number }[]>([]);
   const [fullSubjects, setFullSubjects] = useState<any[]>([]);
   const [fullTopics, setFullTopics] = useState<any[]>([]);
   const [topicsWithCounts, setTopicsWithCounts] = useState<{ topic: string; count: number }[]>([]);
-  const [isBulkMoveDialogOpen, setIsBulkMoveDialogOpen] = useState(false);
-  const [bulkMoveSubject, setBulkMoveSubject] = useState("");
-  const [bulkMoveTopic, setBulkMoveTopic] = useState("");
-  const [isBulkMoving, setIsBulkMoving] = useState(false);
   const { toast } = useToast();
   const { canAccess } = useSubscription();
   const hasAIAccess = canAccess("question_bank", "ai_generate");
@@ -124,21 +118,6 @@ export default function QuestionBank() {
   const handleDeleteTopic = async (name: string) => { try { const topic = fullTopics.find(t => t.name === name); if (topic) await ClassificationMetadataService.deleteTopic(topic.id); const { data: { user } } = await supabase.auth.getUser(); if (user) await supabase.from("question_banks").update({ topic: "" } as any).eq("user_id", user.id).eq("topic", name); await Promise.all([loadClassificationData(), loadStats(), loadQuestions(currentPage, searchQuery)]); toast({ title: "Success", description: `Topic "${name}" removed successfully` }); } catch (error: any) { toast({ title: "Error", description: error.message || "Failed to delete topic", variant: "destructive" }); } };
   const handleAddTopic = async (subjectId: string, name: string) => { if (!currentUserId) return; try { await ClassificationMetadataService.createTopic(subjectId, name, currentUserId); await Promise.all([loadClassificationData(), loadStats()]); toast({ title: "Success", description: `Topic "${name}" created successfully` }); } catch (error: any) { toast({ title: "Error", description: error.message || "Failed to create topic", variant: "destructive" }); } };
 
-  const handleBulkMove = async () => {
-    if (!bulkMoveSubject || selectedQuestionIds.size === 0) return;
-    const movingCount = selectedQuestionIds.size;
-    try {
-      setIsBulkMoving(true);
-      const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
-      const targetTopic = bulkMoveTopic === "NO_TOPIC" ? "" : bulkMoveTopic;
-      await QuestionBankService.bulkUpdateClassification(Array.from(selectedQuestionIds), user.id, bulkMoveSubject, targetTopic);
-      setIsBulkMoveDialogOpen(false); setSelectedQuestionIds(new Set());
-      await Promise.all([loadQuestions(currentPage, searchQuery), loadStats(), loadClassificationData()]);
-      toast({ title: "Success", description: `Successfully moved ${movingCount} questions to ${bulkMoveSubject}${targetTopic ? " > " + targetTopic : ""}` });
-    } catch (error: any) { toast({ title: "Error", description: error.message || "Failed to move questions", variant: "destructive" }); }
-    finally { setIsBulkMoving(false); }
-  };
-
   useEffect(() => { loadQuestions(currentPage, searchQuery); loadStats(); loadClassificationData(); }, [currentPage, filters, loadQuestions, loadStats, loadClassificationData, searchQuery]);
   useEffect(() => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => { setCurrentPage(1); loadQuestions(1, searchQuery); }, 500); return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); }; }, [searchQuery]);
 
@@ -146,13 +125,16 @@ export default function QuestionBank() {
   const confirmDelete = async () => { if (!deleteQuestionId) return; try { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await QuestionBankService.deleteQuestion(deleteQuestionId, user.id); await refreshAll(false); setDeleteQuestionId(null); toast({ title: "Deleted", description: "Question deleted successfully" }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete question", variant: "destructive" }); } };
   const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, _difficulty?: string, language?: string) => { setGeneratedQuestions(generatedQs); setDefaultTopic(topic || ""); setDefaultLanguage(language || "en"); };
   const handleQuestionsSaved = async () => { setGeneratedQuestions([]); await refreshAll(false); };
-  const handleBulkUpload = async (questionsToUpload: ParsedQuestion[]) => { try { const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error("You must be logged in to upload questions."); await QuestionBankService.bulkAddQuestions(user.id, questionsToUpload.map(q => ({ question: q.question, options: q.options, correct_option_index: q.correct_option_index, explanation: q.explanation || undefined, subject: q.subject || "GK", topic: q.topic || "", language: "bn", is_public: false, is_active: true }))); await refreshAll(false); toast({ title: "Success", description: `Successfully uploaded ${questionsToUpload.length} questions to the bank.` }); } catch (error: any) { toast({ title: "Upload Failed", description: error.message || "An error occurred during bulk upload.", variant: "destructive" }); throw error; } };
-  const handleToggleQuestion = (questionId: string) => { const next = new Set(selectedQuestionIds); next.has(questionId) ? next.delete(questionId) : next.add(questionId); setSelectedQuestionIds(next); };
-  const handleSelectAll = () => { setSelectedQuestionIds(selectedQuestionIds.size === filteredQuestions.length ? new Set() : new Set(filteredQuestions.map(q => q.id))); };
-  const handleClearSelection = () => setSelectedQuestionIds(new Set());
+  const handleToggleQuestion = (questionId: string) => {
+    const next = new Set(selectedQuestionIds);
+    if (next.has(questionId)) {
+      next.delete(questionId);
+    } else {
+      next.add(questionId);
+    }
+    setSelectedQuestionIds(next);
+  };
   const handleBulkDelete = async () => { if (!selectedQuestionIds.size) return; const deleted = selectedQuestionIds.size; try { const { data: { user } = {} } = await supabase.auth.getUser(); if (!user) return; for (const id of selectedQuestionIds) await QuestionBankService.deleteQuestion(id, user.id); setSelectedQuestionIds(new Set()); await refreshAll(false); toast({ title: "Bulk Delete Complete", description: `Successfully deleted ${deleted} questions.` }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete some questions", variant: "destructive" }); } };
-  const handleTogglePublic = async (question: QuestionBankItem) => { try { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await QuestionBankService.updateQuestion(question.id, user.id, { is_public: !question.is_public }); await refreshAll(false); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to update question", variant: "destructive" }); } };
-  const handleBulkTogglePublic = async (makePublic: boolean) => { if (!selectedQuestionIds.size) return; const changed = selectedQuestionIds.size; try { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; for (const id of selectedQuestionIds) await QuestionBankService.updateQuestion(id, user.id, { is_public: makePublic }); setSelectedQuestionIds(new Set()); await refreshAll(false); toast({ title: makePublic ? "Made Public" : "Made Private", description: `${changed} questions are now ${makePublic ? "public" : "private"}.` }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to update questions", variant: "destructive" }); } };
   const handleEdit = (question: QuestionBankItem) => { setEditingQuestion(question); setIsEditDialogOpen(true); };
   const filteredQuestions = questions;
   const handleExportQuestions = () => { if (!filteredQuestions.length) { toast({ title: "No questions to export", variant: "destructive" }); return; } let exportText = `Question Bank Export\nTotal Questions: ${filteredQuestions.length}\n${"=".repeat(50)}\n\n`; filteredQuestions.forEach((q, idx) => { exportText += `${idx + 1}. ${q.question}\n`; q.options.forEach((opt, i) => { exportText += `   ${String.fromCharCode(97 + i)}) ${opt}\n`; }); exportText += `   Correct Answer: ${String.fromCharCode(97 + q.correct_option_index)}) ${q.options[q.correct_option_index]}\n`; if (q.explanation) exportText += `   Explanation: ${q.explanation}\n`; exportText += "\n"; }); const blob = new Blob([exportText], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `question_bank_export_${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast({ title: "Exported!", description: `${filteredQuestions.length} questions exported to file.` }); };
@@ -227,7 +209,7 @@ export default function QuestionBank() {
 
         <AlertDialog open={!!deleteQuestionId} onOpenChange={open => !open && setDeleteQuestionId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete question?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete selected questions?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => { setShowBulkDeleteDialog(false); await handleBulkDelete(); }}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-        <QuestionSelectionDialog open={showSelectionDialog} onOpenChange={setShowSelectionDialog} questions={generatedQuestions} onSave={handleQuestionsSaved} defaultTopic={defaultTopic} defaultLanguage={defaultLanguage} />
+        <QuestionSelectionDialog open={showSelectionDialog} onOpenChange={setShowSelectionDialog} questions={generatedQuestions} onSaved={handleQuestionsSaved} defaultTopic={defaultTopic} defaultLanguage={defaultLanguage} />
         {editingQuestion && <EditQuestionDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} question={editingQuestion} onSaved={handleRefresh} />}
       </div>
     </DashboardLayout>

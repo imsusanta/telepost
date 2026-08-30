@@ -60,7 +60,7 @@ const stripLegacyDifficulty = <T extends Record<string, unknown>>(value: T): Omi
   return clean;
 };
 
-const normalizeQuestionInput = (question: Record<string, unknown>, source?: string) => {
+const normalizeQuestionInput = (question: Record<string, unknown>, source?: string): any => {
   const clean = stripLegacyDifficulty(question);
   return {
     ...clean,
@@ -92,14 +92,14 @@ export class QuestionBankService {
   static async bulkAddQuestions(userId: string, questions: QuestionInput[]): Promise<QuestionBankItem[]> {
     if (!questions.length) return [];
     const records = questions.map((question) => normalizeQuestionInput({ ...question, user_id: userId }, "bulk_upload"));
-    const { data, error } = await supabase.from("question_banks").insert(records).select();
+    const { data, error } = await supabase.from("question_banks").insert(records as any).select();
     if (error) throw error;
     return (data ?? []) as QuestionBankItem[];
   }
 
   static async addQuestion(userId: string, question: QuestionInput): Promise<QuestionBankItem> {
     const record = normalizeQuestionInput({ ...question, user_id: userId });
-    const { data, error } = await supabase.from("question_banks").insert(record).select().single();
+    const { data, error } = await supabase.from("question_banks").insert(record as any).select().single();
     if (error) throw error;
     return data as QuestionBankItem;
   }
@@ -137,7 +137,7 @@ export class QuestionBankService {
 
   static async getRandomQuestions(userId: string, count: number, filters: QuestionBankFilters = { includePublic: true }): Promise<QuestionBankItem[]> {
     const safeCount = Math.max(1, Math.min(count, 100));
-    const { data, error } = await supabase.rpc("get_random_question_bank_questions", {
+    const { data, error } = await supabase.rpc("get_random_question_bank_questions" as any, {
       p_user_id: userId,
       p_count: safeCount,
       p_subject: Array.isArray(filters.subject) ? null : filters.subject ?? null,
@@ -145,7 +145,7 @@ export class QuestionBankService {
       p_language: filters.language ?? null,
       p_include_public: filters.isPublicOnly ? true : filters.includePublic !== false,
     });
-    if (!error && data) return data as QuestionBankItem[];
+    if (!error && data) return data as unknown as QuestionBankItem[];
     const { data: fallback } = await this.getQuestions(userId, filters, Math.max(100, safeCount * 5), 0);
     return [...fallback].sort(() => Math.random() - 0.5).slice(0, safeCount);
   }
@@ -153,7 +153,7 @@ export class QuestionBankService {
   static async importQuestionsFromQuiz(userId: string, quizData: { questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }> }, topic: string, options?: { channelId?: string }): Promise<QuestionBankItem[]> {
     const records = quizData.questions.map((question) => normalizeQuestionInput({ user_id: userId, question: question.question, options: question.options, correct_option_index: question.correct_option_index, explanation: question.explanation, topic, channel_id: options?.channelId ?? null }, "quiz_import"));
     if (!records.length) return [];
-    const { data, error } = await supabase.from("question_banks").insert(records).select();
+    const { data, error } = await supabase.from("question_banks").insert(records as any).select();
     if (error) throw error;
     return (data ?? []) as QuestionBankItem[];
   }
@@ -161,7 +161,7 @@ export class QuestionBankService {
   static async importQuestionsFromDocument(userId: string, documentId: string, questions: Array<{ question: string; options: string[]; correct_option_index: number; explanation?: string }>, options?: { topic?: string; channelId?: string }): Promise<QuestionBankItem[]> {
     const records = questions.map((question) => normalizeQuestionInput({ user_id: userId, question: question.question, options: question.options, correct_option_index: question.correct_option_index, explanation: question.explanation, topic: options?.topic ?? "General", channel_id: options?.channelId ?? null, source_document_id: documentId }, "document"));
     if (!records.length) return [];
-    const { data, error } = await supabase.from("question_banks").insert(records).select();
+    const { data, error } = await supabase.from("question_banks").insert(records as any).select();
     if (error) throw error;
     return (data ?? []) as QuestionBankItem[];
   }
@@ -187,7 +187,7 @@ export class QuestionBankService {
   }
 
   static async getStatistics(userId: string, includePublic = false): Promise<QuestionBankStatistics> {
-    const { data, error } = await supabase.rpc("question_bank_statistics", { p_user_id: userId, p_include_public: includePublic });
+    const { data, error } = await supabase.rpc("question_bank_statistics" as any, { p_user_id: userId, p_include_public: includePublic });
     if (error) throw new Error(error.message || "Failed to load Question Bank statistics");
     if (!data || typeof data !== "object") throw new Error("Question Bank statistics returned an invalid response");
     const raw = data as Record<string, unknown>;
