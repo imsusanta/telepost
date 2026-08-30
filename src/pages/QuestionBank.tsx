@@ -125,6 +125,38 @@ export default function QuestionBank() {
   const confirmDelete = async () => { if (!deleteQuestionId) return; try { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await QuestionBankService.deleteQuestion(deleteQuestionId, user.id); await refreshAll(false); setDeleteQuestionId(null); toast({ title: "Deleted", description: "Question deleted successfully" }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete question", variant: "destructive" }); } };
   const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, _difficulty?: string, language?: string) => { setGeneratedQuestions(generatedQs); setDefaultTopic(topic || ""); setDefaultLanguage(language || "en"); };
   const handleQuestionsSaved = async () => { setGeneratedQuestions([]); await refreshAll(false); };
+  const handleBulkUpload = async (questionsToUpload: ParsedQuestion[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be logged in to upload questions.");
+      await QuestionBankService.bulkAddQuestions(
+        user.id,
+        questionsToUpload.map((q) => ({
+          question: q.question,
+          options: q.options,
+          correct_option_index: q.correct_option_index,
+          explanation: q.explanation || undefined,
+          subject: q.subject || "GK",
+          topic: q.topic || "",
+          language: "bn",
+          is_public: false,
+          is_active: true,
+        }))
+      );
+      await refreshAll(false);
+      toast({
+        title: "Success",
+        description: `Successfully uploaded ${questionsToUpload.length} questions to the bank.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "An error occurred during bulk upload.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
   const handleToggleQuestion = (questionId: string) => {
     const next = new Set(selectedQuestionIds);
     if (next.has(questionId)) {
