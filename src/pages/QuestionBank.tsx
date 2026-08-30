@@ -166,6 +166,7 @@ export default function QuestionBank() {
     }
     setSelectedQuestionIds(next);
   };
+  const handleClearSelection = () => setSelectedQuestionIds(new Set());
   const handleBulkDelete = async () => { if (!selectedQuestionIds.size) return; const deleted = selectedQuestionIds.size; try { const { data: { user } = {} } = await supabase.auth.getUser(); if (!user) return; for (const id of selectedQuestionIds) await QuestionBankService.deleteQuestion(id, user.id); setSelectedQuestionIds(new Set()); await refreshAll(false); toast({ title: "Bulk Delete Complete", description: `Successfully deleted ${deleted} questions.` }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete some questions", variant: "destructive" }); } };
   const handleEdit = (question: QuestionBankItem) => { setEditingQuestion(question); setIsEditDialogOpen(true); };
   const filteredQuestions = questions;
