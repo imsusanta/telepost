@@ -157,6 +157,11 @@ export default function QuestionBank() {
   const filteredQuestions = questions;
   const handleExportQuestions = () => { if (!filteredQuestions.length) { toast({ title: "No questions to export", variant: "destructive" }); return; } let exportText = `Question Bank Export\nTotal Questions: ${filteredQuestions.length}\n${"=".repeat(50)}\n\n`; filteredQuestions.forEach((q, idx) => { exportText += `${idx + 1}. ${q.question}\n`; q.options.forEach((opt, i) => { exportText += `   ${String.fromCharCode(97 + i)}) ${opt}\n`; }); exportText += `   Correct Answer: ${String.fromCharCode(97 + q.correct_option_index)}) ${q.options[q.correct_option_index]}\n`; if (q.explanation) exportText += `   Explanation: ${q.explanation}\n`; exportText += "\n"; }); const blob = new Blob([exportText], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `question_bank_export_${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast({ title: "Exported!", description: `${filteredQuestions.length} questions exported to file.` }); };
 
+  const handleFiltersChange = (newFilters: QuestionBankFilters) => {
+    setCurrentPage(1);
+    setFilters(newFilters);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -196,7 +201,23 @@ export default function QuestionBank() {
               <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Search questions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" /></div>
               <div className="flex gap-2"><BulkUploadDialog onUpload={handleBulkUpload} fullSubjects={fullSubjects} fullTopics={fullTopics} currentCount={stats?.total || 0} /><AddQuestionDialog onQuestionAdded={handleRefresh} currentCount={stats?.total || 0} /><TelegramShareQuestionBank selectedQuestionIds={selectedQuestionIds} onClearSelection={handleClearSelection} /></div>
             </div>
-            <QuestionFilters filters={filters} onFiltersChange={setFilters} subjectsWithCounts={subjectsWithCounts} topicsWithCounts={topicsWithCounts} />
+            <QuestionFilters 
+              filters={filters} 
+              onFiltersChange={handleFiltersChange} 
+              subjectsWithCounts={subjectsWithCounts} 
+              topicsWithCounts={topicsWithCounts}
+              fullSubjects={fullSubjects}
+              fullTopics={fullTopics}
+              totalCount={stats?.total || 0}
+              filteredCount={totalCount}
+              onAddSubject={handleAddSubject}
+              onEditSubject={handleEditSubject}
+              onDeleteSubject={handleDeleteSubject}
+              onAddTopic={handleAddTopic}
+              onEditTopic={handleEditTopic}
+              onDeleteTopic={handleDeleteTopic}
+              privateOnly={false}
+            />
             {loading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div> : filteredQuestions.length === 0 ? <Card><CardContent className="py-10 text-center text-muted-foreground">No questions found.</CardContent></Card> : <div className="space-y-3">{filteredQuestions.map((q, idx) => <Card key={q.id}><CardContent className="p-4"><div className="flex items-start gap-3"><Checkbox checked={selectedQuestionIds.has(q.id)} onCheckedChange={() => handleToggleQuestion(q.id)} /><div className="flex-1 min-w-0"><div className="font-semibold">{(currentPage - 1) * pageSize + idx + 1}. {q.question}</div><div className="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2 text-sm">{q.options.map((option, i) => <div key={i} className={i === q.correct_option_index ? "font-semibold" : ""}>{String.fromCharCode(65 + i)}. {option}{i === q.correct_option_index ? " ✓" : ""}</div>)}</div><div className="flex flex-wrap gap-2 mt-2"><ClassificationBadges subject={q.subject} topic={q.topic} /><span className="text-xs text-muted-foreground">{q.language}</span>{q.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}</div></div><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => handleEdit(q)}><Pencil className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => setDeleteQuestionId(q.id)}><Trash2 className="w-4 h-4" /></Button></div></div></CardContent></Card>)}</div>}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4"><div className="text-sm text-muted-foreground">Showing {totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}</div><div className="flex items-center gap-2"><Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setCurrentPage(1); }}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem></SelectContent></Select><Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="w-4 h-4" /></Button><span className="text-sm">Page {currentPage}</span><Button variant="outline" size="icon" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage * pageSize >= totalCount}><ChevronRight className="w-4 h-4" /></Button></div></div>
           </TabsContent>
