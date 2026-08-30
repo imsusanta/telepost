@@ -223,6 +223,7 @@ export default function QuestionBank() {
               topicsWithCounts={topicsWithCounts}
               fullSubjects={fullSubjects}
               fullTopics={fullTopics}
+              subjectTopics={stats?.subjectTopics}
               totalCount={stats?.total || 0}
               filteredCount={totalCount}
               onAddSubject={handleAddSubject}

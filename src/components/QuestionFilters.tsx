@@ -46,6 +46,7 @@ interface QuestionFiltersProps {
     topicsWithCounts: TopicCount[];
     fullSubjects?: any[];
     fullTopics?: any[];
+    subjectTopics?: Record<string, string[]>;
     totalCount: number;
     filteredCount: number;
     onAddSubject?: (name: string) => void;
@@ -66,6 +67,7 @@ export function QuestionFilters({
     topicsWithCounts,
     fullSubjects = [],
     fullTopics = [],
+    subjectTopics,
     totalCount,
     filteredCount,
     onAddSubject,
@@ -88,6 +90,7 @@ export function QuestionFilters({
     const [editSubjectName, setEditSubjectName] = useState("");
     const [editingTopic, setEditingTopic] = useState<string | null>(null);
     const [editTopicName, setEditTopicName] = useState("");
+    const [sortOrder, setSortOrder] = useState<SortOption>('latest');
 
     // Effect to enforce private visibility for restricted plans
     useEffect(() => {
@@ -128,45 +131,86 @@ export function QuestionFilters({
         String(s?.subject || "").toLowerCase().includes(String(subjectSearch || "").toLowerCase())
     );
 
-    // Build combined topic list (metadata + usage)
+    // Build combined topic list (metadata + database stats + usage)
     const allDisplayTopics = useMemo(() => {
         const hasSelectedSubjects = selectedSubjects.length > 0;
-        const selectedSubjectIds = new Set(
-            (fullSubjects || [])
-                .filter((s: any) => s && selectedSubjects.includes(s.name))
-                .map((s: any) => s.id)
-        );
+        const matchedTopics = new Set<string>();
 
-        // Filter metadata topics by selected subjects if any subject is selected
-        const topics = (fullTopics || [])
-            .filter(Boolean)
-            .filter((t: any) => {
-                if (hasSelectedSubjects) {
-                    return selectedSubjectIds.has(t?.subject_id);
-                }
-                return true;
-            })
-            .map((t: any) => ({
-                topic: String(t?.name || t?.topic || "").trim(),
-                count: (topicsWithCounts || []).find((twc: any) => String(twc?.topic || "").trim() === String(t?.name || t?.topic || "").trim())?.count || 0
-            }))
-            .filter(t => t.topic.length > 0);
-
-        // If NO subject is selected, also add topics from usage that are not in metadata
-        if (!hasSelectedSubjects) {
-            (topicsWithCounts || []).filter(Boolean).forEach((twc: any) => {
-                const topName = String(twc?.topic || "").trim();
-                if (topName && !topics.find((t: any) => t.topic === topName)) {
-                    topics.push({
-                        topic: topName,
-                        count: twc?.count || 0
+        if (hasSelectedSubjects) {
+            // From subjectTopics map (from question_banks directly)
+            if (subjectTopics) {
+                selectedSubjects.forEach((subj) => {
+                    const topList = subjectTopics[subj] || [];
+                    topList.forEach((t) => {
+                        if (t && typeof t === 'string' && t.trim()) {
+                            matchedTopics.add(t.trim());
+                        }
                     });
+                });
+            }
+
+            // From fullTopics (classification metadata)
+            const selectedSubjectIds = new Set(
+                (fullSubjects || [])
+                    .filter((s: any) => s && selectedSubjects.includes(s.name))
+                    .map((s: any) => s.id)
+            );
+            (fullTopics || []).filter(Boolean).forEach((t: any) => {
+                if (selectedSubjectIds.has(t?.subject_id)) {
+                    const name = String(t?.name || t?.topic || "").trim();
+                    if (name) matchedTopics.add(name);
                 }
             });
         }
 
-        return topics.sort((a: any, b: any) => (b.count || 0) - (a.count || 0) || String(a.topic || "").localeCompare(String(b.topic || "")));
-    }, [fullTopics, topicsWithCounts, selectedSubjects, fullSubjects]);
+        const topicList: { topic: string; count: number }[] = [];
+        const seenTopicNames = new Set<string>();
+
+        if (hasSelectedSubjects) {
+            matchedTopics.forEach((topName) => {
+                if (!seenTopicNames.has(topName)) {
+                    seenTopicNames.add(topName);
+                    const count = (topicsWithCounts || []).find((twc: any) => String(twc?.topic || "").trim() === topName)?.count || 0;
+                    topicList.push({ topic: topName, count });
+                }
+            });
+        } else {
+            // No subject selected -> Show all topics from fullTopics + topicsWithCounts + subjectTopics
+            (fullTopics || []).filter(Boolean).forEach((t: any) => {
+                const topName = String(t?.name || t?.topic || "").trim();
+                if (topName && !seenTopicNames.has(topName)) {
+                    seenTopicNames.add(topName);
+                    const count = (topicsWithCounts || []).find((twc: any) => String(twc?.topic || "").trim() === topName)?.count || 0;
+                    topicList.push({ topic: topName, count });
+                }
+            });
+
+            (topicsWithCounts || []).filter(Boolean).forEach((twc: any) => {
+                const topName = String(twc?.topic || "").trim();
+                if (topName && !seenTopicNames.has(topName)) {
+                    seenTopicNames.add(topName);
+                    topicList.push({ topic: topName, count: twc?.count || 0 });
+                }
+            });
+
+            if (subjectTopics) {
+                Object.values(subjectTopics).forEach((topicsArr) => {
+                    if (Array.isArray(topicsArr)) {
+                        topicsArr.forEach((t) => {
+                            const topName = String(t || "").trim();
+                            if (topName && !seenTopicNames.has(topName)) {
+                                seenTopicNames.add(topName);
+                                const count = (topicsWithCounts || []).find((twc: any) => String(twc?.topic || "").trim() === topName)?.count || 0;
+                                topicList.push({ topic: topName, count });
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        return topicList.sort((a, b) => (b.count || 0) - (a.count || 0) || String(a.topic || "").localeCompare(String(b.topic || "")));
+    }, [fullTopics, topicsWithCounts, selectedSubjects, fullSubjects, subjectTopics]);
 
     // Filter topics by search
     const filteredTopics = allDisplayTopics.filter((t: any) =>
@@ -183,16 +227,25 @@ export function QuestionFilters({
         // Filter valid topics for the new subjects selection
         let validSelectedTopics = selectedTopics;
         if (newSubjects.length > 0) {
+            const validTopicNames = new Set<string>();
+            if (subjectTopics) {
+                newSubjects.forEach((subj) => {
+                    const topList = subjectTopics[subj] || [];
+                    topList.forEach((t) => { if (t) validTopicNames.add(String(t).trim()); });
+                });
+            }
             const newSubjectIds = new Set(
                 (fullSubjects || [])
                     .filter((s: any) => s && newSubjects.includes(s.name))
                     .map((s: any) => s.id)
             );
-            const validTopicNames = new Set(
-                (fullTopics || [])
-                    .filter((t: any) => t && newSubjectIds.has(t.subject_id))
-                    .map((t: any) => String(t.name || t.topic || "").trim())
-            );
+            (fullTopics || []).filter(Boolean).forEach((t: any) => {
+                if (newSubjectIds.has(t.subject_id)) {
+                    const name = String(t.name || t.topic || "").trim();
+                    if (name) validTopicNames.add(name);
+                }
+            });
+
             validSelectedTopics = selectedTopics.filter((topic) => validTopicNames.has(topic));
             if (validSelectedTopics.length !== selectedTopics.length) {
                 setSelectedTopics(validSelectedTopics);

@@ -47,6 +47,7 @@ export interface QuestionBankStatistics {
   total: number;
   byTopic: Record<string, number>;
   bySubject: Record<string, number>;
+  subjectTopics?: Record<string, string[]>;
   byLanguage: Record<string, number>;
   unclassifiedCount: number;
   publicCount: number;
@@ -195,6 +196,7 @@ export class QuestionBankService {
       total: Number(raw.total ?? 0),
       byTopic: (raw.byTopic && typeof raw.byTopic === "object" ? raw.byTopic : {}) as Record<string, number>,
       bySubject: (raw.bySubject && typeof raw.bySubject === "object" ? raw.bySubject : {}) as Record<string, number>,
+      subjectTopics: (raw.subjectTopics && typeof raw.subjectTopics === "object" ? raw.subjectTopics : {}) as Record<string, string[]>,
       byLanguage: (raw.byLanguage && typeof raw.byLanguage === "object" ? raw.byLanguage : {}) as Record<string, number>,
       unclassifiedCount: Number(raw.unclassifiedCount ?? 0),
       publicCount: Number(raw.publicCount ?? 0),
