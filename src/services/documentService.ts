@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { SubscriptionService } from "./subscriptionService";
 
+/** @deprecated PDF/document knowledge-base service. Topic-based KnowledgeBase replaces this workflow. */
 export interface Document {
   id: string;
   user_id: string;
@@ -22,349 +22,36 @@ export interface Document {
   updated_at: string;
 }
 
-// PDF magic bytes signature
-const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46]; // %PDF
-
-// Maximum file size: 50MB
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-
+/**
+ * Legacy compatibility only. New code should use KnowledgeBaseTopicService.
+ * PDF uploads are intentionally disabled.
+ */
 export class DocumentService {
-  /**
-   * Validate that a file is a valid PDF
-   */
-  private static async validatePDFFile(file: File): Promise<{ valid: boolean; error?: string }> {
-    // Check file size
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return { valid: false, error: `File size exceeds maximum limit of 50MB` };
-    }
-
-    if (file.size === 0) {
-      return { valid: false, error: 'File is empty' };
-    }
-
-    // Check MIME type
-    const validMimeTypes = ['application/pdf'];
-    if (!validMimeTypes.includes(file.type)) {
-      return { valid: false, error: `Invalid file type: ${file.type}. Only PDF files are allowed.` };
-    }
-
-    // Check file extension
-    const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.pdf')) {
-      return { valid: false, error: 'File must have a .pdf extension' };
-    }
-
-    // Validate PDF magic bytes (file signature)
-    try {
-      const headerBytes = await file.slice(0, 4).arrayBuffer();
-      const header = new Uint8Array(headerBytes);
-
-      const isPDF = PDF_MAGIC_BYTES.every((byte, index) => header[index] === byte);
-      if (!isPDF) {
-        return { valid: false, error: 'File does not appear to be a valid PDF (invalid file signature)' };
-      }
-    } catch {
-      return { valid: false, error: 'Failed to read file header' };
-    }
-
-    return { valid: true };
+  static async uploadDocument(): Promise<never> {
+    throw new Error("PDF knowledge-base uploads have been removed. Add a topic in Knowledge Base instead.");
   }
 
-  /**
-   * Upload a PDF document
-   */
-  static async uploadDocument(
-    userId: string,
-    file: File,
-    metadata?: {
-      title?: string;
-      description?: string;
-      language?: string;
-      channelId?: string;
-    }
-  ): Promise<Document> {
-    // Server-side file validation
-    const validation = await this.validatePDFFile(file);
-    if (!validation.valid) {
-      throw new Error(validation.error || 'Invalid file');
-    }
-
-    // Create storage path with sanitized filename
-    const timestamp = Date.now();
-    const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const storagePath = `${userId}/${timestamp}_${fileName}`;
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(storagePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: 'application/pdf', // Explicitly set content type
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Create document record
-    const { data, error } = await supabase
-      .from("documents")
-      .insert({
-        user_id: userId,
-        channel_id: metadata?.channelId,
-        file_name: file.name,
-        file_size_bytes: file.size,
-        file_type: 'application/pdf', // Always store as PDF since we validated
-        storage_path: storagePath,
-        title: metadata?.title || file.name,
-        description: metadata?.description,
-        language: metadata?.language || "bn",
-        processing_status: "pending",
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Trigger processing (in background)
-    this.processDocument(data.id).catch((error) => {
-      console.error(`Failed to process document ${data.id}:`, error);
-      // Error is already handled in processDocument by setting status to 'failed'
-    });
-
-    // Track usage
-    try {
-      await SubscriptionService.trackPdfUpload(userId, file.size);
-    } catch (trackError) {
-      console.error("Failed to track PDF upload usage:", trackError);
-    }
-
-    return data as Document;
+  static async processDocument(): Promise<never> {
+    throw new Error("PDF document processing has been removed. Use topic-based Knowledge Base.");
   }
 
-  /**
-   * Process document (extract text, analyze, etc.)
-   */
-  static async processDocument(documentId: string): Promise<void> {
-    try {
-      // Update status to processing
-      await supabase
-        .from("documents")
-        .update({ processing_status: "processing" })
-        .eq("id", documentId);
+  static async getUserDocuments(): Promise<Document[]> { return []; }
+  static async getChannelDocuments(): Promise<Document[]> { return []; }
+  static async searchDocuments(): Promise<Document[]> { return []; }
 
-      // Get document
-      const { data: doc, error: docError } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", documentId)
-        .single();
-
-      if (docError) throw docError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("documents")
-        .getPublicUrl(doc.storage_path);
-
-      // Call edge function to process document with timeout
-      const timeoutMs = 120000; // 2 minutes timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Document processing timeout - please try again")), timeoutMs);
-      });
-
-      const processPromise = supabase.functions.invoke("process-document", {
-        body: {
-          documentId: documentId,
-          storagePath: doc.storage_path,
-          publicUrl: urlData.publicUrl,
-          userId: doc.user_id, // Pass userId for ownership verification
-        },
-      });
-
-      const { data, error } = await Promise.race([processPromise, timeoutPromise]) as any;
-
-      if (error) {
-        console.error(`Document processing error for ${documentId}:`, error);
-
-        // Try to extract a more descriptive error from the response body if possible
-        let detailedError = error.message;
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const body = await error.context.json();
-            if (body && body.error) {
-              detailedError = body.error;
-            }
-          } catch {
-            // Fallback to original message
-          }
-        }
-
-        throw new Error(detailedError || "Edge Function returned a non-2xx status code");
-      }
-
-      if (!data) {
-        throw new Error("No data returned from document processing");
-      }
-
-      // Validate response data
-      if (!data.extractedText && !data.aiSummary) {
-        console.warn(`Document ${documentId} processed but no content extracted`);
-      }
-
-      // Update document with results
-      await supabase
-        .from("documents")
-        .update({
-          processing_status: "completed",
-          extracted_text: data.extractedText || "Document processed",
-          page_count: data.pageCount || 1,
-          ai_summary: data.aiSummary || "Document uploaded successfully",
-          topics: data.topics || ["General"],
-        })
-        .eq("id", documentId);
-
-      console.log(`Document ${documentId} processing completed successfully`);
-    } catch (error: unknown) {
-      console.error(`Document ${documentId} processing failed:`, error);
-
-      // Update status to failed
-      await supabase
-        .from("documents")
-        .update({
-          processing_status: "failed",
-          processing_error: error instanceof Error ? error.message : "Unknown error",
-        })
-        .eq("id", documentId);
-
-      throw error;
-    }
+  static async getDocument(_documentId: string): Promise<never> {
+    throw new Error("PDF documents are no longer supported.");
   }
 
-  /**
-   * Get user's documents (optionally filtered by channel)
-   */
-  static async getUserDocuments(userId: string, channelId?: string): Promise<Document[]> {
-    let query = supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", userId);
-
-    if (channelId && channelId !== "all") {
-      query = query.eq("channel_id", channelId);
-    }
-
-    const { data, error } = await query.order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return (data || []) as Document[];
+  static async deleteDocument(_documentId: string, _userId: string): Promise<void> {
+    throw new Error("PDF documents are no longer supported. Existing legacy records should be managed through migration/admin tooling.");
   }
 
-  /**
-   * Get documents for a specific channel
-   */
-  static async getChannelDocuments(channelId: string, userId: string): Promise<Document[]> {
-    return this.getUserDocuments(userId, channelId);
+  static async getDocumentUrl(_storagePath: string): Promise<never> {
+    throw new Error("PDF documents are no longer supported.");
   }
 
-  /**
-   * Get document by ID
-   */
-  static async getDocument(documentId: string): Promise<Document> {
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("id", documentId)
-      .single();
-
-    if (error) throw error;
-    return data as Document;
-  }
-
-  /**
-   * Delete document
-   */
-  static async deleteDocument(documentId: string, userId: string): Promise<void> {
-    // Get document
-    const doc = await this.getDocument(documentId);
-
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from("documents")
-      .remove([doc.storage_path]);
-
-    if (storageError) throw storageError;
-
-    // Delete from database
-    const { error } = await supabase
-      .from("documents")
-      .delete()
-      .eq("id", documentId)
-      .eq("user_id", userId);
-
-    if (error) throw error;
-
-    // Note: Usage tracking update removed as raw SQL not supported in client
-  }
-
-  /**
-   * Get document download URL
-   */
-  static async getDocumentUrl(storagePath: string): Promise<string> {
-    const { data } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
-
-    if (!data) throw new Error("Could not generate download URL");
-
-    return data.signedUrl;
-  }
-
-  /**
-   * Search documents (optionally filtered by channel)
-   */
-  static async searchDocuments(
-    userId: string,
-    query: string,
-    channelId?: string
-  ): Promise<Document[]> {
-    let dbQuery = supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", userId);
-
-    if (channelId && channelId !== "all") {
-      dbQuery = dbQuery.eq("channel_id", channelId);
-    }
-
-    const { data, error } = await dbQuery
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%,extracted_text.ilike.%${query}%`)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return (data || []) as Document[];
-  }
-
-  /**
-   * Get all documents in a channel's knowledge base for quiz generation
-   */
-  static async getChannelKnowledgeBase(channelId: string, userId: string): Promise<string> {
-    const documents = await this.getChannelDocuments(channelId, userId);
-
-    // Filter only completed documents with extracted text
-    const processedDocs = documents.filter(
-      doc => doc.processing_status === 'completed' && doc.extracted_text
-    );
-
-    if (processedDocs.length === 0) {
-      return '';
-    }
-
-    // Combine all extracted text with document titles
-    const knowledgeBase = processedDocs
-      .map(doc => `Document: ${doc.title}\n${doc.extracted_text}`)
-      .join('\n\n---\n\n');
-
-    // Limit to reasonable size (e.g., 10000 characters)
-    return knowledgeBase.substring(0, 10000);
+  static async getChannelKnowledgeBase(): Promise<string> {
+    return "";
   }
 }
