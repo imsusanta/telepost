@@ -85,8 +85,8 @@ function getAvailableFallbacks(settings: AISettings, primary: ResolvedAIProvider
 }
 
 export function cloudflareChatUrl(accountId: string, model = CLOUDFLARE_DEFAULT_MODEL): string {
-  if (!model.startsWith('@cf/')) throw new Error(`Invalid Cloudflare Workers AI model ID: ${model}`);
-  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`;
+  const cleanModel = model.startsWith('@cf/') || model.startsWith('@hf/') ? model : `@cf/${model.replace(/^\/+/, '')}`;
+  return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${cleanModel}`;
 }
 
 function parseBody(body: string): unknown { try { return JSON.parse(body) as unknown; } catch { return null; } }

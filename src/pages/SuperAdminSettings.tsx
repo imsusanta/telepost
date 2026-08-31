@@ -76,14 +76,13 @@ const DEFAULT_AI_SETTINGS: AISettings = {
 function normalizeAISettings(settings: AISettings): AISettings {
   const provider: SupportedAIProvider = settings.provider === 'cloudflare' ? 'cloudflare' : 'openrouter';
   const providerChanged = provider !== settings.provider;
-  const validCloudflareModel = settings.model?.startsWith('@cf/');
   return {
     ...DEFAULT_AI_SETTINGS,
     ...settings,
     provider,
-    model: providerChanged || !settings.model?.trim() || (provider === 'cloudflare' && !validCloudflareModel)
+    model: providerChanged || !settings.model?.trim()
       ? PROVIDER_DEFAULT_MODELS[provider]
-      : settings.model,
+      : settings.model.trim(),
   };
 }
 
@@ -144,6 +143,7 @@ export default function SuperAdminSettings() {
     maintenance_message: 'System is under maintenance. Please try again later.',
   });
   const [aiSettings, setAISettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
+  const [isCustomModelSelected, setIsCustomModelSelected] = useState(false);
   const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>({
     global_bot_token: '',
     fallback_enabled: true,
@@ -363,31 +363,92 @@ export default function SuperAdminSettings() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ai_model">Model</Label>
-                  {quickModels.length > 0 ? (
-                    <Select
-                      value={aiSettings.model}
-                      onValueChange={(value) => setAISettings((p) => ({ ...p, model: value }))}
-                    >
-                      <SelectTrigger id="ai_model">
-                        <SelectValue placeholder="Select Cloudflare model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {quickModels.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="ai_model">Model</Label>
+                    {aiSettings.provider === 'cloudflare' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-primary hover:text-primary/80"
+                        onClick={() => setIsCustomModelSelected((prev) => !prev)}
+                      >
+                        {isCustomModelSelected || !CLOUDFLARE_MODELS.includes(aiSettings.model) ? 'Use Preset Models' : '✏️ Custom Model'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {aiSettings.provider === 'cloudflare' ? (
+                    <div className="space-y-2">
+                      <Select
+                        value={CLOUDFLARE_MODELS.includes(aiSettings.model) ? aiSettings.model : 'custom'}
+                        onValueChange={(value) => {
+                          if (value === 'custom') {
+                            setIsCustomModelSelected(true);
+                          } else {
+                            setIsCustomModelSelected(false);
+                            setAISettings((p) => ({ ...p, model: value }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="ai_model">
+                          <SelectValue placeholder="Select or customize Cloudflare model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CLOUDFLARE_MODELS.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model === '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
+                                ? `⭐ ${model} (Recommended)`
+                                : model}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="custom" className="font-semibold text-primary">
+                            ✏️ Custom Model (Enter your own model ID)
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
+
+                      {(isCustomModelSelected || !CLOUDFLARE_MODELS.includes(aiSettings.model)) && (
+                        <div className="space-y-1.5 pt-1">
+                          <Label htmlFor="custom_ai_model" className="text-xs text-muted-foreground">
+                            Custom Cloudflare Model ID
+                          </Label>
+                          <Input
+                            id="custom_ai_model"
+                            value={aiSettings.model}
+                            onChange={(event) => setAISettings((p) => ({ ...p, model: event.target.value }))}
+                            placeholder="e.g. @cf/meta/llama-3.2-3b-instruct or custom model ID"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Enter any Cloudflare Workers AI model identifier from Cloudflare catalog.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <Input
-                      id="ai_model"
-                      value={aiSettings.model}
-                      onChange={(event) => setAISettings((p) => ({ ...p, model: event.target.value }))}
-                      placeholder="e.g. google/gemini-2.0-flash-001"
-                    />
+                    <div className="space-y-2">
+                      <Input
+                        id="ai_model"
+                        value={aiSettings.model}
+                        onChange={(event) => setAISettings((p) => ({ ...p, model: event.target.value }))}
+                        placeholder="e.g. google/gemini-2.5-flash"
+                      />
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {['google/gemini-2.5-flash', 'google/gemini-3.5-flash-lite', 'meta-llama/llama-3.3-70b-instruct'].map((suggestedModel) => (
+                          <Button
+                            key={suggestedModel}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={() => setAISettings((p) => ({ ...p, model: suggestedModel }))}
+                          >
+                            {suggestedModel}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
