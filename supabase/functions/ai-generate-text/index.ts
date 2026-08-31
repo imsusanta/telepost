@@ -19,9 +19,10 @@ async function getAISettings(supabase: SupabaseClient): Promise<AISettings> {
   } catch (error) { console.error("[ai-generate-text] Settings fetch error:", error); }
   return { provider: "openrouter", model: OPENROUTER_DEFAULT_MODEL, image_model: "", temperature: 0.7 } as AISettings;
 }
-async function authenticateRequest(req: Request, supabase: SupabaseClient): Promise<string | null> {
+async function authenticateRequest(req: Request, supabase: SupabaseClient, serviceRoleKey?: string): Promise<string | null> {
   const authHeader = req.headers.get("Authorization"); if (!authHeader) return null;
   const token = authHeader.replace(/^Bearer\s+/i, "").trim(); if (!token) return null;
+  if (serviceRoleKey && token === serviceRoleKey) return "00000000-0000-0000-0000-000000000000";
   try { const { data: { user }, error } = await supabase.auth.getUser(token); if (!error && user) return user.id; } catch (error) { console.warn("[ai-generate-text] Authentication failed:", error); }
   return null;
 }
@@ -30,7 +31,7 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL"); const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !supabaseServiceKey) return jsonResponse({ error: "Missing Supabase configuration" }, 500);
-    const supabase = createClient(supabaseUrl, supabaseServiceKey); const userId = await authenticateRequest(req, supabase);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey); const userId = await authenticateRequest(req, supabase, supabaseServiceKey);
     if (!userId) return jsonResponse({ error: "Authentication required. Please log in." }, 401);
     let body: GenerateTextRequest; try { body = await req.json() as GenerateTextRequest; } catch { return jsonResponse({ error: "Invalid JSON request body" }, 400); }
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : ""; if (!prompt) return jsonResponse({ error: "Prompt is required" }, 400);
