@@ -4,7 +4,7 @@ export interface QuizQuestion {
   options: string[];
   correct_option_index: number;
   explanation?: string;
-  difficulty?: string; // Optional for backward compatibility with old stored DB objects, but never used or shown
+  difficulty?: string;
 }
 
 export interface QuizMetadata {
@@ -25,6 +25,6 @@ export interface QuizConfig {
   systemPrompt?: string;
   channelId?: string;
   language?: 'bn' | 'en' | 'hi';
-  useChannelKnowledgeBase?: boolean;
+  knowledgeBaseTopicIds?: string[];
   userId?: string;
 }
