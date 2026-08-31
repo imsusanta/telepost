@@ -180,11 +180,6 @@ export default function SuperAdminSettings() {
     loadSettings();
   }, [navigate, toast]);
 
-  const quickModels = useMemo(
-    () => (aiSettings.provider === 'cloudflare' ? CLOUDFLARE_MODELS : []),
-    [aiSettings.provider]
-  );
-
   const toggleSecret = (key: string) =>
     setVisibleSecrets((previous) => ({ ...previous, [key]: !previous[key] }));
 
