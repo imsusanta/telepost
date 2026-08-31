@@ -51,16 +51,19 @@ function getEnv(key: string): string {
   try { return typeof Deno !== 'undefined' ? Deno.env.get(key)?.trim() || '' : ''; } catch { return ''; }
 }
 
-/** Resolve AI credentials from Supabase Edge Function secrets. */
+/** Resolve AI credentials from settings and Supabase Edge Function secrets. */
 export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
-  const openrouterKey = getEnv('OPENROUTER_API_KEY');
-  const cfToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const cfAccountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
-  const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_AI_API_KEY');
-  let provider: AIProvider = settings.provider;
+  const settingsRecord = (settings && typeof settings === 'object' ? settings : {}) as Record<string, any>;
+  const openrouterKey = (settingsRecord.openrouter_api_key && typeof settingsRecord.openrouter_api_key === 'string' ? settingsRecord.openrouter_api_key.trim() : '') || getEnv('OPENROUTER_API_KEY');
+  const cfToken = (settingsRecord.cloudflare_api_token && typeof settingsRecord.cloudflare_api_token === 'string' ? settingsRecord.cloudflare_api_token.trim() : '') || getEnv('CLOUDFLARE_API_TOKEN');
+  const cfAccountId = (settingsRecord.cloudflare_account_id && typeof settingsRecord.cloudflare_account_id === 'string' ? settingsRecord.cloudflare_account_id.trim() : '') || getEnv('CLOUDFLARE_ACCOUNT_ID');
+  const geminiKey = (settingsRecord.gemini_api_key && typeof settingsRecord.gemini_api_key === 'string' ? settingsRecord.gemini_api_key.trim() : '') || getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_AI_API_KEY');
+
+  let provider: AIProvider = settings.provider || 'cloudflare';
   if (provider === 'cloudflare' && (!cfToken || !cfAccountId)) provider = openrouterKey ? 'openrouter' : (geminiKey ? 'gemini' : provider);
   else if (provider === 'openrouter' && !openrouterKey) provider = (cfToken && cfAccountId) ? 'cloudflare' : (geminiKey ? 'gemini' : provider);
-  else if (provider === 'gemini' && !geminiKey) provider = openrouterKey ? 'openrouter' : ((cfToken && cfAccountId) ? 'cloudflare' : provider);
+  else if (provider === 'gemini' && !geminiKey) provider = (cfToken && cfAccountId) ? 'cloudflare' : (openrouterKey ? 'openrouter' : provider);
+
   const model = settings.model?.trim() || (provider === 'cloudflare' ? CLOUDFLARE_DEFAULT_MODEL : provider === 'gemini' ? GEMINI_DEFAULT_MODEL : OPENROUTER_DEFAULT_MODEL);
   if (provider === 'cloudflare') return { provider, model: model.startsWith('@cf/') ? model : CLOUDFLARE_DEFAULT_MODEL, apiKey: cfToken, accountId: cfAccountId };
   if (provider === 'gemini') return { provider, model: model.startsWith('@cf/') || model.includes('/') ? GEMINI_DEFAULT_MODEL : model, apiKey: geminiKey };
@@ -68,13 +71,15 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
 }
 
 function getAvailableFallbacks(settings: AISettings, primary: ResolvedAIProvider): ResolvedAIProvider[] {
-  const openrouterKey = getEnv('OPENROUTER_API_KEY');
-  const cfToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const cfAccountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
-  const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_AI_API_KEY');
+  const settingsRecord = (settings && typeof settings === 'object' ? settings : {}) as Record<string, any>;
+  const openrouterKey = (settingsRecord.openrouter_api_key && typeof settingsRecord.openrouter_api_key === 'string' ? settingsRecord.openrouter_api_key.trim() : '') || getEnv('OPENROUTER_API_KEY');
+  const cfToken = (settingsRecord.cloudflare_api_token && typeof settingsRecord.cloudflare_api_token === 'string' ? settingsRecord.cloudflare_api_token.trim() : '') || getEnv('CLOUDFLARE_API_TOKEN');
+  const cfAccountId = (settingsRecord.cloudflare_account_id && typeof settingsRecord.cloudflare_account_id === 'string' ? settingsRecord.cloudflare_account_id.trim() : '') || getEnv('CLOUDFLARE_ACCOUNT_ID');
+  const geminiKey = (settingsRecord.gemini_api_key && typeof settingsRecord.gemini_api_key === 'string' ? settingsRecord.gemini_api_key.trim() : '') || getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_AI_API_KEY');
+
   const candidates: ResolvedAIProvider[] = [];
-  if (primary.provider !== 'openrouter' && openrouterKey) candidates.push({ provider: 'openrouter', model: settings.model && !settings.model.startsWith('@cf/') ? settings.model : OPENROUTER_DEFAULT_MODEL, apiKey: openrouterKey });
   if (primary.provider !== 'cloudflare' && cfToken && cfAccountId) candidates.push({ provider: 'cloudflare', model: CLOUDFLARE_DEFAULT_MODEL, apiKey: cfToken, accountId: cfAccountId });
+  if (primary.provider !== 'openrouter' && openrouterKey) candidates.push({ provider: 'openrouter', model: settings.model && !settings.model.startsWith('@cf/') ? settings.model : OPENROUTER_DEFAULT_MODEL, apiKey: openrouterKey });
   if (primary.provider !== 'gemini' && geminiKey) candidates.push({ provider: 'gemini', model: GEMINI_DEFAULT_MODEL, apiKey: geminiKey });
   return candidates.filter((candidate) => isHealthy(candidate.provider));
 }

@@ -41,8 +41,17 @@ serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ error: 'Missing Supabase configuration' }, 500);
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
-    if (userError || !user) return jsonResponse({ error: 'Authentication failed. Please log in again.' }, 401);
+    let user = null;
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    if (token === serviceRoleKey) {
+      user = { id: '00000000-0000-0000-0000-000000000000', email: 'service-role@telepost.tech' };
+    } else {
+      const { data, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !data?.user) {
+        return jsonResponse({ error: 'Authentication failed. Please log in again.' }, 401);
+      }
+      user = data.user;
+    }
 
     let body: Record<string, unknown>;
     try { body = await req.json() as Record<string, unknown>; } catch { return jsonResponse({ error: 'Invalid JSON request body' }, 400); }
