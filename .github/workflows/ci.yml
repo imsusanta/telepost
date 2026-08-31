@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check (TypeScript)
+        run: npx tsc -b
+
+      - name: Build Production Bundle
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: "https://wpkxbrdgktmwnowvmwue.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"

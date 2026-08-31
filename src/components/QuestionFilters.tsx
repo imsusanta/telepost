@@ -90,7 +90,6 @@ export function QuestionFilters({
     const [editSubjectName, setEditSubjectName] = useState("");
     const [editingTopic, setEditingTopic] = useState<string | null>(null);
     const [editTopicName, setEditTopicName] = useState("");
-    const [sortOrder, setSortOrder] = useState<SortOption>('latest');
 
     // Effect to enforce private visibility for restricted plans
     useEffect(() => {

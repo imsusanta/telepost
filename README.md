@@ -1,73 +1,95 @@
-# TelePost - AI-Powered Quiz Generator
+<div align="center">
 
-## Project info
+# 🚀 TelePost
 
-**URL**: https://lovable.dev/projects/b48b7698-bbb8-4d2a-8fef-a122f78aa028
+**AI-Powered Telegram Automation, Smart Quiz Generation & Channel Management Platform**
 
-## How can I edit this code?
+[![CI Status](https://github.com/imsusanta/telepost/actions/workflows/ci.yml/badge.svg)](https://github.com/imsusanta/telepost/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/Website-telepost.tech-0284c7)](https://telepost.tech)
 
-There are several ways of editing your application.
+<!-- ![TelePost Dashboard Screenshot](docs/images/dashboard-preview.png) -->
 
-**Use Lovable**
+</div>
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b48b7698-bbb8-4d2a-8fef-a122f78aa028) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## ✨ Features
 
-**Use your preferred IDE**
+- 🧠 **AI Quiz Generation**: Instant exam-grade MCQs (Bengali, Hindi, English) with Cloudflare Workers AI, OpenRouter, and Gemini.
+- 📚 **Question Bank**: 8,500+ pre-classified exam questions with subjects, topics, and real-time filters.
+- ⏰ **Automated Scheduling**: Smart cron-driven Telegram channel posting with zero skipped slots and catch-up mechanisms.
+- 📢 **Instant Polls & Media Posts**: Dispatch single or batch Telegram polls, quizzes, and multimedia posts.
+- 👥 **Student & Teacher Portals**: Manage batches, live classes, online mock tests, notices, and analytics.
+- 💳 **Subscription & Monetization**: Automated Razorpay billing, coupon management, and multi-tier access controls.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🚀 Tech Stack
 
-Follow these steps:
+- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Radix UI, Lucide Icons
+- **Backend & Database**: Supabase (PostgreSQL, Row Level Security, pg_cron, Database Functions)
+- **Serverless Compute**: Supabase Deno Edge Functions
+- **AI Infrastructure**: Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), OpenRouter, Google Gemini
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 🛠️ Getting Started
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Prerequisites
+- **Node.js**: v18.0 or later (v20 Recommended)
+- **npm**: v9.0 or later
+- **Git**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Installation
 
-**Edit a file directly in GitHub**
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/imsusanta/telepost.git
+   cd telepost
+   ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-**Use GitHub Codespaces**
+3. **Configure Environment Variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your Supabase credentials in `.env`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `VITE_SUPABASE_PROJECT_ID`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+4. **Start Development Server:**
+   ```bash
+   npm run dev
+   ```
 
-## What technologies are used for this project?
+5. **Build and Validate:**
+   ```bash
+   npx tsc -b
+   npm run build
+   ```
 
-This project is built with:
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📖 Documentation
 
-## How can I deploy this project?
+| Document | Purpose | Link |
+|:---|:---|:---|
+| 🗄️ Database Setup | Complete database schema & migrations | [COMPLETE_DATABASE_SETUP.md](COMPLETE_DATABASE_SETUP.md) |
+| 💳 Subscriptions Setup | Razorpay billing & tier configurations | [SUBSCRIPTIONS_SETUP.md](SUBSCRIPTIONS_SETUP.md) |
+| 🛡️ Super Admin Guide | Super Admin roles & permissions | [SUPER_ADMIN_SETUP.md](SUPER_ADMIN_SETUP.md) |
+| 🔒 Security Policy | Security practices & disclosures | [SECURITY.md](SECURITY.md) |
+| 🛠️ Contributing Guide | Setup and contribution guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 📜 Code of Conduct | Community standards & pledge | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| ⚖️ License | MIT License details | [LICENSE](LICENSE) |
 
-Simply open [Lovable](https://lovable.dev/projects/b48b7698-bbb8-4d2a-8fef-a122f78aa028) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+## 📄 License
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is licensed under the [MIT License](LICENSE) - Copyright © 2025 Susanta Lohar.
