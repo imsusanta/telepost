@@ -11,7 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
 import { useSubscription } from "@/hooks/useSubscription";
-import { AlertCircle } from "lucide-react";
+import { KnowledgeBaseTopicSelector } from "@/components/KnowledgeBaseTopicSelector";
+import type { KnowledgeBaseTopic } from "@/types/knowledgeBase";
+import { AlertCircle, BookOpen } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Question {
@@ -28,6 +30,7 @@ interface AIQuestionGeneratorProps {
 
 export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: AIQuestionGeneratorProps) {
   const [topic, setTopic] = useState("");
+  const [selectedKBTopic, setSelectedKBTopic] = useState<KnowledgeBaseTopic | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [customPrompt, setCustomPrompt] = useState("");
@@ -38,10 +41,11 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
   const isLimitReached = maxLimit !== null && currentCount >= maxLimit;
 
   const handleGenerate = async () => {
-    if (!topic.trim()) {
+    const finalTopic = selectedKBTopic ? selectedKBTopic.topic_name : topic.trim();
+    if (!finalTopic) {
       toast({
         title: "Error",
-        description: "Please enter a topic",
+        description: "Please enter or select a topic",
         variant: "destructive",
       });
       return;
@@ -81,13 +85,22 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
         throw new Error("You must be logged in");
       }
 
-      // Generate quiz using the existing quiz service
+      // Generate quiz using the existing quiz service with KB topic context
       const quiz = await QuizService.generateQuiz({
-        topic: topic.trim(),
+        topic: finalTopic,
         questionCount,
-        language,
+        language: (selectedKBTopic?.language as "bn" | "en" | "hi") || language,
         systemPrompt: customPrompt.trim() || undefined,
         userId: user.id,
+        knowledgeBaseTopic: selectedKBTopic ? {
+          topic_name: selectedKBTopic.topic_name,
+          subject: selectedKBTopic.subject,
+          description: selectedKBTopic.description,
+          language: selectedKBTopic.language,
+          ai_instructions: selectedKBTopic.ai_instructions,
+          exam: selectedKBTopic.exam,
+          grade: selectedKBTopic.grade,
+        } : undefined,
       });
 
       if (!quiz || !quiz.questions || quiz.questions.length === 0) {
@@ -96,13 +109,13 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
 
       // Store questions temporarily
       TempQuestionStorageService.addQuestions(quiz.questions, {
-        topic: topic.trim(),
-        language,
+        topic: finalTopic,
+        language: (selectedKBTopic?.language as "bn" | "en" | "hi") || language,
         source_type: 'ai_generator',
       });
 
       // Pass generated questions to parent with metadata
-      onQuestionsGenerated(quiz.questions, topic.trim(), undefined, language);
+      onQuestionsGenerated(quiz.questions, finalTopic, undefined, (selectedKBTopic?.language as "bn" | "en" | "hi") || language);
 
       toast({
         title: "Success",
@@ -151,6 +164,29 @@ export function AIQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: 
             <p className="text-muted-foreground leading-relaxed">
               Every quiz is automatically generated following the standard and style of competitive government examinations. No manual difficulty selection is required.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              Knowledge Base Topic (Optional)
+            </Label>
+            <KnowledgeBaseTopicSelector
+              selectedTopicId={selectedKBTopic?.id || null}
+              onTopicSelect={(t) => {
+                setSelectedKBTopic(t);
+                if (t) {
+                  setTopic(t.topic_name);
+                  if (t.language) setLanguage(t.language as "bn" | "en" | "hi");
+                }
+              }}
+              placeholder="Select a saved topic..."
+            />
+            {selectedKBTopic && (
+              <p className="text-xs text-muted-foreground">
+                Using topic instructions and context from Knowledge Base.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

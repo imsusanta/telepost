@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 import { chatCompletion, resolveAIProvider, OPENROUTER_DEFAULT_MODEL, type AISettings } from "../_shared/ai-provider.ts";
+import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 type JsonObject = Record<string, unknown>;
@@ -33,21 +34,43 @@ serve(async (req: Request) => {
     if (!supabaseUrl || !supabaseServiceKey) return jsonResponse({ error: "Missing Supabase configuration" }, 500);
     const supabase = createClient(supabaseUrl, supabaseServiceKey); const userId = await authenticateRequest(req, supabase, supabaseServiceKey);
     if (!userId) return jsonResponse({ error: "Authentication required. Please log in." }, 401);
-    let body: GenerateTextRequest; try { body = await req.json() as GenerateTextRequest; } catch { return jsonResponse({ error: "Invalid JSON request body" }, 400); }
+    interface GenBody extends GenerateTextRequest { knowledgeBaseTopic?: Record<string, string>; }
+    let body: GenBody; try { body = await req.json() as GenBody; } catch { return jsonResponse({ error: "Invalid JSON request body" }, 400); }
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : ""; if (!prompt) return jsonResponse({ error: "Prompt is required" }, 400);
     const requestedSystemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt.trim() : "";
     const requestedTemperature = typeof body.temperature === "number" && Number.isFinite(body.temperature) ? body.temperature : 0.7;
     const aiSettings = await getAISettings(supabase); const resolved = resolveAIProvider(aiSettings); const { provider, model, apiKey, accountId } = resolved;
     if (!apiKey || (provider === "cloudflare" && !accountId)) return jsonResponse({ error: `AI service is not configured. Please configure ${provider} credentials in Super Admin Settings → AI tab.` }, 503);
-    let finalSystemPrompt = "";
-    if (requestedSystemPrompt) {
-      const isQuizPrompt = aiSettings.system_prompt?.toLowerCase().includes("mcq") || aiSettings.system_prompt?.toLowerCase().includes("question");
-      const isPostRequest = requestedSystemPrompt.toLowerCase().includes("post") || requestedSystemPrompt.toLowerCase().includes("social media");
-      finalSystemPrompt = isQuizPrompt && isPostRequest ? `${requestedSystemPrompt}\n\n[GENERAL STYLE & LANGUAGE RULES]:\n${aiSettings.system_prompt ?? ""}` : requestedSystemPrompt + (aiSettings.system_prompt ? `\n\n${aiSettings.system_prompt}` : "");
-    } else finalSystemPrompt = aiSettings.system_prompt || "You are a helpful AI assistant.";
+
+    const { data: userPromptData } = await supabase.from("user_ai_system_prompts").select("system_prompt").eq("user_id", userId).maybeSingle();
+    const userSystemPrompt = userPromptData?.system_prompt || "";
+
+    let knowledgeBaseContext = "";
+    let kbInstructions = "";
+    if (body.knowledgeBaseTopic) {
+      const kb = body.knowledgeBaseTopic;
+      const parts = [`Topic: ${kb.topic_name || ""}`];
+      if (kb.subject) parts.push(`Subject: ${kb.subject}`);
+      if (kb.description) parts.push(`Description: ${kb.description}`);
+      if (kb.exam) parts.push(`Target Exam: ${kb.exam}`);
+      if (kb.grade) parts.push(`Grade: ${kb.grade}`);
+      knowledgeBaseContext = parts.join("\n");
+      if (kb.ai_instructions) kbInstructions = `\n\nTopic Special Instructions:\n${kb.ai_instructions}`;
+    }
+
+    const finalSystemPrompt = composeTelePostSystemPrompt({
+      platformInstructions: aiSettings.system_prompt || "You are a helpful AI assistant.",
+      userSystemPrompt,
+      featureInstructions: requestedSystemPrompt,
+      knowledgeBaseInstructions: kbInstructions,
+      outputRequirements: "Return only the requested post content. Do not include a title, preamble, or commentary unless the feature instructions explicitly require it.",
+    });
+
+    const finalPrompt = knowledgeBaseContext ? `Context:\n${knowledgeBaseContext}\n\nUser Request:\n${prompt}` : prompt;
+
     console.log(`[ai-generate-text] user=${userId}, provider=${provider}, model=${model}`);
     try {
-      const text = await chatCompletion({ resolved, messages: [{ role: "system", content: finalSystemPrompt }, { role: "user", content: prompt }], temperature: aiSettings.temperature ?? requestedTemperature, maxTokens: 2048, timeoutMs: 90000, appTitle: "TelePost" });
+      const text = await chatCompletion({ resolved, messages: [{ role: "system", content: finalSystemPrompt }, { role: "user", content: finalPrompt }], temperature: aiSettings.temperature ?? requestedTemperature, maxTokens: 2048, timeoutMs: 90000, appTitle: "TelePost" });
       if (!text.trim()) return jsonResponse({ error: "AI returned an empty response" }, 502);
       try { await supabase.from("ai_usage_logs").insert({ user_id: userId, feature: "text-generation", provider, model, prompt: prompt.substring(0, 2000), status: "success", success: true, metadata: { usage_source: "provider_usage_not_exposed_by_shared_client" }, completed_at: new Date().toISOString() }); } catch (logError) { console.error("[ai-generate-text] Failed to log usage:", logError); }
       return jsonResponse({ text, provider, model });

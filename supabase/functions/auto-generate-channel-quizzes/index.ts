@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, type ResolvedAIProvider } from "../_shared/ai-provider.ts";
+import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
@@ -80,7 +81,11 @@ serve(async (req) => {
         if (documentsError) throw documentsError;
         const knowledgeBase = (documents || []).map((document: any) => `Document: ${document.title}\n${document.ai_summary ? `Summary: ${document.ai_summary}\n` : ''}${document.extracted_text?.substring(0, 2000) || ''}`).join('\n\n---\n\n').substring(0, 8000);
         const topic = channel.settings.default_subject || documents?.[0]?.topics?.[0] || documents?.[0]?.title || channel.name;
-        const quiz = await generateQuizForChannel(resolved, aiSettings, channel, topic, knowledgeBase);
+
+        const { data: userPromptData } = await supabase.from('user_ai_system_prompts').select('system_prompt').eq('user_id', channel.user_id).maybeSingle();
+        const userSystemPrompt = userPromptData?.system_prompt || '';
+
+        const quiz = await generateQuizForChannel(resolved, aiSettings, channel, topic, knowledgeBase, userSystemPrompt);
 
         let botToken = channel.telegram_bot_token;
         if (!botToken) {
@@ -128,14 +133,19 @@ async function shouldGenerateForFrequency(supabase: any, channelId: string, freq
   return hours >= 24;
 }
 
-async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: AISettings, channel: Channel, topic: string, knowledgeBase: string): Promise<any> {
+async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: AISettings, channel: Channel, topic: string, knowledgeBase: string, userSystemPrompt: string = ''): Promise<any> {
   const count = Math.max(1, Math.min(channel.settings.questions_per_quiz || 10, 50));
   const language = channel.settings.default_language || 'en';
   const difficulty = channel.settings.default_difficulty || 'medium';
   const languageRule = language === 'bn' ? 'Write every question, option and explanation only in Bengali Unicode; do not use English or Devanagari.' : language === 'hi' ? 'Write every question, option and explanation only in Hindi Devanagari; do not use English.' : 'Write all content in clear English.';
   const requestId = crypto.randomUUID();
   const generatedAt = new Date().toISOString();
-  const systemPrompt = `${aiSettings.system_prompt || ''}\n${channel.settings.system_prompt || ''}\nYou are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} ${difficulty} MCQs about "${topic}". Each question must have exactly four plausible options and one correct answer. Keep questions under 120 characters, options under 80, explanations under 200, and output only JSON.`;
+  const systemPrompt = composeTelePostSystemPrompt({
+    platformInstructions: aiSettings.system_prompt,
+    userSystemPrompt,
+    featureInstructions: channel.settings.system_prompt || '',
+    outputRequirements: `You are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} ${difficulty} MCQs about "${topic}". Each question must have exactly four plausible options and one correct answer. Keep questions under 120 characters, options under 80, explanations under 200, and output only JSON.`,
+  });
   const userPrompt = `${knowledgeBase ? `Use only this channel knowledge base:\n${knowledgeBase}\n\n` : ''}Return exactly:\n{\n  "request_id": "${requestId}",\n  "topic": "${topic}",\n  "questions": [{"id": 1, "question": "string", "options": ["string", "string", "string", "string"], "correct_option_index": 0, "explanation": "string"}],\n  "metadata": {"difficulty": "${difficulty}", "generated_at": "${generatedAt}"}\n}`;
   let feedback = '';
   let lastError: Error | null = null;

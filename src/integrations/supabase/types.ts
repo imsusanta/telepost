@@ -780,6 +780,59 @@ export type Database = {
           },
         ]
       }
+      knowledge_base_topics: {
+        Row: {
+          ai_instructions: string | null
+          channel_id: string | null
+          created_at: string | null
+          description: string | null
+          exam: string | null
+          grade: string | null
+          id: string
+          language: string | null
+          subject: string | null
+          topic_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_instructions?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          exam?: string | null
+          grade?: string | null
+          id?: string
+          language?: string | null
+          subject?: string | null
+          topic_name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_instructions?: string | null
+          channel_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          exam?: string | null
+          grade?: string | null
+          id?: string
+          language?: string | null
+          subject?: string | null
+          topic_name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_topics_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_verification_codes: {
         Row: {
           code: string
@@ -2848,6 +2901,30 @@ export type Database = {
           primary_color?: string | null
           secondary_color?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_ai_system_prompts: {
+        Row: {
+          created_at: string | null
+          id: string
+          system_prompt: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          system_prompt?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          system_prompt?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

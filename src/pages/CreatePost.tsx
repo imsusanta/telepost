@@ -3,7 +3,6 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
-    FileText,
     Image,
     LayoutPanelLeft,
     Loader2,
@@ -43,10 +42,10 @@ import { LoadingState } from "@/components/LoadingState";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
-import { KnowledgeBaseSelector } from "@/components/KnowledgeBaseSelector";
-import { Document as AppDocument } from "@/services/documentService";
+import { KnowledgeBaseTopicSelector } from "@/components/KnowledgeBaseTopicSelector";
+import type { KnowledgeBaseTopic } from "@/types/knowledgeBase";
 import { AIImageGeneratorModal } from "@/components/AIImageGeneratorModal";
-import { Palette } from "lucide-react";
+import { Palette, BookOpen } from "lucide-react";
 
 export default function CreatePost() {
     const { toast } = useToast();
@@ -80,7 +79,7 @@ export default function CreatePost() {
     const [isLoadingPosts, setIsLoadingPosts] = useState(true);
 
     // Source selection state
-    const [postSource, setPostSource] = useState<"manual" | "question-bank" | "ai-generate" | "documents">("manual");
+    const [postSource, setPostSource] = useState<"manual" | "question-bank" | "ai-generate">("manual");
     
     // Question Bank selection state
     const [qbSearch, setQbSearch] = useState("");
@@ -92,11 +91,7 @@ export default function CreatePost() {
     const [aiTone, setAiTone] = useState<"professional" | "casual" | "motivational" | "fun">("professional");
     const [aiLanguage, setAiLanguage] = useState<"english" | "bengali" | "hindi" | "mix">("bengali");
     const [aiIncludeEmojis, setAiIncludeEmojis] = useState(true);
-    
-    // Document state
-    const [selectedDoc, setSelectedDoc] = useState<AppDocument | null>(null);
-    const [docPrompt, setDocPrompt] = useState("");
-    const [isDocGenerating, setIsDocGenerating] = useState(false);
+    const [selectedKBTopic, setSelectedKBTopic] = useState<KnowledgeBaseTopic | null>(null);
 
     // Subscription hook
     const { 
@@ -279,7 +274,16 @@ export default function CreatePost() {
             const { data, error } = await supabase.functions.invoke('ai-generate-text', {
                 body: {
                     prompt: aiPrompt.trim(),
-                    systemPrompt: systemPrompt
+                    systemPrompt: systemPrompt,
+                    knowledgeBaseTopic: selectedKBTopic ? {
+                        topic_name: selectedKBTopic.topic_name,
+                        subject: selectedKBTopic.subject,
+                        description: selectedKBTopic.description,
+                        language: selectedKBTopic.language,
+                        ai_instructions: selectedKBTopic.ai_instructions,
+                        exam: selectedKBTopic.exam,
+                        grade: selectedKBTopic.grade,
+                    } : undefined,
                 }
             });
 
@@ -306,72 +310,6 @@ export default function CreatePost() {
             });
         } finally {
             setIsAiGenerating(false);
-        }
-    };
-
-    const handleGenerateFromDoc = async () => {
-        if (!selectedDoc) {
-            toast({
-                title: "Document required",
-                description: "Please select a document from your library",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        if (!selectedDoc.extracted_text) {
-            toast({
-                title: "No text found",
-                description: "This document doesn't have any extracted text to work with.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        try {
-            setIsDocGenerating(true);
-            
-            const prompt = `Based on the following document content, ${docPrompt || "create a summary post for Telegram"}:
-            
-            DOCUMENT CONTENT:
-            ${selectedDoc.extracted_text.substring(0, 5000)}
-            `;
-
-            const systemPrompt = `You are a social media assistant. Extract key information from the document and format it into a compelling Telegram post.
-            Tone: ${aiTone}
-            Language: ${aiLanguage}
-            Include Emojis: ${aiIncludeEmojis ? 'Yes' : 'No'}
-            
-            Do not include any title or preamble, just the post content. Use Markdown for formatting.`;
-
-            const { data, error } = await supabase.functions.invoke('ai-generate-text', {
-                body: {
-                    prompt: prompt,
-                    systemPrompt: systemPrompt
-                }
-            });
-
-            if (error) throw error;
-
-            if (data?.text) {
-                setContent(data.text);
-                toast({
-                    title: "Generated from document! 📄",
-                    description: "AI has extracted key points from your document.",
-                });
-                setPostSource("manual");
-            } else {
-                throw new Error(data?.error || "Failed to generate content");
-            }
-        } catch (error) {
-            console.error("Doc extraction error:", error);
-            toast({
-                title: "Extraction failed",
-                description: error instanceof Error ? error.message : "An error occurred",
-                variant: "destructive",
-            });
-        } finally {
-            setIsDocGenerating(false);
         }
     };
 
@@ -519,7 +457,6 @@ export default function CreatePost() {
 
     const hasAiWritingAccess = canAccess('create_post', 'write_with_ai');
     const hasAiGenerateAccess = canAccess('create_post', 'write_with_ai');
-    const hasDocumentsAccess = canAccess('knowledge_base');
     const hasSchedulerAccess = canAccess('scheduler');
 
     return (
@@ -624,7 +561,7 @@ export default function CreatePost() {
                                                 onValueChange={(val) => setPostSource(val as any)}
                                                 className="w-full"
                                             >
-                                                <TabsList className="grid w-full grid-cols-4 mb-4">
+                                                <TabsList className="grid w-full grid-cols-3 mb-4">
                                                     <TabsTrigger value="manual" className="text-xs">Manual</TabsTrigger>
                                                     <TabsTrigger value="question-bank" className="text-xs">Q-Bank</TabsTrigger>
                                                     <TabsTrigger 
@@ -633,13 +570,6 @@ export default function CreatePost() {
                                                         disabled={!hasAiGenerateAccess && !isSuperAdmin}
                                                     >
                                                         AI {!hasAiGenerateAccess && !isSuperAdmin && <Badge variant="secondary" className="text-[8px] h-3 px-1">BASIC</Badge>}
-                                                    </TabsTrigger>
-                                                    <TabsTrigger 
-                                                        value="documents" 
-                                                        className="text-xs flex items-center gap-1"
-                                                        disabled={!hasDocumentsAccess && !isSuperAdmin}
-                                                    >
-                                                        Docs {!hasDocumentsAccess && !isSuperAdmin && <Badge variant="secondary" className="text-[8px] h-3 px-1">PRO</Badge>}
                                                     </TabsTrigger>
                                                 </TabsList>
 
@@ -712,8 +642,42 @@ export default function CreatePost() {
                                                     </div>
                                                 </TabsContent>
 
-                                                <TabsContent value="ai-generate" className="space-y-4 mt-0">
+                                                 <TabsContent value="ai-generate" className="space-y-4 mt-0">
                                                     <div className="p-4 border rounded-xl bg-primary/5 border-primary/20 space-y-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs flex items-center gap-1.5 font-medium">
+                                                                <BookOpen className="h-3.5 w-3.5 text-primary" />
+                                                                Knowledge Base Topic (Optional)
+                                                            </Label>
+                                                            <KnowledgeBaseTopicSelector
+                                                                selectedTopicId={selectedKBTopic?.id || null}
+                                                                onTopicSelect={(topic) => {
+                                                                    setSelectedKBTopic(topic);
+                                                                    if (topic) {
+                                                                        if (!aiPrompt) setAiPrompt(`Create an educational post about ${topic.topic_name}`);
+                                                                        if (topic.language) {
+                                                                            const langMap: Record<string, "bengali" | "english" | "hindi" | "mix"> = {
+                                                                                bn: "bengali",
+                                                                                Bengali: "bengali",
+                                                                                en: "english",
+                                                                                English: "english",
+                                                                                hi: "hindi",
+                                                                                Hindi: "hindi",
+                                                                            };
+                                                                            if (langMap[topic.language]) setAiLanguage(langMap[topic.language]);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                channelId={selectedChannel || undefined}
+                                                                placeholder="Select a saved topic from Knowledge Base..."
+                                                            />
+                                                            {selectedKBTopic && (
+                                                                <p className="text-[10px] text-muted-foreground">
+                                                                    AI will apply the topic&apos;s subject, description, and custom instructions.
+                                                                </p>
+                                                            )}
+                                                        </div>
+
                                                         <div className="grid grid-cols-2 gap-4">
                                                             <div className="space-y-2">
                                                                 <Label className="text-xs">Tone</Label>
@@ -746,7 +710,7 @@ export default function CreatePost() {
                                                         </div>
 
                                                         <div className="space-y-2">
-                                                            <Label className="text-xs">Prompt</Label>
+                                                            <Label className="text-xs">Prompt / Topic</Label>
                                                             <Textarea 
                                                                 placeholder="What should this post be about?"
                                                                 value={aiPrompt}
@@ -767,69 +731,10 @@ export default function CreatePost() {
                                                         <Button 
                                                             className="w-full gap-2"
                                                             onClick={handleGenerateWithAi}
-                                                            disabled={isAiGenerating || !aiPrompt.trim()}
+                                                            disabled={isAiGenerating || (!aiPrompt.trim() && !selectedKBTopic)}
                                                         >
                                                             {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                                             Generate Post
-                                                        </Button>
-                                                    </div>
-                                                </TabsContent>
-
-                                                <TabsContent value="documents" className="space-y-4 mt-0">
-                                                    <div className="p-4 border rounded-xl bg-primary/5 border-primary/20 dark:bg-primary/10 dark:border-primary/30 space-y-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <FileText className="h-5 w-5 text-primary" />
-                                                                <span className="font-semibold text-sm">Source Document</span>
-                                                            </div>
-                                                            <KnowledgeBaseSelector 
-                                                                onSelect={(doc: any) => setSelectedDoc(doc)}
-                                                                trigger={
-                                                                    <Button variant="outline" size="sm" className="h-8 text-xs border-primary/20 bg-white hover:bg-primary/5">
-                                                                        {selectedDoc ? "Change" : "Select Document"}
-                                                                    </Button>
-                                                                }
-                                                            />
-                                                        </div>
-
-                                                        {selectedDoc ? (
-                                                            <div className="p-3 bg-white dark:bg-slate-950 rounded-lg border border-primary/10 flex items-center justify-between">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-primary/10 rounded text-primary">
-                                                                        <FileText className="h-4 w-4" />
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-xs font-medium truncate max-w-[150px]">{selectedDoc.title || selectedDoc.file_name}</p>
-                                                                        <p className="text-[10px] text-muted-foreground">{(selectedDoc.file_size_bytes / 1024 / 1024).toFixed(2)} MB</p>
-                                                                    </div>
-                                                                </div>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setSelectedDoc(null)}>
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="py-8 text-center border-2 border-dashed rounded-lg border-primary/10 bg-white/50">
-                                                                <p className="text-xs text-muted-foreground">No document selected</p>
-                                                            </div>
-                                                        )}
-
-                                                        <div className="space-y-2">
-                                                            <Label className="text-xs">Extraction Prompt (Optional)</Label>
-                                                            <Input 
-                                                                placeholder="E.g., 'Summarize key points for students'"
-                                                                value={docPrompt}
-                                                                onChange={(e) => setDocPrompt(e.target.value)}
-                                                                className="h-9 bg-white dark:bg-slate-950"
-                                                            />
-                                                        </div>
-
-                                                        <Button 
-                                                            className="w-full gap-2 bg-primary hover:bg-primary/90"
-                                                            onClick={handleGenerateFromDoc}
-                                                            disabled={isDocGenerating || !selectedDoc}
-                                                        >
-                                                            {isDocGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                                                            Extract & Generate
                                                         </Button>
                                                     </div>
                                                 </TabsContent>

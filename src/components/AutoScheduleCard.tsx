@@ -13,7 +13,7 @@ import {
     Target,
     Zap,
     Languages,
-    FileText
+    BookOpen
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -508,7 +508,7 @@ export function AutoScheduleCard() {
                                                     </SelectItem>
                                                     <SelectItem value="knowledge_base">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="p-1.5 bg-purple-500/10 rounded-lg"><FileText className="w-4 h-4 text-purple-500" /></div>
+                                                            <div className="p-1.5 bg-purple-500/10 rounded-lg"><BookOpen className="w-4 h-4 text-purple-500" /></div>
                                                             <span className="font-bold">Knowledge Base</span>
                                                         </div>
                                                     </SelectItem>
@@ -860,7 +860,7 @@ export function AutoScheduleCard() {
                                                             <p className="text-[11px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">✨ Full Auto Mode Active</p>
                                                             <p className="text-[10px] text-muted-foreground font-medium mt-1 max-w-[240px]">
                                                                 {sourceType === "knowledge_base"
-                                                                    ? "AI will generate questions automatically from all uploaded Knowledge Base documents."
+                                                                    ? "AI will generate questions automatically from your saved Knowledge Base topics."
                                                                     : "No topics added. AI will automatically select exam-oriented topics from General Knowledge, History, Science, etc."}
                                                             </p>
                                                         </div>
