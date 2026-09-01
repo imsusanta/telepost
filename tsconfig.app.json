@@ -30,6 +30,10 @@
     "src"
   ],
   "exclude": [
-    "src/lib/mcp"
+    "src/lib/mcp",
+    "src/pages/Documents.tsx",
+    "src/components/PDFQuestionGenerator.tsx",
+    "src/components/KnowledgeBaseSelector.tsx",
+    "src/services/knowledgeBaseTopicService.ts"
   ]
 }

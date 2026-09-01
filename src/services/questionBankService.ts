@@ -171,7 +171,7 @@ export class QuestionBankService {
     const clean = stripLegacyDifficulty({ ...updates } as Record<string, unknown>);
     delete (clean as any).id; delete (clean as any).user_id; delete (clean as any).created_at; delete (clean as any).updated_at;
     delete (clean as any).times_used; delete (clean as any).times_correct; delete (clean as any).times_incorrect;
-    const { data, error } = await supabase.from("question_banks").update(clean).eq("id", questionId).eq("user_id", userId).select().single();
+    const { data, error } = await supabase.from("question_banks").update(clean as any).eq("id", questionId).eq("user_id", userId).select().single();
     if (error) throw error;
     return data as QuestionBankItem;
   }

@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 
 /** @deprecated PDF/document knowledge-base service. Topic-based KnowledgeBase replaces this workflow. */
 export interface Document {
