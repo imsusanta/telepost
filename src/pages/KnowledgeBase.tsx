@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { BookOpen, Search, Plus, Edit2, Trash2, Filter, Loader2, Save, RotateCcw, Brain } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { BookOpen, Search, Plus, Edit2, Trash2, Loader2, Save, RotateCcw, Brain, MoreHorizontal } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { KnowledgeBaseTopic } from "@/types/knowledgeBase";
@@ -17,7 +16,6 @@ export default function KnowledgeBase() {
   const [topics, setTopics] = useState<KnowledgeBaseTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<KnowledgeBaseTopic | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -28,30 +26,19 @@ export default function KnowledgeBase() {
 
   const loadTopics = useCallback(async () => {
     setLoading(true);
-    try {
-      setTopics(await KnowledgeBaseService.getTopics());
-    } catch (error: any) {
-      toast.error(error.message || "Failed to load topics");
-    } finally {
-      setLoading(false);
-    }
+    try { setTopics(await KnowledgeBaseService.getTopics()); }
+    catch (error: any) { toast.error(error.message || "Failed to load topics"); }
+    finally { setLoading(false); }
   }, []);
 
   const loadSystemPrompt = useCallback(async () => {
     setPromptLoading(true);
-    try {
-      setSystemPrompt((await KnowledgeBaseService.getUserSystemPrompt()) || "");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to load system prompt");
-    } finally {
-      setPromptLoading(false);
-    }
+    try { setSystemPrompt((await KnowledgeBaseService.getUserSystemPrompt()) || ""); }
+    catch (error: any) { toast.error(error.message || "Failed to load system prompt"); }
+    finally { setPromptLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadTopics();
-    loadSystemPrompt();
-  }, [loadTopics, loadSystemPrompt]);
+  useEffect(() => { loadTopics(); loadSystemPrompt(); }, [loadTopics, loadSystemPrompt]);
 
   const handleSavePrompt = async () => {
     if (systemPrompt.length > KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH) {
@@ -62,144 +49,139 @@ export default function KnowledgeBase() {
     try {
       await KnowledgeBaseService.saveUserSystemPrompt(systemPrompt);
       toast.success("System prompt saved successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save system prompt");
-    } finally {
-      setPromptSaving(false);
-    }
+    } catch (error: any) { toast.error(error.message || "Failed to save system prompt"); }
+    finally { setPromptSaving(false); }
   };
-
-  const handleClearPrompt = () => setSystemPrompt("");
-  const handleEdit = (topic: KnowledgeBaseTopic) => { setEditingTopic(topic); setDialogOpen(true); };
-  const handleAdd = () => { setEditingTopic(null); setDialogOpen(true); };
 
   const handleDeleteConfirm = async () => {
     if (!topicToDelete) return;
     try {
       await KnowledgeBaseService.deleteTopic(topicToDelete.id);
       toast.success("Topic deleted successfully");
-      loadTopics();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete topic");
-    } finally {
-      setDeleteDialogOpen(false);
-      setTopicToDelete(null);
-    }
+      await loadTopics();
+    } catch (error: any) { toast.error(error.message || "Failed to delete topic"); }
+    finally { setDeleteDialogOpen(false); setTopicToDelete(null); }
   };
 
-  const subjects = useMemo(() => Array.from(new Set(topics.map(t => t.subject).filter(Boolean) as string[])), [topics]);
-  const filteredTopics = topics.filter(topic => {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = topic.topic_name.toLowerCase().includes(query) ||
-      Boolean(topic.description?.toLowerCase().includes(query)) ||
-      Boolean(topic.subject?.toLowerCase().includes(query));
-    return matchesSearch && (selectedSubject === "all" || topic.subject === selectedSubject);
-  });
-
-  const getLanguageLabel = (code?: string) => {
-    if (code === "bn" || code === "Bengali") return "বাংলা";
-    if (code === "hi" || code === "Hindi") return "हिन्दी";
-    return "English";
-  };
+  const filteredTopics = topics.filter((topic) =>
+    topic.topic_name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-in fade-in duration-500 pb-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary"><Brain className="w-8 h-8" /></div>
-              Knowledge Base
-            </h1>
-            <p className="text-muted-foreground text-lg ml-1">Manage topics, instructions, and rules for AI generation</p>
+      <div className="space-y-7 pb-12 animate-in fade-in duration-300">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary"><Brain className="w-7 h-7" /></div>
+              <h1 className="text-3xl font-bold tracking-tight">Knowledge Base</h1>
+            </div>
+            <p className="mt-1 text-muted-foreground">Manage topics that TelePost AI can use for quiz and post generation.</p>
           </div>
-          <Button onClick={handleAdd} className="gap-2 h-11 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Button onClick={() => { setEditingTopic(null); setDialogOpen(true); }} className="gap-2 rounded-xl h-11 px-5">
             <Plus className="w-5 h-5" /> Add Topics
           </Button>
         </div>
 
-        <Card className="border-none bg-muted/30 shadow-none px-6 py-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <Input placeholder="Search topics..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-11 border-none shadow-sm rounded-xl focus-visible:ring-primary/20 bg-background" />
+        <Card className="border shadow-sm">
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search topics..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-11 rounded-xl"
+              />
             </div>
-            <div className="w-full sm:w-[250px]">
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                <SelectTrigger className="h-11 border-none shadow-sm rounded-xl focus-visible:ring-primary/20 bg-background">
-                  <div className="flex items-center gap-2"><Filter className="w-4 h-4 text-muted-foreground" /><SelectValue placeholder="All Subjects" /></div>
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All Subjects</SelectItem>
-                  {subjects.map(sub => <SelectItem key={sub} value={sub}>{sub}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <div>
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{[1, 2, 3].map(i => <Card key={i} className="h-[200px] animate-pulse border-none bg-muted/20" />)}</div>
-          ) : filteredTopics.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 rounded-3xl border-2 border-dashed border-muted/50 bg-muted/5">
-              <div className="p-6 rounded-full bg-muted/50 text-muted-foreground mb-4"><BookOpen className="w-16 h-16" /></div>
-              <h3 className="text-2xl font-bold tracking-tight">No topics found</h3>
-              <p className="text-muted-foreground max-w-sm mx-auto">{searchQuery ? "Try adjusting your search or filters." : "Add your first topics to structure your AI knowledge base."}</p>
-              {!searchQuery && <Button onClick={handleAdd} className="mt-4 gap-2 rounded-xl"><Plus className="w-4 h-4" /> Add Topics</Button>}
+        <Card className="overflow-hidden border shadow-sm">
+          <CardHeader className="border-b bg-muted/20 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Topics</CardTitle>
+                <CardDescription>{filteredTopics.length} topic{filteredTopics.length === 1 ? "" : "s"}</CardDescription>
+              </div>
+              <Badge variant="secondary">Topic Library</Badge>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTopics.map(topic => (
-                <Card key={topic.id} className="group flex flex-col h-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-none shadow-sm bg-card ring-1 ring-border/50">
-                  <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start gap-4">
-                      <CardTitle className="text-xl font-bold leading-tight group-hover:text-primary transition-colors">{topic.topic_name}</CardTitle>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-lg" onClick={() => handleEdit(topic)}><Edit2 className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg" onClick={() => { setTopicToDelete(topic); setDeleteDialogOpen(true); }}><Trash2 className="w-4 h-4" /></Button>
-                      </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-20"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div>
+            ) : filteredTopics.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                <div className="p-4 rounded-full bg-muted/50 mb-4"><BookOpen className="w-10 h-10 text-muted-foreground" /></div>
+                <h3 className="text-xl font-semibold">No topics found</h3>
+                <p className="mt-1 text-sm text-muted-foreground max-w-md">
+                  {searchQuery ? "Try a different search term." : "Add topics that you want TelePost AI to use for content generation."}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredTopics.map((topic, index) => (
+                  <div key={topic.id} className="grid grid-cols-[56px_minmax(0,1fr)_110px_110px] md:grid-cols-[72px_minmax(0,1fr)_120px_120px] items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
+                    <div className="text-sm text-muted-foreground tabular-nums">{index + 1}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-base truncate">{topic.topic_name}</div>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {topic.subject && <Badge variant="secondary" className="font-medium bg-secondary/50">{topic.subject}</Badge>}
-                      <Badge variant="outline" className="font-medium text-muted-foreground">{getLanguageLabel(topic.language)}</Badge>
+                    <div>
+                      <Badge variant="outline" className="font-normal">{topic.language === "bn" ? "বাংলা" : topic.language === "hi" ? "हिन्दी" : "English"}</Badge>
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 pb-4"><p className="text-sm text-muted-foreground line-clamp-3">{topic.description || "No description provided."}</p></CardContent>
-                  <CardFooter className="pt-4 pb-4 text-xs text-muted-foreground border-t border-border/10 mt-auto flex justify-between">
-                    <span>{topic.exam ? `Exam: ${topic.exam}` : (topic.grade ? `Level: ${topic.grade}` : "")}</span>
-                    <span>{topic.updated_at ? new Date(topic.updated_at).toLocaleDateString() : ""}</span>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setDialogOpen(true); }} aria-label={`Edit ${topic.topic_name}`}>
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setTopicToDelete(topic); setDeleteDialogOpen(true); }} aria-label={`Delete ${topic.topic_name}`}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="border-t bg-muted/10 px-5 py-3 text-sm text-muted-foreground">
+            {topics.length > 0 ? `Showing ${filteredTopics.length} of ${topics.length} topics` : "No topics yet"}
+          </CardFooter>
+        </Card>
 
-        <Card className="border-none shadow-lg bg-gradient-to-br from-card to-card/50 ring-1 ring-border/50">
+        <Card className="border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold flex items-center gap-2"><Brain className="w-6 h-6 text-primary" /> System Prompt</CardTitle>
-            <CardDescription className="text-base">Instructions that TelePost AI should follow when generating quizzes and posts.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Brain className="w-5 h-5 text-primary" /> System Prompt</CardTitle>
+            <CardDescription>Global instructions TelePost AI follows when generating quizzes and posts.</CardDescription>
           </CardHeader>
           <CardContent>
-            {promptLoading ? <div className="h-40 flex items-center justify-center bg-muted/20 rounded-xl"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> : <>
-              <Textarea aria-label="System Prompt" placeholder="Enter base instructions for the AI... e.g. Always explain the answers in simple terms. Avoid complicated jargon." value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} maxLength={KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH} className="min-h-[200px] resize-y rounded-xl p-4 text-base focus-visible:ring-primary/20" />
-              <div className="mt-2 flex items-center justify-between gap-4 text-xs text-muted-foreground"><span>Do not include passwords, API keys, or other secrets.</span><span>{systemPrompt.length.toLocaleString()} / {KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH.toLocaleString()}</span></div>
-            </>}
+            {promptLoading ? <div className="h-40 flex items-center justify-center"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div> : (
+              <Textarea
+                aria-label="System Prompt"
+                placeholder="Example: Always write in simple Bengali, keep questions exam-focused, avoid duplicates..."
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                maxLength={KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH}
+                className="min-h-[180px] rounded-xl resize-y"
+              />
+            )}
           </CardContent>
-          <CardFooter className="flex justify-end gap-3 pb-6">
-            <Button variant="outline" onClick={handleClearPrompt} className="gap-2 rounded-xl h-11 px-6"><RotateCcw className="w-4 h-4" /> Clear</Button>
-            <Button onClick={handleSavePrompt} disabled={promptSaving || promptLoading} className="gap-2 rounded-xl h-11 px-8 shadow-md">{promptSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Settings</Button>
+          <CardFooter className="flex justify-end gap-2 border-t">
+            <Button variant="outline" onClick={() => setSystemPrompt("")} disabled={promptSaving} className="gap-2"><RotateCcw className="w-4 h-4" /> Clear</Button>
+            <Button onClick={handleSavePrompt} disabled={promptLoading || promptSaving} className="gap-2"><Save className="w-4 h-4" /> Save Settings</Button>
           </CardFooter>
         </Card>
       </div>
 
       <KnowledgeBaseTopicDialog open={dialogOpen} onOpenChange={setDialogOpen} topic={editingTopic} onSaved={loadTopics} />
-
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader><AlertDialogTitle>Delete Topic?</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete "{topicToDelete?.topic_name}"? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteConfirm} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Topic?</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete "{topicToDelete?.topic_name}"? This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </DashboardLayout>
