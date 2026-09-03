@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Search, Plus, Edit2, Trash2, Loader2, Save, RotateCcw, Brain, MoreHorizontal } from "lucide-react";
+import { BookOpen, Search, Plus, Edit2, Trash2, Loader2, Save, RotateCcw, Brain } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,12 +87,7 @@ export default function KnowledgeBase() {
           <CardContent className="p-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search topics..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 rounded-xl"
-              />
+              <Input placeholder="Search topics..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-11 rounded-xl" />
             </div>
           </CardContent>
         </Card>
@@ -114,28 +109,18 @@ export default function KnowledgeBase() {
               <div className="flex flex-col items-center justify-center py-20 text-center px-6">
                 <div className="p-4 rounded-full bg-muted/50 mb-4"><BookOpen className="w-10 h-10 text-muted-foreground" /></div>
                 <h3 className="text-xl font-semibold">No topics found</h3>
-                <p className="mt-1 text-sm text-muted-foreground max-w-md">
-                  {searchQuery ? "Try a different search term." : "Add topics that you want TelePost AI to use for content generation."}
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground max-w-md">{searchQuery ? "Try a different search term." : "Add topics that you want TelePost AI to use for content generation."}</p>
               </div>
             ) : (
               <div className="divide-y">
                 {filteredTopics.map((topic, index) => (
-                  <div key={topic.id} className="grid grid-cols-[56px_minmax(0,1fr)_110px_110px] md:grid-cols-[72px_minmax(0,1fr)_120px_120px] items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
+                  <div key={topic.id} className="grid grid-cols-[48px_minmax(0,1fr)_100px_88px] md:grid-cols-[64px_minmax(0,1fr)_120px_100px] items-center gap-3 px-5 py-4 hover:bg-muted/30 transition-colors">
                     <div className="text-sm text-muted-foreground tabular-nums">{index + 1}</div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-base truncate">{topic.topic_name}</div>
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="font-normal">{topic.language === "bn" ? "বাংলা" : topic.language === "hi" ? "हिन्दी" : "English"}</Badge>
-                    </div>
+                    <div className="min-w-0 font-medium text-base truncate">{topic.topic_name}</div>
+                    <Badge variant="outline" className="w-fit font-normal">{topic.language === "bn" ? "বাংলা" : topic.language === "hi" ? "हिन्दी" : "English"}</Badge>
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setDialogOpen(true); }} aria-label={`Edit ${topic.topic_name}`}>
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setTopicToDelete(topic); setDeleteDialogOpen(true); }} aria-label={`Delete ${topic.topic_name}`}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTopic(topic); setDialogOpen(true); }} aria-label={`Edit ${topic.topic_name}`}><Edit2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setTopicToDelete(topic); setDeleteDialogOpen(true); }} aria-label={`Delete ${topic.topic_name}`}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
                 ))}
@@ -153,16 +138,7 @@ export default function KnowledgeBase() {
             <CardDescription>Global instructions TelePost AI follows when generating quizzes and posts.</CardDescription>
           </CardHeader>
           <CardContent>
-            {promptLoading ? <div className="h-40 flex items-center justify-center"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div> : (
-              <Textarea
-                aria-label="System Prompt"
-                placeholder="Example: Always write in simple Bengali, keep questions exam-focused, avoid duplicates..."
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                maxLength={KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH}
-                className="min-h-[180px] rounded-xl resize-y"
-              />
-            )}
+            {promptLoading ? <div className="h-40 flex items-center justify-center"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div> : <Textarea aria-label="System Prompt" placeholder="Example: Always write in simple Bengali, keep questions exam-focused, avoid duplicates..." value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} maxLength={KnowledgeBaseService.MAX_SYSTEM_PROMPT_LENGTH} className="min-h-[180px] rounded-xl resize-y" />}
           </CardContent>
           <CardFooter className="flex justify-end gap-2 border-t">
             <Button variant="outline" onClick={() => setSystemPrompt("")} disabled={promptSaving} className="gap-2"><RotateCcw className="w-4 h-4" /> Clear</Button>
