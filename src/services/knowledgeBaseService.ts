@@ -7,6 +7,7 @@ import type {
 
 export class KnowledgeBaseService {
   static readonly MAX_SYSTEM_PROMPT_LENGTH = 6000;
+
   // ============ TOPICS ============
 
   static async getTopics(filters?: {
@@ -20,20 +21,14 @@ export class KnowledgeBaseService {
       .select('*')
       .order('updated_at', { ascending: false });
 
-    if (filters?.channelId) {
-      query = query.eq('channel_id', filters.channelId);
-    }
-    if (filters?.subject) {
-      query = query.ilike('subject', `%${filters.subject}%`);
-    }
+    if (filters?.channelId) query = query.eq('channel_id', filters.channelId);
+    if (filters?.subject) query = query.ilike('subject', `%${filters.subject}%`);
     if (filters?.search) {
       query = query.or(
         `topic_name.ilike.%${filters.search}%,subject.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
       );
     }
-    if (filters?.language) {
-      query = query.eq('language', filters.language);
-    }
+    if (filters?.language) query = query.eq('language', filters.language);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -67,6 +62,31 @@ export class KnowledgeBaseService {
     return data as KnowledgeBaseTopic;
   }
 
+  static async createTopicsBulk(topics: CreateTopicRequest[]): Promise<KnowledgeBaseTopic[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    if (!topics.length) return [];
+
+    const rows = topics
+      .map((topic) => ({
+        ...topic,
+        topic_name: topic.topic_name.trim(),
+        user_id: user.id,
+        language: topic.language || 'bn',
+      }))
+      .filter((topic) => topic.topic_name.length > 0);
+
+    if (!rows.length) return [];
+
+    const { data, error } = await supabase
+      .from('knowledge_base_topics')
+      .insert(rows)
+      .select();
+
+    if (error) throw error;
+    return (data as KnowledgeBaseTopic[]) || [];
+  }
+
   static async updateTopic(id: string, updates: UpdateTopicRequest): Promise<KnowledgeBaseTopic> {
     const { data, error } = await supabase
       .from('knowledge_base_topics')
@@ -86,7 +106,7 @@ export class KnowledgeBaseService {
     if (error) throw error;
   }
 
-  // ============ SUBJECTS (for filter dropdown) ============
+  // ============ SUBJECTS (legacy/filter compatibility) ============
 
   static async getDistinctSubjects(): Promise<string[]> {
     const { data, error } = await supabase
@@ -95,8 +115,7 @@ export class KnowledgeBaseService {
       .not('subject', 'is', null)
       .order('subject');
     if (error) throw error;
-    const subjects = [...new Set((data || []).map(d => d.subject).filter(Boolean))] as string[];
-    return subjects;
+    return [...new Set((data || []).map(d => d.subject).filter(Boolean))] as string[];
   }
 
   // ============ USER SYSTEM PROMPT ============
