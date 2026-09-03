@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Search, Plus, Edit2, Trash2, Loader2, Save, RotateCcw, Brain } from "lucide-react";
+import { BookOpen, Search, Plus, Edit2, Trash2, Loader2, Save, RotateCcw, Brain, ChevronLeft, ChevronRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,13 @@ import { KnowledgeBaseService } from "@/services/knowledgeBaseService";
 import { KnowledgeBaseTopicDialog } from "@/components/KnowledgeBaseTopicDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+const TOPICS_PER_PAGE = 20;
+
 export default function KnowledgeBase() {
   const [topics, setTopics] = useState<KnowledgeBaseTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<KnowledgeBaseTopic | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -66,6 +69,21 @@ export default function KnowledgeBase() {
   const filteredTopics = topics.filter((topic) =>
     topic.topic_name.toLowerCase().includes(searchQuery.toLowerCase().trim())
   );
+  const totalPages = Math.max(1, Math.ceil(filteredTopics.length / TOPICS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * TOPICS_PER_PAGE;
+  const paginatedTopics = filteredTopics.slice(startIndex, startIndex + TOPICS_PER_PAGE);
+  const visibleStart = filteredTopics.length === 0 ? 0 : startIndex + 1;
+  const visibleEnd = Math.min(startIndex + TOPICS_PER_PAGE, filteredTopics.length);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
 
   return (
     <DashboardLayout>
@@ -87,7 +105,7 @@ export default function KnowledgeBase() {
           <CardContent className="p-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search topics..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-11 rounded-xl" />
+              <Input placeholder="Search topics..." value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10 h-11 rounded-xl" />
             </div>
           </CardContent>
         </Card>
@@ -113,9 +131,9 @@ export default function KnowledgeBase() {
               </div>
             ) : (
               <div className="divide-y">
-                {filteredTopics.map((topic, index) => (
+                {paginatedTopics.map((topic, index) => (
                   <div key={topic.id} className="grid grid-cols-[48px_minmax(0,1fr)_100px_88px] md:grid-cols-[64px_minmax(0,1fr)_120px_100px] items-center gap-3 px-5 py-4 hover:bg-muted/30 transition-colors">
-                    <div className="text-sm text-muted-foreground tabular-nums">{index + 1}</div>
+                    <div className="text-sm text-muted-foreground tabular-nums">{startIndex + index + 1}</div>
                     <div className="min-w-0 font-medium text-base truncate">{topic.topic_name}</div>
                     <Badge variant="outline" className="w-fit font-normal">{topic.language === "bn" ? "বাংলা" : topic.language === "hi" ? "हिन्दी" : "English"}</Badge>
                     <div className="flex items-center justify-end gap-1">
@@ -127,8 +145,37 @@ export default function KnowledgeBase() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="border-t bg-muted/10 px-5 py-3 text-sm text-muted-foreground">
-            {topics.length > 0 ? `Showing ${filteredTopics.length} of ${topics.length} topics` : "No topics yet"}
+          <CardFooter className="flex flex-col gap-3 border-t bg-muted/10 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {topics.length > 0 ? `Showing ${visibleStart}-${visibleEnd} of ${filteredTopics.length}${searchQuery ? ` matching topics` : " topics"}` : "No topics yet"}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <span className="min-w-[80px] text-center text-sm text-muted-foreground tabular-nums">
+                  Page {safeCurrentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </CardFooter>
         </Card>
 
