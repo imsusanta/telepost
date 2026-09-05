@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SubscriptionService, SubscriptionPlan, UserSubscription } from "@/services/subscriptionService";
 import { validateCoupon } from "@/services/couponService";
 import { supabase } from "@/integrations/supabase/client";
+import { getRazorpay } from "@/lib/razorpay";
 import { Badge } from "@/components/ui/badge";
 
 export default function Billing() {
@@ -215,7 +216,8 @@ export default function Billing() {
         }
       };
 
-      const rzp = new (window as any).Razorpay(options);
+      const Razorpay = await getRazorpay();
+      const rzp = new Razorpay(options);
       rzp.open();
 
     } catch (error: unknown) {
