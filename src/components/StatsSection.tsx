@@ -1,29 +1,21 @@
-import { AnimatedCounter } from "./AnimatedCounter";
+import { BookOpen, Send, Calendar } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
-import { Users, BookOpen, Zap } from "lucide-react";
 
 const stats = [
   {
     icon: BookOpen,
-    value: 2000000,
-    suffix: "+",
-    label: "Quizzes Created",
-    description: "And counting every day",
+    title: "AI quizzes from your material",
+    description: "Turn a topic or PDF into exam-style MCQs you can edit before posting.",
   },
   {
-    icon: Users,
-    value: 500000,
-    suffix: "+",
-    label: "Students Engaged",
-    description: "Across all channels",
+    icon: Send,
+    title: "Post to Telegram",
+    description: "Send quizzes and messages to channels you connect with your own bot.",
   },
   {
-    icon: Zap,
-    value: 99.9,
-    suffix: "%",
-    label: "Uptime",
-    description: "Enterprise reliability",
-    decimals: 1,
+    icon: Calendar,
+    title: "Schedule in advance",
+    description: "Queue daily quizzes so your channel stays active without manual posting.",
   },
 ];
 
@@ -35,59 +27,42 @@ export const StatsSection = () => {
       ref={ref as React.RefObject<HTMLElement>}
       className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
     >
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/50 to-muted/30" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(var(--primary)/0.05),_transparent_70%)]" />
 
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Section header */}
         <div
           className={`text-center mb-20 transition-all duration-700 ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
         >
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-4">
-            Trusted by educators
-            <span className="text-gradient-primary"> worldwide</span>
+            What TelePost
+            <span className="text-gradient-primary"> actually does</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Join thousands of educators who have transformed their teaching with
-            AI-powered quizzes
+            A workspace for educators who already teach on Telegram — not a claim about millions of users.
           </p>
         </div>
 
-        {/* Stats grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {stats.map((stat, idx) => (
             <div
-              key={idx}
+              key={stat.title}
               className={`group relative text-center p-8 rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 transition-all duration-500 hover:border-primary/30 hover:shadow-glow-sm ${isInView
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 translate-y-8"
                 }`}
               style={{ transitionDelay: `${idx * 100 + 200}ms` }}
             >
-              {/* Icon */}
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-6 group-hover:bg-primary/20 transition-colors">
                 <stat.icon className="w-7 h-7 text-primary" />
               </div>
-
-              {/* Value */}
-              <div className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground mb-2">
-                <AnimatedCounter
-                  end={stat.value}
-                  suffix={stat.suffix}
-                  decimals={stat.decimals || 0}
-                  duration={2500}
-                />
-              </div>
-
-              {/* Label */}
-              <div className="text-lg font-semibold text-foreground mb-1">
-                {stat.label}
-              </div>
-              <div className="text-sm text-muted-foreground">
+              <h3 className="text-xl font-display font-bold text-foreground mb-2">
+                {stat.title}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {stat.description}
-              </div>
+              </p>
             </div>
           ))}
         </div>

@@ -7,7 +7,7 @@ export const UseCases = () => {
   const cards = [
     {
       title: "Coaching Institutes",
-      description: "Automate daily quiz posting and engage thousands of students effortlessly.",
+      description: "Automate daily quiz posting and keep your Telegram students engaged.",
       icon: School,
       bg: "bg-sky-100 dark:bg-sky-950/60 text-[#0088cc]",
       divider: "bg-[#0088cc]",

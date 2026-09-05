@@ -62,7 +62,7 @@ const ContactSupport = () => {
     },
     {
       question: "Is my data secure?",
-      answer: "Absolutely. We use end-to-end encryption, SOC 2 compliant infrastructure, and never share your data with third parties. Read our Data Security page for more.",
+      answer: "We store customer data in Supabase Postgres with row-level security, and the app is served over HTTPS. We are not SOC 2 certified and do not use end-to-end encryption for the web dashboard. Read our Data Security page for details.",
     },
   ];
 

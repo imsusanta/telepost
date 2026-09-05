@@ -44,10 +44,10 @@ const RefundPolicy = () => {
           <section className="mb-10 p-6 rounded-2xl bg-card border border-border/60 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">1</div>
-              <h2 className="text-xl font-bold text-foreground m-0">14-Day Free Trial</h2>
+              <h2 className="text-xl font-bold text-foreground m-0">7-Day Free Trial</h2>
             </div>
             <p className="text-muted-foreground leading-relaxed m-0">
-              Every new TelePost account includes a 14-day free trial without requiring credit card details upfront. You are free to test all AI generation features, Telegram channel integrations, and automated schedulers before making any payment decision.
+              Every new TelePost account includes a 7-day free trial without requiring credit card details upfront. You are free to test AI generation, Telegram channel integrations, and automated schedulers before making any payment decision. Signup requires an invitation code.
             </p>
           </section>
 

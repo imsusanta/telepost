@@ -1,7 +1,13 @@
 import { useInView } from "@/hooks/useInView";
-import { Send, FileText, Cloud, Smartphone, Globe, Zap } from "lucide-react";
+import { Send, FileText, Cloud, Smartphone, Globe, Zap, type LucideIcon } from "lucide-react";
 
-const integrations = [
+const integrations: {
+  icon: LucideIcon;
+  name: string;
+  description: string;
+  color: string;
+  coming?: boolean;
+}[] = [
   {
     icon: Send,
     name: "Telegram",
@@ -17,8 +23,9 @@ const integrations = [
   {
     icon: Cloud,
     name: "Google Drive",
-    description: "Import from your documents",
+    description: "Document import is not available yet",
     color: "from-[#4285f4] to-[#4285f4]/70",
+    coming: true,
   },
   {
     icon: Smartphone,
@@ -30,14 +37,16 @@ const integrations = [
   {
     icon: Globe,
     name: "Web Embed",
-    description: "Embed quizzes anywhere",
+    description: "Public quiz embeds are not available yet",
     color: "from-secondary to-secondary/70",
+    coming: true,
   },
   {
     icon: Zap,
     name: "Zapier",
-    description: "Connect 5000+ apps",
+    description: "Third-party automation is not available yet",
     color: "from-[#ff4a00] to-[#ff4a00]/70",
+    coming: true,
   },
 ];
 

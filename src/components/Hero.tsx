@@ -32,7 +32,7 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         {/* Eyebrow Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#0088cc]/30 bg-[#0088cc]/5 backdrop-blur-sm text-xs sm:text-sm font-semibold text-[#0088cc] mb-8 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
           <Send className="w-3.5 h-3.5 fill-[#0088cc]" />
-          <span>Telegram Automation for Educators</span>
+          <span>AI quizzes for Telegram · telepost.tech</span>
         </div>
 
         {/* Main Headline */}
