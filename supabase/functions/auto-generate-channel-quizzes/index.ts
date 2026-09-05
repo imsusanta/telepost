@@ -137,10 +137,12 @@ serve(async (req) => {
           topic,
           question_count: quiz.questions.length,
           difficulty: channel.settings.default_difficulty || 'medium',
-          questions: quiz.questions,
-          metadata: { ...(quiz.metadata || {}), language: channel.settings.default_language || 'en', source_type: knowledgeBase ? 'document' : 'ai', delivery_method: 'telegram', telegram_chat_id: channel.telegram_channel_id, provider: resolved.provider, model: resolved.model },
-          status: 'completed',
-        }).select().single();
+          language: channel.settings.default_language || 'bn',
+          source_type: knowledgeBase ? 'document' : 'ai',
+          quiz_data: quiz,
+          delivery_method: 'telegram',
+          telegram_chat_id: channel.telegram_channel_id,
+        }).select('id').single();
         if (generationError) console.error('[auto-generate-channel-quizzes] Generation log failed:', generationError);
         results.push({ channelId: channel.id, channelName: channel.name, success: true, quizId: generation?.id });
       } catch (error) {
@@ -187,7 +189,7 @@ async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const text = await chatCompletion({ resolved, messages: [{ role: 'system', content: `${systemPrompt}${feedback ? `\nPrevious output failed: ${feedback}` : ''}` }, { role: 'user', content: userPrompt }], temperature: aiSettings.temperature ?? 0.7, maxTokens: 4096, timeoutMs: 90000, appTitle: 'TelePost Auto Quiz' });
+      const text = await chatCompletion({ resolved, messages: [{ role: 'system', content: `${systemPrompt}${feedback ? `\nPrevious output failed: ${feedback}` : ''}` }, { role: 'user', content: userPrompt }], temperature: aiSettings.temperature ?? 0.7, maxTokens: 4096, timeoutMs: 90000, appTitle: 'TelePost Auto Quiz', settings: aiSettings });
       const quiz = parseJsonObject(text) as any;
       if (!Array.isArray(quiz.questions) || quiz.questions.length !== count) { feedback = `Expected exactly ${count} questions.`; continue; }
       const invalid = quiz.questions.find((question: any) => !question?.question || !Array.isArray(question.options) || question.options.length !== 4 || !Number.isInteger(question.correct_option_index) || question.correct_option_index < 0 || question.correct_option_index > 3);

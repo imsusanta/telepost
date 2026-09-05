@@ -192,6 +192,7 @@ async function generateAIQuiz(
         maxTokens: Math.min(8192, 800 + count * 420),
         timeoutMs: 90000,
         appTitle: "TelePost Auto Schedule",
+        settings: aiSettings,
       });
       const parsed = parseJsonObject(text) as any;
       const valid = Array.isArray(parsed?.questions)

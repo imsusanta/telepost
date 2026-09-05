@@ -108,6 +108,7 @@ serve(async (req) => {
             maxTokens: tokenBudget(wanted),
             timeoutMs: 60000,
             appTitle: 'TelePost Document Quiz',
+            settings: aiSettings,
           });
 
           const questions = normalizeQuestions(parseQuizPayload(responseText), language);
