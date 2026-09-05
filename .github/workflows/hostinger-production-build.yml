@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'assets/**'
-      - 'index.html'
 
 permissions:
   contents: write
@@ -18,6 +15,7 @@ concurrency:
 
 jobs:
   build-and-publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -34,9 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore Vite source entry
-        run: cp index.source.html index.html
-
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.app.json
 
@@ -46,24 +41,32 @@ jobs:
       - name: Build production application
         run: npm run build
 
-      - name: Sync build output to document root
+      - name: Publish bundle to hostinger-production
+        env:
+          HOSTINGER_BRANCH: hostinger-production
         run: |
-          # Hostinger Git hosting serves this repository root. Built files are
-          # published here so telepost.tech stays current. They are marked
-          # linguist-generated in .gitattributes so they do not count as source.
-          rm -rf assets
-          rsync -a dist/ ./
-          rm -rf dist
-          git add -f assets index.html
-
-      - name: Commit production bundle
-        run: |
+          # Hostinger Git hosting should track hostinger-production, not main.
+          # main stays source-only (no minified assets/ commit).
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BUILD_DIR="$(mktemp -d)"
+          rsync -a dist/ "$BUILD_DIR/"
+
+          git fetch origin "$HOSTINGER_BRANCH" || true
+          if git show-ref --verify --quiet "refs/remotes/origin/${HOSTINGER_BRANCH}"; then
+            git checkout -B "$HOSTINGER_BRANCH" "origin/${HOSTINGER_BRANCH}"
+          else
+            git checkout --orphan "$HOSTINGER_BRANCH"
+            git rm -rf --ignore-unmatch . >/dev/null 2>&1 || true
+          fi
+
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          rsync -a "$BUILD_DIR/" ./
           git add -A
           if git diff --cached --quiet; then
-            echo "Production bundle is already current."
+            echo "Hostinger production bundle is already current."
             exit 0
           fi
-          git commit -m "deploy: publish Hostinger production build [skip hostinger build]"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git commit -m "deploy: publish Hostinger production build"
+          git push origin "HEAD:${HOSTINGER_BRANCH}"

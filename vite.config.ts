@@ -1,15 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { copyFileSync, existsSync } from "fs";
 import { componentTagger } from "lovable-tagger";
-import { VitePWA } from "vite-plugin-pwa";
-
-const sourceIndex = path.resolve(__dirname, "index.source.html");
-const appIndex = path.resolve(__dirname, "index.html");
-if (existsSync(sourceIndex)) {
-  copyFileSync(sourceIndex, appIndex);
-}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
