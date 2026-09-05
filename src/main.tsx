@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
 import "./sidebar-active.css";
+import "./mobile-dashboard.css";
 
 // Auto-reload on stale chunk error after new deployment
 window.addEventListener("vite:preloadError", (event) => {
