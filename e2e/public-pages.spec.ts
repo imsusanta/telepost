@@ -36,7 +36,7 @@ test.describe("public marketing pages", () => {
   test("refund policy mentions the 7-day trial", async ({ page }) => {
     await page.goto("/refund");
     await expect(page.getByRole("heading", { name: /refund & cancellation policy/i })).toBeVisible();
-    await expect(page.getByText("7-day free trial")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "7-Day Free Trial" })).toBeVisible();
   });
 
   test("privacy policy page renders", async ({ page }) => {
