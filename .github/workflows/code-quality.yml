@@ -24,11 +24,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Forbid hardcoded JWTs in src
+        run: |
+          if grep -RIn --include='*.ts' --include='*.tsx' 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' src; then
+            echo "Hardcoded JWTs are not allowed under src/"
+            exit 1
+          fi
 
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.app.json
@@ -41,3 +48,6 @@ jobs:
 
       - name: Production build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: "https://example.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"
