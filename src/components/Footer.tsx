@@ -55,7 +55,7 @@ export const Footer = () => {
                 <span>TelePost</span>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xs">
-                Empowering educators with AI-driven Telegram automation and engagement tools.
+                AI quizzes and scheduling for Telegram educators at telepost.tech. Not affiliated with telepost.me.
               </p>
             </div>
 
@@ -107,7 +107,7 @@ export const Footer = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border/60 text-xs text-muted-foreground">
           {/* Copyright */}
           <div>
-            © 2026 TelePost Inc. &bull; All rights reserved.
+            © 2026 TelePost · telepost.tech · All rights reserved.
           </div>
 
           {/* Center Heart Pill Badge */}

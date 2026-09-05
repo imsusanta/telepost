@@ -19,23 +19,23 @@ const DataSecurity = () => {
   const securityFeatures = [
     {
       icon: Lock,
-      title: "AES-256 & TLS 1.3 Encryption",
-      desc: "All data at rest is protected with military-grade AES-256 encryption. Data in transit is secured using HTTPS & TLS 1.3 protocols.",
+      title: "HTTPS in transit",
+      desc: "The TelePost web app and APIs are served over HTTPS (TLS). We do not claim a SOC 2 report or end-to-end encryption of the dashboard.",
     },
     {
       icon: Database,
-      title: "Strict Row Level Security (RLS)",
-      desc: "Database isolation via Supabase RLS policies ensures that your channels, quizzes, and student data are only accessible by you.",
+      title: "Row Level Security (RLS)",
+      desc: "Database isolation via Supabase RLS policies is designed so your channels, quizzes, and related data are only readable by your account (or staff using the service role for operations you request).",
     },
     {
       icon: Key,
-      title: "Encrypted Bot Token Storage",
-      desc: "Telegram bot tokens and API keys are stored in encrypted vaults and never exposed in client-side bundles or public endpoints.",
+      title: "Bot tokens stay off the public client",
+      desc: "Telegram bot tokens are stored in the backend database and used by server-side functions. They are not meant to be exposed in public client bundles.",
     },
     {
       icon: Cpu,
-      title: "Private AI Model Processing",
-      desc: "Uploaded PDFs and study materials processed by our AI model are used solely for quiz generation and are never used to train public models.",
+      title: "AI processing for your quizzes",
+      desc: "Uploaded PDFs and study text are sent to AI providers only to generate quizzes for your account. We do not sell your materials. We are not SOC 2 certified.",
     },
   ];
 
@@ -49,7 +49,7 @@ const DataSecurity = () => {
           <div className="mb-12 border-b border-border/60 pb-8">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-50 dark:bg-sky-950/50 text-[#0088cc] text-xs font-semibold mb-4 border border-sky-200/50">
               <ShieldCheck className="w-4 h-4" />
-              <span>Enterprise-Grade Security</span>
+              <span>How we protect your data</span>
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-4">
               Data Security & Infrastructure
@@ -60,7 +60,7 @@ const DataSecurity = () => {
           </div>
 
           <p className="text-lg text-muted-foreground leading-relaxed mb-10">
-            At TelePost, security is built into our core foundation. We understand that educators, coaching institutes, and creators trust us with their proprietary study material and Telegram channels. Here is how we keep your data secure.
+            At TelePost, we take care of educator content and Telegram channel credentials. Here is what we actually do today — without claiming certifications we do not hold.
           </p>
 
           {/* Security Features Grid */}
@@ -85,12 +85,12 @@ const DataSecurity = () => {
           <section className="mb-10">
             <h2 className="text-2xl font-bold text-foreground mb-4">1. Infrastructure & Hosting Security</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              TelePost runs on enterprise-grade cloud infrastructure powered by Supabase (PostgreSQL with Row Level Security) and global edge networks:
+              TelePost is hosted on Supabase (PostgreSQL with Row Level Security) and a standard web host for the frontend:
             </p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-2 mb-4">
-              <li>Automatic automated backups with point-in-time recovery capabilities.</li>
-              <li>DDoS protection, Web Application Firewalls (WAF), and rate limiting on all API endpoints.</li>
-              <li>Strict CORS policies and Content Security Headers enforced on client builds.</li>
+              <li>Supabase provides managed Postgres, backups, and encryption at rest on its infrastructure.</li>
+              <li>Application traffic uses HTTPS. We do not currently publish a SOC 2 report or a public status page.</li>
+              <li>Access to another customer’s quizzes or channels is blocked by RLS policies, not by marketing claims.</li>
             </ul>
           </section>
 
@@ -101,9 +101,9 @@ const DataSecurity = () => {
               When you upload a PDF or paste question text into TelePost AI Generator:
             </p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-2 mb-4">
-              <li>Your content is processed strictly in-memory during question generation.</li>
-              <li>No original study documents are shared with third parties or retained for public LLM training.</li>
-              <li>You maintain 100% intellectual property rights over all generated quizzes and questions.</li>
+              <li>Content is sent to AI providers to generate questions for your account.</li>
+              <li>We do not sell original study documents to third parties.</li>
+              <li>You keep intellectual property rights over materials you upload and quizzes you generate, subject to our Terms.</li>
             </ul>
           </section>
 

@@ -5,7 +5,7 @@ import { useInView } from "@/hooks/useInView";
 const faqs = [
   {
     question: "How do I get access to TelePost?",
-    answer: "TelePost is currently invitation-only to ensure quality support for our users. Contact our support team or your organization administrator to request an invitation code. Once approved, you can start your free trial immediately.",
+    answer: "TelePost is invitation-only while we support early educators closely. Request an invitation code from support or your organization administrator. After you sign up with that code, a 7-day trial starts automatically. No credit card is required.",
   },
   {
     question: "How does the AI quiz generation work?",
@@ -25,15 +25,19 @@ const faqs = [
   },
   {
     question: "Is my data secure?",
-    answer: "Yes, security is our top priority. We use AES-256 encryption for all data at rest and in transit. We're SOC 2 compliant and GDPR ready. Your content is never shared or used for training AI models without explicit consent.",
+    answer: "Customer data lives in Supabase Postgres with row-level security so other accounts cannot read your quizzes or channels. The app is served over HTTPS. We are not SOC 2 certified. Uploaded materials are used to generate quizzes for you; we do not sell your content. See the Data Security page for details.",
   },
   {
     question: "What's included in the free trial?",
-    answer: "The free trial includes full access to all features for 14 days. You can create unlimited quizzes, connect one Telegram channel, and access analytics. No credit card required to start.",
+    answer: "New accounts get a 7-day trial with the Free plan limits (including quiz generation, scheduling, and Telegram posting). An invitation code is required to sign up. No credit card is required.",
+  },
+  {
+    question: "Are you the same as telepost.me?",
+    answer: "No. TelePost at telepost.tech is an AI quiz and channel tool for Telegram educators. We are not affiliated with telepost.me, the WordPress TelePost plugin, or other products that share the name.",
   },
   {
     question: "How can I migrate my existing content?",
-    answer: "We offer bulk import tools and can help you migrate existing question banks. Contact our support team for assisted migration of large content libraries. We also integrate with Google Drive for seamless imports.",
+    answer: "You can bulk-import questions in the question bank and paste or upload documents into the quiz generator. For a large library, contact support and we will help you plan the migration.",
   },
 ];
 

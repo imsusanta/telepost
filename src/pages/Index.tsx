@@ -11,6 +11,7 @@ import { FAQ } from "@/components/FAQ";
 import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 
+import { LogoCloud } from "@/components/LogoCloud";
 import { UseCases } from "@/components/UseCases";
 
 import { Features } from "@/components/Features";
@@ -140,6 +141,7 @@ const Index = () => {
             <Hero onGetStarted={handleGetStarted} />
 
             <TelegramDemo />
+            <LogoCloud />
             <Features />
             <Pricing onGetStarted={handleGetStarted} />
             <HowItWorks />
