@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DROP TABLE IF EXISTS public.subscription_payments CASCADE;
 DROP TABLE IF EXISTS public.subscriptions CASCADE;
+DROP TABLE IF EXISTS public.telegram_stories CASCADE;
 DROP TABLE IF EXISTS public.telegram_posts CASCADE;
 DROP TABLE IF EXISTS public.scheduled_telegram_posts CASCADE;
 DROP TABLE IF EXISTS public.channels CASCADE;
@@ -89,6 +90,26 @@ CREATE TABLE public.telegram_posts (
   lease_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.telegram_stories (
+  story_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  channel_id UUID REFERENCES public.channels(id) ON DELETE CASCADE,
+  media_type TEXT NOT NULL DEFAULT 'text',
+  media_url TEXT,
+  caption TEXT,
+  text_overlay JSONB DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'draft',
+  error_message TEXT,
+  telegram_message_id TEXT,
+  telegram_chat_id TEXT,
+  scheduled_time TIMESTAMPTZ,
+  posted_at TIMESTAMPTZ,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  claimed_at TIMESTAMPTZ,
+  lease_owner TEXT,
+  lease_expires_at TIMESTAMPTZ
 );
 
 CREATE TABLE public.scheduled_telegram_posts (
@@ -231,6 +252,7 @@ BEGIN
       lease_expires_at = now() + INTERVAL '8 minutes',
       error_message = NULL
   WHERE target.id = p_post_id
+    AND target.telegram_message_id IS NULL
     AND (p_user_id IS NULL OR target.user_id = p_user_id)
     AND (
       target.status = 'draft'
@@ -334,6 +356,113 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.claim_due_telegram_stories(
+  p_user_id UUID DEFAULT NULL,
+  p_limit INTEGER DEFAULT 10,
+  p_worker_id TEXT DEFAULT NULL
+)
+RETURNS SETOF public.telegram_stories
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_limit INTEGER := LEAST(GREATEST(COALESCE(p_limit, 10), 1), 10);
+  v_worker TEXT := COALESCE(NULLIF(p_worker_id, ''), 'worker-' || gen_random_uuid()::text);
+BEGIN
+  RETURN QUERY
+  UPDATE public.telegram_stories AS target
+  SET claimed_at = now(),
+      attempts = COALESCE(target.attempts, 0) + 1,
+      lease_owner = v_worker,
+      lease_expires_at = now() + INTERVAL '8 minutes',
+      error_message = NULL
+  WHERE target.story_id IN (
+    SELECT s.story_id
+    FROM public.telegram_stories s
+    WHERE s.status = 'scheduled'
+      AND s.scheduled_time <= now()
+      AND s.telegram_message_id IS NULL
+      AND COALESCE(s.attempts, 0) < 3
+      AND (s.lease_expires_at IS NULL OR s.lease_expires_at < now())
+      AND (p_user_id IS NULL OR s.user_id = p_user_id)
+    ORDER BY s.scheduled_time ASC
+    LIMIT v_limit
+    FOR UPDATE SKIP LOCKED
+  )
+  RETURNING target.*;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.claim_telegram_story_for_dispatch(
+  p_story_id UUID,
+  p_user_id UUID DEFAULT NULL,
+  p_worker_id TEXT DEFAULT NULL,
+  p_allow_scheduled BOOLEAN DEFAULT TRUE
+)
+RETURNS SETOF public.telegram_stories
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_worker TEXT := COALESCE(NULLIF(p_worker_id, ''), 'worker-' || gen_random_uuid()::text);
+BEGIN
+  RETURN QUERY
+  UPDATE public.telegram_stories AS target
+  SET claimed_at = now(),
+      attempts = COALESCE(target.attempts, 0) + 1,
+      lease_owner = v_worker,
+      lease_expires_at = now() + INTERVAL '8 minutes',
+      error_message = NULL
+  WHERE target.story_id = p_story_id
+    AND target.telegram_message_id IS NULL
+    AND (p_user_id IS NULL OR target.user_id = p_user_id)
+    AND (
+      target.status = 'draft'
+      OR (p_allow_scheduled AND target.status = 'scheduled')
+    )
+    AND (target.lease_expires_at IS NULL OR target.lease_expires_at < now())
+    AND COALESCE(target.attempts, 0) < 5
+  RETURNING target.*;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_telegram_story(
+  p_story_id UUID,
+  p_worker_id TEXT,
+  p_status TEXT,
+  p_message_id TEXT DEFAULT NULL,
+  p_chat_id TEXT DEFAULT NULL,
+  p_error TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_updated INTEGER;
+BEGIN
+  IF p_status NOT IN ('posted', 'failed', 'scheduled', 'draft') THEN
+    RAISE EXCEPTION 'invalid status';
+  END IF;
+  UPDATE public.telegram_stories
+  SET status = p_status,
+      telegram_message_id = COALESCE(p_message_id, telegram_message_id),
+      telegram_chat_id = COALESCE(p_chat_id, telegram_chat_id),
+      posted_at = CASE WHEN p_status = 'posted' THEN now() ELSE posted_at END,
+      error_message = CASE WHEN p_status = 'failed' THEN p_error ELSE NULL END,
+      lease_owner = CASE WHEN p_status IN ('scheduled', 'draft') THEN NULL ELSE lease_owner END,
+      lease_expires_at = CASE WHEN p_status IN ('scheduled', 'draft') THEN NULL ELSE lease_expires_at END,
+      claimed_at = CASE WHEN p_status IN ('scheduled', 'draft') THEN NULL ELSE claimed_at END
+  WHERE story_id = p_story_id
+    AND (p_worker_id IS NULL OR lease_owner = p_worker_id);
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.recover_scheduler_jobs()
 RETURNS void
 LANGUAGE plpgsql
@@ -351,6 +480,15 @@ BEGIN
     AND COALESCE(attempts, 0) < 3;
 
   UPDATE public.telegram_posts
+  SET claimed_at = NULL,
+      lease_owner = NULL,
+      lease_expires_at = NULL
+  WHERE status IN ('scheduled', 'draft')
+    AND lease_expires_at IS NOT NULL
+    AND lease_expires_at < now()
+    AND COALESCE(attempts, 0) < 3;
+
+  UPDATE public.telegram_stories
   SET claimed_at = NULL,
       lease_owner = NULL,
       lease_expires_at = NULL

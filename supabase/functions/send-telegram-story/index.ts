@@ -1,369 +1,213 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface TextOverlay {
-  text: string;
-  fontSize: number;
-  fontWeight?: string;
-  color: string;
-  position: { x: number; y: number };
-  align?: string;
-}
+import { callerOwnsPostAndChannel, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
+import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
+import { isAmbiguousOutcome, type TelegramSendKind } from "../_shared/telegram.ts";
+import { sendStoryToTelegram } from "../_shared/story.ts";
 
 interface TelegramStoryRequest {
-  storyId: string;
+  storyId?: string;
   instantPost?: boolean;
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return optionsResponse();
 
-  let currentStoryId: string | null = null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  let claimedStoryId: string | null = null;
+  let workerId: string | null = null;
+  let previousStatus: string | null = null;
 
   try {
-    const body = await req.json();
-    const { storyId, instantPost = false }: TelegramStoryRequest = body;
-    currentStoryId = storyId;
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get("Authorization"),
+      cronSecretHeader: req.headers.get("x-cron-secret"),
+      cronSecret,
+      serviceRoleKey,
+    });
 
-    if (!storyId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required field: storyId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (classified === "missing") {
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    let callerUserId: string | null = null;
+    const isInternal = classified === "internal";
+    let isSuperAdmin = false;
 
-    // Fetch story data
-    const { data: story, error: storyError } = await supabase
-      .from('telegram_stories')
-      .select(`
-        *,
-        channels (
-          telegram_channel_id
-        )
-      `)
-      .eq('story_id', storyId)
-      .single();
+    if (!isInternal) {
+      const userClient = createClient(supabaseUrl, anonKey);
+      const { data, error } = await userClient.auth.getUser(extractBearer(req.headers.get("Authorization")));
+      if (error || !data?.user) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      callerUserId = data.user.id;
+      const { data: superAdmin } = await admin.rpc("is_super_admin", { p_user_id: callerUserId });
+      isSuperAdmin = superAdmin === true;
+    }
+
+    const body = (await req.json().catch(() => ({}))) as TelegramStoryRequest;
+    const storyId = body.storyId;
+    const instantPost = body.instantPost === true;
+
+    if (!storyId || typeof storyId !== "string") {
+      return jsonResponse({ error: "Missing required field: storyId" }, 400);
+    }
+
+    const { data: story, error: storyError } = await admin
+      .from("telegram_stories")
+      .select("story_id, user_id, channel_id, status, telegram_message_id, media_type, media_url, caption, text_overlay, stickers, duration_hours, is_highlight")
+      .eq("story_id", storyId)
+      .maybeSingle();
 
     if (storyError || !story) {
-      throw new Error(`Story not found: ${storyError?.message}`);
+      return jsonResponse({ error: "Story not found" }, 404);
     }
 
-    // Check if story is ready to post
-    if (!instantPost && story.status !== 'scheduled') {
-      throw new Error(`Story status must be 'scheduled' to post (current: ${story.status})`);
-    }
+    let channelUserId: string | null = null;
+    let chatId: string | null = null;
+    let channelBotToken: string | null = null;
 
-    if (instantPost && story.status !== 'draft' && story.status !== 'scheduled') {
-      throw new Error(`Can only instantly post stories with 'draft' or 'scheduled' status (current: ${story.status})`);
-    }
-
-    const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-
-    let TELEGRAM_BOT_TOKEN: string | null = null;
-
-    // 1. Try to get token from the specific channel
     if (story.channel_id) {
-      const { data: channel } = await supabase
-        .from('channels')
-        .select('telegram_bot_token, user_id')
-        .eq('id', story.channel_id)
-        .single();
+      const { data: channel, error: channelError } = await admin
+        .from("channels")
+        .select("id, user_id, telegram_channel_id, telegram_bot_token")
+        .eq("id", story.channel_id)
+        .maybeSingle();
+      if (channelError || !channel) {
+        return jsonResponse({ error: "Channel not found" }, 404);
+      }
+      channelUserId = channel.user_id;
+      chatId = channel.telegram_channel_id;
+      channelBotToken = channel.telegram_bot_token;
+    }
 
-      if (channel?.telegram_bot_token) {
-        TELEGRAM_BOT_TOKEN = channel.telegram_bot_token;
-        console.log(`Using bot token from channel ${story.channel_id}`);
+    if (!isInternal) {
+      const allowed = callerOwnsPostAndChannel({
+        callerUserId: callerUserId!,
+        postUserId: story.user_id,
+        channelUserId,
+        isSuperAdmin,
+      });
+      if (!allowed) {
+        return jsonResponse({ error: "Forbidden" }, 403);
       }
     }
 
-    // 2. Fallback: Search for any bot token owned by the user
-    if (!TELEGRAM_BOT_TOKEN && story.user_id) {
-      const { data: botChannel } = await supabase
-        .from('channels')
-        .select('telegram_bot_token')
-        .eq('user_id', story.user_id)
-        .not('telegram_bot_token', 'is', null)
-        .order('updated_at', { ascending: false })
+    if (story.telegram_message_id) {
+      return jsonResponse({
+        success: true,
+        already_posted: true,
+        messageId: story.telegram_message_id,
+      });
+    }
+
+    if (!instantPost && story.status !== "scheduled") {
+      return jsonResponse({ error: "Story is not scheduled" }, 409);
+    }
+    if (instantPost && story.status !== "draft" && story.status !== "scheduled") {
+      return jsonResponse({ error: "Story cannot be sent in its current state" }, 409);
+    }
+
+    workerId = crypto.randomUUID();
+    previousStatus = story.status;
+
+    const { data: claimed, error: claimError } = await admin.rpc("claim_telegram_story_for_dispatch", {
+      p_story_id: storyId,
+      p_user_id: isInternal ? null : callerUserId,
+      p_worker_id: workerId,
+      p_allow_scheduled: true,
+    });
+
+    if (claimError) {
+      console.error("claim_telegram_story_for_dispatch failed:", claimError.message);
+      return jsonResponse({ error: "Unable to claim story" }, 409);
+    }
+    if (!claimed || claimed.length === 0) {
+      return jsonResponse({ error: "Story is already being sent or is not sendable" }, 409);
+    }
+    claimedStoryId = storyId;
+
+    const globalToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    let botToken = channelBotToken || null;
+    if (!botToken && story.user_id) {
+      const { data: botChannel } = await admin
+        .from("channels")
+        .select("telegram_bot_token")
+        .eq("user_id", story.user_id)
+        .not("telegram_bot_token", "is", null)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
-      if (botChannel?.telegram_bot_token) {
-        TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
-        console.log(`Using fallback bot token from user ${story.user_id}'s other channels`);
-      }
+      botToken = botChannel?.telegram_bot_token || null;
     }
-
-    // 3. Fallback: Use global token
-    if (!TELEGRAM_BOT_TOKEN) {
-      TELEGRAM_BOT_TOKEN = GLOBAL_TELEGRAM_BOT_TOKEN;
-      if (TELEGRAM_BOT_TOKEN) {
-        console.log("Using global bot token (last resort)");
-      }
+    if (!botToken) botToken = globalToken || null;
+    if (!botToken) {
+      throw new Error("No bot token available. Please configure a bot token in channel settings.");
     }
-
-    if (!TELEGRAM_BOT_TOKEN) {
-      throw new Error("No bot token available. Please configure a bot token in settings.");
-    }
-
-    const chatId = story.channels?.telegram_channel_id;
     if (!chatId) {
       throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
     }
 
-    const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
-
-    // Helper to send Telegram requests with retry logic for 429 errors
-    async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
-      let retries = 0;
-      while (retries < maxRetries) {
-        const response = await fetch(url, options);
-        if (response.status === 429) {
-          const data = await response.json();
-          const retryAfter = (data.parameters?.retry_after || 5) * 1000;
-          console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
-          await new Promise(resolve => setTimeout(resolve, retryAfter));
-          retries++;
-          continue;
-        }
-        return response;
-      }
-      return fetch(url, options); // Final attempt
-    }
-
-    let messageId: string | null = null;
-    let postSuccess = false;
-
-    // Send story based on media type
-    if (story.media_type === 'image') {
-      // Send photo story
-      const caption = buildCaption(story);
-
-      const photoResponse = await fetchWithRetry(`${baseUrl}/sendPhoto`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: story.media_url,
-          caption: caption,
-          parse_mode: "Markdown",
-        }),
-      });
-
-      const photoData = await photoResponse.json();
-
-      if (!photoResponse.ok) {
-        throw new Error(handleTelegramError(photoData));
-      }
-
-      messageId = photoData.result?.message_id?.toString();
-      postSuccess = true;
-
-    } else if (story.media_type === 'video') {
-      // Send video story
-      const caption = buildCaption(story);
-
-      const videoResponse = await fetchWithRetry(`${baseUrl}/sendVideo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          video: story.media_url,
-          caption: caption,
-          parse_mode: "Markdown",
-          duration: story.duration_hours ? story.duration_hours * 3600 : 60, // Default 60 seconds
-          supports_streaming: true,
-        }),
-      });
-
-      const videoData = await videoResponse.json();
-
-      if (!videoResponse.ok) {
-        throw new Error(handleTelegramError(videoData));
-      }
-
-      messageId = videoData.result?.message_id?.toString();
-      postSuccess = true;
-
-    } else if (story.media_type === 'text') {
-      // Send text story (formatted message)
-      const textContent = buildTextStory(story);
-
-      const messageResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: textContent,
-          parse_mode: "Markdown",
-        }),
-      });
-
-      const messageData = await messageResponse.json();
-
-      if (!messageResponse.ok) {
-        throw new Error(handleTelegramError(messageData));
-      }
-
-      messageId = messageData.result?.message_id?.toString();
-      postSuccess = true;
-    }
-
-    if (postSuccess) {
-      // Update story status to 'posted'
-      const now = new Date().toISOString();
-      const expiresAt = new Date(Date.now() + (story.duration_hours || 24) * 60 * 60 * 1000).toISOString();
-
-      const { error: updateError } = await supabase
-        .from('telegram_stories')
-        .update({
-          status: 'posted',
-          posted_at: now,
-          expires_at: story.is_highlight ? null : expiresAt,
-          telegram_message_id: messageId,
-          telegram_chat_id: chatId,
-        })
-        .eq('story_id', storyId);
-
-      if (updateError) {
-        console.error('Failed to update story status:', updateError);
-      }
-
-      // Log analytics event
-      try {
-        await supabase
-          .from('story_analytics')
-          .insert({
-            story_id: storyId,
-            event_type: 'view',
-            event_data: { posted_at: now, chat_id: chatId },
-          });
-      } catch (analyticsError) {
-        console.error('Failed to log analytics:', analyticsError);
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Story posted successfully to Telegram",
-          messageId,
-          expiresAt: story.is_highlight ? null : expiresAt,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    throw new Error("Failed to post story");
-
-  } catch (error) {
-    console.error("Error sending Telegram story:", error);
-
-    // Update story status to 'failed'
-    if (currentStoryId) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        await supabase
-          .from('telegram_stories')
-          .update({
-            status: 'failed',
-            error_message: error instanceof Error ? error.message : "Unknown error",
-          })
-          .eq('story_id', currentStoryId);
-      } catch (updateError) {
-        console.error('Failed to update story status to failed:', updateError);
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-        details: "Make sure your bot token is correct and the chat_id is valid.",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
-
-// Helper function to build caption from story data
-function buildCaption(story: { caption?: string; text_overlay?: TextOverlay[] }): string {
-  let caption = story.caption || "";
-
-  // Add text overlay information to caption if present
-  if (story.text_overlay && Array.isArray(story.text_overlay) && story.text_overlay.length > 0) {
-    const overlayTexts = story.text_overlay
-      .map((overlay: TextOverlay) => overlay.text)
-      .filter((text: string) => text && text.trim() !== "");
-
-    if (overlayTexts.length > 0) {
-      caption = overlayTexts.join("\n") + (caption ? "\n\n" + caption : "");
-    }
-  }
-
-  return caption || "📸 New Story";
-}
-
-// Helper function to build text-only story content
-function buildTextStory(story: { text_overlay?: Array<{ text: string }>; caption?: string; stickers?: Array<{ emoji: string }> }): string {
-  let content = "";
-
-  // Build from text overlay
-  if (story.text_overlay && Array.isArray(story.text_overlay) && story.text_overlay.length > 0) {
-    const overlayTexts = story.text_overlay.map((overlay: any) => {
-      let formattedText = overlay.text || '';
-
-      // Apply formatting based on font weight
-      if (overlay.fontWeight === 'bold') {
-        formattedText = `*${formattedText}*`;
-      }
-
-      return formattedText;
+    const sendResult = await sendStoryToTelegram({
+      botToken,
+      chatId,
+      story,
     });
 
-    content = overlayTexts.join("\n\n");
-  }
-
-  // Add caption if present
-  if (story.caption) {
-    content += content ? "\n\n" + story.caption : story.caption;
-  }
-
-  // Add stickers/emojis if present
-  if (story.stickers && Array.isArray(story.stickers) && story.stickers.length > 0) {
-    const emojiString = story.stickers
-      .filter((s) => s.emoji)
-      .map((s) => s.emoji)
-      .join(" ");
-
-    if (emojiString) {
-      content += "\n\n" + emojiString;
+    if (sendResult.kind !== "success") {
+      const error = new Error(sendResult.description || "Failed to send story") as Error & { telegramKind?: string };
+      error.telegramKind = sendResult.kind;
+      throw error;
     }
+
+    const messageId = (sendResult.body as { result?: { message_id?: number } } | null)?.result?.message_id?.toString() || null;
+    const { data: completed, error: completeError } = await admin.rpc("complete_telegram_story", {
+      p_story_id: storyId,
+      p_worker_id: workerId,
+      p_status: "posted",
+      p_message_id: messageId,
+      p_chat_id: String(chatId),
+    });
+
+    if (completeError || completed !== true) {
+      console.error("Failed to record posted story status:", completeError);
+      return jsonResponse({
+        success: true,
+        message: "Story sent to Telegram, but status could not be recorded",
+        messageId,
+      });
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Story posted successfully to Telegram",
+      messageId,
+    });
+  } catch (error) {
+    console.error("Error sending Telegram story:", error);
+    const kind = (error as { telegramKind?: TelegramSendKind }).telegramKind;
+    const ambiguous = kind ? isAmbiguousOutcome(kind) : false;
+
+    if (claimedStoryId && workerId) {
+      const releaseStatus = ambiguous ? (previousStatus === "scheduled" ? "scheduled" : "draft") : "failed";
+      const { error: completeError } = await admin.rpc("complete_telegram_story", {
+        p_story_id: claimedStoryId,
+        p_worker_id: workerId,
+        p_status: releaseStatus,
+        p_error: ambiguous ? "ambiguous_send_timeout" : publicErrorMessage(error, "Failed to send story"),
+      });
+      if (completeError) {
+        console.error("Failed to record story send failure:", completeError);
+      }
+    }
+
+    return jsonResponse({
+      error: publicErrorMessage(error, "Failed to send story"),
+    }, 500);
   }
-
-  return content || "📢 New Announcement";
-}
-
-// Helper function to handle Telegram API errors
-function handleTelegramError(errorData: { error_code?: number; description?: string }): string {
-  if (errorData.error_code === 403) {
-    return `Bot Access Error: Your bot is not a member of this chat. Please:\n1. Open your Telegram channel\n2. Add your bot as an Administrator\n3. Grant 'Post Messages' permission\n4. Try posting again`;
-  } else if (errorData.error_code === 400 && errorData.description?.includes('chat not found')) {
-    return `Chat Not Found: The chat ID is incorrect. For private channels:\n1. Forward a message from your channel to @userinfobot\n2. Copy the channel ID (starts with -100)\n3. Update your channel settings with the correct ID`;
-  } else if (errorData.error_code === 400 && errorData.description?.includes('wrong file identifier')) {
-    return `Invalid Media URL: The media file URL is invalid or expired. Please re-upload the media.`;
-  }
-
-  return `Telegram API Error: ${errorData.description || "Unknown error"}`;
-}
+});

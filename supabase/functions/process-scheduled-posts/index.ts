@@ -43,7 +43,6 @@ serve(async (req) => {
   }
 
   let reqBody: {
-    force?: boolean;
     triggered_by?: string;
     post_ids?: string[];
     send_now?: boolean;

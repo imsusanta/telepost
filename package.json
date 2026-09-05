@@ -14,7 +14,7 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "check:functions": "deno check supabase/functions/send-telegram-post/index.ts supabase/functions/process-scheduled-posts/index.ts supabase/functions/process-scheduled-telegram-posts/index.ts supabase/functions/verify-razorpay-payment/index.ts supabase/functions/razorpay-webhook/index.ts supabase/functions/create-razorpay-order/index.ts",
+    "check:functions": "deno check supabase/functions/send-telegram-post/index.ts supabase/functions/process-scheduled-posts/index.ts supabase/functions/process-scheduled-telegram-posts/index.ts supabase/functions/process-scheduled-stories/index.ts supabase/functions/send-telegram-story/index.ts supabase/functions/verify-razorpay-payment/index.ts supabase/functions/razorpay-webhook/index.ts supabase/functions/create-razorpay-order/index.ts",
     "db:setup": "node scripts/setup-database.js",
     "db:check": "node scripts/setup-database.js",
     "db:fix": "node scripts/fix-billing-schema.js",
