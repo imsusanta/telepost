@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { authorizeOwnedRecord, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, type ResolvedAIProvider } from "../_shared/ai-provider.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
 
-const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret" };
 
 interface ChannelSettings {
   auto_generate_quizzes: boolean;
@@ -31,22 +32,36 @@ async function getAISettings(supabase: any): Promise<AISettings> {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const cronSecret = Deno.env.get('CRON_SECRET');
-  const suppliedCronSecret = req.headers.get('x-cron-secret');
-  const authHeader = req.headers.get('Authorization');
-  let allowed = Boolean(cronSecret && suppliedCronSecret === cronSecret);
-  if (!allowed && authHeader?.startsWith('Bearer ')) {
-    try {
-      const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
-      const { data } = await authClient.auth.getUser(authHeader.replace('Bearer ', ''));
-      allowed = Boolean(data?.user);
-    } catch { allowed = false; }
+  const classified = classifyBearer({
+    authorizationHeader: req.headers.get('Authorization'),
+    cronSecretHeader: req.headers.get('x-cron-secret'),
+    cronSecret,
+    serviceRoleKey,
+  });
+  if (classified === 'missing') {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
-  if (!allowed) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  let callerUserId: string | null = null;
+  const isInternal = classified === 'internal';
+  if (!isInternal) {
+    try {
+      const authClient = createClient(supabaseUrl!, anonKey!);
+      const { data } = await authClient.auth.getUser(extractBearer(req.headers.get('Authorization')));
+      if (!data?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      callerUserId = data.user.id;
+    } catch {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const globalBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
@@ -55,12 +70,34 @@ serve(async (req) => {
     let forceGenerate = false;
     try {
       const body = await req.json();
-      specificChannelId = body.channelId || null;
+      specificChannelId = typeof body.channelId === 'string' ? body.channelId : null;
       forceGenerate = body.forceGenerate === true;
     } catch { /* empty cron body */ }
 
+    if (!isInternal && specificChannelId) {
+      const { data: ownedChannel } = await supabase.from('channels').select('id, user_id').eq('id', specificChannelId).maybeSingle();
+      const decision = authorizeOwnedRecord({
+        classified,
+        callerUserId,
+        ownerUserId: ownedChannel?.user_id,
+        recordExists: Boolean(ownedChannel),
+      });
+      if (decision === 'not_found') {
+        return new Response(JSON.stringify({ error: 'Channel not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (decision === 'forbidden' || decision === 'unauthorized') {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     let channelQuery = supabase.from('channels').select('*').eq('settings->>auto_generate_quizzes', 'true').not('telegram_channel_id', 'is', null);
     if (specificChannelId) channelQuery = channelQuery.eq('id', specificChannelId);
+    if (!isInternal) {
+      if (!callerUserId) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      channelQuery = channelQuery.eq('user_id', callerUserId);
+    }
     const { data: channels, error: channelsError } = await channelQuery;
     if (channelsError) throw channelsError;
     if (!channels?.length) return new Response(JSON.stringify({ success: true, message: 'No channels configured for auto-generation', processed: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -118,7 +155,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, message: `Processed ${channels.length} channels: ${processed} successful, ${skipped} skipped, ${failed} failed`, processed, skipped, failed, results }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[auto-generate-channel-quizzes] Error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: publicErrorMessage(error, 'Unknown error') }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
 

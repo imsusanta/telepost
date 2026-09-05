@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from "../_shared/auth.ts";
 import { chatCompletion, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
 import {
   appendUnique,
@@ -31,12 +32,21 @@ async function getAISettings(supabase: any): Promise<AISettings> {
   return data?.setting_value || { provider: 'openrouter', model: FALLBACK_MODEL, temperature: 0.7 };
 }
 
-async function authenticateRequest(req: Request, supabase: any): Promise<string | null> {
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return null;
+async function authenticateRequest(req: Request, supabase: any, serviceRoleKey?: string): Promise<string | null> {
+  const classified = classifyBearer({
+    authorizationHeader: req.headers.get('Authorization'),
+    cronSecretHeader: req.headers.get('x-cron-secret'),
+    cronSecret: Deno.env.get('CRON_SECRET'),
+    serviceRoleKey,
+  });
+  if (classified !== 'user-or-unknown') return null;
+  const token = extractBearer(req.headers.get('Authorization'));
+  if (!token) return null;
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    return !error && user ? user.id : null;
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    if (authorizeUserFacingAi({ classified, callerUserId: user.id }) !== 'allow') return null;
+    return user.id;
   } catch {
     return null;
   }
@@ -50,7 +60,7 @@ serve(async (req) => {
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const userId = await authenticateRequest(req, supabase);
+    const userId = await authenticateRequest(req, supabase, serviceRoleKey);
     if (!userId) return jsonResponse({ error: 'Authentication required. Please log in.' }, 401);
 
     const { documentText, topic, questionCount, difficulty = 'medium', language = 'bn' } = await req.json();
