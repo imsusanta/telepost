@@ -10,10 +10,9 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0f" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
 
     <meta property="og:title" content="TelePost - AI-Powered Quiz Generator for Telegram" />
     <meta property="og:description" content="Transform study materials into engaging quizzes with AI." />
@@ -43,20 +42,44 @@
 
     <script>
       (function () {
-        if (!('serviceWorker' in navigator)) return;
-        navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          return Promise.all(registrations.map(function (registration) {
-            return registration.unregister();
-          }));
-        }).catch(function () {});
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) {
+              return registration.unregister();
+            }));
+          }).catch(function () {});
+        }
         if (window.caches && caches.keys) {
           caches.keys().then(function (keys) {
             return Promise.all(keys.map(function (key) { return caches.delete(key); }));
           }).catch(function () {});
         }
+
+        var reloaded = false;
+        try { reloaded = sessionStorage.getItem('telepost_boot_reload') === '1'; } catch (e) {}
+        window.addEventListener('error', function (event) {
+          var el = event.target;
+          if (!el || el.tagName !== 'SCRIPT' || reloaded) return;
+          var src = el.src || '';
+          if (src.indexOf('/assets/') === -1 && src.indexOf('/src/main') === -1) return;
+          try { sessionStorage.setItem('telepost_boot_reload', '1'); } catch (e) {}
+          var url = new URL(window.location.href);
+          url.searchParams.set('nocache', String(Date.now()));
+          window.location.replace(url.toString());
+        }, true);
+
+        window.setTimeout(function () {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:2rem;max-width:36rem;margin:12vh auto;text-align:center;color:#111">' +
+            '<h1 style="font-size:1.5rem">TelePost is not loading</h1>' +
+            '<p>Hard-refresh this page: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac).</p>' +
+            '<p>If it stays blank, in Hostinger Git set the branch to <b>hostinger-production</b>, then Deploy.</p>' +
+            '</div>';
+        }, 8000);
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-Biduyb0-.js"></script>
+    <script type="module" crossorigin src="/assets/index-uWD0-MY8.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-Bj6Tv0k8.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-ui-Byp9QsPz.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-recharts-BBfNJ8B2.js">
@@ -66,5 +89,7 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>TelePost needs JavaScript enabled.</noscript>
   </body>
 </html>
+
