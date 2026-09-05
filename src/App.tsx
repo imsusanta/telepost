@@ -40,6 +40,7 @@ const CreateQuizPage = lazyWithRetry(() => import("./pages/CreateQuizPage"));
 const Scheduler = lazyWithRetry(() => import("./pages/Scheduler"));
 const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const KnowledgeBase = lazyWithRetry(() => import("./pages/KnowledgeBase"));
+const Documents = lazyWithRetry(() => import("./pages/Documents"));
 const Analytics = lazyWithRetry(() => import("./pages/Analytics"));
 const QuestionBank = lazyWithRetry(() => import("./pages/QuestionBank"));
 const Channels = lazyWithRetry(() => import("./pages/Channels"));
@@ -124,6 +125,7 @@ const App = () => (
               <Route path="/dashboard/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
               <Route path="/dashboard/stories" element={<ProtectedRoute><Stories /></ProtectedRoute>} />
               <Route path="/dashboard/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+              <Route path="/dashboard/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
               <Route path="/dashboard/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
               <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
