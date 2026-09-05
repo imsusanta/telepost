@@ -10,6 +10,11 @@
     "lint": "eslint src/ --quiet",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "check:functions": "deno check supabase/functions/send-telegram-post/index.ts supabase/functions/process-scheduled-posts/index.ts supabase/functions/process-scheduled-telegram-posts/index.ts supabase/functions/verify-razorpay-payment/index.ts supabase/functions/razorpay-webhook/index.ts supabase/functions/create-razorpay-order/index.ts",
     "db:setup": "node scripts/setup-database.js",
     "db:check": "node scripts/setup-database.js",
     "db:fix": "node scripts/fix-billing-schema.js",
@@ -89,6 +94,9 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vitest": "^3.2.4",
+    "pg": "^8.16.3",
+    "@types/pg": "^8.15.5"
   }
 }

@@ -1,275 +1,245 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { callerOwnsPostAndChannel, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
+import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
+import { telegramRequest } from "../_shared/telegram.ts";
 
 interface TelegramPostRequest {
-    postId: string;
-    instantPost?: boolean;
+  postId?: string;
+  instantPost?: boolean;
+}
+
+function truncate(str: string, limit: number): string {
+  if (!str) return "";
+  return str.length > limit ? str.substring(0, limit - 3) + "..." : str;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function markdownToHtml(text: string): string {
+  if (!text) return "";
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+  html = html.replace(/\*(.*?)\*/g, "<b>$1</b>");
+  html = html.replace(/_(.*?)_/g, "<i>$1</i>");
+  html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+  return html;
 }
 
 serve(async (req) => {
-    if (req.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return optionsResponse();
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const cronSecret = Deno.env.get("CRON_SECRET");
+
+  let claimedPostId: string | null = null;
+  let workerId: string | null = null;
+  let previousStatus: string | null = null;
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  try {
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get("Authorization"),
+      cronSecretHeader: req.headers.get("x-cron-secret"),
+      cronSecret,
+      serviceRoleKey,
+    });
+
+    if (classified === "missing") {
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    let currentPostId: string | null = null;
+    let callerUserId: string | null = null;
+    let isInternal = classified === "internal";
+    let isSuperAdmin = false;
 
-    try {
-        const body = await req.json();
-        const { postId, instantPost = false }: TelegramPostRequest = body;
-        currentPostId = postId;
-
-        if (!postId) {
-            return new Response(
-                JSON.stringify({ error: "Missing required field: postId" }),
-                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-        }
-
-        // Initialize Supabase client
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        // Fetch post data with channel info
-        const { data: post, error: postError } = await supabase
-            .from('telegram_posts')
-            .select(`
-                *,
-                channels (
-                    telegram_channel_id,
-                    telegram_bot_token,
-                    user_id
-                )
-            `)
-            .eq('id', postId)
-            .single();
-
-        if (postError || !post) {
-            console.error(`Post ${postId} not found:`, postError);
-            throw new Error(`Post not found: ${postError?.message || "Unknown error"}`);
-        }
-
-        // Check if post is ready
-        if (!instantPost && post.status !== 'scheduled') {
-            throw new Error(`Post status must be 'scheduled' to post (current: ${post.status})`);
-        }
-
-        if (instantPost && post.status !== 'draft' && post.status !== 'scheduled') {
-            throw new Error(`Can only instantly post with 'draft' or 'scheduled' status (current: ${post.status})`);
-        }
-
-        // Truncate helper
-        const truncate = (str: string, limit: number): string => {
-            if (!str) return "";
-            return str.length > limit ? str.substring(0, limit - 3) + "..." : str;
-        };
-
-        // Get bot token
-        const GLOBAL_TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-        let TELEGRAM_BOT_TOKEN: string | null = null;
-
-        // 1. Try channel's bot token
-        if (post.channels?.telegram_bot_token) {
-            TELEGRAM_BOT_TOKEN = post.channels.telegram_bot_token;
-            console.log(`Using bot token from channel`);
-        }
-
-        // 2. Fallback: Search for any bot token owned by the user
-        if (!TELEGRAM_BOT_TOKEN && post.user_id) {
-            const { data: botChannel } = await supabase
-                .from('channels')
-                .select('telegram_bot_token')
-                .eq('user_id', post.user_id)
-                .not('telegram_bot_token', 'is', null)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (botChannel?.telegram_bot_token) {
-                TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
-                console.log(`Using fallback bot token from user's channels`);
-            }
-        }
-
-        // 3. Fallback: Use global token
-        if (!TELEGRAM_BOT_TOKEN) {
-            TELEGRAM_BOT_TOKEN = GLOBAL_TELEGRAM_BOT_TOKEN;
-            if (TELEGRAM_BOT_TOKEN) {
-                console.log("Using global bot token");
-            }
-        }
-
-        if (!TELEGRAM_BOT_TOKEN) {
-            throw new Error("No bot token available. Please configure a bot token in channel settings.");
-        }
-
-        const chatId = post.channels?.telegram_channel_id;
-        if (!chatId) {
-            throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
-        }
-
-        const baseUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
-
-        // Helper to send Telegram requests with retry logic for 429 errors
-        async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<Response> {
-            let retries = 0;
-            while (retries < maxRetries) {
-                const response = await fetch(url, options);
-                if (response.status === 429) {
-                    const data = await response.json();
-                    const retryAfter = (data.parameters?.retry_after || 5) * 1000;
-                    console.warn(`Rate limited by Telegram. Retrying after ${retryAfter}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, retryAfter));
-                    retries++;
-                    continue;
-                }
-                return response;
-            }
-            return fetch(url, options); // Final attempt
-        }
-
-        // HTML Escaping and Markdown to HTML conversion
-        const escapeHtml = (text: string): string => {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        };
-
-        const markdownToHtml = (text: string): string => {
-            if (!text) return "";
-
-            // First escape basic HTML characters
-            let html = escapeHtml(text);
-
-            // Convert bold *text* or **text** to <b>text</b>
-            // We use a non-greedy match to handle multiple instances correctly
-            html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-            html = html.replace(/\*(.*?)\*/g, "<b>$1</b>");
-
-            // Convert italic _text_ to <i>text</i>
-            html = html.replace(/_(.*?)_/g, "<i>$1</i>");
-
-            // Convert code `text` to <code>text</code>
-            html = html.replace(/`(.*?)`/g, "<code>$1</code>");
-
-            return html;
-        };
-
-        let messageId: string | null = null;
-        let postSuccess = false;
-
-        // Send post based on content type
-        if (post.image_url) {
-            console.log(`Sending photo to ${chatId}...`);
-            const photoResponse = await fetchWithRetry(`${baseUrl}/sendPhoto`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    photo: post.image_url,
-                    caption: truncate(markdownToHtml(post.content || ""), 1024),
-                    parse_mode: "HTML",
-                }),
-            });
-
-            const photoData = await photoResponse.json();
-
-            if (!photoResponse.ok) {
-                console.error("Telegram sendPhoto error:", photoData);
-                throw new Error(`Telegram Error: ${photoData.description || "Failed to send photo"}`);
-            }
-
-            messageId = photoData.result?.message_id?.toString();
-            postSuccess = true;
-            console.log("Photo post sent successfully");
-
-        } else {
-            console.log(`Sending text message to ${chatId}...`);
-            const messageResponse = await fetchWithRetry(`${baseUrl}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: truncate(markdownToHtml(post.content), 4096),
-                    parse_mode: "HTML",
-                }),
-            });
-
-            const messageData = await messageResponse.json();
-
-            if (!messageResponse.ok) {
-                console.error("Telegram sendMessage error:", messageData);
-                throw new Error(`Telegram Error: ${messageData.description || "Failed to send message"}`);
-            }
-
-            messageId = messageData.result?.message_id?.toString();
-            postSuccess = true;
-            console.log("Text post sent successfully");
-        }
-
-        if (postSuccess) {
-            // Update post status to 'posted'
-            const now = new Date().toISOString();
-
-            const { error: updateError } = await supabase
-                .from('telegram_posts')
-                .update({
-                    status: 'posted',
-                    posted_at: now,
-                    telegram_message_id: messageId,
-                    telegram_chat_id: chatId.toString(),
-                })
-                .eq('id', postId);
-
-            if (updateError) {
-                console.error('Failed to update post status:', updateError);
-            }
-
-            return new Response(
-                JSON.stringify({
-                    success: true,
-                    message: "Post sent successfully to Telegram",
-                    messageId,
-                }),
-                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-        }
-
-        throw new Error("Failed to send post");
-
-    } catch (error) {
-        console.error("Error sending post:", error);
-
-        // Try to update post status to failed using the service role client
-        if (currentPostId) {
-            try {
-                const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-                const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-                const supabase = createClient(supabaseUrl, supabaseKey);
-
-                await supabase
-                    .from('telegram_posts')
-                    .update({
-                        status: 'failed',
-                        error_message: error instanceof Error ? error.message : 'Unknown error',
-                    })
-                    .eq('id', currentPostId);
-            } catch (dbError) {
-                console.error("Failed to update post error status in DB:", dbError);
-            }
-        }
-
-        return new Response(
-            JSON.stringify({
-                error: error instanceof Error ? error.message : "Failed to send post",
-            }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    if (!isInternal) {
+      const bearer = extractBearer(req.headers.get("Authorization"));
+      const userClient = createClient(supabaseUrl, anonKey);
+      const { data, error } = await userClient.auth.getUser(bearer);
+      if (error || !data?.user) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      callerUserId = data.user.id;
+      const { data: superAdmin } = await admin.rpc("is_super_admin", { p_user_id: callerUserId });
+      isSuperAdmin = superAdmin === true;
     }
+
+    const body = (await req.json().catch(() => ({}))) as TelegramPostRequest;
+    const postId = body.postId;
+    const instantPost = body.instantPost === true;
+
+    if (!postId || typeof postId !== "string") {
+      return jsonResponse({ error: "Missing required field: postId" }, 400);
+    }
+
+    const { data: post, error: postError } = await admin
+      .from("telegram_posts")
+      .select("id, user_id, channel_id, status, content, image_url, scheduled_time")
+      .eq("id", postId)
+      .maybeSingle();
+
+    if (postError || !post) {
+      return jsonResponse({ error: "Post not found" }, 404);
+    }
+
+    let channelUserId: string | null = null;
+    let chatId: string | null = null;
+    let channelBotToken: string | null = null;
+
+    if (post.channel_id) {
+      const { data: channel, error: channelError } = await admin
+        .from("channels")
+        .select("id, user_id, telegram_channel_id, telegram_bot_token")
+        .eq("id", post.channel_id)
+        .maybeSingle();
+      if (channelError || !channel) {
+        return jsonResponse({ error: "Channel not found" }, 404);
+      }
+      channelUserId = channel.user_id;
+      chatId = channel.telegram_channel_id;
+      channelBotToken = channel.telegram_bot_token;
+    }
+
+    if (!isInternal) {
+      const allowed = callerOwnsPostAndChannel({
+        callerUserId: callerUserId!,
+        postUserId: post.user_id,
+        channelUserId,
+        isSuperAdmin,
+      });
+      if (!allowed) {
+        return jsonResponse({ error: "Forbidden" }, 403);
+      }
+    }
+
+    if (!instantPost && post.status !== "scheduled") {
+      return jsonResponse({ error: "Post is not scheduled" }, 409);
+    }
+    if (instantPost && post.status !== "draft" && post.status !== "scheduled") {
+      return jsonResponse({ error: "Post cannot be sent in its current state" }, 409);
+    }
+
+    workerId = crypto.randomUUID();
+    previousStatus = post.status;
+
+    const { data: claimed, error: claimError } = await admin.rpc("claim_telegram_post_for_dispatch", {
+      p_post_id: postId,
+      p_user_id: isInternal ? null : callerUserId,
+      p_worker_id: workerId,
+      p_allow_scheduled: true,
+    });
+
+    if (claimError) {
+      console.error("claim_telegram_post_for_dispatch failed:", claimError.message);
+      return jsonResponse({ error: "Unable to claim post" }, 409);
+    }
+    if (!claimed || claimed.length === 0) {
+      return jsonResponse({ error: "Post is already being sent or is not sendable" }, 409);
+    }
+
+    claimedPostId = postId;
+
+    const globalToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    let botToken = channelBotToken || null;
+    if (!botToken && post.user_id) {
+      const { data: botChannel } = await admin
+        .from("channels")
+        .select("telegram_bot_token")
+        .eq("user_id", post.user_id)
+        .not("telegram_bot_token", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      botToken = botChannel?.telegram_bot_token || null;
+    }
+    if (!botToken) botToken = globalToken || null;
+    if (!botToken) {
+      throw new Error("No bot token available. Please configure a bot token in channel settings.");
+    }
+    if (!chatId) {
+      throw new Error("Chat ID not configured. Please add your Telegram channel ID in channel settings.");
+    }
+
+    const baseUrl = `https://api.telegram.org/bot${botToken}`;
+    let sendResult;
+
+    if (post.image_url) {
+      sendResult = await telegramRequest(`${baseUrl}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          photo: post.image_url,
+          caption: truncate(markdownToHtml(post.content || ""), 1024),
+          parse_mode: "HTML",
+        }),
+      });
+    } else {
+      sendResult = await telegramRequest(`${baseUrl}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: truncate(markdownToHtml(post.content || ""), 4096),
+          parse_mode: "HTML",
+        }),
+      });
+    }
+
+    if (sendResult.kind !== "success") {
+      const error = new Error(sendResult.description || "Failed to send post") as Error & { telegramKind?: string };
+      error.telegramKind = sendResult.kind;
+      throw error;
+    }
+
+    const messageId = (sendResult.body as { result?: { message_id?: number } } | null)?.result?.message_id?.toString() || null;
+    const { data: completed, error: completeError } = await admin.rpc("complete_telegram_post", {
+      p_id: postId,
+      p_worker_id: workerId,
+      p_status: "posted",
+      p_message_id: messageId,
+      p_chat_id: String(chatId),
+    });
+
+    if (completeError || completed !== true) {
+      console.error("Failed to record posted status:", completeError);
+      return jsonResponse({
+        success: true,
+        message: "Post sent to Telegram, but status could not be recorded",
+        messageId,
+      }, 200);
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Post sent successfully to Telegram",
+      messageId,
+    });
+  } catch (error) {
+    console.error("Error sending post:", error);
+    const kind = (error as { telegramKind?: string }).telegramKind;
+    const ambiguous = kind === "timeout" || kind === "network" || kind === "ambiguous" || kind === "rate_limited";
+
+    if (claimedPostId && workerId) {
+      const releaseStatus = ambiguous ? (previousStatus === "scheduled" ? "scheduled" : "draft") : "failed";
+      const { error: completeError } = await admin.rpc("complete_telegram_post", {
+        p_id: claimedPostId,
+        p_worker_id: workerId,
+        p_status: releaseStatus,
+        p_error: ambiguous ? "ambiguous_send_timeout" : publicErrorMessage(error, "Failed to send post"),
+      });
+      if (completeError) {
+        console.error("Failed to record send failure:", completeError);
+      }
+    }
+
+    return jsonResponse({
+      error: publicErrorMessage(error, "Failed to send post"),
+    }, 500);
+  }
 });

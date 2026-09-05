@@ -10,6 +10,24 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: telepost_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/telepost_test
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -29,8 +47,22 @@ jobs:
       - name: Type Check (TypeScript)
         run: npx tsc -b
 
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Database integration tests
+        run: npm run test:integration
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type check Edge Functions
+        run: npm run check:functions
+
       - name: Build Production Bundle
         run: npm run build
         env:
-          VITE_SUPABASE_URL: "https://wpkxbrdgktmwnowvmwue.supabase.co"
+          VITE_SUPABASE_URL: "https://example.supabase.co"
           VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"

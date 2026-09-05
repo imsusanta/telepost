@@ -229,7 +229,7 @@ export default function Scheduler() {
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke('process-scheduled-posts', {
-        body: { triggered_by: 'manual', force: true }
+        body: { triggered_by: 'manual' }
       });
 
       if (error) {

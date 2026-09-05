@@ -48,7 +48,7 @@ serve(async (req) => {
         // Pricing.tsx does not), so match case-insensitively.
         const { data: plan, error: planError } = await supabaseClient
             .from("subscription_plans")
-            .select("id, name, display_name, price, is_active")
+            .select("id, name, display_name, price, billing_period, is_active")
             .ilike("name", planId)
             .eq("is_active", true)
             .maybeSingle();
@@ -125,6 +125,8 @@ serve(async (req) => {
                 user_id: user.id,
                 plan_id: plan.id,
                 amount: amount / 100, // Convert paise to rupees
+                amount_paise: amount,
+                plan_billing_period: plan.billing_period || "monthly",
                 currency: "INR",
                 razorpay_order_id: orderData.id,
                 payment_status: "pending",

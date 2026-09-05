@@ -317,6 +317,7 @@ export function AutoScheduleCard() {
             const { data, error } = await supabase.functions.invoke("process-auto-schedule", {
                 body: {
                     force: true,
+                    send_now: true,
                     userId: user.id,
                 },
             });
