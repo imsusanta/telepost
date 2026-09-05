@@ -5,6 +5,7 @@ import { motion, Variants, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionService, type SubscriptionPlan } from "@/services/subscriptionService";
+import { getRazorpay } from "@/lib/razorpay";
 
 export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const { toast } = useToast();
@@ -160,7 +161,8 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
         }
       };
 
-      const rzp = new (window as any).Razorpay(options);
+      const Razorpay = await getRazorpay();
+      const rzp = new Razorpay(options);
       rzp.open();
 
     } catch (error: any) {

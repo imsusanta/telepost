@@ -2,16 +2,32 @@
   RewriteEngine On
   RewriteBase /
   RewriteRule ^index\.html$ - [L]
+  # Missing JS/CSS/images must 404. Rewriting them to index.html makes
+  # browsers try to execute HTML as a module and the app stays blank.
+  RewriteCond %{REQUEST_URI} \.(?:js|mjs|css|map|json|webmanifest|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|txt|xml|tsx|ts)$ [NC]
+  RewriteRule ^ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_FILENAME} !-l
   RewriteRule . /index.html [L]
 </IfModule>
 
+<IfModule mod_mime.c>
+  AddType text/javascript .js .mjs
+</IfModule>
+
 # ==========================================
 # Security Headers & Content Security Policy
 # ==========================================
 <IfModule mod_headers.c>
+  # Do not cache the HTML shell. Hashed /assets/* stay cacheable.
+  # A cached index.html that points at deleted chunk names boots a blank page.
+  <FilesMatch "^(index\.html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
   # HTTP Strict Transport Security (HSTS)
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
@@ -31,5 +47,5 @@
   Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
   
   # Content Security Policy (Report-Only)
-  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://wpkxbrdgktmwnowvmwue.supabase.co https://*.supabase.co wss://wpkxbrdgktmwnowvmwue.supabase.co wss://*.supabase.co https://api.razorpay.com https://checkout.razorpay.com https://lumberjack-cx.razorpay.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://cdn.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://wpkxbrdgktmwnowvmwue.supabase.co https://*.supabase.co wss://wpkxbrdgktmwnowvmwue.supabase.co wss://*.supabase.co https://api.razorpay.com https://checkout.razorpay.com https://cdn.razorpay.com https://lumberjack.razorpay.com https://lumberjack-cx.razorpay.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
 </IfModule>
