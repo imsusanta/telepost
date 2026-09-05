@@ -22,6 +22,7 @@ dev-dist
 .env.test.local
 .env.production.local
 !.env.example
+!.env.production
 
 # Supabase Local
 .supabase/local
