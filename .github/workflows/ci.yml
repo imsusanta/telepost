@@ -66,3 +66,13 @@ jobs:
         env:
           VITE_SUPABASE_URL: "https://example.supabase.co"
           VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: UI end-to-end tests
+        run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: "https://example.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"
+          CI: "true"

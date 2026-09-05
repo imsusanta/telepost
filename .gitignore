@@ -28,7 +28,11 @@ dev-dist
 supabase/.temp
 deno.lock
 
-# Editor directories and files
+playwright-report
+test-results
+blob-report
+playwright/.cache
+
 .vscode/*
 !.vscode/extensions.json
 .idea
