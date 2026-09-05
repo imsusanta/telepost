@@ -147,6 +147,7 @@ serve(async (req: Request) => {
             messages: [{ role: 'system', content: baseSystemPrompt }, { role: 'user', content: userPrompt }],
             temperature: effectiveLanguage === 'bn' ? 0.35 : (aiSettings.temperature ?? 0.7),
             maxTokens: tokenBudget(wanted), timeoutMs: 60000, appTitle: 'TelePost QuizMaker',
+            settings: aiSettings,
           });
           const questions = normalizeQuestions(parseQuizPayload(text), effectiveLanguage);
           if (!questions.length) { lastReason = effectiveLanguage === 'bn' ? 'The response was not sufficiently Bengali or did not match the quiz schema.' : 'No usable questions could be parsed from the response.'; continue; }
@@ -172,10 +173,22 @@ serve(async (req: Request) => {
     const generationStatus = isPartial ? 'partial' : 'completed';
     const quizData = { request_id: requestId, topic, questions, metadata: { standard: 'Government Competitive Exam Standard', difficulty, generated_at: generatedAt, language: effectiveLanguage, provider: resolved.provider, model: resolved.model, requested_count: count, returned_count: questions.length, partial: isPartial }, status: generationStatus };
     if (isPartial) console.warn(`[generate-quiz] Partial quiz: ${questions.length}/${count} questions.`);
-    try {
-      await supabase.from('quiz_generations').insert({ user_id: user.id, channel_id: channelId || null, request_id: requestId, topic: topic.substring(0, 200), question_count: questions.length, questions, metadata: { ...quizData.metadata, used_knowledge_base: Boolean(knowledgeBaseContext) }, status: generationStatus });
-      if (!isPartial) await supabase.rpc('increment_quiz_count', { p_user_id: user.id });
-    } catch (databaseError) { console.warn('[generate-quiz] Failed to save generation:', databaseError); }
+    const { error: saveError } = await supabase.from('quiz_generations').insert({
+      user_id: user.id,
+      channel_id: channelId || null,
+      topic: topic.substring(0, 200),
+      question_count: questions.length,
+      difficulty,
+      language: effectiveLanguage,
+      source_type: knowledgeBaseContext ? 'document' : 'ai',
+      quiz_data: quizData,
+    });
+    if (saveError) {
+      console.warn('[generate-quiz] Failed to save generation:', saveError.message);
+    } else if (!isPartial) {
+      const { error: incrementError } = await supabase.rpc('increment_quiz_count', { p_user_id: user.id });
+      if (incrementError) console.warn('[generate-quiz] increment_quiz_count failed:', incrementError.message);
+    }
     return jsonResponse(quizData, isPartial ? 206 : 200);
   } catch (error) {
     console.error('[generate-quiz] Error:', error);
