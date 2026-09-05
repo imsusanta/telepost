@@ -11,11 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // Fetch dashboard data with React Query for caching and auto-refetch
 async function fetchDashboardData(userId: string) {
-  // Fetch all stats in parallel for maximum performance
   const [
     quizzesRes,
-    sentScheduledRes,
-    postedRes,
     scheduledRes,
     pendingRes,
     responsesRes,
@@ -23,57 +20,49 @@ async function fetchDashboardData(userId: string) {
     questionsRes,
     channelsRes
   ] = await Promise.all([
-    // Total Quizzes in generation table
     supabase.from("quiz_generations")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId),
-    
-    // Sent scheduled quizzes
-    supabase.from("scheduled_telegram_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "sent"),
-
-    // Posted telegram posts
-    supabase.from("telegram_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
-
-    // Scheduled posts (Total)
     supabase.from("scheduled_telegram_posts")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId),
-    
-    // Pending posts
     supabase.from("scheduled_telegram_posts")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "pending"),
-    
-    // Quiz responses (Engagements) - Optimized count via inner join
     supabase.from("quiz_responses")
-      .select("*, quiz_generations!inner(user_id)", { count: "exact", head: true })
+      .select("id, quiz_generations!inner(user_id)", { count: "exact", head: true })
       .eq("quiz_generations.user_id", userId),
-    
-    // Documents
     supabase.from("documents")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId),
-    
-    // Questions
     supabase.from("question_banks")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId),
-    
-    // Channels
     supabase.from("channels")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
   ]);
 
+  const results = [
+    ["quizzes", quizzesRes],
+    ["scheduled posts", scheduledRes],
+    ["pending posts", pendingRes],
+    ["quiz responses", responsesRes],
+    ["documents", docsRes],
+    ["questions", questionsRes],
+    ["channels", channelsRes],
+  ] as const;
+
+  for (const [label, result] of results) {
+    if (result.error) {
+      throw new Error(`Failed to load ${label}: ${result.error.message}`);
+    }
+  }
+
   return {
     stats: {
-      totalQuizzes: (quizzesRes.count || 0) + (sentScheduledRes.count || 0) + (postedRes.count || 0),
+      totalQuizzes: quizzesRes.count || 0,
       scheduledPosts: scheduledRes.count || 0,
       pendingPosts: pendingRes.count || 0,
       totalViews: responsesRes.count || 0,
@@ -118,7 +107,15 @@ export default function Dashboard() {
   }, [error, toast]);
 
   const handleRefresh = async () => {
-    await refetch();
+    const result = await refetch();
+    if (result.error) {
+      toast({
+        title: "Error loading stats",
+        description: "We couldn't refresh your dashboard stats. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     toast({
       title: "Dashboard refreshed",
       description: "All stats have been updated",
@@ -133,7 +130,7 @@ export default function Dashboard() {
       color: "from-sky-400 to-blue-500",
       glow: "hover:shadow-blue-500/10",
       accent: "text-blue-500",
-      description: "Quizzes created & sent"
+      description: "Quizzes generated"
     },
     {
       title: "Scheduled",
@@ -327,9 +324,15 @@ export default function Dashboard() {
               <p className="text-3xl font-bold tracking-tight text-foreground">{stats?.totalChannels || 0}</p>
               <p className="text-xs text-muted-foreground mt-1">Telegram Channels Connected</p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mt-3 pt-2.5 border-t border-border/30">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span>Channels active and synchronized</span>
+            <div className="flex items-center gap-1.5 text-xs mt-3 pt-2.5 border-t border-border/30">
+              {(stats?.totalChannels || 0) > 0 ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-600 dark:text-emerald-400">Channels active and synchronized</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">Connect a Telegram channel to start posting</span>
+              )}
             </div>
           </Card>
 

@@ -55,4 +55,11 @@ test.describe("public marketing pages", () => {
     await expect(page).toHaveURL(/\/auth/);
     await expect(page.getByRole("button", { name: /sign in to dashboard/i })).toBeVisible();
   });
+
+  test("documents route is wired and unauthenticated visits go to auth, not 404", async ({ page }) => {
+    await page.goto("/dashboard/documents");
+    await expect(page).toHaveURL(/\/auth/);
+    await expect(page.getByRole("button", { name: /sign in to dashboard/i })).toBeVisible();
+    await expect(page.getByText("Oops! Page not found")).toHaveCount(0);
+  });
 });
