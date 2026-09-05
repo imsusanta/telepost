@@ -74,6 +74,11 @@ jobs:
           VITE_SUPABASE_URL: "https://example.supabase.co"
           VITE_SUPABASE_PUBLISHABLE_KEY: "dummy-key-for-ci"
 
+      - name: Assert Vite inlined the Supabase URL
+        run: node scripts/assert-vite-env-inlined.mjs
+        env:
+          VITE_SUPABASE_URL: "https://example.supabase.co"
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
