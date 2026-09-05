@@ -32,8 +32,10 @@ WHERE amount_paise IS NULL AND amount IS NOT NULL;
 UPDATE public.subscription_payments sp
 SET plan_billing_period = p.billing_period
 FROM public.subscription_plans p
-WHERE sp.plan_id = p.id
-  AND sp.plan_billing_period IS NULL;
+WHERE sp.plan_billing_period IS NULL
+  AND sp.plan_id IS NOT NULL
+  AND sp.plan_id::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+  AND p.id = sp.plan_id::uuid;
 
 DO $$
 BEGIN
@@ -538,8 +540,9 @@ BEGIN
     );
   END IF;
 
-  IF v_payment.plan_id IS NOT NULL THEN
-    SELECT * INTO v_plan FROM public.subscription_plans WHERE id = v_payment.plan_id;
+  IF v_payment.plan_id IS NOT NULL
+     AND v_payment.plan_id::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+    SELECT * INTO v_plan FROM public.subscription_plans WHERE id = v_payment.plan_id::uuid;
   END IF;
 
   v_period := COALESCE(v_payment.plan_billing_period, v_plan.billing_period, 'monthly');
@@ -566,31 +569,35 @@ BEGIN
       currency = 'INR'
   WHERE id = v_payment.id;
 
-  INSERT INTO public.subscriptions (
-    user_id,
-    plan_id,
-    status,
-    current_period_start,
-    current_period_end,
-    cancel_at_period_end,
-    updated_at
-  )
-  VALUES (
-    v_payment.user_id,
-    v_payment.plan_id,
-    'active',
-    v_start,
-    v_end,
-    FALSE,
-    now()
-  )
-  ON CONFLICT (user_id) DO UPDATE
-  SET plan_id = EXCLUDED.plan_id,
-      status = 'active',
-      current_period_start = EXCLUDED.current_period_start,
-      current_period_end = EXCLUDED.current_period_end,
-      cancel_at_period_end = FALSE,
-      updated_at = now();
+  IF v_sub.id IS NOT NULL THEN
+    UPDATE public.subscriptions
+    SET plan_id = v_plan.id,
+        status = 'active',
+        current_period_start = v_start,
+        current_period_end = v_end,
+        cancel_at_period_end = FALSE,
+        updated_at = now()
+    WHERE id = v_sub.id;
+  ELSE
+    INSERT INTO public.subscriptions (
+      user_id,
+      plan_id,
+      status,
+      current_period_start,
+      current_period_end,
+      cancel_at_period_end,
+      updated_at
+    )
+    VALUES (
+      v_payment.user_id,
+      v_plan.id,
+      'active',
+      v_start,
+      v_end,
+      FALSE,
+      now()
+    );
+  END IF;
 
   UPDATE public.profiles
   SET payment_status = 'paid',
