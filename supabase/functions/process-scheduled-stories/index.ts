@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { secretsEqual } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,14 +16,10 @@ serve(async (req) => {
     const cronSecret = Deno.env.get("CRON_SECRET");
     const provided = req.headers.get("x-cron-secret");
     const authHeader = req.headers.get("Authorization");
-    let allowed = !!(cronSecret && provided && provided === cronSecret);
-    if (!allowed && authHeader?.startsWith("Bearer ")) {
-      try {
-        const tmp = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-        const { data } = await tmp.auth.getUser(authHeader.replace("Bearer ", ""));
-        if (data?.user) allowed = true;
-      } catch { /* ignore */ }
-    }
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const allowed = secretsEqual(provided, cronSecret) || secretsEqual(bearer, serviceKey);
+    // Ordinary users cannot run the global story dispatcher.
     if (!allowed) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

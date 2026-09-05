@@ -26,6 +26,7 @@ dev-dist
 # Supabase Local
 .supabase/local
 supabase/.temp
+deno.lock
 
 # Editor directories and files
 .vscode/*
