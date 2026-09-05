@@ -65,11 +65,18 @@ function e2eSession() {
   };
 }
 
+const corsHeaders: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "authorization, apikey, content-type, x-client-info, prefer, range, accept, x-supabase-api-version",
+  "access-control-allow-methods": "GET, HEAD, POST, OPTIONS, PATCH, DELETE",
+  "access-control-expose-headers": "content-range, content-location, preference-applied",
+};
+
 function json(route: Route, body: unknown, extraHeaders: Record<string, string> = {}) {
   return route.fulfill({
     status: 200,
     contentType: "application/json",
-    headers: extraHeaders,
+    headers: { ...corsHeaders, ...extraHeaders },
     body: JSON.stringify(body),
   });
 }
@@ -77,7 +84,9 @@ function json(route: Route, body: unknown, extraHeaders: Record<string, string> 
 function countHead(route: Route, total: number) {
   return route.fulfill({
     status: 200,
+    contentType: "application/json",
     headers: {
+      ...corsHeaders,
       "content-range": `0-0/${total}`,
       "content-type": "application/json",
     },
@@ -112,6 +121,11 @@ export async function mockSupabaseSession(page: Page): Promise<void> {
       const prefer = request.headers()["prefer"] ?? "";
       const isCount = method === "HEAD" || prefer.includes("count=");
 
+      if (method === "OPTIONS") {
+        await route.fulfill({ status: 204, headers: corsHeaders, body: "" });
+        return;
+      }
+
       if (url.includes("/auth/v1/logout")) {
         await route.fulfill({ status: 204, body: "" });
         return;
@@ -139,11 +153,11 @@ export async function mockSupabaseSession(page: Page): Promise<void> {
         ]);
       }
 
-      if (path.includes("/rest/v1/scheduled_telegram_posts")) {
+      if (url.includes("scheduled_telegram_posts")) {
         const pending = new URL(url).searchParams.get("status")?.includes("pending");
         const total = pending ? 0 : 233;
         if (isCount) return countHead(route, total);
-        return json(route, []);
+        return json(route, [], { "content-range": `0-0/${total}` });
       }
 
       if (isCount) return countHead(route, 0);
