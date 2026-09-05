@@ -1,0 +1,124 @@
+/* TelePost dashboard mobile polish
+ * Keeps the existing desktop design intact and only tightens layouts below 640px.
+ */
+@media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Page shell */
+  main#main-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 16px !important;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Prevent long labels, URLs and generated content from widening the viewport. */
+  main#main-content h1,
+  main#main-content h2,
+  main#main-content h3,
+  main#main-content h4,
+  main#main-content p,
+  main#main-content span,
+  main#main-content label,
+  main#main-content a {
+    overflow-wrap: anywhere;
+  }
+
+  /* Forms: stack multi-column form layouts on phones. */
+  main#main-content [class~="grid-cols-2"],
+  main#main-content [class~="grid-cols-3"],
+  main#main-content [class~="grid-cols-4"],
+  main#main-content [class~="grid-cols-5"],
+  main#main-content [class~="grid-cols-6"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main#main-content input,
+  main#main-content select,
+  main#main-content textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Common action/toolbars should wrap instead of creating horizontal scrolling. */
+  main#main-content [class*="flex-row"] {
+    min-width: 0;
+  }
+
+  main#main-content [class*="justify-between"] {
+    min-width: 0;
+  }
+
+  /* Keep buttons usable without allowing oversized fixed widths to overflow. */
+  main#main-content button,
+  main#main-content [role="button"] {
+    max-width: 100%;
+  }
+
+  /* Tables remain usable through their nearest overflow container. */
+  main#main-content table {
+    max-width: 100%;
+  }
+
+  main#main-content [class*="overflow-x-auto"] {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Radix dialogs/sheets: use the full phone width with safe gutters. */
+  [data-radix-dialog-content],
+  [data-radix-alert-dialog-content] {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Dropdowns and popovers must never exceed the viewport. */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  /* Charts need an actual shrinkable parent on small screens. */
+  .recharts-responsive-container,
+  .recharts-wrapper,
+  .recharts-surface {
+    max-width: 100% !important;
+  }
+
+  /* Avoid oversized decorative/min-width cards from forcing horizontal scroll. */
+  main#main-content [class*="min-w-"] {
+    max-width: 100%;
+  }
+
+  /* Touch targets: keep compact icon buttons at least 40px on mobile. */
+  main#main-content button[class*="h-8"],
+  main#main-content button[class*="h-9"] {
+    min-height: 40px;
+  }
+
+  /* Mobile header stays compact and does not get pushed by long breadcrumbs/actions. */
+  header {
+    min-width: 0;
+  }
+
+  header > div {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  main#main-content {
+    min-width: 0;
+  }
+}
