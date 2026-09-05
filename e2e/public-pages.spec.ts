@@ -26,4 +26,33 @@ test.describe("public marketing pages", () => {
     await page.goto("/data-security");
     await expect(page.getByText("We do not currently publish a SOC 2 report")).toBeVisible();
   });
+
+  test("auth page shows a 7-day trial, not invented metrics", async ({ page }) => {
+    await page.goto("/auth");
+    await expect(page.getByText("7-day trial")).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign in to dashboard/i })).toBeVisible();
+  });
+
+  test("refund policy mentions the 7-day trial", async ({ page }) => {
+    await page.goto("/refund");
+    await expect(page.getByRole("heading", { name: /refund policy/i })).toBeVisible();
+    await expect(page.getByText("7-day free trial")).toBeVisible();
+  });
+
+  test("privacy policy page renders", async ({ page }) => {
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: /privacy policy/i })).toBeVisible();
+  });
+
+  test("contact support does not claim SOC 2", async ({ page }) => {
+    await page.goto("/contact-support");
+    await page.getByText("Is my data secure?").click();
+    await expect(page.getByText("We are not SOC 2 certified")).toBeVisible();
+  });
+
+  test("unauthenticated dashboard visits redirect to auth", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/auth/);
+    await expect(page.getByRole("button", { name: /sign in to dashboard/i })).toBeVisible();
+  });
 });
