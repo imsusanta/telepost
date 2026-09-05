@@ -21,7 +21,7 @@ describe("scheduler locking and recovery", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE scheduled_telegram_posts, telegram_posts, channels, subscription_payments, subscriptions, profiles CASCADE");
+    await pool.query("TRUNCATE scheduled_telegram_posts, telegram_stories, telegram_posts, channels, subscription_payments, subscriptions, profiles CASCADE");
   });
 
   afterAll(async () => {
@@ -166,5 +166,81 @@ describe("scheduler locking and recovery", () => {
     expect(stolen.rows[0].record_scheduled_post_progress).toBe(false);
     const unchanged = await pool.query(`SELECT delivery_progress FROM scheduled_telegram_posts WHERE id = $1`, [postId]);
     expect(unchanged.rows[0].delivery_progress.polls_sent).toEqual([0, 1, 2]);
+  });
+
+  it("does not let user A claim user B's scheduled story", async () => {
+    const { userA, userB } = await seedUsers(pool);
+    const storyId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_stories (story_id, user_id, media_type, status, scheduled_time)
+       VALUES ($1, $2, 'text', 'scheduled', now() - interval '1 minute')`,
+      [storyId, userB],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_story_for_dispatch($1, $2, 'worker-a', true)`,
+      [storyId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+    const due = await pool.query(`SELECT * FROM claim_due_telegram_stories($1, 5, 'worker-a')`, [userA]);
+    expect(due.rowCount).toBe(0);
+  });
+
+  it("skips stories that already have a Telegram message id", async () => {
+    const { userA } = await seedUsers(pool);
+    const storyId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_stories (story_id, user_id, media_type, status, scheduled_time, telegram_message_id)
+       VALUES ($1, $2, 'text', 'scheduled', now() - interval '1 minute', '99')`,
+      [storyId, userA],
+    );
+    const claimed = await pool.query(`SELECT * FROM claim_due_telegram_stories($1, 5, 'worker-1')`, [userA]);
+    expect(claimed.rowCount).toBe(0);
+  });
+
+  it("does not reclaim a post that already has telegram_message_id", async () => {
+    const { userA } = await seedUsers(pool);
+    const postId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_posts (id, user_id, content, status, telegram_message_id)
+       VALUES ($1, $2, 'hello', 'draft', 'already-sent')`,
+      [postId, userA],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_post_for_dispatch($1, $2, 'worker-1', true)`,
+      [postId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+  });
+
+  it("does not reclaim a post after Telegram accept was recorded as dispatch_started", async () => {
+    const { userA } = await seedUsers(pool);
+    const postId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_posts (id, user_id, content, status, lease_owner, lease_expires_at, dispatch_started_at)
+       VALUES ($1, $2, 'hello', 'draft', 'worker-dead', now() - interval '1 minute', now() - interval '1 minute')`,
+      [postId, userA],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_post_for_dispatch($1, $2, 'worker-retry', true)`,
+      [postId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+  });
+
+  it("does not reclaim a story after dispatch_started_at is set", async () => {
+    const { userA } = await seedUsers(pool);
+    const storyId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_stories (story_id, user_id, media_type, status, scheduled_time, dispatch_started_at)
+       VALUES ($1, $2, 'text', 'scheduled', now() - interval '1 minute', now())`,
+      [storyId, userA],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_story_for_dispatch($1, $2, 'worker-retry', true)`,
+      [storyId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+    const due = await pool.query(`SELECT * FROM claim_due_telegram_stories($1, 5, 'worker-retry')`, [userA]);
+    expect(due.rowCount).toBe(0);
   });
 });

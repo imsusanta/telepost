@@ -211,8 +211,8 @@ export default function Auth() {
             <Zap size={18} color="#4ade80" />
           </div>
           <div>
-            <div className="auth-float-label">Quiz Generated</div>
-            <div className="auth-float-value">12 questions • just now</div>
+            <div className="auth-float-label">AI quizzes</div>
+            <div className="auth-float-value">from a topic or PDF</div>
           </div>
         </motion.div>
 
@@ -226,8 +226,8 @@ export default function Auth() {
             <Users size={18} color="#fff" />
           </div>
           <div>
-            <div className="auth-float-label">+128 Students</div>
-            <div className="auth-float-value">joined this week</div>
+            <div className="auth-float-label">Telegram posting</div>
+            <div className="auth-float-value">with your own bot</div>
           </div>
         </motion.div>
 
@@ -241,8 +241,8 @@ export default function Auth() {
             <BarChart3 size={18} color="#fbbf24" />
           </div>
           <div>
-            <div className="auth-float-label">98.7% Delivery</div>
-            <div className="auth-float-value">across all channels</div>
+            <div className="auth-float-label">7-day trial</div>
+            <div className="auth-float-value">invitation code required</div>
           </div>
         </motion.div>
 
@@ -287,7 +287,7 @@ export default function Auth() {
           >
             <div className="auth-pill"><BookOpen size={13} /> AI Quiz Gen</div>
             <div className="auth-pill"><Send size={13} /> Auto Schedule</div>
-            <div className="auth-pill"><Timer size={13} /> 60K+ Q-Bank</div>
+            <div className="auth-pill"><Timer size={13} /> Question Bank</div>
             <div className="auth-pill"><CheckCircle2 size={13} /> Multi-Channel</div>
           </motion.div>
         </div>
@@ -299,18 +299,18 @@ export default function Auth() {
           transition={{ delay: 0.65 }}
         >
           <div>
-            <div className="auth-stat-num">5K+</div>
-            <div className="auth-stat-label">Educators</div>
+            <div className="auth-stat-num">7-day</div>
+            <div className="auth-stat-label">Free trial</div>
           </div>
           <div>
-            <div className="auth-stat-num">120K</div>
-            <div className="auth-stat-label">Quizzes Sent</div>
+            <div className="auth-stat-num">Invite</div>
+            <div className="auth-stat-label">Only access</div>
           </div>
           <div>
             <div className="auth-stat-num">
               <span className="auth-pulse-dot" />Live
             </div>
-            <div className="auth-stat-label">99.9% Uptime</div>
+            <div className="auth-stat-label">telepost.tech</div>
           </div>
         </motion.div>
       </motion.div>

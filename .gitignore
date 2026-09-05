@@ -28,7 +28,14 @@ dev-dist
 supabase/.temp
 deno.lock
 
-# Editor directories and files
+playwright-report
+test-results
+blob-report
+playwright/.cache
+
+# Vite production output is published to the hostinger-production branch.
+/assets/
+
 .vscode/*
 !.vscode/extensions.json
 .idea

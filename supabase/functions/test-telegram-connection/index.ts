@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from '../_shared/auth.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,28 +13,28 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Require authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get('Authorization'),
+      cronSecretHeader: req.headers.get('x-cron-secret'),
+      cronSecret: Deno.env.get('CRON_SECRET'),
+      serviceRoleKey,
     });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    let callerUserId: string | null = null;
+    if (classified === 'user-or-unknown') {
+      const supabase = createClient(supabaseUrl, supabaseAnon);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(extractBearer(req.headers.get('Authorization')));
+      if (!authError && user) callerUserId = user.id;
+    }
+    if (authorizeUserFacingAi({ classified, callerUserId }) !== 'allow') {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid authentication token' }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const user = { id: callerUserId as string };
 
     const { chatId, channelId, botToken } = await req.json();
 
@@ -56,13 +57,11 @@ serve(async (req) => {
     }
 
     // Get bot token from channel with ownership verification
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    let TELEGRAM_BOT_TOKEN: string | null = botToken || null;
+    let TELEGRAM_BOT_TOKEN: string | null = typeof botToken === 'string' && botToken.trim() ? botToken.trim() : null;
 
     if (channelId && !TELEGRAM_BOT_TOKEN) {
-      // Verify user owns this channel and get its bot token
       const { data: channel, error: channelError } = await supabaseAdmin
         .from('channels')
         .select('id, user_id, telegram_bot_token')
@@ -76,7 +75,6 @@ serve(async (req) => {
         );
       }
 
-      // SECURITY: Verify ownership
       if (channel.user_id !== user.id) {
         console.error(`Security violation: User ${user.id} tried to test channel ${channelId} owned by ${channel.user_id}`);
         return new Response(
@@ -88,10 +86,7 @@ serve(async (req) => {
       TELEGRAM_BOT_TOKEN = channel.telegram_bot_token;
     }
 
-    // FALLBACK: If specific channel has no token (or no channelId provided), 
-    // look for ANY channel with a bot token owned by the user
     if (!TELEGRAM_BOT_TOKEN) {
-      console.log(`Searching for fallback bot token for user ${user.id}...`);
       const { data: botChannel } = await supabaseAdmin
         .from('channels')
         .select('telegram_bot_token')
@@ -101,34 +96,23 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      if (botChannel) {
-        TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
-        console.log("Using fallback bot token from another channel.");
-      }
+      if (botChannel) TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
     }
 
-    // Fallback to global token as extreme last resort (though we want to move away from this)
-    if (!TELEGRAM_BOT_TOKEN) {
-      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
+    const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
+    if (!TELEGRAM_BOT_TOKEN && isSuperAdmin === true) {
+      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || Deno.env.get("ADMIN_BOT_TOKEN") || null;
     }
 
-    // SECURITY: Restrict specific administrative bot token to super admins only
-    const ADMIN_BOT_TOKEN = "8478847750:AAF58NI0nqfxEzEqe7npy9s0CwEJN9PuX4k";
-    if (TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
-      console.log(`Checking if user ${user.id} has super admin permissions to use the admin bot token...`);
-      const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
-
-      if (!isSuperAdmin) {
-        console.warn(`Access denied: Non-admin user ${user.id} attempted to use administrative bot token.`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
-          }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      console.log(`Access granted: Super admin ${user.id} is using the administrative bot token.`);
+    const adminBotToken = Deno.env.get("ADMIN_BOT_TOKEN");
+    if (adminBotToken && TELEGRAM_BOT_TOKEN === adminBotToken && isSuperAdmin !== true) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!TELEGRAM_BOT_TOKEN) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from "../_shared/auth.ts";
 import { chatCompletion, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
 import { appendUnique, normalizeQuestions, parseQuizPayload, planBatches, tokenBudget, type QuizQuestion } from "../_shared/quiz.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
@@ -36,23 +37,27 @@ async function getAISettings(supabase: SupabaseClient): Promise<AISettings> {
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return jsonResponse({ error: 'Missing authorization header' }, 401);
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ error: 'Missing Supabase configuration' }, 500);
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get('Authorization'),
+      cronSecretHeader: req.headers.get('x-cron-secret'),
+      cronSecret: Deno.env.get('CRON_SECRET'),
+      serviceRoleKey,
+    });
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    let user = null;
-    const token = authHeader.replace(/^Bearer\s+/i, '');
-    if (token === serviceRoleKey) {
-      user = { id: '00000000-0000-0000-0000-000000000000', email: 'service-role@telepost.tech' };
-    } else {
-      const { data, error: userError } = await supabase.auth.getUser(token);
-      if (userError || !data?.user) {
-        return jsonResponse({ error: 'Authentication failed. Please log in again.' }, 401);
-      }
-      user = data.user;
+    let callerUserId: string | null = null;
+    if (classified === 'user-or-unknown') {
+      const userClient = createClient(supabaseUrl, anonKey || serviceRoleKey);
+      const { data, error: userError } = await userClient.auth.getUser(extractBearer(req.headers.get('Authorization')));
+      if (!userError && data?.user) callerUserId = data.user.id;
     }
+    if (authorizeUserFacingAi({ classified, callerUserId }) !== 'allow') {
+      return jsonResponse({ error: 'Authentication failed. Please log in again.' }, 401);
+    }
+    const user = { id: callerUserId as string };
 
     let body: Record<string, unknown>;
     try { body = await req.json() as Record<string, unknown>; } catch { return jsonResponse({ error: 'Invalid JSON request body' }, 400); }

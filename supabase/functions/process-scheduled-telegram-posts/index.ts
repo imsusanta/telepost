@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
-import { isAmbiguousOutcome, telegramRequest } from "../_shared/telegram.ts";
+import { isAmbiguousOutcome, persistWithRetry, telegramRequest } from "../_shared/telegram.ts";
 
 const TELEGRAM_API_ORIGIN = "https://api.telegram.org";
 
@@ -85,10 +85,36 @@ serve(async (req) => {
           throw new Error("Forbidden");
         }
 
+        if (post.telegram_message_id) {
+          await persistWithRetry(async () => {
+            const { data, error } = await admin.rpc("complete_telegram_post", {
+              p_id: post.id,
+              p_worker_id: workerId,
+              p_status: "posted",
+              p_message_id: post.telegram_message_id,
+            });
+            return !error && data === true;
+          });
+          successCount++;
+          results.push({ id: post.id, status: "already_posted" });
+          continue;
+        }
+
         const botToken = channel?.telegram_bot_token || globalToken;
         if (!botToken) throw Object.assign(new Error("No bot token available for this post."), { telegramKind: "definitive_failure" });
         const chatId = channel?.telegram_channel_id;
         if (!chatId) throw Object.assign(new Error("Chat ID not configured for this post."), { telegramKind: "definitive_failure" });
+
+        const marked = await persistWithRetry(async () => {
+          const { data, error } = await admin.rpc("mark_telegram_post_dispatch_started", {
+            p_id: post.id,
+            p_worker_id: workerId,
+          });
+          return !error && data === true;
+        });
+        if (!marked) {
+          throw Object.assign(new Error("Post dispatch could not be started"), { telegramKind: "definitive_failure" });
+        }
 
         const baseUrl = `${TELEGRAM_API_ORIGIN}/bot${botToken}`;
         const sendResult = post.image_url
@@ -117,19 +143,22 @@ serve(async (req) => {
         }
 
         const messageId = (sendResult.body as { result?: { message_id?: number } } | null)?.result?.message_id?.toString() || null;
-        const { data: completed, error: completeError } = await admin.rpc("complete_telegram_post", {
-          p_id: post.id,
-          p_worker_id: workerId,
-          p_status: "posted",
-          p_message_id: messageId,
-          p_chat_id: String(chatId),
+        const completed = await persistWithRetry(async () => {
+          const { data, error } = await admin.rpc("complete_telegram_post", {
+            p_id: post.id,
+            p_worker_id: workerId,
+            p_status: "posted",
+            p_message_id: messageId,
+            p_chat_id: String(chatId),
+          });
+          return !error && data === true;
         });
-        if (completeError || completed !== true) {
-          throw new Error("Failed to record posted status");
+        if (!completed) {
+          console.error("Failed to record posted telegram post after retries", post.id);
         }
 
         successCount++;
-        results.push({ id: post.id, status: "success" });
+        results.push({ id: post.id, status: completed ? "success" : "sent_unrecorded" });
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (error) {
         const kind = (error as { telegramKind?: string }).telegramKind;

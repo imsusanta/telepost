@@ -1,12 +1,12 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@1.0.2";
+import { authorizeOwnedRecord, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings } from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 async function getAISettings(supabase: any): Promise<AISettings> {
@@ -26,15 +26,47 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const cronSecret = Deno.env.get('CRON_SECRET');
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase configuration');
+
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get('Authorization'),
+      cronSecretHeader: req.headers.get('x-cron-secret'),
+      cronSecret,
+      serviceRoleKey,
+    });
+    if (classified === 'missing') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    let callerUserId: string | null = null;
+    if (classified === 'user-or-unknown') {
+      const userClient = createClient(supabaseUrl, anonKey || serviceRoleKey);
+      const { data, error } = await userClient.auth.getUser(extractBearer(req.headers.get('Authorization')));
+      if (error || !data?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      callerUserId = data.user.id;
+    }
+
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { documentId, storagePath, userId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const documentId = typeof body.documentId === 'string' ? body.documentId : null;
+    const storagePath = typeof body.storagePath === 'string' ? body.storagePath : null;
     if (!documentId || !storagePath) return new Response(JSON.stringify({ error: 'documentId and storagePath are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const { data: document, error: documentError } = await supabase.from('documents').select('user_id').eq('id', documentId).single();
-    if (documentError || !document) return new Response(JSON.stringify({ error: 'Document not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (userId && userId !== document.user_id) return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const decision = authorizeOwnedRecord({
+      classified,
+      callerUserId,
+      ownerUserId: document?.user_id,
+      recordExists: !(documentError || !document),
+    });
+    if (decision === 'unauthorized') return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (decision === 'not_found') return new Response(JSON.stringify({ error: 'Document not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (decision === 'forbidden') return new Response(JSON.stringify({ error: 'Access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const { data: fileData, error: downloadError } = await supabase.storage.from('documents').download(storagePath);
     if (downloadError || !fileData) throw new Error(`Failed to download PDF: ${downloadError?.message || 'No data'}`);
@@ -93,6 +125,6 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ extractedText, pageCount, aiSummary, topics, provider: resolved.provider, model: resolved.model }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[process-document] Error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error occurred while processing PDF', status: 'failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: publicErrorMessage(error, 'Unknown error occurred while processing PDF'), status: 'failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

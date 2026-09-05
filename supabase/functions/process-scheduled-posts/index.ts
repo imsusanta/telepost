@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
-import { alreadySentPoll, isAmbiguousOutcome, telegramRequest } from "../_shared/telegram.ts";
+import { alreadyAttemptedPoll, persistWithRetry, isAmbiguousOutcome, shouldSkipIntro, telegramRequest } from "../_shared/telegram.ts";
 
 const TELEGRAM_API_ORIGIN = "https://api.telegram.org";
 
@@ -43,7 +43,6 @@ serve(async (req) => {
   }
 
   let reqBody: {
-    force?: boolean;
     triggered_by?: string;
     post_ids?: string[];
     send_now?: boolean;
@@ -149,7 +148,9 @@ serve(async (req) => {
 
         const progress = (post.delivery_progress || {}) as {
           intro_sent?: boolean;
+          intro_inflight?: boolean;
           polls_sent?: number[];
+          polls_inflight?: number[];
         };
 
         const storedLanguage = quizData?.metadata?.language || quizData?.language || "";
@@ -164,7 +165,16 @@ serve(async (req) => {
             ? `📝 *क्विज़: ${quizData.topic || "सामान्य"}*\n\n📊 आपके लिए ${quizData.questions.length} प्रश्न! नीचे दिए गए प्रश्नों के उत्तर दें:`
             : `📝 *Quiz: ${quizData.topic || "General"}*\n\n📊 ${quizData.questions.length} questions for you! Answer the questions below:`;
 
-        if (!progress.intro_sent) {
+        if (!shouldSkipIntro(progress)) {
+          progress.intro_inflight = true;
+          const { data: inflightRecorded, error: inflightError } = await admin.rpc("record_scheduled_post_progress", {
+            p_id: postId,
+            p_worker_id: workerId,
+            p_progress: progress,
+          });
+          if (inflightError || inflightRecorded !== true) {
+            throw new Error("Failed to record delivery progress");
+          }
           const introResponse = await telegramRequest(`${baseUrl}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -176,20 +186,37 @@ serve(async (req) => {
             });
           }
           progress.intro_sent = true;
-          const { data: recorded, error: progressError } = await admin.rpc("record_scheduled_post_progress", {
-            p_id: postId,
-            p_worker_id: workerId,
-            p_progress: progress,
+          const recorded = await persistWithRetry(async () => {
+            const { data, error } = await admin.rpc("record_scheduled_post_progress", {
+              p_id: postId,
+              p_worker_id: workerId,
+              p_progress: progress,
+            });
+            return !error && data === true;
           });
-          if (progressError || recorded !== true) {
+          if (!recorded) {
             throw new Error("Failed to record delivery progress");
           }
         }
 
         progress.polls_sent = Array.isArray(progress.polls_sent) ? progress.polls_sent : [];
+        progress.polls_inflight = Array.isArray(progress.polls_inflight) ? progress.polls_inflight : [];
 
         for (let i = 0; i < quizData.questions.length; i++) {
-          if (alreadySentPoll(progress, i)) continue;
+          if (alreadyAttemptedPoll(progress, i)) continue;
+
+          progress.polls_inflight = [...progress.polls_inflight, i];
+          const inflightRecorded = await persistWithRetry(async () => {
+            const { data, error } = await admin.rpc("record_scheduled_post_progress", {
+              p_id: postId,
+              p_worker_id: workerId,
+              p_progress: progress,
+            });
+            return !error && data === true;
+          });
+          if (!inflightRecorded) {
+            throw new Error("Failed to record delivery progress");
+          }
 
           const q = quizData.questions[i];
           const questionCharCount = Array.from(String(q.question || "")).length;
@@ -248,12 +275,15 @@ serve(async (req) => {
           }
 
           progress.polls_sent.push(i);
-          const { data: recorded, error: progressError } = await admin.rpc("record_scheduled_post_progress", {
-            p_id: postId,
-            p_worker_id: workerId,
-            p_progress: progress,
+          const recorded = await persistWithRetry(async () => {
+            const { data, error } = await admin.rpc("record_scheduled_post_progress", {
+              p_id: postId,
+              p_worker_id: workerId,
+              p_progress: progress,
+            });
+            return !error && data === true;
           });
-          if (progressError || recorded !== true) {
+          if (!recorded) {
             throw new Error("Failed to record delivery progress");
           }
 
@@ -262,12 +292,15 @@ serve(async (req) => {
           }
         }
 
-        const { data: completed, error: completeError } = await admin.rpc("complete_scheduled_post", {
-          p_id: postId,
-          p_worker_id: workerId,
-          p_status: "sent",
+        const completed = await persistWithRetry(async () => {
+          const { data, error } = await admin.rpc("complete_scheduled_post", {
+            p_id: postId,
+            p_worker_id: workerId,
+            p_status: "sent",
+          });
+          return !error && data === true;
         });
-        if (completeError || completed !== true) {
+        if (!completed) {
           throw new Error("Failed to record sent status");
         }
         results.push({ id: postId, status: "sent" });

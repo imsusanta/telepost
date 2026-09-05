@@ -1,4 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type KnowledgeBaseTopicRow = Database["public"]["Tables"]["knowledge_base_topics"]["Row"];
 
 export interface KnowledgeBaseTopic {
   id: string;
@@ -6,10 +9,13 @@ export interface KnowledgeBaseTopic {
   channel_id?: string | null;
   subject?: string | null;
   topic: string;
+  topic_name: string;
   description?: string | null;
   language: string;
   prompt_context?: string | null;
-  is_active: boolean;
+  ai_instructions?: string | null;
+  exam?: string | null;
+  grade?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,7 +27,25 @@ export interface CreateKnowledgeBaseTopicInput {
   description?: string | null;
   language?: string;
   prompt_context?: string | null;
-  is_active?: boolean;
+}
+
+function mapTopic(row: KnowledgeBaseTopicRow): KnowledgeBaseTopic {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    channel_id: row.channel_id,
+    subject: row.subject,
+    topic: row.topic_name,
+    topic_name: row.topic_name,
+    description: row.description,
+    language: row.language || "bn",
+    prompt_context: row.ai_instructions,
+    ai_instructions: row.ai_instructions,
+    exam: row.exam,
+    grade: row.grade,
+    created_at: row.created_at || new Date().toISOString(),
+    updated_at: row.updated_at || new Date().toISOString(),
+  };
 }
 
 export class KnowledgeBaseTopicService {
@@ -30,14 +54,13 @@ export class KnowledgeBaseTopicService {
       .from("knowledge_base_topics")
       .select("*")
       .eq("user_id", userId)
-      .eq("is_active", true)
       .order("created_at", { ascending: false });
 
     if (channelId && channelId !== "all") query = query.eq("channel_id", channelId);
 
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []) as KnowledgeBaseTopic[];
+    return (data || []).map(mapTopic);
   }
 
   static async create(userId: string, input: CreateKnowledgeBaseTopicInput): Promise<KnowledgeBaseTopic> {
@@ -50,17 +73,16 @@ export class KnowledgeBaseTopicService {
         user_id: userId,
         channel_id: input.channel_id || null,
         subject: input.subject?.trim() || null,
-        topic,
+        topic_name: topic,
         description: input.description?.trim() || null,
         language: input.language || "bn",
-        prompt_context: input.prompt_context?.trim() || null,
-        is_active: input.is_active ?? true,
+        ai_instructions: input.prompt_context?.trim() || null,
       })
       .select("*")
       .single();
 
     if (error) throw error;
-    return data as KnowledgeBaseTopic;
+    return mapTopic(data);
   }
 
   static async update(
@@ -68,21 +90,20 @@ export class KnowledgeBaseTopicService {
     topicId: string,
     input: Partial<CreateKnowledgeBaseTopicInput>
   ): Promise<KnowledgeBaseTopic> {
-    const payload: Record<string, unknown> = {
+    const payload: Database["public"]["Tables"]["knowledge_base_topics"]["Update"] = {
       updated_at: new Date().toISOString(),
     };
 
     if (typeof input.topic === "string") {
       const topic = input.topic.trim();
       if (!topic) throw new Error("Topic is required");
-      payload.topic = topic;
+      payload.topic_name = topic;
     }
     if (input.subject !== undefined) payload.subject = input.subject?.trim() || null;
     if (input.description !== undefined) payload.description = input.description?.trim() || null;
     if (input.language !== undefined) payload.language = input.language || "bn";
-    if (input.prompt_context !== undefined) payload.prompt_context = input.prompt_context?.trim() || null;
+    if (input.prompt_context !== undefined) payload.ai_instructions = input.prompt_context?.trim() || null;
     if (input.channel_id !== undefined) payload.channel_id = input.channel_id || null;
-    if (input.is_active !== undefined) payload.is_active = input.is_active;
 
     const { data, error } = await supabase
       .from("knowledge_base_topics")
@@ -93,7 +114,7 @@ export class KnowledgeBaseTopicService {
       .single();
 
     if (error) throw error;
-    return data as KnowledgeBaseTopic;
+    return mapTopic(data);
   }
 
   static async remove(userId: string, topicId: string): Promise<void> {
@@ -115,9 +136,8 @@ export class KnowledgeBaseTopicService {
 
     let query = supabase
       .from("knowledge_base_topics")
-      .select("subject, topic, description, language, prompt_context")
+      .select("subject, topic_name, description, language, ai_instructions")
       .eq("user_id", userId)
-      .eq("is_active", true)
       .in("id", topicIds);
 
     if (channelId && channelId !== "all") query = query.or(`channel_id.eq.${channelId},channel_id.is.null`);
@@ -126,12 +146,12 @@ export class KnowledgeBaseTopicService {
     if (error) throw error;
 
     return (data || [])
-      .map((item: any) => {
+      .map((item) => {
         const parts = [
           item.subject ? `Subject: ${item.subject}` : "",
-          `Topic: ${item.topic}`,
+          `Topic: ${item.topic_name}`,
           item.description ? `Description: ${item.description}` : "",
-          item.prompt_context ? `Teacher context: ${item.prompt_context}` : "",
+          item.ai_instructions ? `Teacher context: ${item.ai_instructions}` : "",
         ].filter(Boolean);
         return parts.join("\n");
       })

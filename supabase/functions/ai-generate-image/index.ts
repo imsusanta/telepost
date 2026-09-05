@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { cloudflareRunUrl, providerError } from "../_shared/ai-provider.ts";
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -234,16 +234,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return jsonResponse({ error: "Authentication required" }, 401);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !supabaseServiceKey) throw new Error("Missing Supabase configuration");
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get("Authorization"),
+      cronSecretHeader: req.headers.get("x-cron-secret"),
+      cronSecret: Deno.env.get("CRON_SECRET"),
+      serviceRoleKey: supabaseServiceKey,
+    });
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
+    let callerUserId: string | null = null;
+    if (classified === "user-or-unknown") {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(extractBearer(req.headers.get("Authorization")));
+      if (!authError && user) callerUserId = user.id;
+    }
+    if (authorizeUserFacingAi({ classified, callerUserId }) !== "allow") {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
 
     const body: ImageGenerationRequest = await req.json();
     if (!body?.prompt?.trim()) return jsonResponse({ error: "Prompt is required" }, 400);
@@ -261,7 +269,7 @@ serve(async (req) => {
     const size = sizeMap[body.aspectRatio] || "1024x1024";
     const startTime = Date.now();
 
-    console.log(`[ai-generate-image] user=${user.id}, provider=${resolved.provider}, model=${resolved.model}`);
+    console.log(`[ai-generate-image] user=${callerUserId}, provider=${resolved.provider}, model=${resolved.model}`);
 
     let imageUrl = "";
     if (resolved.provider === "cloudflare") {
@@ -276,7 +284,7 @@ serve(async (req) => {
 
     try {
       await supabase.from("ai_usage_logs").insert({
-        user_id: user.id,
+        user_id: callerUserId,
         feature: "image-generation",
         provider: resolved.provider,
         model: resolved.model,

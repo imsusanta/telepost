@@ -24,7 +24,6 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
 
     const checkSuperAdminWithTimeout = async (): Promise<boolean> => {
       // First check cache for quick access
@@ -132,7 +131,7 @@ export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
     };
 
     // Set a fallback timeout to prevent infinite loading
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (isMounted && loading) {
         console.warn("Access check fallback timeout triggered");
         // On timeout, if cached as super admin, grant access

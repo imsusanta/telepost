@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 import { chatCompletion, resolveAIProvider, OPENROUTER_DEFAULT_MODEL, type AISettings } from "../_shared/ai-provider.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from "../_shared/auth.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 type JsonObject = Record<string, unknown>;
@@ -21,11 +22,24 @@ async function getAISettings(supabase: SupabaseClient): Promise<AISettings> {
   return { provider: "openrouter", model: OPENROUTER_DEFAULT_MODEL, image_model: "", temperature: 0.7 } as AISettings;
 }
 async function authenticateRequest(req: Request, supabase: SupabaseClient, serviceRoleKey?: string): Promise<string | null> {
-  const authHeader = req.headers.get("Authorization"); if (!authHeader) return null;
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim(); if (!token) return null;
-  if (serviceRoleKey && token === serviceRoleKey) return "00000000-0000-0000-0000-000000000000";
-  try { const { data: { user }, error } = await supabase.auth.getUser(token); if (!error && user) return user.id; } catch (error) { console.warn("[ai-generate-text] Authentication failed:", error); }
-  return null;
+  const classified = classifyBearer({
+    authorizationHeader: req.headers.get("Authorization"),
+    cronSecretHeader: req.headers.get("x-cron-secret"),
+    cronSecret: Deno.env.get("CRON_SECRET"),
+    serviceRoleKey,
+  });
+  if (classified !== "user-or-unknown") return null;
+  const token = extractBearer(req.headers.get("Authorization"));
+  if (!token) return null;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    if (authorizeUserFacingAi({ classified, callerUserId: user.id }) !== "allow") return null;
+    return user.id;
+  } catch (error) {
+    console.warn("[ai-generate-text] Authentication failed:", error);
+    return null;
+  }
 }
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

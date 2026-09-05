@@ -89,11 +89,13 @@ export function cloudflareChatUrl(accountId: string, model = CLOUDFLARE_DEFAULT_
   return `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${cleanModel}`;
 }
 
+export const cloudflareRunUrl = cloudflareChatUrl;
+
 function parseBody(body: string): unknown { try { return JSON.parse(body) as unknown; } catch { return null; } }
 function isTransientStatus(status: number): boolean { return status === 408 || status === 429 || status >= 500; }
 function isUnknownModelError(status: number, body: string): boolean { return (status === 400 || status === 404) && /no endpoints found|not a valid model|no allowed providers|model not found/i.test(body); }
 function isQuotaOrBillingError(status: number, body: string): boolean { return status === 402 || /insufficient[_ -]?quota|quota[_ -]?exceeded|credits? exhausted|credit balance|billing|payment required|spend limit|budget exceeded|rate limit exceeded|too many requests/i.test(body); }
-function providerError(provider: string, status: number, body: string): Error {
+export function providerError(provider: string, status: number, body: string): Error {
   const parsed = parseBody(body);
   if (parsed && typeof parsed === 'object') {
     const record = parsed as Record<string, unknown>;

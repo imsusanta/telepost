@@ -11,6 +11,7 @@ import { QuizService } from "@/services/quizService";
 import { supabase } from "@/integrations/supabase/client";
 import { TempQuestionStorageService } from "@/services/tempQuestionStorage";
 import { KnowledgeBaseSelector } from "./KnowledgeBaseSelector";
+import { KnowledgeBaseTopic } from "@/services/knowledgeBaseTopicService";
 import { useSubscription } from "@/hooks/useSubscription";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,6 +31,7 @@ interface PDFQuestionGeneratorProps {
 export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }: PDFQuestionGeneratorProps) {
   const [file, setFile] = useState<File | null>(null);
   const [selectedLibraryDoc, setSelectedLibraryDoc] = useState<Document | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<KnowledgeBaseTopic | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
   const [language, setLanguage] = useState<"bn" | "en" | "hi">("en");
   const [topic, setTopic] = useState("");
@@ -64,23 +66,26 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
 
       setFile(selectedFile);
       setSelectedLibraryDoc(null);
+      setSelectedTopic(null);
       if (!topic) setTopic(selectedFile.name.replace(".pdf", ""));
     }
   };
 
-  const handleLibraryDocSelect = (doc: Document) => {
-    setSelectedLibraryDoc(doc);
+  const handleLibraryDocSelect = (kbTopic: KnowledgeBaseTopic) => {
+    setSelectedTopic(kbTopic);
+    setSelectedLibraryDoc(null);
     setFile(null);
-    setTopic(doc.title || doc.file_name.replace(".pdf", ""));
+    setTopic(kbTopic.topic || kbTopic.topic_name);
   };
 
   const handleRemoveSelection = () => {
     setFile(null);
     setSelectedLibraryDoc(null);
+    setSelectedTopic(null);
   };
 
   const handleGenerate = async () => {
-    if (!file && !selectedLibraryDoc) {
+    if (!file && !selectedLibraryDoc && !selectedTopic) {
       toast({
         title: "Error",
         description: "Please upload a PDF file or select one from your library",
@@ -122,7 +127,8 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
         throw new Error("You must be logged in");
       }
 
-      let processedDoc: Document;
+      let processedDoc: Document | null = null;
+      let topicContextText: string | null = null;
 
       if (file) {
         // Step 1: Upload PDF
@@ -147,9 +153,8 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
         });
 
         processedDoc = await waitForDocumentProcessing(uploadedDoc.id);
-      } else {
-        // Use existing library document
-        processedDoc = selectedLibraryDoc!;
+      } else if (selectedLibraryDoc) {
+        processedDoc = selectedLibraryDoc;
 
         if (processedDoc.processing_status !== "completed") {
           setIsProcessing(true);
@@ -159,37 +164,44 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
           });
           processedDoc = await waitForDocumentProcessing(processedDoc.id);
         }
+      } else if (selectedTopic) {
+        topicContextText = [
+          selectedTopic.subject ? `Subject: ${selectedTopic.subject}` : "",
+          `Topic: ${selectedTopic.topic}`,
+          selectedTopic.description ? `Description: ${selectedTopic.description}` : "",
+          selectedTopic.prompt_context ? `Teacher context: ${selectedTopic.prompt_context}` : "",
+        ].filter(Boolean).join("\n");
       }
 
-      if (!processedDoc.extracted_text) {
-        throw new Error("Could not extract text from PDF. The PDF might be empty or corrupted.");
+      const sourceText = topicContextText
+        || processedDoc?.extracted_text
+        || "";
+
+      if (!sourceText) {
+        throw new Error("Could not extract text from the selected source.");
       }
 
-      // Check if the extracted text indicates an error
-      if (processedDoc.extracted_text.startsWith("Error:") ||
-        processedDoc.extracted_text.startsWith("No text could be extracted")) {
-        throw new Error(processedDoc.extracted_text);
+      if (sourceText.startsWith("Error:") ||
+        sourceText.startsWith("No text could be extracted")) {
+        throw new Error(sourceText);
       }
 
-      // Check if we have meaningful text (at least 50 characters)
-      if (processedDoc.extracted_text.trim().length < 50) {
-        throw new Error("The PDF does not contain enough text to generate questions. Please upload a PDF with more content.");
+      if (sourceText.trim().length < 50) {
+        throw new Error("The selected source does not contain enough text to generate questions.");
       }
 
       setIsProcessing(false);
 
-      // Step 3: Generate questions from extracted text
       setIsGenerating(true);
       toast({
         title: "Generating Questions",
-        description: "Creating questions from PDF content...",
+        description: selectedTopic ? "Creating questions from the knowledge topic..." : "Creating questions from PDF content...",
       });
 
-      console.log(`Generating questions from PDF with ${processedDoc.extracted_text.length} characters of text`);
-
-      // Limit extracted text to 8000 characters for better API performance
-      const textForGeneration = processedDoc.extracted_text.substring(0, 8000);
-      const documentName = topic || (selectedLibraryDoc ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name) : file?.name || "Document");
+      const textForGeneration = sourceText.substring(0, 8000);
+      const documentName = topic
+        || selectedTopic?.topic
+        || (selectedLibraryDoc ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name) : file?.name || "Document");
 
       const quiz = await QuizService.generateQuizFromDocument({
         documentText: textForGeneration,
@@ -286,7 +298,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
                 <KnowledgeBaseSelector onSelect={handleLibraryDocSelect} />
               )}
             </div>
-            {!file && !selectedLibraryDoc ? (
+            {!file && !selectedLibraryDoc && !selectedTopic ? (
               <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors">
                 <input
                   id="pdf-upload"
@@ -313,10 +325,16 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
                   </div>
                   <div>
                     <p className="text-sm font-semibold truncate max-w-[200px] sm:max-w-md">
-                      {selectedLibraryDoc ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name) : file?.name}
+                      {selectedTopic
+                        ? selectedTopic.topic
+                        : selectedLibraryDoc
+                          ? (selectedLibraryDoc.title || selectedLibraryDoc.file_name)
+                          : file?.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {selectedLibraryDoc ? (
+                      {selectedTopic ? (
+                        <>Knowledge topic{selectedTopic.subject ? ` • ${selectedTopic.subject}` : ""}</>
+                      ) : selectedLibraryDoc ? (
                         <>Library Document • {(selectedLibraryDoc.file_size_bytes / 1024 / 1024).toFixed(2)} MB</>
                       ) : (
                         <>Local File • {(file!.size / 1024 / 1024).toFixed(2)} MB</>
@@ -395,7 +413,7 @@ export function PDFQuestionGenerator({ onQuestionsGenerated, currentCount = 0 }:
 
           <Button
             onClick={handleGenerate}
-            disabled={isLoading || (!file && !selectedLibraryDoc) || (isLimitReached && !isSuperAdmin)}
+            disabled={isLoading || (!file && !selectedLibraryDoc && !selectedTopic) || (isLimitReached && !isSuperAdmin)}
             className="w-full gap-2 h-12 text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             {isLoading ? (

@@ -50,9 +50,9 @@ export const CTA = ({ onGetStarted }: CTAProps) => {
 
             {/* Subheadline */}
             <p className="text-base sm:text-lg text-muted-foreground mb-9 leading-relaxed">
-              Join thousands of educators who automate quizzes and engage students
+              Generate, schedule, and post exam quizzes on Telegram
               <br className="hidden sm:block" />
-              on Telegram — in just a few clicks.
+              from one dashboard — start with a 7-day invitation-only trial.
             </p>
 
             {/* Action Buttons */}
@@ -95,14 +95,14 @@ export const CTA = ({ onGetStarted }: CTAProps) => {
                 <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                   <Gift className="w-3 h-3" />
                 </div>
-                <span>14-day free trial</span>
+                <span>7-day free trial</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-sky-100 dark:bg-sky-950/60 text-[#0088cc] flex items-center justify-center">
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </div>
-                <span>100% Secure</span>
+                <span>Invitation code required</span>
               </div>
             </div>
           </div>

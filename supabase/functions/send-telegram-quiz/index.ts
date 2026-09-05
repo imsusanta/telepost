@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authorizeUserFacingAi, classifyBearer, extractBearer } from '../_shared/auth.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,39 +37,41 @@ serve(async (req: Request) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const classified = classifyBearer({
+      authorizationHeader: req.headers.get('Authorization'),
+      cronSecretHeader: req.headers.get('x-cron-secret'),
+      cronSecret: Deno.env.get('CRON_SECRET'),
+      serviceRoleKey,
     });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    let callerUserId: string | null = null;
+    if (classified === 'user-or-unknown') {
+      const supabase = createClient(supabaseUrl, supabaseAnon, {
+        global: { headers: { Authorization: req.headers.get('Authorization') || '' } }
+      });
+      const { data: { user }, error: authError } = await supabase.auth.getUser(extractBearer(req.headers.get('Authorization')));
+      if (!authError && user) callerUserId = user.id;
+    }
+    if (authorizeUserFacingAi({ classified, callerUserId }) !== 'allow') {
       return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const user = { id: callerUserId as string };
 
     const { chatId, channelId, quiz, scheduleInterval, minQuestionsPerInterval, instantPoll } = await req.json() as TelegramQuizRequest;
 
     if (!chatId || !quiz || !quiz.questions) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: chatId and quiz" }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     let TELEGRAM_BOT_TOKEN: string | null = null;
 
@@ -110,22 +113,20 @@ serve(async (req: Request) => {
       if (botChannel) TELEGRAM_BOT_TOKEN = botChannel.telegram_bot_token;
     }
 
-    if (!TELEGRAM_BOT_TOKEN) {
-      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || null;
+    const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
+    if (!TELEGRAM_BOT_TOKEN && isSuperAdmin === true) {
+      TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || Deno.env.get("ADMIN_BOT_TOKEN") || null;
     }
 
     const ADMIN_BOT_TOKEN = Deno.env.get("ADMIN_BOT_TOKEN");
-    if (ADMIN_BOT_TOKEN && TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN) {
-      const { data: isSuperAdmin } = await supabaseAdmin.rpc('is_super_admin', { p_user_id: user.id });
-      if (!isSuperAdmin) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    if (ADMIN_BOT_TOKEN && TELEGRAM_BOT_TOKEN === ADMIN_BOT_TOKEN && isSuperAdmin !== true) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "This bot is for administrative use only. Please add your own Telegram bot token to your channel in the 'Channels' page."
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!TELEGRAM_BOT_TOKEN) {
@@ -134,7 +135,7 @@ serve(async (req: Request) => {
           success: false,
           error: "No bot token available. Please configure a bot token for the selected channel in the 'Channels' page."
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

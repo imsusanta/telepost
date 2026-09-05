@@ -61,7 +61,7 @@ class AutoScheduleService {
     }
 
     async upsertSettings(userId: string, settings: AutoScheduleSettingsInput): Promise<AutoScheduleSettings> {
-        let payload: Record<string, any> = {
+        const payload: Record<string, unknown> = {
             user_id: userId,
             channel_id: settings.channel_id,
             enabled: settings.enabled,

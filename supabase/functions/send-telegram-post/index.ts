@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { callerOwnsPostAndChannel, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
-import { telegramRequest } from "../_shared/telegram.ts";
+import { persistWithRetry, telegramRequest } from "../_shared/telegram.ts";
 
 interface TelegramPostRequest {
   postId?: string;
@@ -144,6 +144,17 @@ serve(async (req) => {
 
     claimedPostId = postId;
 
+    const marked = await persistWithRetry(async () => {
+      const { data, error } = await admin.rpc("mark_telegram_post_dispatch_started", {
+        p_id: postId,
+        p_worker_id: workerId,
+      });
+      return !error && data === true;
+    });
+    if (!marked) {
+      return jsonResponse({ error: "Post dispatch could not be started" }, 409);
+    }
+
     const globalToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     let botToken = channelBotToken || null;
     if (!botToken && post.user_id) {
@@ -198,16 +209,19 @@ serve(async (req) => {
     }
 
     const messageId = (sendResult.body as { result?: { message_id?: number } } | null)?.result?.message_id?.toString() || null;
-    const { data: completed, error: completeError } = await admin.rpc("complete_telegram_post", {
-      p_id: postId,
-      p_worker_id: workerId,
-      p_status: "posted",
-      p_message_id: messageId,
-      p_chat_id: String(chatId),
+    const recorded = await persistWithRetry(async () => {
+      const { data, error } = await admin.rpc("complete_telegram_post", {
+        p_id: postId,
+        p_worker_id: workerId,
+        p_status: "posted",
+        p_message_id: messageId,
+        p_chat_id: String(chatId),
+      });
+      return !error && data === true;
     });
 
-    if (completeError || completed !== true) {
-      console.error("Failed to record posted status:", completeError);
+    if (!recorded) {
+      console.error("Failed to record posted status after retries");
       return jsonResponse({
         success: true,
         message: "Post sent to Telegram, but status could not be recorded",
