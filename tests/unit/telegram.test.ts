@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  alreadyAttemptedPoll,
   alreadySentPoll,
   classifyTelegramFailure,
   isAmbiguousOutcome,
   nextPollIndex,
+  persistWithRetry,
+  shouldSkipIntro,
   telegramRequest,
 } from "../../supabase/functions/_shared/telegram.ts";
 
@@ -57,5 +60,23 @@ describe("telegram send outcomes", () => {
     expect(alreadySentPoll(progress, 1)).toBe(true);
     expect(alreadySentPoll(progress, 2)).toBe(false);
     expect(nextPollIndex(progress)).toBe(2);
+  });
+
+  it("treats in-flight intro and polls as already attempted so retries do not duplicate", () => {
+    expect(shouldSkipIntro({ intro_inflight: true })).toBe(true);
+    expect(shouldSkipIntro({ intro_sent: true })).toBe(true);
+    expect(shouldSkipIntro({})).toBe(false);
+    expect(alreadyAttemptedPoll({ polls_inflight: [2] }, 2)).toBe(true);
+    expect(alreadyAttemptedPoll({ polls_sent: [0] }, 1)).toBe(false);
+  });
+
+  it("retries a failed delivery receipt write", async () => {
+    let calls = 0;
+    const ok = await persistWithRetry(async () => {
+      calls += 1;
+      return calls >= 3;
+    }, 5, async () => {});
+    expect(ok).toBe(true);
+    expect(calls).toBe(3);
   });
 });

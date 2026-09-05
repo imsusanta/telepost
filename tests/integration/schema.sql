@@ -88,6 +88,7 @@ CREATE TABLE public.telegram_posts (
   claimed_at TIMESTAMPTZ,
   lease_owner TEXT,
   lease_expires_at TIMESTAMPTZ,
+  dispatch_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -109,7 +110,8 @@ CREATE TABLE public.telegram_stories (
   attempts INTEGER NOT NULL DEFAULT 0,
   claimed_at TIMESTAMPTZ,
   lease_owner TEXT,
-  lease_expires_at TIMESTAMPTZ
+  lease_expires_at TIMESTAMPTZ,
+  dispatch_started_at TIMESTAMPTZ
 );
 
 CREATE TABLE public.scheduled_telegram_posts (
@@ -253,6 +255,7 @@ BEGIN
       error_message = NULL
   WHERE target.id = p_post_id
     AND target.telegram_message_id IS NULL
+    AND target.dispatch_started_at IS NULL
     AND (p_user_id IS NULL OR target.user_id = p_user_id)
     AND (
       target.status = 'draft'
@@ -261,6 +264,50 @@ BEGIN
     AND (target.lease_expires_at IS NULL OR target.lease_expires_at < now())
     AND COALESCE(target.attempts, 0) < 5
   RETURNING target.*;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_telegram_post_dispatch_started(
+  p_id UUID,
+  p_worker_id TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_updated INTEGER;
+BEGIN
+  UPDATE public.telegram_posts
+  SET dispatch_started_at = COALESCE(dispatch_started_at, now())
+  WHERE id = p_id
+    AND lease_owner = p_worker_id
+    AND telegram_message_id IS NULL;
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_telegram_story_dispatch_started(
+  p_story_id UUID,
+  p_worker_id TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_updated INTEGER;
+BEGIN
+  UPDATE public.telegram_stories
+  SET dispatch_started_at = COALESCE(dispatch_started_at, now())
+  WHERE story_id = p_story_id
+    AND lease_owner = p_worker_id
+    AND telegram_message_id IS NULL;
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
 END;
 $$;
 
@@ -383,6 +430,7 @@ BEGIN
     WHERE s.status = 'scheduled'
       AND s.scheduled_time <= now()
       AND s.telegram_message_id IS NULL
+      AND s.dispatch_started_at IS NULL
       AND COALESCE(s.attempts, 0) < 3
       AND (s.lease_expires_at IS NULL OR s.lease_expires_at < now())
       AND (p_user_id IS NULL OR s.user_id = p_user_id)
@@ -417,6 +465,7 @@ BEGIN
       error_message = NULL
   WHERE target.story_id = p_story_id
     AND target.telegram_message_id IS NULL
+    AND target.dispatch_started_at IS NULL
     AND (p_user_id IS NULL OR target.user_id = p_user_id)
     AND (
       target.status = 'draft'
@@ -486,7 +535,8 @@ BEGIN
   WHERE status IN ('scheduled', 'draft')
     AND lease_expires_at IS NOT NULL
     AND lease_expires_at < now()
-    AND COALESCE(attempts, 0) < 3;
+    AND COALESCE(attempts, 0) < 3
+    AND dispatch_started_at IS NULL;
 
   UPDATE public.telegram_stories
   SET claimed_at = NULL,
@@ -495,7 +545,8 @@ BEGIN
   WHERE status IN ('scheduled', 'draft')
     AND lease_expires_at IS NOT NULL
     AND lease_expires_at < now()
-    AND COALESCE(attempts, 0) < 3;
+    AND COALESCE(attempts, 0) < 3
+    AND dispatch_started_at IS NULL;
 END;
 $$;
 

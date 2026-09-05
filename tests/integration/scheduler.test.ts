@@ -211,4 +211,36 @@ describe("scheduler locking and recovery", () => {
     );
     expect(claimed.rowCount).toBe(0);
   });
+
+  it("does not reclaim a post after Telegram accept was recorded as dispatch_started", async () => {
+    const { userA } = await seedUsers(pool);
+    const postId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_posts (id, user_id, content, status, lease_owner, lease_expires_at, dispatch_started_at)
+       VALUES ($1, $2, 'hello', 'draft', 'worker-dead', now() - interval '1 minute', now() - interval '1 minute')`,
+      [postId, userA],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_post_for_dispatch($1, $2, 'worker-retry', true)`,
+      [postId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+  });
+
+  it("does not reclaim a story after dispatch_started_at is set", async () => {
+    const { userA } = await seedUsers(pool);
+    const storyId = randomUUID();
+    await pool.query(
+      `INSERT INTO telegram_stories (story_id, user_id, media_type, status, scheduled_time, dispatch_started_at)
+       VALUES ($1, $2, 'text', 'scheduled', now() - interval '1 minute', now())`,
+      [storyId, userA],
+    );
+    const claimed = await pool.query(
+      `SELECT * FROM claim_telegram_story_for_dispatch($1, $2, 'worker-retry', true)`,
+      [storyId, userA],
+    );
+    expect(claimed.rowCount).toBe(0);
+    const due = await pool.query(`SELECT * FROM claim_due_telegram_stories($1, 5, 'worker-retry')`, [userA]);
+    expect(due.rowCount).toBe(0);
+  });
 });

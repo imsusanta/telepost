@@ -146,3 +146,31 @@ export function nextPollIndex(progress: { intro_sent?: boolean; polls_sent?: num
 export function alreadySentPoll(progress: { polls_sent?: number[] } | null | undefined, index: number): boolean {
   return Array.isArray(progress?.polls_sent) && progress!.polls_sent!.includes(index);
 }
+
+export function alreadyAttemptedPoll(
+  progress: { polls_sent?: number[]; polls_inflight?: number[] } | null | undefined,
+  index: number,
+): boolean {
+  if (alreadySentPoll(progress, index)) return true;
+  return Array.isArray(progress?.polls_inflight) && progress!.polls_inflight!.includes(index);
+}
+
+export function shouldSkipIntro(progress: { intro_sent?: boolean; intro_inflight?: boolean } | null | undefined): boolean {
+  return Boolean(progress?.intro_sent || progress?.intro_inflight);
+}
+
+export async function persistWithRetry(
+  write: () => Promise<boolean>,
+  attempts = 5,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      if (await write()) return true;
+    } catch {
+      // retry
+    }
+    await sleep(Math.min(50 * 2 ** i, 800));
+  }
+  return false;
+}
