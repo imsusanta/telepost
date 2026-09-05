@@ -1,20 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-function requiredViteEnv(name: "VITE_SUPABASE_URL" | "VITE_SUPABASE_PUBLISHABLE_KEY"): string {
-  const value = import.meta.env[name];
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(
-      `${name} is not set. Copy .env.example to .env and add the Supabase publishable URL and key.`,
-    );
-  }
-  return value.trim();
+// Vite only inlines *static* import.meta.env.VITE_* access into the production
+// bundle. Dynamic lookup (import.meta.env[name]) leaves an empty env object and
+// the app throws on boot — that blanked telepost.tech after the JWT fallback
+// was removed.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (
+  typeof SUPABASE_URL !== "string" ||
+  SUPABASE_URL.trim() === "" ||
+  typeof SUPABASE_PUBLISHABLE_KEY !== "string" ||
+  SUPABASE_PUBLISHABLE_KEY.trim() === ""
+) {
+  throw new Error(
+    "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set. Copy .env.example to .env.",
+  );
 }
 
-const SUPABASE_URL = requiredViteEnv("VITE_SUPABASE_URL");
-const SUPABASE_PUBLISHABLE_KEY = requiredViteEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
-
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL.trim(), SUPABASE_PUBLISHABLE_KEY.trim(), {
   auth: {
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     persistSession: true,

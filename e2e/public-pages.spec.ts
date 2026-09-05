@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("public marketing pages", () => {
+  test("landing page hydrates instead of staying blank", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    await page.goto("/");
+    await expect(page.locator("#root")).not.toBeEmpty();
+    await expect(page.locator("#root")).toContainText(/Post Up to 20 Quizzes/i);
+    expect(pageErrors.filter((message) => /VITE_SUPABASE|is not set/i.test(message))).toEqual([]);
+  });
+
   test("landing FAQ states 7-day trial, no SOC 2, and not telepost.me", async ({ page }) => {
     await page.goto("/");
     await page.locator("#faq").scrollIntoViewIfNeeded();

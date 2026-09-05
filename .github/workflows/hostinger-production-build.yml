@@ -46,6 +46,11 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indwa3hicmRna3Rtd25vd3Ztd3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTkyNTQsImV4cCI6MjA4MDY5NTI1NH0.TR7cBNS0w6REoI2cKgcc3pubgIrY94IWoiXAWiy3X3M
           VITE_SUPABASE_PROJECT_ID: wpkxbrdgktmwnowvmwue
 
+      - name: Assert Vite inlined the Supabase URL
+        run: node scripts/assert-vite-env-inlined.mjs
+        env:
+          VITE_SUPABASE_URL: https://wpkxbrdgktmwnowvmwue.supabase.co
+
       - name: Publish bundle to hostinger-production
         env:
           HOSTINGER_BRANCH: hostinger-production
@@ -66,8 +71,18 @@ jobs:
             git rm -rf --ignore-unmatch . >/dev/null 2>&1 || true
           fi
 
+          PREV_ASSETS="$(mktemp -d)"
+          if [ -d assets ]; then
+            find assets -maxdepth 1 \( \
+              -name 'index-*.js' -o -name 'vendor-*.js' -o -name 'index-*.css' -o -name '*.webmanifest' \
+            \) -exec cp -a {} "$PREV_ASSETS/" \;
+          fi
+
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           rsync -a "$BUILD_DIR/" ./
+          mkdir -p assets
+          rsync -a --ignore-existing "$PREV_ASSETS/" assets/
+
           git add -A
           if git diff --cached --quiet; then
             echo "Hostinger production bundle is already current."
