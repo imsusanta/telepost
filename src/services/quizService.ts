@@ -43,7 +43,7 @@ export class QuizService {
 
     if (error) {
       // Try to extract detailed error from response context
-      let errorMessage = error.message || "Failed to generate quiz";
+      const errorMessage = error.message || "Failed to generate quiz";
 
       // Check for specific HTTP status codes in the error
       if (error.message?.includes("429") || errorMessage.includes("Rate limit")) {

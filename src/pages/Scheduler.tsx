@@ -70,23 +70,6 @@ export default function Scheduler() {
   const { canAccess } = useSubscription();
   const hasAccess = canAccess('scheduler');
 
-  if (!hasAccess && !isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-          <Calendar className="w-16 h-16 text-muted-foreground opacity-20" />
-          <h2 className="text-2xl font-bold">Premium Feature</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The Scheduler is available for Basic and Pro users. Upgrade your plan to unlock automated Telegram broadcasts.
-          </p>
-          <Button onClick={() => navigate("/dashboard/settings")}>
-            Upgrade to Pro
-          </Button>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -335,6 +318,23 @@ export default function Scheduler() {
       return matchesSearch && matchesStatus;
     });
   }, [scheduledPosts, searchQuery, statusFilter]);
+
+  if (!hasAccess && !isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <Calendar className="w-16 h-16 text-muted-foreground opacity-20" />
+          <h2 className="text-2xl font-bold">Premium Feature</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            The Scheduler is available for Basic and Pro users. Upgrade your plan to unlock automated Telegram broadcasts.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings")}>
+            Upgrade to Pro
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const getStatusBadge = (post: ScheduledPost) => {
     switch (post.status) {

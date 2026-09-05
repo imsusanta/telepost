@@ -26,19 +26,19 @@ export interface Document {
  * PDF uploads are intentionally disabled.
  */
 export class DocumentService {
-  static async uploadDocument(): Promise<never> {
+  static async uploadDocument(..._args: unknown[]): Promise<Document> {
     throw new Error("PDF knowledge-base uploads have been removed. Add a topic in Knowledge Base instead.");
   }
 
-  static async processDocument(): Promise<never> {
+  static async processDocument(..._args: unknown[]): Promise<Document> {
     throw new Error("PDF document processing has been removed. Use topic-based Knowledge Base.");
   }
 
-  static async getUserDocuments(): Promise<Document[]> { return []; }
-  static async getChannelDocuments(): Promise<Document[]> { return []; }
-  static async searchDocuments(): Promise<Document[]> { return []; }
+  static async getUserDocuments(..._args: unknown[]): Promise<Document[]> { return []; }
+  static async getChannelDocuments(..._args: unknown[]): Promise<Document[]> { return []; }
+  static async searchDocuments(..._args: unknown[]): Promise<Document[]> { return []; }
 
-  static async getDocument(_documentId: string): Promise<never> {
+  static async getDocument(_documentId: string): Promise<Document> {
     throw new Error("PDF documents are no longer supported.");
   }
 
@@ -46,7 +46,7 @@ export class DocumentService {
     throw new Error("PDF documents are no longer supported. Existing legacy records should be managed through migration/admin tooling.");
   }
 
-  static async getDocumentUrl(_storagePath: string): Promise<never> {
+  static async getDocumentUrl(_storagePath: string): Promise<string> {
     throw new Error("PDF documents are no longer supported.");
   }
 

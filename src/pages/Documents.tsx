@@ -31,23 +31,6 @@ export default function Documents() {
   const hasAccess = canAccess('knowledge_base');
   const hasUploadAccess = canAccess('knowledge_base');
 
-  if (!hasAccess && !loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-          <FileText className="w-16 h-16 text-muted-foreground opacity-20" />
-          <h2 className="text-2xl font-bold">Premium Feature</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            The Knowledge Base is available for Basic and Pro users. Store PDFs and generate intelligent quizzes from your own documents.
-          </p>
-          <Button onClick={() => navigate("/dashboard/settings")}>
-            Upgrade to Pro
-          </Button>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const loadChannels = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -101,7 +84,7 @@ export default function Documents() {
         variant: "default",
       });
     }
-  }, [toast]);
+  }, [toast, getLimit]);
 
   // Initial load
   useEffect(() => {
@@ -112,7 +95,7 @@ export default function Documents() {
   // Load documents when filter changes
   useEffect(() => {
     loadDocuments();
-  }, [selectedChannel]);
+  }, [selectedChannel, loadDocuments]);
 
   // Handle URL params
   useEffect(() => {
@@ -139,6 +122,23 @@ export default function Documents() {
 
     return () => clearInterval(pollInterval);
   }, [documents.length, loadDocuments]); // Only restart poll if count changes or manually reloaded
+
+  if (!hasAccess && !loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <FileText className="w-16 h-16 text-muted-foreground opacity-20" />
+          <h2 className="text-2xl font-bold">Premium Feature</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            The Knowledge Base is available for Basic and Pro users. Store PDFs and generate intelligent quizzes from your own documents.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings")}>
+            Upgrade to Pro
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
