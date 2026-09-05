@@ -18,10 +18,10 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[#0088cc]/5 rounded-full blur-[140px]" />
 
         {/* Scattered background dots from screenshot */}
-        <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-[#0088cc]/40" />
-        <div className="absolute top-[22%] right-[10%] w-2 h-2 rounded-full bg-secondary/40" />
-        <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-purple-400/40" />
-        <div className="absolute top-[40%] left-[11%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30" />
+        <div className="absolute top-[18%] left-[10%] w-2 h-2 rounded-full bg-[#0088cc]/40 animate-bounce-subtle" />
+        <div className="absolute top-[22%] right-[10%] w-2 h-2 rounded-full bg-secondary/40 animate-float-slow" />
+        <div className="absolute top-[42%] right-[18%] w-1.5 h-1.5 rounded-full bg-purple-400/40 animate-bounce-subtle [animation-delay:400ms]" />
+        <div className="absolute top-[40%] left-[11%] w-1.5 h-1.5 rounded-full bg-[#0088cc]/30 animate-float-slow [animation-delay:700ms]" />
 
 
 

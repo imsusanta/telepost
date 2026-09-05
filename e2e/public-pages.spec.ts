@@ -11,6 +11,15 @@ test.describe("public marketing pages", () => {
     expect(pageErrors.filter((message) => /VITE_SUPABASE|is not set/i.test(message))).toEqual([]);
   });
 
+  test("landing uses page-enter and feature card micro-motion", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("main.page-enter")).toBeVisible();
+    await expect(page.locator("nav a.nav-link-underline").first()).toBeVisible();
+    await page.locator("#features").scrollIntoViewIfNeeded();
+    await expect(page.locator("#features .motion-lift").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /30-Second Quiz Posting/i })).toBeVisible();
+  });
+
   test("landing FAQ states 7-day trial, no SOC 2, and not telepost.me", async ({ page }) => {
     await page.goto("/");
     await page.locator("#faq").scrollIntoViewIfNeeded();

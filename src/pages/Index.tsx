@@ -137,7 +137,7 @@ const Index = () => {
       {state === "landing" && (
         <>
           {!isStandalone && <Navigation onGetStarted={handleGetStarted} />}
-          <main>
+          <main className="page-enter">
             <Hero onGetStarted={handleGetStarted} />
 
             <TelegramDemo />

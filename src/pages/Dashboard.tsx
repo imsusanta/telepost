@@ -249,7 +249,7 @@ export default function Dashboard() {
             statsCards.map((stat, idx) => (
               <Card
                 key={idx}
-                className="border-border/60 bg-card p-4 shadow-sm hover:shadow transition-shadow flex flex-col justify-between"
+                className="border-border/60 bg-card p-4 shadow-sm hover:shadow-md motion-lift flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
@@ -258,7 +258,7 @@ export default function Dashboard() {
                       {stat.value.toLocaleString()}
                     </p>
                   </div>
-                  <div className={`w-9 h-9 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center shadow-sm shrink-0`}>
+                  <div className={`w-9 h-9 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center shadow-sm shrink-0 transition-transform duration-300 ease-out hover:scale-110 hover:-rotate-6`}>
                     <stat.icon className="w-4 h-4 text-white" />
                   </div>
                 </div>

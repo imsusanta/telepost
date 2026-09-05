@@ -74,9 +74,9 @@ export const Features = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           
           {/* Card 1: 30-Second Quiz Posting */}
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-sky-50/90 via-card to-sky-50/40 dark:from-sky-950/30 dark:to-card border border-sky-100 dark:border-sky-900/40 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start gap-6 relative overflow-hidden group min-h-[220px]">
+          <div className="p-8 rounded-3xl bg-gradient-to-br from-sky-50/90 via-card to-sky-50/40 dark:from-sky-950/30 dark:to-card border border-sky-100 dark:border-sky-900/40 shadow-sm hover:shadow-md motion-lift flex flex-col sm:flex-row justify-between items-start gap-6 relative overflow-hidden group min-h-[220px]">
             <div className="flex-1 z-10 max-w-sm">
-              <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-[#0088cc] flex items-center justify-center mb-6 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-[#0088cc] flex items-center justify-center mb-6 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <Zap className="w-5 h-5 fill-[#0088cc]" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">30-Second Quiz Posting</h3>
@@ -118,9 +118,9 @@ export const Features = () => {
           </div>
 
           {/* Card 2: Native Telegram Experience */}
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-purple-50/90 via-card to-purple-50/40 dark:from-purple-950/30 dark:to-card border border-purple-100 dark:border-purple-900/40 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start gap-6 relative overflow-hidden group min-h-[220px]">
+          <div className="p-8 rounded-3xl bg-gradient-to-br from-purple-50/90 via-card to-purple-50/40 dark:from-purple-950/30 dark:to-card border border-purple-100 dark:border-purple-900/40 shadow-sm hover:shadow-md motion-lift flex flex-col sm:flex-row justify-between items-start gap-6 relative overflow-hidden group min-h-[220px]">
             <div className="flex-1 z-10 max-w-sm">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-6 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-6 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <Send className="w-5 h-5 fill-purple-600 dark:fill-purple-400" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2">Native Telegram Experience</h3>
@@ -159,9 +159,9 @@ export const Features = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           
           {/* Card 1: AI Question Generator */}
-          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 transition-all flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-[#0088cc]/30 motion-lift flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-[#0088cc] flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-[#0088cc] flex items-center justify-center mb-4 transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <FileText className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1.5">AI Question Generator</h3>
@@ -184,9 +184,9 @@ export const Features = () => {
           </div>
 
           {/* Card 2: Real-time Analytics */}
-          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-emerald-500/30 transition-all flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-emerald-500/30 motion-lift flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <BarChart3 className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1.5">Real-time Analytics</h3>
@@ -210,9 +210,9 @@ export const Features = () => {
           </div>
 
           {/* Card 3: Smart Question Bank */}
-          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-amber-500/30 transition-all flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-amber-500/30 motion-lift flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <Database className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1.5">Smart Question Bank</h3>
@@ -235,9 +235,9 @@ export const Features = () => {
           </div>
 
           {/* Card 4: Multi-Channel Support */}
-          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-purple-500/30 transition-all flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-card border border-border/60 shadow-sm hover:shadow-md hover:border-purple-500/30 motion-lift flex flex-col justify-between group min-h-[220px] relative overflow-hidden">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4 transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6">
                 <Users className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1.5">Multi-Channel Support</h3>
