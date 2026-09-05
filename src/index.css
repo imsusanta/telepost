@@ -163,6 +163,12 @@
     scroll-behavior: smooth;
   }
 
+  :root {
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-fast: 160ms;
+    --motion-base: 240ms;
+  }
+
   h1,
   h2,
   h3,
@@ -1268,4 +1274,101 @@
 
 .animate-bounce-subtle {
   animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+/* Site-wide micro-motion */
+.page-enter {
+  animation: page-enter 0.42s var(--ease-out) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0.97;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motion-lift {
+  transition:
+    transform var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) ease,
+    border-color var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .motion-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .motion-press:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.motion-press {
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) ease;
+}
+
+.motion-press:active {
+  transform: scale(0.98);
+}
+
+.nav-link-underline {
+  position: relative;
+}
+
+.nav-link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 0;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  transition: width var(--motion-base) var(--ease-out);
+}
+
+.nav-link-underline:hover::after,
+.nav-link-underline:focus-visible::after {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .page-enter,
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-bounce-subtle,
+  .animate-soft-float,
+  .float,
+  .animate-float,
+  .animate-float-slow {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .motion-lift,
+  .motion-press,
+  .nav-link-underline::after {
+    transition: none !important;
+  }
+
+  .motion-lift:hover,
+  .motion-press:hover,
+  .motion-press:active {
+    transform: none !important;
+  }
 }

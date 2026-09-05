@@ -185,8 +185,8 @@ function DashboardLayoutInner({
       <KeyboardShortcuts />
       <Sidebar collapsible="offcanvas" className="border-r border-border/60 bg-sidebar">
         <SidebarHeader className="border-b border-border/40 h-16 flex items-center px-3">
-          <Link to="/dashboard" className="flex items-center gap-3 w-full pl-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
+          <Link to="/dashboard" className="flex items-center gap-3 w-full pl-3 group">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-rotate-6 motion-reduce:transition-none">
               <Send className="w-4 h-4 fill-current text-primary" />
             </div>
             <div className="flex flex-col">
@@ -258,7 +258,11 @@ function DashboardLayoutInner({
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md relative hover:bg-accent" onClick={() => navigate("/dashboard/scheduler")} title="Schedules & Notices" aria-label="Schedules & Notices"><Bell className="w-4 h-4 text-muted-foreground" /></Button>
           </div>
         </header>
-        <main className="flex-1 min-w-0 px-3 py-4 sm:px-4 md:px-6 lg:px-8 md:py-6 lg:py-8 max-w-7xl mx-auto w-full overflow-x-hidden" id="main-content">{children}</main>
+        <main className="flex-1 min-w-0 px-3 py-4 sm:px-4 md:px-6 lg:px-8 md:py-6 lg:py-8 max-w-7xl mx-auto w-full overflow-x-hidden" id="main-content">
+          <div key={location.pathname} className="page-enter">
+            {children}
+          </div>
+        </main>
       </SidebarInset>
     </div>
   );

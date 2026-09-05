@@ -97,7 +97,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="nav-link-underline text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   {link.name}
                 </a>
@@ -142,15 +142,19 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
           </div>
 
           {/* Mobile Menu */}
-          {isMenuOpen && (
-            <div className="md:hidden pt-4 pb-2 animate-fade-in border-t border-border/10 mt-2">
-              <div className="flex flex-col gap-1">
+          <div
+            className={`md:hidden grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${
+              isMenuOpen ? "grid-rows-[1fr] mt-2 border-t border-border/10" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="flex flex-col gap-1 pt-4 pb-2">
                 {navLinks.map((link) => (
                   <a
                     key={link.href}
                     href={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:translate-x-0.5 transition-all duration-200"
                   >
                     {link.name}
                   </a>
@@ -177,7 +181,7 @@ export const Navigation = ({ onGetStarted }: NavigationProps) => {
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </nav>
       </div>
     </header>

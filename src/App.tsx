@@ -80,9 +80,12 @@ import { AuthProvider } from "./contexts/AuthContext";
 // Loading fallback component
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
-    <div className="flex flex-col items-center gap-4">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      <p className="text-sm font-medium text-muted-foreground animate-pulse">Initializing TelePost...</p>
+    <div className="flex flex-col items-center gap-4 page-enter">
+      <div className="relative size-12">
+        <div className="absolute inset-0 rounded-full border-2 border-primary/15" />
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">Initializing TelePost...</p>
     </div>
   </div>
 );
