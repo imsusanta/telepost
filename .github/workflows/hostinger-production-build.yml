@@ -48,9 +48,13 @@ jobs:
 
       - name: Sync build output to document root
         run: |
+          # Hostinger Git hosting serves this repository root. Built files are
+          # published here so telepost.tech stays current. They are marked
+          # linguist-generated in .gitattributes so they do not count as source.
           rm -rf assets
           rsync -a dist/ ./
           rm -rf dist
+          git add -f assets index.html
 
       - name: Commit production bundle
         run: |
