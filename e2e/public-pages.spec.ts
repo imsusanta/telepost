@@ -10,7 +10,7 @@ test.describe("public marketing pages", () => {
     await expect(page.getByText("We are not SOC 2 certified.")).toBeVisible();
 
     await page.getByRole("button", { name: "What's included in the free trial?" }).click();
-    await expect(page.getByText("7-day trial")).toBeVisible();
+    await expect(page.getByText("New accounts get a 7-day trial")).toBeVisible();
 
     await page.getByRole("button", { name: "Are you the same as telepost.me?" }).click();
     await expect(page.getByText("We are not affiliated with telepost.me")).toBeVisible();
