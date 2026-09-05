@@ -211,8 +211,8 @@ export default function Auth() {
             <Zap size={18} color="#4ade80" />
           </div>
           <div>
-            <div className="auth-float-label">Quiz Generated</div>
-            <div className="auth-float-value">12 questions • just now</div>
+            <div className="auth-float-label">AI quizzes</div>
+            <div className="auth-float-value">from a topic or PDF</div>
           </div>
         </motion.div>
 
@@ -226,8 +226,8 @@ export default function Auth() {
             <Users size={18} color="#fff" />
           </div>
           <div>
-            <div className="auth-float-label">+128 Students</div>
-            <div className="auth-float-value">joined this week</div>
+            <div className="auth-float-label">Telegram posting</div>
+            <div className="auth-float-value">with your own bot</div>
           </div>
         </motion.div>
 
@@ -241,8 +241,8 @@ export default function Auth() {
             <BarChart3 size={18} color="#fbbf24" />
           </div>
           <div>
-            <div className="auth-float-label">98.7% Delivery</div>
-            <div className="auth-float-value">across all channels</div>
+            <div className="auth-float-label">7-day trial</div>
+            <div className="auth-float-value">invitation code required</div>
           </div>
         </motion.div>
 
