@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, BookOpen, FileText, Loader2, MessageCircle, Plus, Settings, Sparkles, Trash2, Zap } from "lucide-react";
+import { AlertCircle, BookOpen, Loader2, MessageCircle, Plus, Settings, Sparkles, Trash2, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "@/types/channel";
@@ -593,7 +593,7 @@ export default function Channels() {
                     <div className="flex gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center">
                         <BookOpen className="h-3 w-3 mr-1" />
-                        {channelStats[channel.id].documentCount} docs
+                        {channelStats[channel.id].documentCount} topics
                       </div>
                       <div className="flex items-center">
                         <Sparkles className="h-3 w-3 mr-1" />
@@ -607,10 +607,10 @@ export default function Channels() {
                       variant="outline"
                       size="sm"
                       className="flex-1"
-                      onClick={() => navigate(`/dashboard/documents?channel=${channel.id}`)}
+                      onClick={() => navigate(`/dashboard/knowledge-base?channel=${channel.id}`)}
                     >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Documents
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Knowledge Base
                     </Button>
                     <Button
                       variant="outline"
@@ -972,7 +972,7 @@ Example: Generate questions focused on practical applications and real-world exa
                     <h3 className="font-medium mb-2">Channel Knowledge Base</h3>
                     <div className="flex gap-6 text-sm">
                       <div>
-                        <span className="text-muted-foreground">Documents:</span>{" "}
+                        <span className="text-muted-foreground">Topics:</span>{" "}
                         <span className="font-medium">{channelStats[selectedChannel.id].documentCount}</span>
                       </div>
                       <div>
@@ -982,7 +982,7 @@ Example: Generate questions focused on practical applications and real-world exa
                     </div>
                     {channelStats[selectedChannel.id].documentCount === 0 && (
                       <p className="text-xs text-amber-600 mt-2">
-                        No documents uploaded yet. Upload PDFs to build the knowledge base for better quiz generation.
+                        No topics saved yet. Add topics to the knowledge base for better quiz generation.
                       </p>
                     )}
                   </div>
