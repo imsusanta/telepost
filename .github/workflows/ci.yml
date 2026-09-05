@@ -35,11 +35,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: Forbid hardcoded JWTs in src
+        run: |
+          if grep -RIn --include='*.ts' --include='*.tsx' 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' src; then
+            echo "Hardcoded JWTs are not allowed under src/"
+            exit 1
+          fi
 
       - name: Lint
         run: npm run lint

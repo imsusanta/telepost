@@ -26,7 +26,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -40,6 +40,11 @@ jobs:
 
       - name: Build production application
         run: npm run build
+        env:
+          # Publishable anon credentials only. Required now that src/ does not embed a JWT fallback.
+          VITE_SUPABASE_URL: https://wpkxbrdgktmwnowvmwue.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indwa3hicmRna3Rtd25vd3Ztd3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTkyNTQsImV4cCI6MjA4MDY5NTI1NH0.TR7cBNS0w6REoI2cKgcc3pubgIrY94IWoiXAWiy3X3M
+          VITE_SUPABASE_PROJECT_ID: wpkxbrdgktmwnowvmwue
 
       - name: Publish bundle to hostinger-production
         env:
