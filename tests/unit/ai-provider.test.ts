@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { getAvailableFallbacks, providerError, resolveAIProvider } from "../../supabase/functions/_shared/ai-provider.ts";
 
 describe("AI provider fallbacks", () => {
@@ -43,5 +44,17 @@ describe("AI provider fallbacks", () => {
     );
     expect(error.message).toContain("api_key:[redacted]");
     expect(error.message).not.toContain("AIzaSyFakeSecretValueForTests123456");
+  });
+});
+
+describe("generate-quiz live schema", () => {
+  const source = readFileSync("supabase/functions/generate-quiz/index.ts", "utf8");
+
+  it("saves quiz_data columns that exist in production", () => {
+    expect(source).toContain("quiz_data: quizData");
+    expect(source).toContain("source_type:");
+    expect(source).toContain("language: effectiveLanguage");
+    expect(source).toContain("settings: aiSettings");
+    expect(source).not.toMatch(/insert\(\{[^}]*questions,/s);
   });
 });
