@@ -1,0 +1,24 @@
+{
+  "name": "telepost",
+  "version": "1.0.0",
+  "transport": "streamable-http",
+  "authentication": "user-scoped-short-lived-token",
+  "tools": [
+    {"name":"list_channels","description":"List Telegram destinations owned by the authenticated user."},
+    {"name":"generate_quiz","description":"Generate government competitive exam-standard MCQs using TelePost's existing AI generation service."},
+    {"name":"create_quiz","description":"Save a generated quiz using TelePost authorization and validation."},
+    {"name":"publish_now","description":"Publish an existing quiz immediately to an authorized Telegram destination."},
+    {"name":"schedule_quiz","description":"Schedule an existing quiz for an exact date/time and authorized Telegram destination."},
+    {"name":"list_schedules","description":"List schedules belonging to the authenticated user."},
+    {"name":"cancel_schedule","description":"Cancel an owned schedule."},
+    {"name":"dashboard_stats","description":"Return statistics available to the authenticated user."}
+  ],
+  "rules": {
+    "deriveUserFromAuth": true,
+    "neverTrustClientUserId": true,
+    "reuseExistingBackendServices": true,
+    "preserveRLS": true,
+    "idempotencyRequired": true,
+    "secretsNeverReturned": true
+  }
+}
