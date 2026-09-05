@@ -75,7 +75,7 @@ export default function Install() {
 
   const features = [
     { icon: Zap, title: "Lightning Fast", description: "Instant app loading with offline support" },
-    { icon: Shield, title: "Secure", description: "Enterprise-grade security for your data" },
+    { icon: Shield, title: "Secure", description: "HTTPS in transit and row-level security for your account data" },
     { icon: Sparkles, title: "AI Powered", description: "Smart quiz generation at your fingertips" },
   ];
 

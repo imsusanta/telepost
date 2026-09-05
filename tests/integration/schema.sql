@@ -641,3 +641,58 @@ BEGIN
   );
 END;
 $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS telegram_posts_telegram_delivery_uidx
+  ON public.telegram_posts (telegram_chat_id, telegram_message_id)
+  WHERE telegram_chat_id IS NOT NULL AND telegram_message_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS telegram_stories_telegram_delivery_uidx
+  ON public.telegram_stories (telegram_chat_id, telegram_message_id)
+  WHERE telegram_chat_id IS NOT NULL AND telegram_message_id IS NOT NULL;
+
+CREATE SCHEMA IF NOT EXISTS auth;
+
+CREATE OR REPLACE FUNCTION auth.uid()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT NULLIF(current_setting('app.current_user_id', true), '')::uuid;
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'telepost_app') THEN
+    CREATE ROLE telepost_app NOLOGIN NOSUPERUSER NOBYPASSRLS;
+  END IF;
+END
+$$;
+
+GRANT USAGE ON SCHEMA public TO telepost_app;
+GRANT USAGE ON SCHEMA auth TO telepost_app;
+GRANT EXECUTE ON FUNCTION auth.uid() TO telepost_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  public.channels, public.telegram_stories, public.telegram_posts, public.scheduled_telegram_posts
+  TO telepost_app;
+
+ALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.channels FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own channels" ON public.channels;
+DROP POLICY IF EXISTS "Users insert own channels" ON public.channels;
+DROP POLICY IF EXISTS "Users update own channels" ON public.channels;
+DROP POLICY IF EXISTS "Users delete own channels" ON public.channels;
+CREATE POLICY "Users read own channels" ON public.channels FOR SELECT TO telepost_app USING ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users insert own channels" ON public.channels FOR INSERT TO telepost_app WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users update own channels" ON public.channels FOR UPDATE TO telepost_app USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users delete own channels" ON public.channels FOR DELETE TO telepost_app USING ((SELECT auth.uid()) = user_id);
+
+ALTER TABLE public.telegram_stories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.telegram_stories FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own telegram_stories" ON public.telegram_stories;
+DROP POLICY IF EXISTS "Users insert own telegram_stories" ON public.telegram_stories;
+DROP POLICY IF EXISTS "Users update own telegram_stories" ON public.telegram_stories;
+DROP POLICY IF EXISTS "Users delete own telegram_stories" ON public.telegram_stories;
+CREATE POLICY "Users read own telegram_stories" ON public.telegram_stories FOR SELECT TO telepost_app USING ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users insert own telegram_stories" ON public.telegram_stories FOR INSERT TO telepost_app WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users update own telegram_stories" ON public.telegram_stories FOR UPDATE TO telepost_app USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY "Users delete own telegram_stories" ON public.telegram_stories FOR DELETE TO telepost_app USING ((SELECT auth.uid()) = user_id);
