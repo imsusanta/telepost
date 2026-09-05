@@ -1,8 +1,13 @@
-import { type Page } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
 
 export const E2E_USER_ID = "11111111-1111-4111-8111-111111111111";
 export const E2E_USER_EMAIL = "e2e@telepost.test";
 export const E2E_USER_NAME = "E2E Teacher";
+
+const SUPABASE_HOSTS = [
+  "https://example.supabase.co/**",
+  "https://wpkxbrdgktmwnowvmwue.supabase.co/**",
+];
 
 function encodeJwtSection(value: object): string {
   return Buffer.from(JSON.stringify(value), "utf8")
@@ -60,68 +65,89 @@ function e2eSession() {
   };
 }
 
+function json(route: Route, body: unknown, extraHeaders: Record<string, string> = {}) {
+  return route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    headers: extraHeaders,
+    body: JSON.stringify(body),
+  });
+}
+
+function countHead(route: Route, total: number) {
+  return route.fulfill({
+    status: 200,
+    headers: {
+      "content-range": `0-0/${total}`,
+      "content-type": "application/json",
+    },
+    body: "",
+  });
+}
+
+/**
+ * Authenticated dashboard mock.
+ *
+ * Total Quizzes is the scheduled_telegram_posts count (live quiz jobs), not
+ * quiz_generations. The mock returns 233 sent rows so the dashboard card
+ * cannot regress to 0 when the generations table is empty.
+ */
 export async function mockSupabaseSession(page: Page): Promise<void> {
   const session = e2eSession();
 
-  await page.addInitScript(
-    ({ storageKey, sessionJson }) => {
-      window.localStorage.setItem(storageKey, sessionJson);
-    },
-    {
-      storageKey: "sb-example-auth-token",
-      sessionJson: JSON.stringify(session),
-    },
-  );
+  await page.addInitScript((value) => {
+    window.localStorage.setItem("sb-example-auth-token", JSON.stringify(value));
+    window.localStorage.setItem(
+      "sb-wpkxbrdgktmwnowvmwue-auth-token",
+      JSON.stringify(value),
+    );
+  }, session);
 
-  await page.route("https://example.supabase.co/**", async (route) => {
-    const request = route.request();
-    const url = request.url();
-    const method = request.method();
+  for (const host of SUPABASE_HOSTS) {
+    await page.route(host, async (route) => {
+      const request = route.request();
+      const url = request.url();
+      const path = new URL(url).pathname;
+      const method = request.method();
+      const prefer = request.headers()["prefer"] ?? "";
+      const isCount = method === "HEAD" || prefer.includes("count=");
 
-    if (url.includes("/auth/v1/logout")) {
-      await route.fulfill({ status: 204, body: "" });
-      return;
-    }
+      if (url.includes("/auth/v1/logout")) {
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
 
-    if (url.includes("/auth/v1/user") || url.includes("/auth/v1/token")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(url.includes("/auth/v1/token") ? session : e2eUser()),
-      });
-      return;
-    }
+      if (url.includes("/auth/v1/user") || url.includes("/auth/v1/token")) {
+        return json(route, url.includes("/auth/v1/token") ? session : e2eUser());
+      }
 
-    if (url.includes("/rest/v1/rpc/is_super_admin")) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: "false" });
-      return;
-    }
+      if (path.includes("/rest/v1/rpc/is_super_admin")) {
+        return json(route, false);
+      }
 
-    if (url.includes("/rest/v1/profiles")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([
+      if (path.includes("/rest/v1/profiles")) {
+        return json(route, [
           {
             id: E2E_USER_ID,
             email: E2E_USER_EMAIL,
             full_name: E2E_USER_NAME,
             avatar_url: null,
+            is_admin: false,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
           },
-        ]),
-      });
-      return;
-    }
+        ]);
+      }
 
-    const empty = method === "HEAD" || request.headers()["prefer"]?.includes("count=");
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: {
-        "content-range": "0-0/0",
-        "prefer-control": "count=exact",
-      },
-      body: empty ? "" : "[]",
+      if (path.includes("/rest/v1/scheduled_telegram_posts")) {
+        const pending = new URL(url).searchParams.get("status")?.includes("pending");
+        const total = pending ? 0 : 233;
+        if (isCount) return countHead(route, total);
+        return json(route, []);
+      }
+
+      if (isCount) return countHead(route, 0);
+      return json(route, []);
     });
-  });
+  }
 }

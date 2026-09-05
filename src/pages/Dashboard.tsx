@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 // Fetch dashboard data with React Query for caching and auto-refetch
 async function fetchDashboardData(userId: string) {
   const [
-    quizzesRes,
     scheduledRes,
     pendingRes,
     responsesRes,
@@ -20,32 +19,30 @@ async function fetchDashboardData(userId: string) {
     questionsRes,
     channelsRes
   ] = await Promise.all([
-    supabase.from("quiz_generations")
-      .select("*", { count: "exact", head: true })
+    // Quiz jobs live in scheduled_telegram_posts. quiz_generations is empty in
+    // production because generate-quiz wrote columns the live table does not have.
+    supabase.from("scheduled_telegram_posts")
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("scheduled_telegram_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
-    supabase.from("scheduled_telegram_posts")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "pending"),
     supabase.from("quiz_responses")
       .select("id, quiz_generations!inner(user_id)", { count: "exact", head: true })
       .eq("quiz_generations.user_id", userId),
     supabase.from("documents")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("question_banks")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("channels")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
   ]);
 
   const results = [
-    ["quizzes", quizzesRes],
     ["scheduled posts", scheduledRes],
     ["pending posts", pendingRes],
     ["quiz responses", responsesRes],
@@ -62,7 +59,7 @@ async function fetchDashboardData(userId: string) {
 
   return {
     stats: {
-      totalQuizzes: quizzesRes.count || 0,
+      totalQuizzes: scheduledRes.count || 0,
       scheduledPosts: scheduledRes.count || 0,
       pendingPosts: pendingRes.count || 0,
       totalViews: responsesRes.count || 0,
@@ -130,7 +127,7 @@ export default function Dashboard() {
       color: "from-sky-400 to-blue-500",
       glow: "hover:shadow-blue-500/10",
       accent: "text-blue-500",
-      description: "Quizzes generated"
+      description: "Quizzes created and queued"
     },
     {
       title: "Scheduled",

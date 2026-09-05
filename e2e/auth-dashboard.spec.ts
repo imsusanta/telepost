@@ -8,6 +8,7 @@ test.describe("authenticated dashboard", () => {
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole("heading", { name: new RegExp(E2E_USER_NAME.split(" ")[0]) })).toBeVisible();
     await expect(page.getByText("Total Quizzes")).toBeVisible();
+    await expect(page.getByText("233").first()).toBeVisible();
     await expect(page.getByRole("button", { name: /refresh stats/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Create Quiz", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /^dashboard$/i }).first()).toBeVisible();
