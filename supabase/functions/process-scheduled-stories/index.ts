@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { classifyBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
-import { isAmbiguousOutcome, type TelegramSendKind } from "../_shared/telegram.ts";
+import { isAmbiguousOutcome, persistWithRetry, type TelegramSendKind } from "../_shared/telegram.ts";
 import { sendStoryToTelegram } from "../_shared/story.ts";
 
 serve(async (req) => {
@@ -60,11 +60,14 @@ serve(async (req) => {
       const storyId = String(story.story_id);
       try {
         if (story.telegram_message_id) {
-          await admin.rpc("complete_telegram_story", {
-            p_story_id: storyId,
-            p_worker_id: workerId,
-            p_status: "posted",
-            p_message_id: story.telegram_message_id,
+          await persistWithRetry(async () => {
+            const { data, error } = await admin.rpc("complete_telegram_story", {
+              p_story_id: storyId,
+              p_worker_id: workerId,
+              p_status: "posted",
+              p_message_id: story.telegram_message_id,
+            });
+            return !error && data === true;
           });
           successCount += 1;
           results.push({ story_id: storyId, status: "already_posted" });
@@ -99,6 +102,17 @@ serve(async (req) => {
         if (!botToken) throw new Error("No bot token available for this story.");
         if (!chatId) throw new Error("Chat ID not configured");
 
+        const marked = await persistWithRetry(async () => {
+          const { data, error } = await admin.rpc("mark_telegram_story_dispatch_started", {
+            p_story_id: storyId,
+            p_worker_id: workerId,
+          });
+          return !error && data === true;
+        });
+        if (!marked) {
+          throw new Error("Story dispatch could not be started");
+        }
+
         const sendResult = await sendStoryToTelegram({
           botToken,
           chatId,
@@ -112,15 +126,25 @@ serve(async (req) => {
         }
 
         const messageId = (sendResult.body as { result?: { message_id?: number } } | null)?.result?.message_id?.toString() || null;
-        await admin.rpc("complete_telegram_story", {
-          p_story_id: storyId,
-          p_worker_id: workerId,
-          p_status: "posted",
-          p_message_id: messageId,
-          p_chat_id: chatId,
+        const recorded = await persistWithRetry(async () => {
+          const { data, error } = await admin.rpc("complete_telegram_story", {
+            p_story_id: storyId,
+            p_worker_id: workerId,
+            p_status: "posted",
+            p_message_id: messageId,
+            p_chat_id: chatId,
+          });
+          return !error && data === true;
         });
+        if (!recorded) {
+          console.error("Failed to record posted story status after retries", storyId);
+        }
         successCount += 1;
-        results.push({ story_id: storyId, status: "success", message_id: messageId });
+        results.push({
+          story_id: storyId,
+          status: recorded ? "success" : "sent_unrecorded",
+          message_id: messageId,
+        });
       } catch (error) {
         const kind = (error as { telegramKind?: TelegramSendKind }).telegramKind;
         const ambiguous = kind ? isAmbiguousOutcome(kind) : false;
