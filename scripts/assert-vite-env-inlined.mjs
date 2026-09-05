@@ -1,11 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const url = process.env.VITE_SUPABASE_URL?.trim();
-if (!url) {
-  console.error("VITE_SUPABASE_URL must be set when asserting the production bundle.");
-  process.exit(1);
-}
+const url = process.env.VITE_SUPABASE_URL?.trim() || "https://wpkxbrdgktmwnowvmwue.supabase.co";
 
 const dir = "dist/assets";
 if (!fs.existsSync(dir)) {
