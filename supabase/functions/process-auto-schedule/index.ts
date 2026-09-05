@@ -1,24 +1,552 @@
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { classifyBearer, extractBearer } from "../_shared/auth.ts";
-import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, type ResolvedAIProvider } from "../_shared/ai-provider.ts";
+import {
+  type AISettings,
+  chatCompletion,
+  parseJsonObject,
+  resolveAIProvider,
+  type ResolvedAIProvider,
+} from "../_shared/ai-provider.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
 
-const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-cron-secret","Access-Control-Allow-Methods":"POST, GET, OPTIONS, PUT, DELETE"};
-const FALLBACK_MODEL='gemini-3.5-flash';
-const TOPIC_LIBRARY=['সিন্ধু সভ্যতা','পলাশীর যুদ্ধ','ভারতের সংবিধান','মৌলিক কর্তব্য','ভারতের নদী','ভারতের জলবায়ু','কোষ জীববিজ্ঞান','মানবদেহ','নিউটনের সূত্র','অম্ল ও ক্ষার','ভারতীয় অর্থনীতি','জিএসটি','রিজার্ভ ব্যাঙ্ক','আন্তর্জাতিক সংস্থা','ভারতীয় শিল্প ও সংস্কৃতি','মহাকাশ গবেষণা','পরিবেশ ও বাস্তুতন্ত্র','জাতীয় উদ্যান','খেলাধুলা ও পুরস্কার','কম্পিউটার সাধারণ জ্ঞান'];
-const languageCode=(v:any)=>{const s=String(v||'bn').trim().toLowerCase();return s==='bengali'||s==='বাংলা'||s==='bangla'?'bn':s==='hindi'||s==='हिन्दी'||s==='हिंदी'?'hi':s==='english'?'en':s||'bn';};
-const normalizeText=(v:any)=>String(v??'').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]+/gu,' ').replace(/\s+/g,' ');
-const isValidQuestion=(q:any)=>Boolean(q?.question)&&Array.isArray(q.options)&&q.options.length===4&&Number.isInteger(q.correct_option_index)&&q.correct_option_index>=0&&q.correct_option_index<=3;
-async function getAISettings(s:any):Promise<AISettings>{const {data}=await s.from('system_settings').select('setting_value').eq('setting_key','ai_settings').maybeSingle();return data?.setting_value||{provider:'openrouter',model:FALLBACK_MODEL,temperature:.7};}
-function rotatedTopic(channelId:string,slot:number,day:number){let h=0;for(let i=0;i<channelId.length;i++)h=((h<<5)-h+channelId.charCodeAt(i))|0;return TOPIC_LIBRARY[(Math.abs(h)+day*12+slot)%TOPIC_LIBRARY.length];}
-function localDateTime(time:string,tz:string,now:Date){const [h,m]=time.slice(0,5).split(':').map(Number);const ds=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(now);const lh=Number(p.find(x=>x.type==='hour')?.value||0),lm=Number(p.find(x=>x.type==='minute')?.value||0);let off=lh*60+lm-(now.getUTCHours()*60+now.getUTCMinutes());if(off>840)off-=1440;if(off<-840)off+=1440;const [y,mo,d]=ds.split('-').map(Number);const out=new Date(Date.UTC(y,mo-1,d));out.setUTCMinutes(h*60+m-off);return out;}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
+};
+const FALLBACK_MODEL = "gemini-3.5-flash";
+const TOPIC_LIBRARY = [
+  "সিন্ধু সভ্যতা",
+  "পলাশীর যুদ্ধ",
+  "ভারতের সংবিধান",
+  "মৌলিক কর্তব্য",
+  "ভারতের নদী",
+  "ভারতের জলবায়ু",
+  "কোষ জীববিজ্ঞান",
+  "মানবদেহ",
+  "নিউটনের সূত্র",
+  "অম্ল ও ক্ষার",
+  "ভারতীয় অর্থনীতি",
+  "জিএসটি",
+  "রিজার্ভ ব্যাঙ্ক",
+  "আন্তর্জাতিক সংস্থা",
+  "ভারতীয় শিল্প ও সংস্কৃতি",
+  "মহাকাশ গবেষণা",
+  "পরিবেশ ও বাস্তুতন্ত্র",
+  "জাতীয় উদ্যান",
+  "খেলাধুলা ও পুরস্কার",
+  "কম্পিউটার সাধারণ জ্ঞান",
+];
+const languageCode = (v: any) => {
+  const s = String(v || "bn").trim().toLowerCase();
+  return s === "bengali" || s === "বাংলা" || s === "bangla"
+    ? "bn"
+    : s === "hindi" || s === "हिन्दी" || s === "हिंदी"
+    ? "hi"
+    : s === "english"
+    ? "en"
+    : s || "bn";
+};
+const normalizeText = (v: any) =>
+  String(v ?? "").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]+/gu, " ").replace(
+    /\s+/g,
+    " ",
+  );
+const isValidQuestion = (q: any) =>
+  Boolean(q?.question) && Array.isArray(q.options) && q.options.length === 4 &&
+  Number.isInteger(q.correct_option_index) && q.correct_option_index >= 0 &&
+  q.correct_option_index <= 3;
+async function getAISettings(s: any): Promise<AISettings> {
+  const { data } = await s.from("system_settings").select("setting_value").eq(
+    "setting_key",
+    "ai_settings",
+  ).maybeSingle();
+  return data?.setting_value || { provider: "openrouter", model: FALLBACK_MODEL, temperature: .7 };
+}
+function rotatedTopic(channelId: string, slot: number, day: number) {
+  let h = 0;
+  for (let i = 0; i < channelId.length; i++) h = ((h << 5) - h + channelId.charCodeAt(i)) | 0;
+  return TOPIC_LIBRARY[(Math.abs(h) + day * 12 + slot) % TOPIC_LIBRARY.length];
+}
+function localDateTime(time: string, tz: string, now: Date) {
+  const [h, m] = time.slice(0, 5).split(":").map(Number);
+  const ds = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const p = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const lh = Number(p.find((x) => x.type === "hour")?.value || 0),
+    lm = Number(p.find((x) => x.type === "minute")?.value || 0);
+  let off = lh * 60 + lm - (now.getUTCHours() * 60 + now.getUTCMinutes());
+  if (off > 840) off -= 1440;
+  if (off < -840) off += 1440;
+  const [y, mo, d] = ds.split("-").map(Number);
+  const out = new Date(Date.UTC(y, mo - 1, d));
+  out.setUTCMinutes(h * 60 + m - off);
+  return out;
+}
 
-async function getQuestionBankTopics(s:any,userId:string,channelId:string,count:number,language:string){const lang=languageCode(language);const {data,error}=await s.from('question_banks').select('id,topic,subject,language,channel_id,options,question,correct_option_index,is_active,is_public').eq('is_active',true).eq('language',lang).or(`user_id.eq.${userId},is_public.eq.true`).limit(2000);if(error)throw error;const groups=new Map<string,{topic:string,subject?:string,count:number}>();for(const q of data||[]){if(!q.topic||(!(!q.channel_id||q.channel_id===channelId))||!isValidQuestion(q))continue;const key=normalizeText(q.topic);if(!key)continue;const g=groups.get(key)||{topic:String(q.topic).trim(),subject:q.subject,count:0};g.count++;groups.set(key,g);}return [...groups.values()].filter(x=>x.count>=count).sort((a,b)=>normalizeText(a.topic).localeCompare(normalizeText(b.topic)));}
+async function getQuestionBankTopics(
+  s: any,
+  userId: string,
+  channelId: string,
+  count: number,
+  language: string,
+) {
+  const lang = languageCode(language);
+  const { data, error } = await s.from("question_banks").select(
+    "id,topic,subject,language,channel_id,options,question,correct_option_index,is_active,is_public",
+  ).eq("is_active", true).eq("language", lang).or(`user_id.eq.${userId},is_public.eq.true`).limit(
+    2000,
+  );
+  if (error) throw error;
+  const groups = new Map<string, { topic: string; subject?: string; count: number }>();
+  for (const q of data || []) {
+    if (!q.topic || (!(!q.channel_id || q.channel_id === channelId)) || !isValidQuestion(q)) {
+      continue;
+    }
+    const key = normalizeText(q.topic);
+    if (!key) continue;
+    const g = groups.get(key) || { topic: String(q.topic).trim(), subject: q.subject, count: 0 };
+    g.count++;
+    groups.set(key, g);
+  }
+  return [...groups.values()].filter((x) => x.count >= count).sort((a, b) =>
+    normalizeText(a.topic).localeCompare(normalizeText(b.topic))
+  );
+}
 
-async function fetchExactQuestionBankQuestions(s:any,userId:string,channelId:string,count:number,topic:string,language:string){const lang=languageCode(language);const clean=normalizeText(topic);const {data,error}=await s.from('question_banks').select('id,question,options,correct_option_index,explanation,topic,subject,language,channel_id,knowledge_base_topic_id,is_public,is_active').eq('is_active',true).eq('language',lang).or(`user_id.eq.${userId},is_public.eq.true`).limit(2000);if(error)throw error;const exact=(data||[]).filter((q:any)=>normalizeText(q.topic)===clean&&(!q.channel_id||q.channel_id===channelId)&&isValidQuestion(q));const unique=[...new Map(exact.map((q:any)=>[String(q.id),q])).values()];if(unique.length<count)throw new Error(`Only ${unique.length} valid Question Bank questions match the exact topic "${topic}" in language "${lang}". Auto-scheduler will not mix unrelated topics.`);return unique.sort(()=>Math.random()-.5).slice(0,count);}
+async function fetchExactQuestionBankQuestions(
+  s: any,
+  userId: string,
+  channelId: string,
+  count: number,
+  topic: string,
+  language: string,
+) {
+  const lang = languageCode(language);
+  const clean = normalizeText(topic);
+  const { data, error } = await s.from("question_banks").select(
+    "id,question,options,correct_option_index,explanation,topic,subject,language,channel_id,knowledge_base_topic_id,is_public,is_active",
+  ).eq("is_active", true).eq("language", lang).or(`user_id.eq.${userId},is_public.eq.true`).limit(
+    2000,
+  );
+  if (error) throw error;
+  const exact = (data || []).filter((q: any) =>
+    normalizeText(q.topic) === clean && (!q.channel_id || q.channel_id === channelId) &&
+    isValidQuestion(q)
+  );
+  const unique = [...new Map(exact.map((q: any) => [String(q.id), q])).values()];
+  if (unique.length < count) {
+    throw new Error(
+      `Only ${unique.length} valid Question Bank questions match the exact topic "${topic}" in language "${lang}". Auto-scheduler will not mix unrelated topics.`,
+    );
+  }
+  return unique.sort(() => Math.random() - .5).slice(0, count);
+}
 
-async function generateAIQuiz(setting:any,topic:string,aiSettings:AISettings,resolved:ResolvedAIProvider,ctx:any){const count=Math.max(1,Math.min(setting.questions_per_post||5,50));const language=languageCode(setting.language);const rule=language==='bn'?'Write questions, options and explanations in Bengali.':language==='hi'?'Write questions, options and explanations in Hindi.':'Write all content in clear English.';const system=composeTelePostSystemPrompt({platformInstructions:aiSettings.system_prompt,userSystemPrompt:setting.userSystemPrompt||'',featureInstructions:setting.custom_prompt||'',knowledgeBaseInstructions:ctx.instructions||'',outputRequirements:`You are an expert competitive-exam question setter. ${rule} Generate exactly ${count} MCQs strictly about the exact topic "${topic}". Do not drift into other topics. Exactly four options and one correct answer. Output only JSON.`});const user=`Generate questions only for this exact topic. ${ctx.context?`Authoritative context:\n${ctx.context}\n\n`:''}Return {"questions":[{"question":"string","options":["string","string","string","string"],"correct_option_index":0,"explanation":"string"}]}`;let last:any=null;let feedback='';for(let i=0;i<3;i++){try{const text=await chatCompletion({resolved,messages:[{role:'system',content:system+(feedback?`\nValidation failure: ${feedback}`:'')},{role:'user',content:user}],temperature:aiSettings.temperature??.7,maxTokens:Math.min(8192,800+count*420),timeoutMs:90000,appTitle:'TelePost Auto Schedule'});const parsed=parseJsonObject(text) as any;const valid=Array.isArray(parsed?.questions)?parsed.questions.filter(isValidQuestion):[];if(valid.length!==count){feedback=`Expected ${count} valid questions, received ${valid.length}.`;continue;}return {questions:valid};}catch(e){last=e instanceof Error?e:new Error(String(e));feedback=last.message;}}throw last||new Error('Failed to generate a valid scheduled quiz.');}
+async function generateAIQuiz(
+  setting: any,
+  topic: string,
+  aiSettings: AISettings,
+  resolved: ResolvedAIProvider,
+  ctx: any,
+) {
+  const count = Math.max(1, Math.min(setting.questions_per_post || 5, 50));
+  const language = languageCode(setting.language);
+  const rule = language === "bn"
+    ? "Write questions, options and explanations in Bengali."
+    : language === "hi"
+    ? "Write questions, options and explanations in Hindi."
+    : "Write all content in clear English.";
+  const system = composeTelePostSystemPrompt({
+    platformInstructions: aiSettings.system_prompt,
+    userSystemPrompt: setting.userSystemPrompt || "",
+    featureInstructions: setting.custom_prompt || "",
+    knowledgeBaseInstructions: ctx.instructions || "",
+    outputRequirements:
+      `You are an expert competitive-exam question setter. ${rule} Generate exactly ${count} MCQs strictly about the exact topic "${topic}". Do not drift into other topics. Exactly four options and one correct answer. Output only JSON.`,
+  });
+  const user = `Generate questions only for this exact topic. ${
+    ctx.context ? `Authoritative context:\n${ctx.context}\n\n` : ""
+  }Return {"questions":[{"question":"string","options":["string","string","string","string"],"correct_option_index":0,"explanation":"string"}]}`;
+  let last: any = null;
+  let feedback = "";
+  for (let i = 0; i < 3; i++) {
+    try {
+      const text = await chatCompletion({
+        resolved,
+        messages: [{
+          role: "system",
+          content: system + (feedback ? `\nValidation failure: ${feedback}` : ""),
+        }, { role: "user", content: user }],
+        temperature: aiSettings.temperature ?? .7,
+        maxTokens: Math.min(8192, 800 + count * 420),
+        timeoutMs: 90000,
+        appTitle: "TelePost Auto Schedule",
+      });
+      const parsed = parseJsonObject(text) as any;
+      const valid = Array.isArray(parsed?.questions)
+        ? parsed.questions.filter(isValidQuestion)
+        : [];
+      if (valid.length !== count) {
+        feedback = `Expected ${count} valid questions, received ${valid.length}.`;
+        continue;
+      }
+      return { questions: valid };
+    } catch (e) {
+      last = e instanceof Error ? e : new Error(String(e));
+      feedback = last.message;
+    }
+  }
+  throw last || new Error("Failed to generate a valid scheduled quiz.");
+}
 
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response(null,{headers:corsHeaders});const url=Deno.env.get('SUPABASE_URL'),service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),secret=Deno.env.get('CRON_SECRET');const classified=classifyBearer({authorizationHeader:req.headers.get('Authorization'),cronSecretHeader:req.headers.get('x-cron-secret'),cronSecret:secret,serviceRoleKey:service});if(classified==='missing')return new Response(JSON.stringify({error:'Unauthorized'}),{status:401,headers:{...corsHeaders,'Content-Type':'application/json'}});let callerUserId:string|null=null;const isInternal=classified==='internal';if(!isInternal){try{const c=createClient(url!,Deno.env.get('SUPABASE_ANON_KEY')!);const user=(await c.auth.getUser(extractBearer(req.headers.get('Authorization')))).data?.user;if(!user)return new Response(JSON.stringify({error:'Unauthorized'}),{status:401,headers:{...corsHeaders,'Content-Type':'application/json'}});callerUserId=user.id;}catch{return new Response(JSON.stringify({error:'Unauthorized'}),{status:401,headers:{...corsHeaders,'Content-Type':'application/json'}});}}try{if(!url||!service)throw new Error('Missing Supabase configuration');const s=createClient(url,service);let force=false,sendNow=false,targetUserId:any=null,previewOnly=false;try{const b=await req.json();force=b.force===true;sendNow=b.send_now===true;previewOnly=b.previewOnly===true;if(isInternal){targetUserId=b.userId||null;}else{targetUserId=callerUserId;}}catch{if(!isInternal)targetUserId=callerUserId;}let sq=s.from('auto_schedule_settings').select('*, channels(name, telegram_channel_id, settings)').eq('enabled',true);if(targetUserId)sq=sq.eq('user_id',targetUserId);if(!isInternal&&!targetUserId)return new Response(JSON.stringify({error:'Forbidden'}),{status:403,headers:{...corsHeaders,'Content-Type':'application/json'}});const {data:settings,error}=await sq;if(error)throw error;if(!settings?.length)return new Response(JSON.stringify({success:true,message:'No enabled auto-schedules found'}),{headers:{...corsHeaders,'Content-Type':'application/json'}});const now=new Date(),entries:any[]=[];for(const setting of settings){if(!Array.isArray(setting.schedule_times)||!setting.schedule_times.length)continue;const tz=setting.timezone||'Asia/Kolkata',times=[...setting.schedule_times].sort();if(force){const t=times[0]||'09:00';entries.push({setting,matchedTime:t,scheduledDate:sendNow?now:localDateTime(t,tz,now),slotIndex:0});}else for(let i=0;i<times.length;i++){const d=localDateTime(times[i],tz,now),diff=(now.getTime()-d.getTime())/60000;if(diff>=-3&&diff<=35)entries.push({setting,matchedTime:times[i],scheduledDate:d,slotIndex:i});}}if(!entries.length)return new Response(JSON.stringify({success:true,message:'No schedules to process',processed:0}),{headers:{...corsHeaders,'Content-Type':'application/json'}});const aiSettings=await getAISettings(s),resolved=(()=>{try{return resolveAIProvider(aiSettings);}catch{return null;}})(),results:any[]=[],day=Math.floor(now.getTime()/86400000);for(const {setting,matchedTime,scheduledDate,slotIndex} of entries){try{if(!force){const from=new Date(scheduledDate.getTime()-20*60000).toISOString(),to=new Date(scheduledDate.getTime()+20*60000).toISOString();const {data:existing}=await s.from('scheduled_telegram_posts').select('id').eq('channel_id',setting.channel_id).gte('scheduled_time',from).lte('scheduled_time',to).in('status',['pending','processing','sent']).limit(1);if(existing?.length){results.push({channel_id:setting.channel_id,success:true,skipped:true,reason:`Already created for ${matchedTime}`});continue;}}const {data:prompt}=await s.from('user_ai_system_prompts').select('system_prompt').eq('user_id',setting.user_id).maybeSingle();setting.userSystemPrompt=prompt?.system_prompt||'';let topic='';let context='';let instructions='';let kb:any=null;const selected=Array.isArray(setting.knowledge_base_topic_ids)?setting.knowledge_base_topic_ids.filter(Boolean):[];if(setting.source_type==='knowledge_base'){let q=s.from('knowledge_base_topics').select('*').eq('user_id',setting.user_id);if(setting.channel_id)q=q.or(`channel_id.eq.${setting.channel_id},channel_id.is.null`);if(selected.length)q=q.in('id',selected);const {data,error}=await q;if(error)throw error;const available=(data||[]).filter((x:any)=>!x.channel_id||x.channel_id===setting.channel_id);if(!available.length)throw new Error('No matching Knowledge Base topics are configured for this channel.');const ordered=[...available].sort((a:any,b:any)=>String(a.id).localeCompare(String(b.id)));kb=ordered[(day*Math.max(setting.schedule_times?.length||1,1)+slotIndex)%ordered.length];topic=kb.topic||kb.topic_name||'';if(!topic)throw new Error('Selected Knowledge Base topic has no topic name.');context=[`Topic: ${topic}`,kb.subject?`Subject: ${kb.subject}`:'',kb.description?`Description: ${kb.description}`:'',kb.exam?`Target Exam: ${kb.exam}`:'',kb.grade?`Grade: ${kb.grade}`:''].filter(Boolean).join('\n');instructions=kb.ai_instructions||'';}
-const count=Math.max(1,Math.min(setting.questions_per_post||5,50));const lang=languageCode(setting.language);if(setting.source_type==='question_bank'){const configured=Array.isArray(setting.topics)?setting.topics.map((x:any)=>String(x).trim()).filter(Boolean):[];if(configured.length){topic=configured[(day*Math.max(setting.schedule_times?.length||1,1)+slotIndex)%configured.length];}else{const available=await getQuestionBankTopics(s,setting.user_id,setting.channel_id,count,lang);if(!available.length)throw new Error(`No Question Bank topic has at least ${count} valid questions for this channel/language. Auto-scheduler will not use an unrelated topic.`);topic=available[(day*Math.max(setting.schedule_times?.length||1,1)+slotIndex)%available.length].topic;}const questions=await fetchExactQuestionBankQuestions(s,setting.user_id,setting.channel_id,count,topic,lang);const quiz={topic,language:setting.language||lang,questions:questions.map((q:any,i:number)=>({id:i+1,question:q.question,options:q.options,correct_option_index:q.correct_option_index,explanation:q.explanation||''})),metadata:{difficulty:'medium',generated_at:new Date().toISOString(),source:'question_bank',language:setting.language||lang,question_bank_topic:topic,topic_lock:true}};if(previewOnly){results.push({channel_id:setting.channel_id,success:true,preview:quiz});continue;}const {error:ie}=await s.from('scheduled_telegram_posts').insert({user_id:setting.user_id,chat_id:setting.channels?.telegram_channel_id||setting.channel_id,channel_id:setting.channel_id,quiz_data:quiz,scheduled_time:scheduledDate.toISOString(),status:'pending'});if(ie?.code==='23505'){results.push({channel_id:setting.channel_id,success:true,skipped:true,reason:'Duplicate prevented'});continue;}if(ie)throw ie;results.push({channel_id:setting.channel_id,success:true,scheduled_time:scheduledDate.toISOString(),question_count:quiz.questions.length,topic,source:'question_bank'});}else{if(!resolved?.apiKey)throw new Error('AI provider is not configured.');const generated=await generateAIQuiz(setting,topic,aiSettings,resolved,{context,instructions});const questions=generated.questions||[];if(!questions.length)throw new Error(`No questions available for topic "${topic}".`);const quiz={topic,language:setting.language||lang,questions:questions.map((q:any,i:number)=>({id:i+1,question:q.question,options:q.options,correct_option_index:q.correct_option_index,explanation:q.explanation||''})),metadata:{difficulty:'medium',generated_at:new Date().toISOString(),source:setting.source_type||'ai_generated',language:setting.language||lang,provider:resolved.provider,model:resolved.model,topic_lock:true}};if(previewOnly){results.push({channel_id:setting.channel_id,success:true,preview:quiz});continue;}const {error:ie}=await s.from('scheduled_telegram_posts').insert({user_id:setting.user_id,chat_id:setting.channels?.telegram_channel_id||setting.channel_id,channel_id:setting.channel_id,quiz_data:quiz,scheduled_time:scheduledDate.toISOString(),status:'pending'});if(ie?.code==='23505'){results.push({channel_id:setting.channel_id,success:true,skipped:true,reason:'Duplicate prevented'});continue;}if(ie)throw ie;results.push({channel_id:setting.channel_id,success:true,scheduled_time:scheduledDate.toISOString(),question_count:quiz.questions.length,topic,source:setting.source_type||'ai_generated'});}fetch(`${url}/functions/v1/process-scheduled-posts`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${service}`},body:JSON.stringify({triggered_by:'auto_schedule_generator'})}).catch(()=>{});}catch(e){results.push({channel_id:setting.channel_id,success:false,error:e instanceof Error?e.message:String(e)});}}return new Response(JSON.stringify({success:true,processed:entries.length,results}),{headers:{...corsHeaders,'Content-Type':'application/json'}});}catch(e){return new Response(JSON.stringify({error:e instanceof Error?e.message:String(e)}),{status:500,headers:{...corsHeaders,'Content-Type':'application/json'}});}});
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const url = Deno.env.get("SUPABASE_URL"),
+    service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    secret = Deno.env.get("CRON_SECRET");
+  const classified = classifyBearer({
+    authorizationHeader: req.headers.get("Authorization"),
+    cronSecretHeader: req.headers.get("x-cron-secret"),
+    cronSecret: secret,
+    serviceRoleKey: service,
+  });
+  if (classified === "missing") {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  let callerUserId: string | null = null;
+  const isInternal = classified === "internal";
+  if (!isInternal) {
+    try {
+      const c = createClient(url!, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const user = (await c.auth.getUser(extractBearer(req.headers.get("Authorization")))).data
+        ?.user;
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      callerUserId = user.id;
+    } catch {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+  try {
+    if (!url || !service) throw new Error("Missing Supabase configuration");
+    const s = createClient(url, service);
+    let force = false, sendNow = false, targetUserId: any = null, previewOnly = false;
+    try {
+      const b = await req.json();
+      force = b.force === true;
+      sendNow = b.send_now === true;
+      previewOnly = b.previewOnly === true;
+      if (isInternal) targetUserId = b.userId || null;
+      else targetUserId = callerUserId;
+    } catch {
+      if (!isInternal) targetUserId = callerUserId;
+    }
+    let sq = s.from("auto_schedule_settings").select(
+      "*, channels(name, telegram_channel_id, settings)",
+    ).eq("enabled", true);
+    if (targetUserId) sq = sq.eq("user_id", targetUserId);
+    if (!isInternal && !targetUserId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: settings, error } = await sq;
+    if (error) throw error;
+    if (!settings?.length) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No enabled auto-schedules found" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const now = new Date(), entries: any[] = [];
+    for (const setting of settings) {
+      if (!Array.isArray(setting.schedule_times) || !setting.schedule_times.length) continue;
+      const tz = setting.timezone || "Asia/Kolkata", times = [...setting.schedule_times].sort();
+      if (force) {
+        const t = times[0] || "09:00";
+        entries.push({
+          setting,
+          matchedTime: t,
+          scheduledDate: sendNow ? now : localDateTime(t, tz, now),
+          slotIndex: 0,
+        });
+      } else {for (let i = 0; i < times.length; i++) {
+          const d = localDateTime(times[i], tz, now), diff = (now.getTime() - d.getTime()) / 60000;
+          if (diff >= -3 && diff <= 35) {
+            entries.push({ setting, matchedTime: times[i], scheduledDate: d, slotIndex: i });
+          }
+        }}
+    }
+    if (!entries.length) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No schedules to process", processed: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const aiSettings = await getAISettings(s),
+      resolved = (() => {
+        try {
+          return resolveAIProvider(aiSettings);
+        } catch {
+          return null;
+        }
+      })(),
+      results: any[] = [],
+      day = Math.floor(now.getTime() / 86400000);
+    for (const { setting, matchedTime, scheduledDate, slotIndex } of entries) {
+      try {
+        if (!force) {
+          const from = new Date(scheduledDate.getTime() - 20 * 60000).toISOString(),
+            to = new Date(scheduledDate.getTime() + 20 * 60000).toISOString();
+          const { data: existing } = await s.from("scheduled_telegram_posts").select("id").eq(
+            "channel_id",
+            setting.channel_id,
+          ).gte("scheduled_time", from).lte("scheduled_time", to).in("status", [
+            "pending",
+            "processing",
+            "sent",
+          ]).limit(1);
+          if (existing?.length) {
+            results.push({
+              channel_id: setting.channel_id,
+              success: true,
+              skipped: true,
+              reason: `Already created for ${matchedTime}`,
+            });
+            continue;
+          }
+        }
+        const { data: prompt } = await s.from("user_ai_system_prompts").select("system_prompt").eq(
+          "user_id",
+          setting.user_id,
+        ).maybeSingle();
+        setting.userSystemPrompt = prompt?.system_prompt || "";
+        let topic = "";
+        let context = "";
+        let instructions = "";
+        let kb: any = null;
+        const selected = Array.isArray(setting.knowledge_base_topic_ids)
+          ? setting.knowledge_base_topic_ids.filter(Boolean)
+          : [];
+        if (setting.source_type === "knowledge_base") {
+          let q = s.from("knowledge_base_topics").select("*").eq("user_id", setting.user_id);
+          if (setting.channel_id) {
+            q = q.or(`channel_id.eq.${setting.channel_id},channel_id.is.null`);
+          }
+          if (selected.length) q = q.in("id", selected);
+          const { data, error } = await q;
+          if (error) throw error;
+          const available = (data || []).filter((x: any) =>
+            !x.channel_id || x.channel_id === setting.channel_id
+          );
+          if (!available.length) {
+            throw new Error("No matching Knowledge Base topics are configured for this channel.");
+          }
+          const ordered = [...available].sort((a: any, b: any) =>
+            String(a.id).localeCompare(String(b.id))
+          );
+          kb = ordered[
+            (day * Math.max(setting.schedule_times?.length || 1, 1) + slotIndex) % ordered.length
+          ];
+          topic = kb.topic || kb.topic_name || "";
+          if (!topic) throw new Error("Selected Knowledge Base topic has no topic name.");
+          context = [
+            `Topic: ${topic}`,
+            kb.subject ? `Subject: ${kb.subject}` : "",
+            kb.description ? `Description: ${kb.description}` : "",
+            kb.exam ? `Target Exam: ${kb.exam}` : "",
+            kb.grade ? `Grade: ${kb.grade}` : "",
+          ].filter(Boolean).join("\n");
+          instructions = kb.ai_instructions || "";
+        }
+        const count = Math.max(1, Math.min(setting.questions_per_post || 5, 50));
+        const lang = languageCode(setting.language);
+        if (setting.source_type === "question_bank") {
+          const configured = Array.isArray(setting.topics)
+            ? setting.topics.map((x: any) => String(x).trim()).filter(Boolean)
+            : [];
+          if (configured.length) {
+            topic = configured[
+              (day * Math.max(setting.schedule_times?.length || 1, 1) + slotIndex) %
+              configured.length
+            ];
+          } else {
+            const available = await getQuestionBankTopics(
+              s,
+              setting.user_id,
+              setting.channel_id,
+              count,
+              lang,
+            );
+            if (!available.length) {
+              throw new Error(
+                `No Question Bank topic has at least ${count} valid questions for this channel/language. Auto-scheduler will not use an unrelated topic.`,
+              );
+            }
+            topic = available[
+              (day * Math.max(setting.schedule_times?.length || 1, 1) + slotIndex) %
+              available.length
+            ].topic;
+          }
+          const questions = await fetchExactQuestionBankQuestions(
+            s,
+            setting.user_id,
+            setting.channel_id,
+            count,
+            topic,
+            lang,
+          );
+          const quiz = {
+            topic,
+            language: setting.language || lang,
+            questions: questions.map((q: any, i: number) => ({
+              id: i + 1,
+              question: q.question,
+              options: q.options,
+              correct_option_index: q.correct_option_index,
+              explanation: q.explanation || "",
+            })),
+            metadata: {
+              difficulty: "medium",
+              generated_at: new Date().toISOString(),
+              source: "question_bank",
+              language: setting.language || lang,
+              question_bank_topic: topic,
+              topic_lock: true,
+            },
+          };
+          if (previewOnly) {
+            results.push({ channel_id: setting.channel_id, success: true, preview: quiz });
+            continue;
+          }
+          const { error: ie } = await s.from("scheduled_telegram_posts").insert({
+            user_id: setting.user_id,
+            chat_id: setting.channels?.telegram_channel_id || setting.channel_id,
+            channel_id: setting.channel_id,
+            quiz_data: quiz,
+            scheduled_time: scheduledDate.toISOString(),
+            status: "pending",
+          });
+          if (ie?.code === "23505") {
+            results.push({
+              channel_id: setting.channel_id,
+              success: true,
+              skipped: true,
+              reason: "Duplicate prevented",
+            });
+            continue;
+          }
+          if (ie) throw ie;
+          results.push({
+            channel_id: setting.channel_id,
+            success: true,
+            scheduled_time: scheduledDate.toISOString(),
+            question_count: quiz.questions.length,
+            topic,
+            source: "question_bank",
+          });
+        } else {
+          if (!resolved?.apiKey) throw new Error("AI provider is not configured.");
+          const generated = await generateAIQuiz(setting, topic, aiSettings, resolved, {
+            context,
+            instructions,
+          });
+          const questions = generated.questions || [];
+          if (!questions.length) throw new Error(`No questions available for topic "${topic}".`);
+          const quiz = {
+            topic,
+            language: setting.language || lang,
+            questions: questions.map((q: any, i: number) => ({
+              id: i + 1,
+              question: q.question,
+              options: q.options,
+              correct_option_index: q.correct_option_index,
+              explanation: q.explanation || "",
+            })),
+            metadata: {
+              difficulty: "medium",
+              generated_at: new Date().toISOString(),
+              source: setting.source_type || "ai_generated",
+              language: setting.language || lang,
+              provider: resolved.provider,
+              model: resolved.model,
+              topic_lock: true,
+            },
+          };
+          if (previewOnly) {
+            results.push({ channel_id: setting.channel_id, success: true, preview: quiz });
+            continue;
+          }
+          const { error: ie } = await s.from("scheduled_telegram_posts").insert({
+            user_id: setting.user_id,
+            chat_id: setting.channels?.telegram_channel_id || setting.channel_id,
+            channel_id: setting.channel_id,
+            quiz_data: quiz,
+            scheduled_time: scheduledDate.toISOString(),
+            status: "pending",
+          });
+          if (ie?.code === "23505") {
+            results.push({
+              channel_id: setting.channel_id,
+              success: true,
+              skipped: true,
+              reason: "Duplicate prevented",
+            });
+            continue;
+          }
+          if (ie) throw ie;
+          results.push({
+            channel_id: setting.channel_id,
+            success: true,
+            scheduled_time: scheduledDate.toISOString(),
+            question_count: quiz.questions.length,
+            topic,
+            source: setting.source_type || "ai_generated",
+          });
+        }
+        fetch(`${url}/functions/v1/process-scheduled-posts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${service}` },
+          body: JSON.stringify({ triggered_by: "auto_schedule_generator" }),
+        }).catch(() => {});
+      } catch (e) {
+        results.push({
+          channel_id: setting.channel_id,
+          success: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+    return new Response(JSON.stringify({ success: true, processed: entries.length, results }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
