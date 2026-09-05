@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { BarChart3, Bot, Calendar, Database, FileText, RefreshCw, Sparkles, Plus, ArrowRight, Clock, TrendingUp, Sparkle, ArrowUpRight, Zap, CheckCircle2 } from "lucide-react";
+import { BarChart3, Bot, Calendar, Database, RefreshCw, Sparkles, Plus, ArrowRight, Clock, TrendingUp, Sparkle, ArrowUpRight, Zap, CheckCircle2, BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -12,15 +12,22 @@ import { useAuth } from "@/contexts/AuthContext";
 // Fetch dashboard data with React Query for caching and auto-refetch
 async function fetchDashboardData(userId: string) {
   const [
+    quizzesRes,
     scheduledRes,
     pendingRes,
+    telegramPostsRes,
     responsesRes,
+    topicsRes,
     docsRes,
     questionsRes,
     channelsRes
   ] = await Promise.all([
-    // Quiz jobs live in scheduled_telegram_posts. quiz_generations is empty in
-    // production because generate-quiz wrote columns the live table does not have.
+    supabase.from("quiz_generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    // Live quiz jobs. quiz_generations is still empty in production until
+    // generate-quiz writes the live schema; scheduled_telegram_posts holds the
+    // quizzes that were actually created and queued.
     supabase.from("scheduled_telegram_posts")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
@@ -28,9 +35,15 @@ async function fetchDashboardData(userId: string) {
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "pending"),
+    supabase.from("telegram_posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
     supabase.from("quiz_responses")
-      .select("id, quiz_generations!inner(user_id)", { count: "exact", head: true })
-      .eq("quiz_generations.user_id", userId),
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase.from("knowledge_base_topics")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
     supabase.from("documents")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
@@ -43,29 +56,36 @@ async function fetchDashboardData(userId: string) {
   ]);
 
   const results = [
+    ["quizzes", quizzesRes],
     ["scheduled posts", scheduledRes],
     ["pending posts", pendingRes],
+    ["telegram posts", telegramPostsRes],
     ["quiz responses", responsesRes],
+    ["topics", topicsRes],
     ["documents", docsRes],
     ["questions", questionsRes],
     ["channels", channelsRes],
   ] as const;
 
   for (const [label, result] of results) {
-    if (result.error) {
-      throw new Error(`Failed to load ${label}: ${result.error.message}`);
+    if (result?.error) {
+      console.warn(`Failed to load ${label} count:`, result.error.message);
     }
   }
 
+  const totalQuizzes = (quizzesRes?.count || 0) + (scheduledRes?.count || 0) + (telegramPostsRes?.count || 0);
+  const totalTopics = (topicsRes?.count ?? 0) > 0 ? (topicsRes?.count ?? 0) : (docsRes?.count ?? 0);
+
   return {
     stats: {
-      totalQuizzes: scheduledRes.count || 0,
-      scheduledPosts: scheduledRes.count || 0,
-      pendingPosts: pendingRes.count || 0,
-      totalViews: responsesRes.count || 0,
-      totalDocuments: docsRes.count || 0,
-      totalQuestions: questionsRes.count || 0,
-      totalChannels: channelsRes.count || 0
+      totalQuizzes,
+      scheduledPosts: scheduledRes?.count || 0,
+      pendingPosts: pendingRes?.count || 0,
+      totalViews: responsesRes?.count || 0,
+      totalTopics,
+      totalDocuments: totalTopics,
+      totalQuestions: questionsRes?.count || 0,
+      totalChannels: channelsRes?.count || 0
     }
   };
 }
@@ -136,7 +156,7 @@ export default function Dashboard() {
       color: "from-amber-400 to-orange-500",
       glow: "hover:shadow-orange-500/10",
       accent: "text-orange-500",
-      description: "Planned broadcasts"
+      description: "Scheduled broadcasts"
     },
     {
       title: "Responses",
@@ -338,26 +358,26 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                  <FileText className="w-4 h-4" />
+                  <BookOpen className="w-4 h-4" />
                 </div>
                 <span className="font-semibold text-sm text-foreground">Knowledge Base</span>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => navigate("/dashboard/documents")}
+                onClick={() => navigate("/dashboard/knowledge-base")}
                 className="h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
                 View <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
             <div className="mt-4">
-              <p className="text-3xl font-bold tracking-tight text-foreground">{stats?.totalDocuments || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">Uploaded PDF Documents</p>
+              <p className="text-3xl font-bold tracking-tight text-foreground">{stats?.totalTopics || stats?.totalDocuments || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">Saved Knowledge Topics</p>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3 pt-2.5 border-t border-border/30">
               <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>Ready for AI-powered extraction</span>
+              <span>Ready for AI-powered generation</span>
             </div>
           </Card>
 

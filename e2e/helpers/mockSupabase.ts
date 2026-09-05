@@ -97,9 +97,9 @@ function countHead(route: Route, total: number) {
 /**
  * Authenticated dashboard mock.
  *
- * Total Quizzes is the scheduled_telegram_posts count (live quiz jobs), not
- * quiz_generations. The mock returns 233 sent rows so the dashboard card
- * cannot regress to 0 when the generations table is empty.
+ * Total Quizzes sums quiz_generations + scheduled_telegram_posts + telegram_posts.
+ * The mock returns 233 scheduled rows and 0 elsewhere so the card cannot
+ * regress to 0 when the generations table is empty.
  */
 export async function mockSupabaseSession(page: Page): Promise<void> {
   const session = e2eSession();

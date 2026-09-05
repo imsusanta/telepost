@@ -1954,6 +1954,7 @@ export type Database = {
       }
       scheduled_telegram_posts: {
         Row: {
+          channel_id: string | null
           chat_id: string
           created_at: string
           error_message: string | null
@@ -1966,6 +1967,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          channel_id?: string | null
           chat_id: string
           created_at?: string
           error_message?: string | null
@@ -1978,6 +1980,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          channel_id?: string | null
           chat_id?: string
           created_at?: string
           error_message?: string | null

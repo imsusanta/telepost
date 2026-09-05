@@ -237,17 +237,35 @@ export class ChannelService {
     // Verify ownership
     await this.getChannel(channelId, userId);
 
-    // Count documents
-    const { count: documentCount } = await supabase
-      .from("documents")
-      .select("*", { count: "exact", head: true })
-      .eq("channel_id", channelId);
+    // Count topics / documents
+    const [{ count: topicCount }, { count: docCount }] = await Promise.all([
+      supabase
+        .from("knowledge_base_topics")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelId),
+      supabase
+        .from("documents")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelId),
+    ]);
+    const documentCount = (topicCount ?? 0) > 0 ? (topicCount ?? 0) : (docCount ?? 0);
 
-    // Count quizzes
-    const { count: quizCount } = await supabase
-      .from("quiz_generations")
-      .select("*", { count: "exact", head: true })
-      .eq("channel_id", channelId);
+    // Count quizzes across generations, scheduled posts, and telegram posts
+    const [{ count: quizGenCount }, { count: schedCount }, { count: teleCount }] = await Promise.all([
+      supabase
+        .from("quiz_generations")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelId),
+      supabase
+        .from("scheduled_telegram_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelId),
+      supabase
+        .from("telegram_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("channel_id", channelId),
+    ]);
+    const quizCount = (quizGenCount || 0) + (schedCount || 0) + (teleCount || 0);
 
     // Count questions in question bank
     const { count: questionCount } = await supabase

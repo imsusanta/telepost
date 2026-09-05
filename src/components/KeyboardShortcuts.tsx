@@ -42,8 +42,8 @@ export function KeyboardShortcuts() {
     },
     {
       key: "g f",
-      description: "Go to Documents",
-      action: () => navigate("/dashboard/documents"),
+      description: "Go to Knowledge Base",
+      action: () => navigate("/dashboard/knowledge-base"),
     },
     {
       key: "g q",
