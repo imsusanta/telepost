@@ -23,32 +23,35 @@ async function fetchDashboardData(userId: string) {
     channelsRes
   ] = await Promise.all([
     supabase.from("quiz_generations")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    // Live quiz jobs. quiz_generations is still empty in production until
+    // generate-quiz writes the live schema; scheduled_telegram_posts holds the
+    // quizzes that were actually created and queued.
+    supabase.from("scheduled_telegram_posts")
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("scheduled_telegram_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
-    supabase.from("scheduled_telegram_posts")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("status", "pending"),
     supabase.from("telegram_posts")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("quiz_responses")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("knowledge_base_topics")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("documents")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("question_banks")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
     supabase.from("channels")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
   ]);
 
@@ -70,7 +73,6 @@ async function fetchDashboardData(userId: string) {
     }
   }
 
-  // Calculate total quizzes across all generation sources (AI quiz generations, scheduled broadcasts, direct posts)
   const totalQuizzes = (quizzesRes?.count || 0) + (scheduledRes?.count || 0) + (telegramPostsRes?.count || 0);
   const totalTopics = (topicsRes?.count ?? 0) > 0 ? (topicsRes?.count ?? 0) : (docsRes?.count ?? 0);
 
@@ -145,7 +147,7 @@ export default function Dashboard() {
       color: "from-sky-400 to-blue-500",
       glow: "hover:shadow-blue-500/10",
       accent: "text-blue-500",
-      description: "Quizzes generated"
+      description: "Quizzes created and queued"
     },
     {
       title: "Scheduled",

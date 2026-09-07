@@ -7,6 +7,10 @@ export interface AISettings {
   system_prompt?: string;
   image_model?: string;
   openrouter_image_model?: string;
+  openrouter_api_key?: string;
+  gemini_api_key?: string;
+  cloudflare_api_token?: string;
+  cloudflare_account_id?: string;
 }
 
 export interface ResolvedAIProvider {
@@ -70,7 +74,7 @@ export function resolveAIProvider(settings: AISettings): ResolvedAIProvider {
   return { provider: 'openrouter', model: model.startsWith('@cf/') ? OPENROUTER_DEFAULT_MODEL : model, apiKey: openrouterKey };
 }
 
-function getAvailableFallbacks(settings: AISettings, primary: ResolvedAIProvider): ResolvedAIProvider[] {
+export function getAvailableFallbacks(settings: AISettings, primary: ResolvedAIProvider): ResolvedAIProvider[] {
   const settingsRecord = (settings && typeof settings === 'object' ? settings : {}) as Record<string, any>;
   const openrouterKey = (settingsRecord.openrouter_api_key && typeof settingsRecord.openrouter_api_key === 'string' ? settingsRecord.openrouter_api_key.trim() : '') || getEnv('OPENROUTER_API_KEY');
   const cfToken = (settingsRecord.cloudflare_api_token && typeof settingsRecord.cloudflare_api_token === 'string' ? settingsRecord.cloudflare_api_token.trim() : '') || getEnv('CLOUDFLARE_API_TOKEN');
@@ -95,6 +99,25 @@ function parseBody(body: string): unknown { try { return JSON.parse(body) as unk
 function isTransientStatus(status: number): boolean { return status === 408 || status === 429 || status >= 500; }
 function isUnknownModelError(status: number, body: string): boolean { return (status === 400 || status === 404) && /no endpoints found|not a valid model|no allowed providers|model not found/i.test(body); }
 function isQuotaOrBillingError(status: number, body: string): boolean { return status === 402 || /insufficient[_ -]?quota|quota[_ -]?exceeded|credits? exhausted|credit balance|billing|payment required|spend limit|budget exceeded|rate limit exceeded|too many requests/i.test(body); }
+function isAuthOrPermissionError(status: number, body: string): boolean {
+  return status === 401 || status === 403 || /permission denied|has been suspended|api[_ -]?key not valid|invalid api key/i.test(body);
+}
+function canFailoverProvider(status: number, message: string): boolean {
+  return status === 0 || status >= 500 || isQuotaOrBillingError(status, message) || isAuthOrPermissionError(status, message) || /timeout|temporarily|unavailable/i.test(message);
+}
+function redactSecrets(value: string): string {
+  return value
+    .replace(/api_key:[A-Za-z0-9_-]+/gi, 'api_key:[redacted]')
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[redacted-google-key]')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '[redacted-key]')
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]');
+}
+function affordableMaxTokens(body: string): number | null {
+  const match = body.match(/can only afford (\d+)/i);
+  if (!match) return null;
+  const affordable = Number(match[1]);
+  return Number.isFinite(affordable) && affordable >= 256 ? affordable : null;
+}
 export function providerError(provider: string, status: number, body: string): Error {
   const parsed = parseBody(body);
   if (parsed && typeof parsed === 'object') {
@@ -102,9 +125,9 @@ export function providerError(provider: string, status: number, body: string): E
     const error = record.error && typeof record.error === 'object' ? record.error as Record<string, unknown> : undefined;
     const errors = Array.isArray(record.errors) ? record.errors : [];
     const first = errors[0] && typeof errors[0] === 'object' ? errors[0] as Record<string, unknown> : undefined;
-    return new Error(`${provider} error (${status}): ${String(error?.message || first?.message || record.message || body).substring(0, 500)}`);
+    return new Error(redactSecrets(`${provider} error (${status}): ${String(error?.message || first?.message || record.message || body).substring(0, 500)}`));
   }
-  return new Error(`${provider} error (${status}): ${body.substring(0, 500)}`);
+  return new Error(redactSecrets(`${provider} error (${status}): ${body.substring(0, 500)}`));
 }
 
 async function requestWithRetry(url: string, init: RequestInit, timeoutMs = 90000): Promise<Response> {
@@ -155,21 +178,35 @@ async function callProvider(args: { resolved: ResolvedAIProvider; messages: Chat
     throw new Error('No configured Cloudflare Workers AI model is available.');
   }
 
-  const call = (model: string) => requestWithRetry(OPENROUTER_CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://telepost.tech', 'X-Title': appTitle }, body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }) }, timeoutMs);
-  let response = await call(resolved.model);
-  if (!response.ok) { const body = await response.text(); if (isUnknownModelError(response.status, body) && resolved.model !== OPENROUTER_DEFAULT_MODEL) response = await call(OPENROUTER_DEFAULT_MODEL); else throw providerError('openrouter', response.status, body); }
+  const call = (model: string, tokens: number) => requestWithRetry(OPENROUTER_CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${resolved.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://telepost.tech', 'X-Title': appTitle }, body: JSON.stringify({ model, messages, temperature, max_tokens: tokens }) }, timeoutMs);
+  let response = await call(resolved.model, maxTokens);
+  if (!response.ok) {
+    const failedBody = await response.text();
+    if (isUnknownModelError(response.status, failedBody) && resolved.model !== OPENROUTER_DEFAULT_MODEL) {
+      response = await call(OPENROUTER_DEFAULT_MODEL, maxTokens);
+    } else {
+      const cheaper = affordableMaxTokens(failedBody);
+      if (response.status === 402 && cheaper && cheaper < maxTokens) {
+        console.warn(`[ai-provider] Retrying OpenRouter with max_tokens=${cheaper} after 402 credit limit`);
+        response = await call(resolved.model, cheaper);
+      } else {
+        throw providerError('openrouter', response.status, failedBody);
+      }
+    }
+  }
   const body = await response.text(); if (!response.ok) throw providerError('openrouter', response.status, body);
   const data = parseBody(body); const text = data && typeof data === 'object' ? (data as OpenRouterResponse).choices?.[0]?.message?.content || '' : '';
   if (!text) throw new Error('OpenRouter returned an empty response.'); return text;
 }
 
 /** Central AI gateway: provider health, automatic failover, third provider and structured usage logs. */
-export async function chatCompletion(args: { resolved: ResolvedAIProvider; messages: ChatMessage[]; temperature?: number; maxTokens?: number; timeoutMs?: number; appTitle?: string }): Promise<string> {
-  const { resolved, messages, temperature = 0.7, maxTokens = 2048, timeoutMs = 90000, appTitle = 'TelePost' } = args;
+export async function chatCompletion(args: { resolved: ResolvedAIProvider; messages: ChatMessage[]; temperature?: number; maxTokens?: number; timeoutMs?: number; appTitle?: string; settings?: AISettings }): Promise<string> {
+  const { resolved, messages, temperature = 0.7, maxTokens = 2048, timeoutMs = 90000, appTitle = 'TelePost', settings } = args;
   if (!resolved.apiKey) throw new Error(`API credentials are missing for ${resolved.provider}. Configure the corresponding Supabase Edge Function secret.`);
   if (resolved.provider === 'cloudflare' && !resolved.accountId) throw new Error('Cloudflare Account ID is missing.');
 
-  const providers = [resolved, ...getAvailableFallbacks({ provider: resolved.provider, model: resolved.model, temperature }, resolved)];
+  const fallbackSettings = settings ?? { provider: resolved.provider, model: resolved.model, temperature };
+  const providers = [resolved, ...getAvailableFallbacks(fallbackSettings, resolved)];
   let lastError: Error | null = null;
   const startedAt = Date.now();
 
@@ -184,11 +221,11 @@ export async function chatCompletion(args: { resolved: ResolvedAIProvider; messa
       return text;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      const message = lastError.message;
+      const message = redactSecrets(lastError.message);
+      lastError = new Error(message);
       console.error(JSON.stringify({ event: 'ai_request_failure', provider: provider.provider, model: provider.model, error: message.substring(0, 500), latency_ms: Date.now() - startedAt }));
       const statusMatch = message.match(/error \((\d+)\)/i); const status = statusMatch ? Number(statusMatch[1]) : 0;
-      const canFailover = status === 0 || status >= 500 || isQuotaOrBillingError(status, message) || /timeout|temporarily|unavailable/i.test(message);
-      if (!canFailover) throw lastError;
+      if (!canFailoverProvider(status, message)) throw lastError;
       markFailure(provider.provider, message);
       if (index < providers.length - 1) console.warn(`[ai-provider] FAILOVER ${provider.provider} -> ${providers[index + 1].provider}`);
     }
