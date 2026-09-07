@@ -8,6 +8,7 @@ import {
   type ResolvedAIProvider,
 } from "../_shared/ai-provider.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
+import { cleanExplanation, randomizeQuestionOptions } from "../_shared/quiz.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,11 +174,11 @@ async function generateAIQuiz(
     featureInstructions: setting.custom_prompt || "",
     knowledgeBaseInstructions: ctx.instructions || "",
     outputRequirements:
-      `You are an expert competitive-exam question setter. ${rule} Generate exactly ${count} MCQs strictly about the exact topic "${topic}". Do not drift into other topics. Exactly four options and one correct answer. Output only JSON.`,
+      `You are an expert competitive-exam question setter. ${rule} Generate exactly ${count} MCQs strictly about the exact topic "${topic}". Do not drift into other topics. Exactly four options and one correct answer. CRITICAL: Distribute correct answers randomly across all option positions (0, 1, 2, 3). Do NOT always place the correct answer in the first position. In explanations, explain the fact directly without referring to option letters. Output only JSON.`,
   });
   const user = `Generate questions only for this exact topic. ${
     ctx.context ? `Authoritative context:\n${ctx.context}\n\n` : ""
-  }Return {"questions":[{"question":"string","options":["string","string","string","string"],"correct_option_index":0,"explanation":"string"}]}`;
+  }Return {"questions":[{"question":"string","options":["string","string","string","string"],"correct_option_index":2,"explanation":"string"}]}. Ensure correct_option_index is randomly distributed across 0, 1, 2, 3.`;
   let last: any = null;
   let feedback = "";
   for (let i = 0; i < 3; i++) {
@@ -195,7 +196,7 @@ async function generateAIQuiz(
       });
       const parsed = parseJsonObject(text) as any;
       const valid = Array.isArray(parsed?.questions)
-        ? parsed.questions.filter(isValidQuestion)
+        ? parsed.questions.filter(isValidQuestion).map(randomizeQuestionOptions)
         : [];
       if (valid.length !== count) {
         feedback = `Expected ${count} valid questions, received ${valid.length}.`;
@@ -421,12 +422,12 @@ Deno.serve(async (req) => {
           const quiz = {
             topic,
             language: setting.language || lang,
-            questions: questions.map((q: any, i: number) => ({
+            questions: questions.map((q: any, i: number) => randomizeQuestionOptions({
               id: i + 1,
               question: q.question,
               options: q.options,
               correct_option_index: q.correct_option_index,
-              explanation: q.explanation || "",
+              explanation: cleanExplanation(q.explanation || ""),
             })),
             metadata: {
               difficulty: "medium",
@@ -478,12 +479,12 @@ Deno.serve(async (req) => {
           const quiz = {
             topic,
             language: setting.language || lang,
-            questions: questions.map((q: any, i: number) => ({
+            questions: questions.map((q: any, i: number) => randomizeQuestionOptions({
               id: i + 1,
               question: q.question,
               options: q.options,
               correct_option_index: q.correct_option_index,
-              explanation: q.explanation || "",
+              explanation: cleanExplanation(q.explanation || ""),
             })),
             metadata: {
               difficulty: "medium",

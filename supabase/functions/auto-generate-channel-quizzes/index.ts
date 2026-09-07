@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { authorizeOwnedRecord, classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { chatCompletion, parseJsonObject, resolveAIProvider, type AISettings, type ResolvedAIProvider } from "../_shared/ai-provider.ts";
 import { composeTelePostSystemPrompt } from "../_shared/prompt-composer.ts";
+import { cleanExplanation, randomizePollOptions, randomizeQuestionOptions } from "../_shared/quiz.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret" };
 
@@ -180,9 +181,9 @@ async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: 
     platformInstructions: aiSettings.system_prompt,
     userSystemPrompt,
     featureInstructions: channel.settings.system_prompt || '',
-    outputRequirements: `You are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} ${difficulty} MCQs about "${topic}". Each question must have exactly four plausible options and one correct answer. Keep questions under 120 characters, options under 80, explanations under 200, and output only JSON.`,
+    outputRequirements: `You are an expert competitive-exam question setter. ${languageRule} Generate exactly ${count} ${difficulty} MCQs about "${topic}". Each question must have exactly four plausible options and one correct answer. CRITICAL: Distribute correct answers randomly across all option positions (0, 1, 2, 3). Do NOT always place the correct answer in the first position. In explanations, explain the fact directly without referring to option letters. Keep questions under 120 characters, options under 80, explanations under 200, and output only JSON.`,
   });
-  const userPrompt = `${knowledgeBase ? `Use only this channel knowledge base:\n${knowledgeBase}\n\n` : ''}Return exactly:\n{\n  "request_id": "${requestId}",\n  "topic": "${topic}",\n  "questions": [{"id": 1, "question": "string", "options": ["string", "string", "string", "string"], "correct_option_index": 0, "explanation": "string"}],\n  "metadata": {"difficulty": "${difficulty}", "generated_at": "${generatedAt}"}\n}`;
+  const userPrompt = `${knowledgeBase ? `Use only this channel knowledge base:\n${knowledgeBase}\n\n` : ''}Return exactly:\n{\n  "request_id": "${requestId}",\n  "topic": "${topic}",\n  "questions": [{"id": 1, "question": "string", "options": ["string", "string", "string", "string"], "correct_option_index": 2, "explanation": "string"}],\n  "metadata": {"difficulty": "${difficulty}", "generated_at": "${generatedAt}"}\n}`;
   let feedback = '';
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -192,6 +193,7 @@ async function generateQuizForChannel(resolved: ResolvedAIProvider, aiSettings: 
       if (!Array.isArray(quiz.questions) || quiz.questions.length !== count) { feedback = `Expected exactly ${count} questions.`; continue; }
       const invalid = quiz.questions.find((question: any) => !question?.question || !Array.isArray(question.options) || question.options.length !== 4 || !Number.isInteger(question.correct_option_index) || question.correct_option_index < 0 || question.correct_option_index > 3);
       if (invalid) { feedback = 'Every question needs text, exactly four options, and a valid correct_option_index.'; continue; }
+      quiz.questions = quiz.questions.map(randomizeQuestionOptions);
       return quiz;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
@@ -222,7 +224,19 @@ async function sendQuizToTelegram(botToken: string, chatId: string, quiz: any): 
   await request(`${baseUrl}/sendMessage`, { chat_id: normalizedChatId, text: `New Quiz: ${quiz.topic}\nQuestions: ${quiz.questions.length}\nDifficulty: ${quiz.metadata?.difficulty || 'medium'}` });
   for (let index = 0; index < quiz.questions.length; index++) {
     const question = quiz.questions[index];
-    const response = await request(`${baseUrl}/sendPoll`, { chat_id: normalizedChatId, question: safeTruncate(`Q${index + 1}. ${question.question}`, 290), options: question.options.map((option: string) => safeTruncate(option, 95)), type: 'quiz', correct_option_id: question.correct_option_index, explanation: safeTruncate(question.explanation || 'Correct answer explanation', 190), is_anonymous: true });
+    const correctIndex = Number.isInteger(question.correct_option_index) ? question.correct_option_index : 0;
+    const rawOptions = (question.options || []).map((option: string) => safeTruncate(option, 95));
+    const randomized = randomizePollOptions(rawOptions, correctIndex);
+    const explanation = safeTruncate(cleanExplanation(question.explanation || 'Correct answer explanation'), 190);
+    const response = await request(`${baseUrl}/sendPoll`, {
+      chat_id: normalizedChatId,
+      question: safeTruncate(`Q${index + 1}. ${question.question}`, 290),
+      options: randomized.options,
+      type: 'quiz',
+      correct_option_id: randomized.correctOptionIndex,
+      explanation,
+      is_anonymous: true,
+    });
     if (!response.ok) throw new Error(`Failed to send question ${index + 1}: ${await response.text()}`);
     if (index < quiz.questions.length - 1) await new Promise((resolve) => setTimeout(resolve, 1000));
   }

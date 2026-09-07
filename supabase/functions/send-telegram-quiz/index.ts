@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authorizeUserFacingAi, classifyBearer, extractBearer } from '../_shared/auth.ts';
+import { cleanExplanation, randomizePollOptions, randomizeQuestionOptions } from '../_shared/quiz.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,13 +154,14 @@ serve(async (req: Request) => {
 
       for (let i = 0; i < questionBatches.length; i++) {
         const scheduledTime = new Date(now.getTime() + ((i + 1) * effectiveInterval * 60 * 1000));
+        const batchQuestions = questionBatches[i].map((q: any) => randomizeQuestionOptions(q));
         scheduledPosts.push({
           user_id: user.id,
           channel_id: channelId || null,
           chat_id: chatId,
           quiz_data: {
             topic: quiz.topic,
-            questions: questionBatches[i],
+            questions: batchQuestions,
             metadata: quiz.metadata || {},
             language: quiz.language || quiz.metadata?.language || null,
           },
@@ -270,7 +272,12 @@ serve(async (req: Request) => {
 
       const correctIndex = Number.parseInt(String(q.correct_option_index), 10);
       const safeCorrectIndex = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < pollOptions.length ? correctIndex : 0;
-      const pollExplanation = safeTruncate(q.explanation || "Correct", 150);
+      const pollExplanation = safeTruncate(cleanExplanation(q.explanation || "Correct"), 150);
+
+      // Randomize poll options dynamically so the correct answer isn't always the 1st option
+      const randomized = randomizePollOptions(pollOptions, safeCorrectIndex);
+      pollOptions = randomized.options;
+      const finalCorrectIndex = randomized.correctOptionIndex;
 
       const pollResponse = await fetchWithRetry(`${baseUrl}/sendPoll`, {
         method: "POST",
@@ -280,7 +287,7 @@ serve(async (req: Request) => {
           question: pollQuestion,
           options: pollOptions,
           type: "quiz",
-          correct_option_id: safeCorrectIndex,
+          correct_option_id: finalCorrectIndex,
           explanation: pollExplanation,
           is_anonymous: true,
         }),

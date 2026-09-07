@@ -170,6 +170,112 @@ export function matchesLanguage(question: QuizQuestion, language: string): boole
   return latin <= target;
 }
 
+const POSITIONAL_PATTERNS = [
+  /all of the above/i,
+  /none of the above/i,
+  /both [a-d] and [a-d]/i,
+  /either [a-d] or [a-d]/i,
+  /neither [a-d] nor [a-d]/i,
+  /উপরের সবক[টটি]/,
+  /উপরের সবগু[ললি]/,
+  /উপরের কোন[োটটিই]/,
+  /উভয়ই/,
+  /ক ও খ/,
+  /উপরে উল্লিখিত/,
+  /উপযুক্ত সবকটি/,
+  /উপযুক্ত কোনটিই নয়/,
+  /उपरोक्त सभी/,
+  /इनमें से कोई नहीं/,
+];
+
+export function hasPositionalOptions(options: string[]): boolean {
+  if (!Array.isArray(options)) return false;
+  return options.some((opt) => {
+    if (typeof opt !== 'string') return false;
+    return POSITIONAL_PATTERNS.some((pat) => pat.test(opt));
+  });
+}
+
+export function isBinaryOptionSet(options: string[]): boolean {
+  if (!Array.isArray(options) || options.length !== 2) return false;
+  const lower = options.map((o) => (typeof o === 'string' ? o.toLowerCase().trim() : ''));
+  return (
+    (lower.includes('true') && lower.includes('false')) ||
+    (lower.includes('yes') && lower.includes('no')) ||
+    (lower.includes('সত্য') && lower.includes('মিথ্যা')) ||
+    (lower.includes('হ্যাঁ') && lower.includes('না'))
+  );
+}
+
+export function stripOptionPrefix(opt: string): string {
+  if (typeof opt !== 'string') return '';
+  return opt.replace(/^\(?([a-dA-D1-4ক-ঘ])\)?[).:\-]\s*/, '').trim();
+}
+
+export function cleanExplanation(explanation: string): string {
+  if (!explanation || typeof explanation !== 'string') return '';
+  let cleaned = explanation.trim();
+  cleaned = cleaned.replace(/^(?:(?:the\s+)?correct\s+(?:answer|option)\s+(?:is\s+)?\(?[a-dA-D1-4]\)?[.:\-]?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:ans(?:wer)?\s*:\s*\(?[a-dA-D1-4]\)?[.:\-]?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:option\s+\(?[a-dA-D1-4]\)?\s+(?:is\s+correct)?[.:\-]?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:সঠিক\s+উত্তর\s*(?:হলো|হল|:)?\s*\(?[a-dA-D1-4ক-ঘ]\)?[.:\-]?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:উত্তর\s*:\s*\(?[a-dA-D1-4ক-ঘ]\)?[.:\-]?\s*)/i, '');
+  return cleaned.trim() || explanation.trim();
+}
+
+export function randomizePollOptions(
+  options: string[],
+  correctIndex: number
+): { options: string[]; correctOptionIndex: number } {
+  if (!Array.isArray(options) || options.length < 2) {
+    return { options: options || [], correctOptionIndex: Math.max(0, correctIndex || 0) };
+  }
+
+  const validIndex =
+    Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length
+      ? correctIndex
+      : 0;
+
+  // Preserve ordering for positional choices (e.g. "All of the above") or binary True/False
+  if (hasPositionalOptions(options) || isBinaryOptionSet(options)) {
+    return { options: [...options], correctOptionIndex: validIndex };
+  }
+
+  const cleaned = options.map(stripOptionPrefix);
+  const indexed = cleaned.map((opt, i) => ({
+    opt,
+    isCorrect: i === validIndex,
+  }));
+
+  // Fisher-Yates shuffle
+  for (let i = indexed.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = indexed[i];
+    indexed[i] = indexed[j];
+    indexed[j] = temp;
+  }
+
+  const newOptions = indexed.map((x) => x.opt);
+  const newCorrectIndex = indexed.findIndex((x) => x.isCorrect);
+
+  return {
+    options: newOptions,
+    correctOptionIndex: newCorrectIndex >= 0 ? newCorrectIndex : 0,
+  };
+}
+
+export function randomizeQuestionOptions<T extends { options: string[]; correct_option_index: number; explanation?: string }>(
+  question: T
+): T {
+  const randomized = randomizePollOptions(question.options, question.correct_option_index);
+  return {
+    ...question,
+    options: randomized.options,
+    correct_option_index: randomized.correctOptionIndex,
+    explanation: question.explanation ? cleanExplanation(question.explanation) : question.explanation,
+  };
+}
+
 export function normalizeQuestions(rawList: any[], language: string): QuizQuestion[] {
   const normalized: QuizQuestion[] = [];
 
@@ -184,15 +290,19 @@ export function normalizeQuestions(rawList: any[], language: string): QuizQuesti
     const correctIndex = extractCorrectIndex(raw, fourOptions);
     if (correctIndex < 0 || correctIndex > 3) continue;
 
-    const question: QuizQuestion = {
+    const rawExplanation = asText(raw?.explanation ?? raw?.reason ?? raw?.rationale);
+    const baseQuestion: QuizQuestion = {
       id: normalized.length + 1,
       question: questionText,
       options: fourOptions,
       correct_option_index: correctIndex,
-      explanation: asText(raw?.explanation ?? raw?.reason ?? raw?.rationale) || undefined,
+      explanation: rawExplanation ? cleanExplanation(rawExplanation) : undefined,
     };
 
-    if (!matchesLanguage(question, language)) continue;
+    if (!matchesLanguage(baseQuestion, language)) continue;
+
+    // Dynamically randomize options so the correct answer isn't always the 1st option
+    const question = randomizeQuestionOptions(baseQuestion);
     normalized.push(question);
   }
 

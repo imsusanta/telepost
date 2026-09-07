@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { classifyBearer, extractBearer, publicErrorMessage } from "../_shared/auth.ts";
 import { jsonResponse, optionsResponse } from "../_shared/cors.ts";
 import { alreadyAttemptedPoll, persistWithRetry, isAmbiguousOutcome, shouldSkipIntro, telegramRequest } from "../_shared/telegram.ts";
+import { cleanExplanation, randomizePollOptions } from "../_shared/quiz.ts";
 
 const TELEGRAM_API_ORIGIN = "https://api.telegram.org";
 
@@ -254,6 +255,13 @@ serve(async (req) => {
               ? correctIndex
               : 0;
 
+          const pollExplanation = safeTruncate(cleanExplanation(String(q.explanation || "Correct")), 150);
+
+          // Randomize poll options dynamically so the correct answer isn't always the 1st option
+          const randomized = randomizePollOptions(pollOptions, safeCorrectIndex);
+          pollOptions = randomized.options;
+          const finalCorrectIndex = randomized.correctOptionIndex;
+
           const pollResponse = await telegramRequest(`${baseUrl}/sendPoll`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -262,8 +270,8 @@ serve(async (req) => {
               question: pollQuestion,
               options: pollOptions,
               type: "quiz",
-              correct_option_id: safeCorrectIndex,
-              explanation: safeTruncate(String(q.explanation || "Correct"), 150),
+              correct_option_id: finalCorrectIndex,
+              explanation: pollExplanation,
               is_anonymous: true,
             }),
           });
