@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isSuperAdmin } from "@/services/couponService";
 
 export interface QuestionBankItem {
   id: string;
@@ -167,23 +168,86 @@ export class QuestionBankService {
     return (data ?? []) as QuestionBankItem[];
   }
 
-  static async updateQuestion(questionId: string, userId: string, updates: Partial<QuestionBankItem>): Promise<QuestionBankItem> {
+  static async updateQuestion(
+    questionId: string,
+    userId: string,
+    updates: Partial<QuestionBankItem>,
+    isSuperAdminUser?: boolean
+  ): Promise<QuestionBankItem> {
     const clean = stripLegacyDifficulty({ ...updates } as Record<string, unknown>);
-    delete (clean as any).id; delete (clean as any).user_id; delete (clean as any).created_at; delete (clean as any).updated_at;
-    delete (clean as any).times_used; delete (clean as any).times_correct; delete (clean as any).times_incorrect;
-    const { data, error } = await supabase.from("question_banks").update(clean as any).eq("id", questionId).eq("user_id", userId).select().single();
+    delete (clean as any).id;
+    delete (clean as any).user_id;
+    delete (clean as any).created_at;
+    delete (clean as any).updated_at;
+    delete (clean as any).times_used;
+    delete (clean as any).times_correct;
+    delete (clean as any).times_incorrect;
+
+    if (typeof clean.topic === "string") {
+      clean.topic = clean.topic.trim() || "General";
+    }
+    if (typeof clean.subject === "string") {
+      clean.subject = clean.subject.trim() || null;
+    }
+    if (Array.isArray(clean.options)) {
+      clean.options = clean.options.map((opt: unknown) => (typeof opt === "string" ? opt.trim() : String(opt)));
+    }
+    if (typeof clean.question === "string") {
+      clean.question = clean.question.trim();
+    }
+    if (typeof clean.explanation === "string") {
+      clean.explanation = clean.explanation.trim() || null;
+    } else if (clean.explanation === "") {
+      clean.explanation = null;
+    }
+    clean.classification_source = "manual";
+
+    const isAdmin = isSuperAdminUser ?? (await isSuperAdmin().catch(() => false));
+
+    let query = supabase.from("question_banks").update(clean as any).eq("id", questionId);
+    if (!isAdmin) {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query.select().maybeSingle();
     if (error) throw error;
+    if (!data) {
+      throw new Error("Question not found or you do not have permission to update it.");
+    }
     return data as QuestionBankItem;
   }
 
-  static async deleteQuestion(questionId: string, userId: string): Promise<void> {
-    const { error } = await supabase.from("question_banks").delete().eq("id", questionId).eq("user_id", userId);
+  static async deleteQuestion(questionId: string, userId: string, isSuperAdminUser?: boolean): Promise<void> {
+    const isAdmin = isSuperAdminUser ?? (await isSuperAdmin().catch(() => false));
+    let query = supabase.from("question_banks").delete().eq("id", questionId);
+    if (!isAdmin) {
+      query = query.eq("user_id", userId);
+    }
+    const { error } = await query;
     if (error) throw error;
   }
 
-  static async bulkUpdateClassification(questionIds: string[], userId: string, subject: string, topic: string): Promise<void> {
+  static async bulkUpdateClassification(
+    questionIds: string[],
+    userId: string,
+    subject: string,
+    topic: string,
+    isSuperAdminUser?: boolean
+  ): Promise<void> {
     if (!questionIds.length) return;
-    const { error } = await supabase.from("question_banks").update({ subject: subject.trim(), topic: topic.trim() || "General", classification_source: "manual" }).in("id", questionIds).eq("user_id", userId);
+    const isAdmin = isSuperAdminUser ?? (await isSuperAdmin().catch(() => false));
+    let query = supabase
+      .from("question_banks")
+      .update({
+        subject: subject.trim() || null,
+        topic: topic.trim() || "General",
+        classification_source: "manual",
+      } as any)
+      .in("id", questionIds);
+    if (!isAdmin) {
+      query = query.eq("user_id", userId);
+    }
+    const { error } = await query;
     if (error) throw error;
   }
 

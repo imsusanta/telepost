@@ -104,15 +104,20 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
                 return;
             }
 
-            await QuestionBankService.updateQuestion(question.id, user.id, {
-                question: formData.question,
-                options: formData.options,
-                correct_option_index: formData.correct_option_index,
-                subject: formData.subject,
-                topic: formData.topic,
-                language: formData.language,
-                explanation: formData.explanation || undefined,
-            });
+            await QuestionBankService.updateQuestion(
+                question.id,
+                user.id,
+                {
+                    question: formData.question.trim(),
+                    options: formData.options.map((opt) => opt.trim()),
+                    correct_option_index: formData.correct_option_index,
+                    subject: formData.subject.trim() || undefined,
+                    topic: formData.topic.trim() || "General",
+                    language: formData.language,
+                    explanation: formData.explanation.trim() || undefined,
+                },
+                isSuperUser
+            );
 
             toast({
                 title: "Question Updated",
@@ -121,9 +126,15 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSaved }: Ed
             onSaved();
             onOpenChange(false);
         } catch (error: unknown) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : error && typeof error === "object" && "message" in error && typeof (error as any).message === "string"
+                    ? (error as any).message
+                    : "Failed to update question.";
             toast({
                 title: "Error",
-                description: error instanceof Error ? error.message : "Failed to update question.",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {

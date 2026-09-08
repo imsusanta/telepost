@@ -271,7 +271,7 @@ export default function CreateQuizPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await QuestionBankService.deleteQuestion(questionId, user.id);
+      await QuestionBankService.deleteQuestion(questionId, user.id, isSuperAdmin);
       setQuestions(questions.filter(q => q.id !== questionId));
       toast({
         title: "Deleted",
@@ -279,9 +279,10 @@ export default function CreateQuizPage() {
       });
       loadStats();
     } catch (error) {
+      const msg = error instanceof Error ? error.message : error && typeof error === "object" && "message" in error ? String((error as any).message) : "Failed to delete question";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete question",
+        description: msg,
         variant: "destructive",
       });
     }

@@ -53,7 +53,7 @@ export default function QuestionBank() {
   const [fullTopics, setFullTopics] = useState<any[]>([]);
   const [topicsWithCounts, setTopicsWithCounts] = useState<{ topic: string; count: number }[]>([]);
   const { toast } = useToast();
-  const { canAccess } = useSubscription();
+  const { canAccess, isSuperAdmin } = useSubscription();
   const hasAIAccess = canAccess("question_bank", "ai_generate");
 
   const applyStatistics = useCallback((statistics: QuestionBankStatistics) => {
@@ -120,7 +120,20 @@ export default function QuestionBank() {
   useEffect(() => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => { setCurrentPage(1); loadQuestions(1, searchQuery); }, 500); return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); }; }, [searchQuery]);
 
   const handleRefresh = async () => { await refreshAll(true); };
-  const confirmDelete = async () => { if (!deleteQuestionId) return; try { const { data: { user } } = await supabase.auth.getUser(); if (!user) return; await QuestionBankService.deleteQuestion(deleteQuestionId, user.id); await refreshAll(false); setDeleteQuestionId(null); toast({ title: "Deleted", description: "Question deleted successfully" }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete question", variant: "destructive" }); } };
+  const confirmDelete = async () => {
+    if (!deleteQuestionId) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await QuestionBankService.deleteQuestion(deleteQuestionId, user.id, isSuperAdmin);
+      await refreshAll(false);
+      setDeleteQuestionId(null);
+      toast({ title: "Deleted", description: "Question deleted successfully" });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : error && typeof error === "object" && "message" in error ? String((error as any).message) : "Failed to delete question";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
+  };
   const handleQuestionsGenerated = (generatedQs: GeneratedQuestion[], topic?: string, _difficulty?: string, language?: string) => { setGeneratedQuestions(generatedQs); setDefaultTopic(topic || ""); setDefaultLanguage(language || "en"); };
   const handleQuestionsSaved = async () => { setGeneratedQuestions([]); await refreshAll(false); };
   const handleBulkUpload = async (questionsToUpload: ParsedQuestion[]) => {
@@ -165,7 +178,21 @@ export default function QuestionBank() {
     setSelectedQuestionIds(next);
   };
   const handleClearSelection = () => setSelectedQuestionIds(new Set());
-  const handleBulkDelete = async () => { if (!selectedQuestionIds.size) return; const deleted = selectedQuestionIds.size; try { const { data: { user } = {} } = await supabase.auth.getUser(); if (!user) return; for (const id of selectedQuestionIds) await QuestionBankService.deleteQuestion(id, user.id); setSelectedQuestionIds(new Set()); await refreshAll(false); toast({ title: "Bulk Delete Complete", description: `Successfully deleted ${deleted} questions.` }); } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete some questions", variant: "destructive" }); } };
+  const handleBulkDelete = async () => {
+    if (!selectedQuestionIds.size) return;
+    const deleted = selectedQuestionIds.size;
+    try {
+      const { data: { user } = {} } = await supabase.auth.getUser();
+      if (!user) return;
+      for (const id of selectedQuestionIds) await QuestionBankService.deleteQuestion(id, user.id, isSuperAdmin);
+      setSelectedQuestionIds(new Set());
+      await refreshAll(false);
+      toast({ title: "Bulk Delete Complete", description: `Successfully deleted ${deleted} questions.` });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : error && typeof error === "object" && "message" in error ? String((error as any).message) : "Failed to delete some questions";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
+  };
   const handleEdit = (question: QuestionBankItem) => { setEditingQuestion(question); setIsEditDialogOpen(true); };
   const filteredQuestions = questions;
   const handleExportQuestions = () => { if (!filteredQuestions.length) { toast({ title: "No questions to export", variant: "destructive" }); return; } let exportText = `Question Bank Export\nTotal Questions: ${filteredQuestions.length}\n${"=".repeat(50)}\n\n`; filteredQuestions.forEach((q, idx) => { exportText += `${idx + 1}. ${q.question}\n`; q.options.forEach((opt, i) => { exportText += `   ${String.fromCharCode(97 + i)}) ${opt}\n`; }); exportText += `   Correct Answer: ${String.fromCharCode(97 + q.correct_option_index)}) ${q.options[q.correct_option_index]}\n`; if (q.explanation) exportText += `   Explanation: ${q.explanation}\n`; exportText += "\n"; }); const blob = new Blob([exportText], { type: "text/plain;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `question_bank_export_${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast({ title: "Exported!", description: `${filteredQuestions.length} questions exported to file.` }); };
@@ -231,7 +258,43 @@ export default function QuestionBank() {
               onDeleteTopic={handleDeleteTopic}
               privateOnly={false}
             />
-            {loading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div> : filteredQuestions.length === 0 ? <Card><CardContent className="py-10 text-center text-muted-foreground">No questions found.</CardContent></Card> : <div className="space-y-3">{filteredQuestions.map((q, idx) => <Card key={q.id}><CardContent className="p-4"><div className="flex items-start gap-3"><Checkbox checked={selectedQuestionIds.has(q.id)} onCheckedChange={() => handleToggleQuestion(q.id)} /><div className="flex-1 min-w-0"><div className="font-semibold">{(currentPage - 1) * pageSize + idx + 1}. {q.question}</div><div className="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2 text-sm">{(Array.isArray(q.options) ? q.options : []).map((option, i) => <div key={i} className={i === q.correct_option_index ? "font-semibold" : ""}>{String.fromCharCode(65 + i)}. {option}{i === q.correct_option_index ? " ✓" : ""}</div>)}</div><div className="flex flex-wrap gap-2 mt-2"><ClassificationBadges subject={q.subject} topic={q.topic} /><span className="text-xs text-muted-foreground">{q.language}</span>{q.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}</div></div><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => handleEdit(q)}><Pencil className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => setDeleteQuestionId(q.id)}><Trash2 className="w-4 h-4" /></Button></div></div></CardContent></Card>)}</div>}
+            {loading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div> : filteredQuestions.length === 0 ? <Card><CardContent className="py-10 text-center text-muted-foreground">No questions found.</CardContent></Card> : <div className="space-y-3">{filteredQuestions.map((q, idx) => {
+              const canModify = q.user_id === currentUserId || isSuperAdmin;
+              return (
+                <Card key={q.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selectedQuestionIds.has(q.id)} onCheckedChange={() => handleToggleQuestion(q.id)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold">{(currentPage - 1) * pageSize + idx + 1}. {q.question}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2 text-sm">
+                          {(Array.isArray(q.options) ? q.options : []).map((option, i) => (
+                            <div key={i} className={i === q.correct_option_index ? "font-semibold" : ""}>
+                              {String.fromCharCode(65 + i)}. {option}{i === q.correct_option_index ? " ✓" : ""}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <ClassificationBadges subject={q.subject} topic={q.topic} />
+                          <span className="text-xs text-muted-foreground">{q.language}</span>
+                          {q.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                        </div>
+                      </div>
+                      {canModify && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(q)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteQuestionId(q.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}</div>}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4"><div className="text-sm text-muted-foreground">Showing {totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}</div><div className="flex items-center gap-2"><Select value={String(pageSize)} onValueChange={v => { setPageSize(Number(v)); setCurrentPage(1); }}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem></SelectContent></Select><Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="w-4 h-4" /></Button><span className="text-sm">Page {currentPage}</span><Button variant="outline" size="icon" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage * pageSize >= totalCount}><ChevronRight className="w-4 h-4" /></Button></div></div>
           </TabsContent>
           <TabsContent value="ai-generate" className="mt-6">
