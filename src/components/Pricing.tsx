@@ -6,13 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionService, type SubscriptionPlan } from "@/services/subscriptionService";
 import { getRazorpay } from "@/lib/razorpay";
+import {
+  getPlanPrice,
+  getYearlyDiscountPercent,
+  type BillingPeriod,
+} from "@/lib/pricing";
 
 export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -100,10 +105,13 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
         return;
       }
 
+      const selectedPrice = getPlanPrice(plan, billingPeriod);
+
       const { data: orderData, error: orderError } = await supabase.functions.invoke("create-razorpay-order", {
         body: {
-          amount: Math.round(plan.price * 100),
-          planId: plan.name
+          amount: Math.round(selectedPrice * 100),
+          planId: plan.name,
+          billingPeriod,
         },
       });
 
@@ -114,7 +122,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: "TelePost SaaS",
-        description: `Subscribe to ${plan.display_name} Plan`,
+        description: `Subscribe to ${plan.display_name} Plan (${billingPeriod})`,
         order_id: orderData.order_id,
         handler: async (response: any) => {
           try {
@@ -245,7 +253,7 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                 billingPeriod === 'yearly'
                   ? 'bg-white/20 text-white'
                   : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-              }`}>Save 20%</span>
+              }`}>Save 16%</span>
             </button>
           </motion.div>
         </motion.div>
@@ -263,6 +271,9 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
               const popular = isPopularPlan(plan);
               const features = getPlanFeatures(plan);
               const icon = getPlanIcon(plan.name);
+              const isTrial = plan.price === 0 || plan.billing_period === 'trial';
+              const displayedPrice = getPlanPrice(plan, billingPeriod);
+              const yearlyDiscount = getYearlyDiscountPercent(plan);
               
               return (
                 <motion.div
@@ -295,25 +306,25 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                       <div className="mb-3">
                         <div className="flex items-baseline gap-1.5">
                           <span className={`text-4xl font-black tracking-tight ${popular ? 'text-white' : 'text-foreground'}`}>
-                            ₹{billingPeriod === 'yearly' ? (plan as any).yearly_price || plan.price : plan.price}
+                            ₹{displayedPrice}
                           </span>
                           <span className={`text-sm font-medium ${popular ? 'text-white/70' : 'text-muted-foreground'}`}>
-                            / {billingPeriod === 'yearly' ? 'year' : plan.billing_period === 'trial' ? '7 days' : 'month'}
+                            / {isTrial ? '7 days' : billingPeriod === 'yearly' ? 'year' : 'month'}
                           </span>
                         </div>
-                        {billingPeriod === 'yearly' && plan.price > 0 && (
+                        {billingPeriod === 'yearly' && !isTrial && (
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className={`text-xs line-through ${popular ? 'text-white/40' : 'text-muted-foreground/60'}`}>
                               ₹{plan.price * 12}/yr
                             </span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${popular ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
-                              Save ₹{plan.price * 12 - ((plan as any).yearly_price || plan.price)}
+                              Save ₹{plan.price * 12 - displayedPrice}
                             </span>
                           </div>
                         )}
-                        {billingPeriod === 'monthly' && plan.price > 0 && (
+                        {billingPeriod === 'monthly' && !isTrial && (
                           <p className={`text-xs mt-1 ${popular ? 'text-white/50' : 'text-muted-foreground'}`}>
-                            or ₹{(plan as any).yearly_price || plan.price * 12}/yr (save more!)
+                            or ₹{getPlanPrice(plan, 'yearly')}/yr (save {yearlyDiscount}%)
                           </p>
                         )}
                       </div>
@@ -322,9 +333,9 @@ export const Pricing = ({ onGetStarted }: { onGetStarted: () => void }) => {
                       <p className={`text-sm leading-relaxed ${popular ? 'text-white/70' : 'text-muted-foreground'}`}>
                         {plan.price === 0
                           ? 'Get started for free with essential features to explore the platform.'
-                          : popular
-                          ? 'The perfect plan for growing institutions. Unlock advanced AI tools and automation.'
-                          : 'Full-scale deployment for large organizations with premium features and dedicated support.'
+                          : plan.name.toLowerCase() === 'basic'
+                          ? 'Essential Telegram automation for individual educators and small teams.'
+                          : 'The complete plan for growing institutions with advanced AI and higher limits.'
                         }
                       </p>
                     </div>

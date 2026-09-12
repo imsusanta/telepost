@@ -10,6 +10,7 @@ import { validateCoupon } from "@/services/couponService";
 import { supabase } from "@/integrations/supabase/client";
 import { getRazorpay } from "@/lib/razorpay";
 import { Badge } from "@/components/ui/badge";
+import { getPlanPrice } from "@/lib/pricing";
 
 export default function Billing() {
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
@@ -124,7 +125,8 @@ export default function Billing() {
       if (!selectedPlan) throw new Error("Plan not found");
 
       // 2. Handle coupon discount calculation
-      let amountToPay = selectedPlan.price;
+      const billingPeriod = "yearly" as const;
+      let amountToPay = getPlanPrice(selectedPlan, billingPeriod);
       const couponToApply = appliedCoupon && appliedCoupon.plan_name === planName.toLowerCase()
         ? appliedCoupon.code
         : undefined;
@@ -148,7 +150,8 @@ export default function Billing() {
       const { data: orderData, error: orderError } = await supabase.functions.invoke("create-razorpay-order", {
         body: {
           amount: Math.round(amountToPay * 100), // Convert to paise
-          planId: selectedPlan.name.toLowerCase()
+          planId: selectedPlan.name.toLowerCase(),
+          billingPeriod,
         },
       });
 
@@ -258,11 +261,13 @@ export default function Billing() {
     },
     {
       name: "Basic",
-      price: "₹999",
-      numericPrice: 999,
+      price: "₹1999",
+      numericPrice: 1999,
       period: "/year",
       features: [
         "5 Telegram Channels",
+        "1,000 Quizzes per Month",
+        "5,000 Questions Capacity",
         "Create Quiz (Manual Input Only)",
         "No AI Post Writing",
         "Story Access",
@@ -279,7 +284,9 @@ export default function Billing() {
       numericPrice: 2999,
       period: "/year",
       features: [
-        "Unlimited Telegram Channels",
+        "100 Telegram Channels",
+        "Unlimited Quizzes",
+        "Unlimited Questions Capacity",
         "Full AI Quiz Generation",
         "AI Content Writing",
         "Story & Video Generation",
