@@ -34,10 +34,14 @@ serve(async (req) => {
 
         // Parse request body. `amount` is accepted for backwards compatibility but
         // is NEVER trusted: the price is resolved server-side below.
-        const { amount: clientAmount, planId } = await req.json();
+        const { amount: clientAmount, planId, billingPeriod = "monthly" } = await req.json();
 
         if (!planId || typeof planId !== "string") {
             throw new Error("Missing plan ID");
+        }
+
+        if (billingPeriod !== "monthly" && billingPeriod !== "yearly") {
+            throw new Error("Invalid billing period");
         }
 
         // SECURITY: resolve the price from subscription_plans instead of trusting
@@ -48,7 +52,7 @@ serve(async (req) => {
         // Pricing.tsx does not), so match case-insensitively.
         const { data: plan, error: planError } = await supabaseClient
             .from("subscription_plans")
-            .select("id, name, display_name, price, billing_period, is_active")
+            .select("id, name, display_name, price, yearly_price, billing_period, is_active")
             .ilike("name", planId)
             .eq("is_active", true)
             .maybeSingle();
@@ -63,10 +67,14 @@ serve(async (req) => {
             throw new Error("Unknown or inactive plan");
         }
 
-        const planPrice = Number(plan.price);
+        const planPrice = billingPeriod === "yearly"
+            ? Number(plan.yearly_price)
+            : Number(plan.price);
         if (!Number.isFinite(planPrice) || planPrice <= 0) {
-            console.error(`Plan ${plan.id} (${plan.name}) has an invalid price: ${plan.price}`);
-            throw new Error("Plan pricing is not configured correctly");
+            console.error(
+                `Plan ${plan.id} (${plan.name}) has an invalid ${billingPeriod} price: ${planPrice}`
+            );
+            throw new Error(`${billingPeriod === "yearly" ? "Yearly" : "Monthly"} pricing is not configured correctly`);
         }
 
         // Authoritative amount, in paise.
@@ -104,6 +112,7 @@ serve(async (req) => {
                     email: user.email,
                     plan_id: plan.id,
                     plan_name: plan.name,
+                    billing_period: billingPeriod,
                 },
             }),
         });
@@ -126,11 +135,11 @@ serve(async (req) => {
                 plan_id: plan.id,
                 amount: amount / 100, // Convert paise to rupees
                 amount_paise: amount,
-                plan_billing_period: plan.billing_period || "monthly",
+                plan_billing_period: billingPeriod,
                 currency: "INR",
                 razorpay_order_id: orderData.id,
                 payment_status: "pending",
-                description: `Payment for ${plan.display_name || plan.name} plan`,
+                description: `Payment for ${plan.display_name || plan.name} plan (${billingPeriod})`,
             });
 
         if (insertError) {
@@ -157,6 +166,7 @@ serve(async (req) => {
                 amount: orderData.amount,
                 currency: orderData.currency,
                 key_id: razorpayKeyId,
+                billing_period: billingPeriod,
             }),
             {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
