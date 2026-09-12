@@ -1,7 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 const DEFAULT_SUPABASE_URL = "https://wpkxbrdgktmwnowvmwue.supabase.co";
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
@@ -22,13 +21,10 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
     },
-    plugins: [
-      react(),
-      mode === "development" && componentTagger(),
-    ].filter(Boolean),
+    plugins: [react()],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": path.resolve(import.meta.dirname, "./src"),
       },
     },
     build: {
@@ -36,19 +32,23 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       rollupOptions: {
         output: {
-          manualChunks: {
-            "vendor-react": ["react", "react-dom", "react-router-dom"],
-            "vendor-ui": [
-              "@radix-ui/react-dialog",
-              "@radix-ui/react-dropdown-menu",
-              "@radix-ui/react-popover",
-              "@radix-ui/react-select",
-              "@radix-ui/react-tabs",
-              "@radix-ui/react-tooltip",
-            ],
-            "vendor-query": ["@tanstack/react-query"],
-            "vendor-supabase": ["@supabase/supabase-js"],
-            "vendor-recharts": ["recharts"],
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return;
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/.test(id)) {
+              return "vendor-react";
+            }
+            if (id.includes("/node_modules/@radix-ui/")) {
+              return "vendor-ui";
+            }
+            if (id.includes("/node_modules/@tanstack/react-query/")) {
+              return "vendor-query";
+            }
+            if (id.includes("/node_modules/@supabase/")) {
+              return "vendor-supabase";
+            }
+            if (id.includes("/node_modules/recharts/")) {
+              return "vendor-recharts";
+            }
           },
           chunkFileNames: "assets/[name]-[hash].js",
           entryFileNames: "assets/[name]-[hash].js",
