@@ -99,7 +99,7 @@ function extractOptions(raw: any): string[] {
       }
       return asText(value);
     })
-    .map((value) => value.replace(/^\(?([a-dA-D1-4])\)?[).:\-]\s+/, '').trim())
+    .map((value) => value.replace(/^[(]?([a-dA-D1-4])[)]?[).:-]\s+/, '').trim())
     .filter(Boolean);
 }
 
@@ -123,7 +123,7 @@ function extractCorrectIndex(raw: any, options: string[]): number {
     const text = asText(candidate);
     if (!text) continue;
 
-    const letterMatch = text.match(/^\(?([a-dA-D])\)?$/);
+    const letterMatch = text.match(/^[(]?([a-dA-D])[)]?$/);
     if (letterMatch) {
       const index = letterMatch[1].toLowerCase().charCodeAt(0) - 97;
       if (index >= 0 && index < options.length) return index;

@@ -69,36 +69,24 @@ export class AnalyticsService {
 
     // Fetch all counts and data in parallel for better performance
     const [
-      quizGenerationsResult,
       sentScheduledQuizzesResult,
-      postedTelegramPostsResult,
       pdfsCountResult,
       questionsCountResult,
       quizzesResult,
       recentActivityResult
     ] = await Promise.all([
       supabase
-        .from("quiz_generations")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "completed"),
-      supabase
         .from("scheduled_telegram_posts")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("status", "sent"),
       supabase
-        .from("telegram_posts")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "posted"),
-      supabase
         .from("documents")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", userId),
       supabase
         .from("question_banks")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", userId),
       quizQueryBuilder,
       supabase
@@ -109,8 +97,8 @@ export class AnalyticsService {
         .limit(20)
     ]);
 
-    // Calculate total quizzes sent to Telegram (from all sources)
-    const totalQuizzesSent = (quizGenerationsResult.count || 0) + (sentScheduledQuizzesResult.count || 0) + (postedTelegramPostsResult.count || 0);
+    // Scheduled telegram quiz jobs are the live unit of work.
+    const totalQuizzesSent = sentScheduledQuizzesResult.count || 0;
 
     const quizzes = quizzesResult.data || [];
     const quizIds = quizzes.map((q) => q.id);

@@ -114,6 +114,7 @@ serve(async (req: Request) => {
         maxTokens: 1024,
         timeoutMs: 90000,
         appTitle: 'TelePost Document Processing',
+        settings: aiSettings,
       });
       const parsed = parseJsonObject(analysisText) as any;
       if (typeof parsed.summary === 'string' && parsed.summary.trim()) aiSummary = parsed.summary.trim();

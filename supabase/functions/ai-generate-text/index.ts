@@ -84,7 +84,7 @@ serve(async (req: Request) => {
 
     console.log(`[ai-generate-text] user=${userId}, provider=${provider}, model=${model}`);
     try {
-      const text = await chatCompletion({ resolved, messages: [{ role: "system", content: finalSystemPrompt }, { role: "user", content: finalPrompt }], temperature: aiSettings.temperature ?? requestedTemperature, maxTokens: 2048, timeoutMs: 90000, appTitle: "TelePost" });
+      const text = await chatCompletion({ resolved, messages: [{ role: "system", content: finalSystemPrompt }, { role: "user", content: finalPrompt }], temperature: aiSettings.temperature ?? requestedTemperature, maxTokens: 2048, timeoutMs: 90000, appTitle: "TelePost", settings: aiSettings });
       if (!text.trim()) return jsonResponse({ error: "AI returned an empty response" }, 502);
       try { await supabase.from("ai_usage_logs").insert({ user_id: userId, feature: "text-generation", provider, model, prompt: prompt.substring(0, 2000), status: "success", success: true, metadata: { usage_source: "provider_usage_not_exposed_by_shared_client" }, completed_at: new Date().toISOString() }); } catch (logError) { console.error("[ai-generate-text] Failed to log usage:", logError); }
       return jsonResponse({ text, provider, model });
